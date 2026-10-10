@@ -450,7 +450,33 @@ pub fn load_ents(conn: &Connection) -> Result<Option<Vec<Ent>>, String> {
 /// As [`load_ents`], optionally leaving out each entry's `version_history`, which
 /// is up to 50 revisions of secret material per entry and is not wanted by a
 /// selective read.
+/// Runs `f` against one consistent snapshot of the database.
+///
+/// A load is several statements (rows, then history; token, rows, accumulator for the
+/// integrity check). Run as separate autocommit statements, a save landing between them
+/// gave a document whose history belonged to a different version than its rows (and a
+/// writer that then saved that copy lost a rotation record), or an integrity check that
+/// reported tampering on a healthy vault. Inside a caller's own transaction this just
+/// runs `f`: that transaction is already one snapshot.
+pub fn in_snapshot<T>(
+    conn: &Connection,
+    f: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    if !conn.is_autocommit() {
+        return f();
+    }
+    conn.execute_batch("BEGIN").map_err(|e| e.to_string())?;
+    let r = f();
+    // Read-only: there is nothing to lose if the end of the snapshot fails.
+    let _ = conn.execute_batch("COMMIT");
+    r
+}
+
 pub fn load_ents_opts(conn: &Connection, with_history: bool) -> Result<Option<Vec<Ent>>, String> {
+    in_snapshot(conn, || load_ents_inner(conn, with_history))
+}
+
+fn load_ents_inner(conn: &Connection, with_history: bool) -> Result<Option<Vec<Ent>>, String> {
     let mut stmt = conn
         .prepare("SELECT kind, key, data, rev FROM vault_rows ORDER BY kind, pos")
         .map_err(|e| e.to_string())?;
@@ -689,6 +715,10 @@ pub fn version(conn: &Connection) -> Result<Option<String>, String> {
 
 /// Integrity: every row hashes to its `rev`, and the rows hash to the stored token.
 pub fn verify(conn: &Connection) -> Result<bool, String> {
+    in_snapshot(conn, || verify_inner(conn))
+}
+
+fn verify_inner(conn: &Connection) -> Result<bool, String> {
     let mut stmt = conn
         .prepare("SELECT data, rev FROM vault_rows")
         .map_err(|e| e.to_string())?;
@@ -904,6 +934,124 @@ fn conflict(names: &[String]) -> String {
     }
 }
 
+/// The stored history of the entry row with this storage key, if any.
+fn history_by_key(conn: &Connection, key: &str) -> Result<Option<Value>, String> {
+    let text: Option<String> = conn
+        .query_row(
+            "SELECT data FROM vault_history WHERE key = ?1",
+            params![key],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    text.map(|t| serde_json::from_str(&t).map_err(|e| e.to_string()))
+        .transpose()
+}
+
+/// Union of two copies of one entry's `version_history`, newest first, capped at 50.
+///
+/// History is append-only. A writer's copy of an entry carries the history it read, so
+/// when it saves a row that did not change (a retried PUT, two clients arriving at the
+/// same value) or one that changed while another writer rotated a secret in between,
+/// replacing the stored history with that copy erased the other writer's record of the
+/// old secret, with no conflict raised. Records are identified by their whole content.
+pub fn merge_history(stored: Option<&Value>, writer: Option<&Value>) -> Option<Value> {
+    let list = |v: Option<&Value>| -> Vec<Value> {
+        v.and_then(Value::as_array).cloned().unwrap_or_default()
+    };
+    let (a, b) = (list(stored), list(writer));
+    // The longer copy is the base (it already has the order: newest first, as the save
+    // path inserts them); a tie goes to the stored one. Records only the other copy has
+    // are placed before the first base record that is strictly older, else at the end.
+    let (mut base, other) = if b.len() > a.len() { (b, a) } else { (a, b) };
+    let at = |v: &Value| {
+        v.get("saved_at")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    };
+    for rec in other {
+        if base.contains(&rec) {
+            continue;
+        }
+        let pos = base
+            .iter()
+            .position(|x| at(x) < at(&rec))
+            .unwrap_or(base.len());
+        base.insert(pos, rec);
+    }
+    if base.is_empty() {
+        return None;
+    }
+    base.truncate(50);
+    Some(Value::Array(base))
+}
+
+/// Drops references to things that no longer exist, after a merge.
+///
+/// A merge keeps a row only one writer touched, so a project one writer deleted and an
+/// entry another writer added to it merge cleanly row by row and leave the entry pointing
+/// at a project that is gone (the cascade that remaps `projectIds` only ever sees the
+/// writer's own document). The same holds for a bundle dissolved while a member was being
+/// attached. Such an entry stays valid and visible: an unknown project id is removed (the
+/// entry falls back to Universal) and an unknown `bundle_id` is cleared, which turns the
+/// entry into an ordinary one. Returns whether anything changed.
+pub fn repair_references(ents: &mut [Ent]) -> bool {
+    use std::collections::HashSet;
+    let projects: HashSet<String> = ents
+        .iter()
+        .filter(|e| e.kind == KIND_PROJECT)
+        .filter_map(|e| e.data.get("id").and_then(Value::as_str).map(String::from))
+        .collect();
+    let bundles: HashSet<String> = ents
+        .iter()
+        .filter(|e| e.kind == KIND_ENTRY)
+        .filter(|e| e.data.get("secretType").and_then(Value::as_str) == Some("bundle"))
+        .filter_map(|e| e.data.get("id").and_then(Value::as_str).map(String::from))
+        .collect();
+    let mut changed = false;
+    for ent in ents.iter_mut().filter(|e| e.kind == KIND_ENTRY) {
+        let mut touched = false;
+        if let Some(ids) = ent.data.get("projectIds").and_then(Value::as_array) {
+            let keep: Vec<Value> = ids
+                .iter()
+                .filter(|v| {
+                    v.as_str()
+                        .is_some_and(|id| id == "Universal" || projects.contains(id))
+                })
+                .cloned()
+                .collect();
+            if keep.len() != ids.len() {
+                let keep = if keep.is_empty() {
+                    vec![Value::String("Universal".into())]
+                } else {
+                    keep
+                };
+                ent.data["projectIds"] = Value::Array(keep);
+                touched = true;
+            }
+        }
+        let dangling_bundle = ent
+            .data
+            .get("bundle_id")
+            .and_then(Value::as_str)
+            .is_some_and(|b| !bundles.contains(b));
+        if dangling_bundle {
+            if let Some(o) = ent.data.as_object_mut() {
+                for k in ["bundle_id", "bundle_slot", "bundle_order"] {
+                    o.remove(k);
+                }
+            }
+            touched = true;
+        }
+        if touched {
+            ent.rev = rev_of(&ent.data);
+            changed = true;
+        }
+    }
+    changed
+}
+
 // ── Writing ──────────────────────────────────────────────────────────────────
 
 /// Persist `ents` as the new state. Must run inside a write transaction. Only rows
@@ -988,20 +1136,39 @@ pub fn write(
             }
         }
         if e.kind == KIND_ENTRY {
-            if let Some(h) = e
+            let writer = e
                 .history
                 .as_ref()
-                .filter(|h| h.as_array().map(|a| !a.is_empty()).unwrap_or(false))
-            {
-                keep_hist.insert(e.key.clone());
-                let hrev = rev_of(h);
-                if stored_hist.get(&e.key) != Some(&hrev) {
-                    conn.execute(
-                        "INSERT OR REPLACE INTO vault_history (key, data, rev) VALUES (?1, ?2, ?3)",
-                        params![e.key, h.to_string(), hrev],
-                    )
-                    .map_err(|x| x.to_string())?;
-                    dirty = true;
+                .filter(|h| h.as_array().map(|a| !a.is_empty()).unwrap_or(false));
+            match (writer, stored_hist.get(&e.key)) {
+                (None, None) => {}
+                // A row that lost its history in the writer's copy keeps the stored
+                // one: history is only ever removed together with its entry.
+                (None, Some(_)) => {
+                    keep_hist.insert(e.key.clone());
+                }
+                (Some(h), stored_rev) => {
+                    keep_hist.insert(e.key.clone());
+                    let hrev = rev_of(h);
+                    if stored_rev != Some(&hrev) {
+                        let merged = if stored_rev.is_some() {
+                            let stored = history_by_key(conn, &e.key)?;
+                            merge_history(stored.as_ref(), Some(h))
+                        } else {
+                            Some(h.clone())
+                        };
+                        if let Some(m) = merged {
+                            let mrev = rev_of(&m);
+                            if stored_rev != Some(&mrev) {
+                                conn.execute(
+                                    "INSERT OR REPLACE INTO vault_history (key, data, rev) VALUES (?1, ?2, ?3)",
+                                    params![e.key, m.to_string(), mrev],
+                                )
+                                .map_err(|x| x.to_string())?;
+                                dirty = true;
+                            }
+                        }
+                    }
                 }
             }
         }
