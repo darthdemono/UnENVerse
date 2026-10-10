@@ -130,6 +130,11 @@ pub struct RemoteClient {
     pub base: String,
     pub client: reqwest::blocking::Client,
     pub token: String,
+    /// The vault version (the `ETag`) of the last document this client read or saved.
+    /// A save is made against it, so an entry another client added in the meantime is
+    /// merged and an entry both changed is refused (exit 6). Saved without it, every
+    /// remote command overwrote whatever the app or a peer had stored since its read.
+    pub base_version: std::sync::Mutex<Option<String>>,
 }
 
 impl RemoteClient {
@@ -154,6 +159,7 @@ impl RemoteClient {
             base: base.to_string(),
             client,
             token,
+            base_version: std::sync::Mutex::new(None),
         })
     }
 
@@ -195,6 +201,7 @@ impl RemoteClient {
             base: base.to_string(),
             client: crate::tls::build_client()?,
             token: session_token.to_string(),
+            base_version: std::sync::Mutex::new(None),
         })
     }
 
@@ -227,6 +234,7 @@ impl RemoteClient {
             base: base.to_string(),
             client,
             token,
+            base_version: std::sync::Mutex::new(None),
         })
     }
 
@@ -311,6 +319,12 @@ impl RemoteClient {
         if !status.is_success() {
             return Err(Self::err_body(resp));
         }
+        let etag = resp
+            .headers()
+            .get(reqwest::header::ETAG)
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.trim_matches('"').to_string());
+        *self.base_version.lock().unwrap() = etag;
         resp.json().map_err(|e| CliError::from(e.to_string()))
     }
 
@@ -354,8 +368,32 @@ impl RemoteClient {
     }
 
     pub fn save_vault(&self, data: &serde_json::Value) -> CliResult {
-        self.send_json(reqwest::Method::PUT, "/api/vault", Some(data))
-            .map(|_| ())
+        let mut req = self
+            .client
+            .put(format!("{}/api/vault", self.base))
+            .bearer_auth(&self.token)
+            .json(data);
+        // Conditional on what this process read: see `base_version`. A server too old to
+        // send an ETag leaves this empty and the save stays unconditional, as before.
+        if let Some(v) = self.base_version.lock().unwrap().clone() {
+            req = req.header(reqwest::header::IF_MATCH, v);
+        }
+        let resp = req.send().map_err(|e| CliError::from(e.to_string()))?;
+        if !resp.status().is_success() {
+            return Err(Self::err_body(resp));
+        }
+        // After a save that merged someone else's changes this process's copy is behind:
+        // the next save must not write it back over them, and no real version describes
+        // it, so the base becomes one nothing matches (the local path does the same).
+        let merged = resp.headers().contains_key("x-vault-merged");
+        let etag = resp
+            .headers()
+            .get(reqwest::header::ETAG)
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.trim_matches('"').to_string());
+        *self.base_version.lock().unwrap() =
+            etag.map(|t| if merged { "stale-copy".to_string() } else { t });
+        Ok(())
     }
 }
 
@@ -409,12 +447,13 @@ impl Access {
         match self {
             Access::Local(key) => {
                 let conn = open_db(&default_db_path(), key)?;
-                let doc = vault_core::load_vault(&conn).map_err(CliError::from)?;
-                // Read the version after the data it describes only because the
-                // load itself may have just migrated the vault; a write racing in
-                // between makes the version newer than the data, which the merge
-                // treats as "someone else's change to this row" — safe.
-                let ver = vault_core::vault_version(&conn).map_err(CliError::from)?;
+                // Migrate first (a load may rewrite the vault), then read the document and
+                // its version as one snapshot. Read apart, a save landing between them paired
+                // the document with a NEWER version, so the next save was judged against a
+                // base that already contained the other writer's rows, which this copy lacks:
+                // they looked like deletions it had made.
+                vault_core::ensure_current_schema(&conn).map_err(CliError::from)?;
+                let (ver, doc) = vault_core::snapshot_vault(&conn).map_err(CliError::from)?;
                 LOCAL_BASE.with(|b| *b.borrow_mut() = ver);
                 doc.ok_or_else(|| CliError::not_found("Vault is empty"))
             }
