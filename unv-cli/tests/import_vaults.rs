@@ -201,6 +201,7 @@ fn importing_a_nextcloud_config_twice_changes_nothing_the_second_time() {
         project: None,
         category: None,
         keep_folders: true,
+        force: false,
     };
     let vault = serde_json::json!({ "api_keys": [], "projects": [], "user_categories": [] });
     let first = plan_import(&vault, "nextcloud", &doc, &opts).unwrap();
@@ -227,6 +228,7 @@ fn plan(vendor: &str, fixture: &str) -> Vec<Value> {
         project: None,
         category: None,
         keep_folders: false,
+        force: false,
     };
     let vault = serde_json::json!({ "api_keys": [], "projects": [], "user_categories": [] });
     plan_import(&vault, vendor, &load(fixture), &opts)
@@ -284,6 +286,7 @@ fn an_unusable_totp_value_is_kept_in_the_notes_not_lost() {
         project: None,
         category: None,
         keep_folders: false,
+        force: false,
     };
     let vault = serde_json::json!({ "api_keys": [], "projects": [], "user_categories": [] });
     let out = plan_import(&vault, "bitwarden", &doc, &opts)
@@ -302,6 +305,7 @@ fn reimporting_adds_a_missing_seed_but_never_replaces_a_different_one() {
         project: None,
         category: None,
         keep_folders: false,
+        force: false,
     };
     let doc = load("bitwarden.json");
     let empty = serde_json::json!({ "api_keys": [], "projects": [], "user_categories": [] });
@@ -340,5 +344,68 @@ fn reimporting_adds_a_missing_seed_but_never_replaces_a_different_one() {
     assert_eq!(
         entry(&kept.entries, "GitHub")["totp_secret"],
         "MFRGGZDFMZTWQ2LK"
+    );
+}
+
+// C11: a re-import used to overwrite the stored secret of the first entry with the
+// same name, silently, and picked an arbitrary one when several shared the name.
+#[test]
+fn import_never_replaces_a_different_secret_without_force() {
+    use unv_cli::import_vaults::{plan_import, ImportOpts};
+    let mut opts = ImportOpts {
+        apply: false,
+        project: None,
+        category: None,
+        keep_folders: false,
+        force: false,
+    };
+    let doc = load("bitwarden.json");
+    let empty = serde_json::json!({ "api_keys": [], "projects": [], "user_categories": [] });
+    let first = plan_import(&empty, "bitwarden", &doc, &opts).unwrap();
+
+    // Someone rotated the stored GitHub secret since the export was taken.
+    let mut entries = first.entries.clone();
+    for e in &mut entries {
+        if e["provider"] == "GitHub" {
+            e["api_key"] = serde_json::json!("rotated-after-export");
+        }
+    }
+    let vault = serde_json::json!({ "api_keys": entries, "projects": [], "user_categories": [] });
+    let plan = plan_import(&vault, "bitwarden", &doc, &opts).unwrap();
+    assert_eq!(plan.conflicts, vec!["GitHub".to_string()]);
+    assert_eq!(
+        entry(&plan.entries, "GitHub")["api_key"],
+        "rotated-after-export"
+    );
+
+    opts.force = true;
+    let forced = plan_import(&vault, "bitwarden", &doc, &opts).unwrap();
+    assert!(forced.conflicts.is_empty());
+    assert_ne!(
+        entry(&forced.entries, "GitHub")["api_key"],
+        "rotated-after-export"
+    );
+
+    // Two entries share the name: the one holding the exported secret is the match,
+    // so the re-import is a no-op instead of rewriting the first one.
+    opts.force = false;
+    let mut dup = first.entries.clone();
+    let mut other = dup
+        .iter()
+        .find(|e| e["provider"] == "GitHub")
+        .unwrap()
+        .clone();
+    other["id"] = serde_json::json!("other-id");
+    other["api_key"] = serde_json::json!("someone-elses");
+    dup.insert(0, other);
+    let vault = serde_json::json!({ "api_keys": dup, "projects": [], "user_categories": [] });
+    let plan = plan_import(&vault, "bitwarden", &doc, &opts).unwrap();
+    assert!(plan.conflicts.is_empty());
+    assert_eq!(
+        plan.entries
+            .iter()
+            .filter(|e| e["api_key"] == "someone-elses")
+            .count(),
+        1
     );
 }
