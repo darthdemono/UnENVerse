@@ -107,6 +107,11 @@ pub fn load() -> Value {
 }
 
 /// Write the state file, creating its directory and restricting it to its owner.
+///
+/// Atomic: written beside the target and renamed over it, so a reader never sees a
+/// half-written file. It used to truncate and write in place, and a concurrent
+/// `load()` that parsed the torn text fell back to an empty document, which the next
+/// save then wrote out, erasing every cursor and cooldown on the machine.
 pub fn save(state: &Value) -> Result<(), String> {
     let path = state_path().ok_or_else(|| {
         "Cannot determine a home directory for per-user state (no $HOME on Unix, \
@@ -116,12 +121,60 @@ pub fn save(state: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+    let mut tmp_name = path
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    tmp_name.push(format!(".{}.tmp", std::process::id()));
+    let tmp = path.with_file_name(tmp_name);
     std::fs::write(
-        &path,
+        &tmp,
         serde_json::to_string_pretty(state).unwrap_or_default(),
     )
-    .map_err(|e| format!("Cannot write {}: {e}", path.display()))?;
-    restrict(&path)
+    .map_err(|e| format!("Cannot write {}: {e}", tmp.display()))?;
+    restrict(&tmp)?;
+    std::fs::rename(&tmp, &path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("Cannot replace {}: {e}", path.display())
+    })
+}
+
+/// Read, change and write the state under an exclusive lock.
+///
+/// Two runners (two `unv exec --pool`, the app beside the CLI) each did `load()`,
+/// picked a member, `record_use` and `save()`: the second save erased the first's
+/// cursor move and use count, so two callers were handed the same key and a cooldown
+/// set by one was lost, handing a just-rate-limited key out again. Holding the lock
+/// from the read to the rename makes each runner see the previous one's result.
+/// Returns the closure's value and, if the write failed, why.
+pub fn update<T>(f: impl FnOnce(&mut Value) -> T) -> Result<(T, Option<String>), String> {
+    let path = state_path().ok_or_else(|| {
+        "Cannot determine a home directory for per-user state (no $HOME on Unix, \
+         no %USERPROFILE% on Windows). Set UNV_POOL_FILE to choose the location."
+            .to_string()
+    })?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut lock_name = path
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    lock_name.push(".lock");
+    let lock = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path.with_file_name(lock_name))
+        .map_err(|e| format!("Cannot open the pool lock: {e}"))?;
+    lock.lock()
+        .map_err(|e| format!("Cannot lock the pool state: {e}"))?;
+    let mut state = load();
+    let out = f(&mut state);
+    // A failed write is reported next to the value, not instead of it: a caller that
+    // already chose a credential must still be able to hand it over.
+    let saved = save(&state).err();
+    Ok((out, saved)) // the lock is released when `lock` drops
 }
 
 /// Restrict the state file to its owner.
