@@ -106,7 +106,17 @@ pub fn members(
     vault: &Value,
     name: &str,
 ) -> CliResult<Vec<Member>> {
-    let state = state::load();
+    members_with(access, vault, name, &state::load())
+}
+
+/// [`members`] against a state the caller already holds, so a select can read the
+/// cooldowns and write the cursor under one lock.
+fn members_with(
+    access: &crate::access::Access,
+    vault: &Value,
+    name: &str,
+    state: &Value,
+) -> CliResult<Vec<Member>> {
     let stored = &state["vaults"][vault_key(access)][name]["members"];
 
     let list: Vec<Member> = crate::data::entries(vault)
@@ -170,50 +180,53 @@ fn pick_index(list: &[Member], cursor: usize, now: i64) -> Option<usize> {
 /// that frees up first — a caller that cannot distinguish "no keys left right
 /// now" from "no such pool" has to treat both as fatal.
 pub fn select(access: &crate::access::Access, vault: &Value, name: &str) -> CliResult<Member> {
-    let list = members(access, vault, name)?;
     let now = state::now_ts();
-
-    let mut state = state::load();
     let vk = vault_key(access);
-    let cursor = state["vaults"][&vk][name]["cursor"].as_u64().unwrap_or(0) as usize;
 
-    let n = list.len();
-    let Some(i) = pick_index(&list, cursor, now) else {
-        // Every member is cooling. Name the soonest, so a script can sleep for a
-        // known interval instead of retrying blind.
-        let soonest = list
-            .iter()
-            .filter_map(|m| {
-                m.cooling_until
-                    .as_deref()
-                    .and_then(state::parse_rfc3339)
-                    .map(|t| (t, m.label()))
-            })
-            .min_by_key(|(t, _)| *t);
-        let detail = match soonest {
-            Some((t, label)) => {
-                let secs = (t - now).max(0);
-                format!(" — '{label}' frees up in {}s ({})", secs, state::iso_at(t))
-            }
-            None => String::new(),
+    // The whole decision runs under the state lock: read the cooldowns, pick, advance
+    // the cursor, write. Two runners used to read the same cursor and both take the
+    // same member, and the later write erased the earlier one's cooldown.
+    let (chosen, save_error) = state::update(|state| -> CliResult<Member> {
+        let list = members_with(access, vault, name, state)?;
+        let cursor = state["vaults"][&vk][name]["cursor"].as_u64().unwrap_or(0) as usize;
+
+        let n = list.len();
+        let Some(i) = pick_index(&list, cursor, now) else {
+            // Every member is cooling. Name the soonest, so a script can sleep for a
+            // known interval instead of retrying blind.
+            let soonest = list
+                .iter()
+                .filter_map(|m| {
+                    m.cooling_until
+                        .as_deref()
+                        .and_then(state::parse_rfc3339)
+                        .map(|t| (t, m.label()))
+                })
+                .min_by_key(|(t, _)| *t);
+            let detail = match soonest {
+                Some((t, label)) => {
+                    let secs = (t - now).max(0);
+                    format!(" — '{label}' frees up in {}s ({})", secs, state::iso_at(t))
+                }
+                None => String::new(),
+            };
+            return Err(CliError::unavailable(format!(
+                "Every key in pool '{name}' is rate limited{detail}"
+            )));
         };
-        return Err(CliError::unavailable(format!(
-            "Every key in pool '{name}' is rate limited{detail}"
-        )));
-    };
+        let chosen = list[i].clone();
+        state::record_use(state, &vk, name, &chosen.ck, (i + 1) % n, now);
+        Ok(chosen)
+    })
+    .map_err(CliError::from)?;
 
-    let chosen = list[i].clone();
-
-    // Persist cursor and usage. Failing to write is NOT fatal: the caller asked
-    // for a credential, and refusing to hand one over because a bookkeeping file
-    // is unwritable would turn a read-only home directory into an outage. Say so
-    // on stderr and carry on with a cursor that does not advance.
-    state::record_use(&mut state, &vk, name, &chosen.ck, (i + 1) % n, now);
-    if let Err(e) = state::save(&state) {
+    // Failing to write is NOT fatal: the caller asked for a credential, and refusing to
+    // hand one over because a bookkeeping file is unwritable would turn a read-only home
+    // directory into an outage. Say so on stderr and carry on.
+    if let Some(e) = save_error {
         eprintln!("unv: pool state not saved ({e}); cursor will not advance");
     }
-
-    Ok(chosen)
+    chosen
 }
 
 /// Put a member on cooldown, or clear its cooldown.
@@ -268,11 +281,13 @@ pub fn report(
         })?,
     };
 
-    let mut st = state::load();
     let vk = vault_key(access);
     let until = cooldown_secs.map(|secs| state::now_ts() + secs);
-    state::set_cooldown(&mut st, &vk, name, &member.ck, until);
-    state::save(&st).map_err(CliError::from)?;
+    let (_, save_error) = state::update(|st| state::set_cooldown(st, &vk, name, &member.ck, until))
+        .map_err(CliError::from)?;
+    if let Some(e) = save_error {
+        return Err(CliError::from(e));
+    }
 
     let mut updated = member;
     updated.cooling_until = until.map(state::iso_at);
@@ -295,10 +310,10 @@ fn last_used(access: &crate::access::Access, name: &str, list: &[Member]) -> Opt
 
 /// Forget a pool's cursor, cooldowns and counts on this machine.
 pub fn reset(access: &crate::access::Access, name: &str) -> CliResult {
-    let mut st = state::load();
     let vk = vault_key(access);
-    state::forget(&mut st, &vk, name);
-    state::save(&st).map_err(CliError::from)
+    let (_, save_error) =
+        state::update(|st| state::forget(st, &vk, name)).map_err(CliError::from)?;
+    save_error.map_or(Ok(()), |e| Err(CliError::from(e)))
 }
 
 /// Human-readable duration: `30s`, `15m`, `2h`, `1d`. A bare number is seconds.
