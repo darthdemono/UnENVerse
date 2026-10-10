@@ -647,6 +647,9 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 
+/// Prefix of the refusal when the file changed after the owner fetched it.
+pub const ACCEPT_CHANGED: &str = "The file changed on the node after you fetched it";
+
 impl NodeStore {
     /// Opens the registry, empty when the file does not exist. A file that
     /// exists and does not parse is an error, not an empty registry: silently
@@ -969,7 +972,17 @@ impl NodeStore {
     }
 
     /// Records the hash a human accepted into the vault for a pull target.
-    pub fn accept(&mut self, id: &str, target: &str) -> Result<String, String> {
+    /// Records the node's current file for a pull target as accepted.
+    ///
+    /// `expected` is the hash of the bytes the owner actually fetched and reviewed. Without
+    /// it, accept recorded whatever the node last reported, and a file that changed between
+    /// the fetch and the accept was accepted as in sync without anyone having seen it.
+    pub fn accept(
+        &mut self,
+        id: &str,
+        target: &str,
+        expected: Option<&str>,
+    ) -> Result<String, String> {
         let node = self
             .data
             .nodes
@@ -988,6 +1001,13 @@ impl NodeStore {
             .reported_sha
             .clone()
             .ok_or("The file does not exist on the node, so there is nothing to accept")?;
+        if let Some(want) = expected {
+            if !want.eq_ignore_ascii_case(&sha) {
+                return Err(format!(
+                    "{ACCEPT_CHANGED}: you fetched {want} but the node now reports {sha}. Pull it again and review that."
+                ));
+            }
+        }
         t.accepted_sha = Some(sha.clone());
         t.status = "in_sync".into();
         self.save()?;
@@ -1918,7 +1938,7 @@ mod tests {
         s.record_beat(&n.id, &beat, &|_| Err("x".into()), "t")
             .unwrap();
         assert_eq!(s.get(&n.id).unwrap().targets[0].status, "unreviewed");
-        s.accept(&n.id, "nginx-main").unwrap();
+        s.accept(&n.id, "nginx-main", None).unwrap();
         // The next beat still sees the accepted hash.
         s.record_beat(&n.id, &beat, &|_| Err("x".into()), "t")
             .unwrap();
