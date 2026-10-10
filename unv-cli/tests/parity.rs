@@ -787,3 +787,33 @@ fn cookie_parsing_matches_the_app() {
         );
     }
 }
+
+/// An upstream chunk is named for people ("app upstream") but written as one nginx
+/// word; `tests/cli-parity.test.ts` asserts the same table for the TypeScript side.
+#[test]
+fn nginx_upstream_identifiers_match_the_shared_table() {
+    let raw = std::fs::read_to_string(fixtures().join("nginx-ident.json")).unwrap();
+    let table: Value = serde_json::from_str(&raw).unwrap();
+    for c in table["cases"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        assert_eq!(
+            exporters::nginx_ident(name),
+            c["ident"].as_str().unwrap(),
+            "{name:?}"
+        );
+    }
+}
+
+#[test]
+fn a_space_in_an_upstream_chunk_name_cannot_reach_the_nginx_file() {
+    let project = serde_json::json!({
+        "id": "p", "name": "P", "project_type": "nginx",
+        "chunks": [{
+            "id": "u", "name": "app upstream", "chunk_type": "nginx_upstream",
+            "fields": [{ "key": "server", "value": "127.0.0.1:8080", "field_type": "var" }]
+        }]
+    });
+    let out = exporters::export_nginx(&project, &resolver(&vault()));
+    assert!(out.contains("upstream app_upstream {"), "{out}");
+    assert!(!out.contains("upstream app upstream"), "{out}");
+}
