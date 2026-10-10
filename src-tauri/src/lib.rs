@@ -255,9 +255,9 @@ mod commands {
         let key = g.as_ref().ok_or("Vault is locked")?;
         let conn = vault_core::open_db(&db_path(&app)?, key)?;
         let actor = vault_core::ensure_owner_user(&conn).ok();
-        let doc = vault_core::load_vault(&conn)?.unwrap_or_else(
-            || serde_json::json!({ "api_keys": [], "user_categories": [], "projects": [] }),
-        );
+        // No expected version means "what is stored now", read before the document (see
+        // `begin_row_patch`), not "nothing": a delta must not revert another writer's rows.
+        let (base, doc) = vault_core::begin_row_patch(&conn, expect_version.as_deref())?;
         let data = vault_core::apply_row_patch(doc, &patch)?;
         let for_history = data.clone();
         let version = vault_core::save_vault(
@@ -265,7 +265,7 @@ mod commands {
             data,
             vault_core::SaveCtx {
                 actor: actor.as_deref(),
-                expect_version: expect_version.as_deref(),
+                expect_version: base.as_deref(),
             },
         )?;
         unv_cli::history::after_save(&conn, &for_history, actor.as_deref());
@@ -715,12 +715,13 @@ mod commands {
             project: project.as_deref(),
             category: None,
             keep_folders,
+            force: false,
         };
         let plan = unv_cli::import_vaults::plan_import(&vault, &vendor, &doc, &opts)
             .map_err(|e| e.message)?;
         Ok(serde_json::json!({
             "entries": plan.entries, "created": plan.created, "updated": plan.updated,
-            "unchanged": plan.unchanged, "skipped": plan.skipped, "preview": plan.preview,
+            "unchanged": plan.unchanged, "skipped": plan.skipped, "conflicts": plan.conflicts, "preview": plan.preview,
             "warnings": warnings,
         }))
     }
