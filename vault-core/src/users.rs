@@ -962,12 +962,15 @@ pub fn totp_confirm(conn: &Connection, user_id: &str, code: &str) -> Result<bool
     let Some(accepted) = crate::totp::verify(&secret, code, last, crate::totp::now_unix()) else {
         return Ok(false);
     };
-    conn.execute(
-        "UPDATE users SET totp_enabled = 1, totp_last_step = ?1 WHERE id = ?2",
-        rusqlite::params![accepted.step as i64, user_id],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(true)
+    // Compare-and-swap on the replay mark: see `verify_user_totp`.
+    let moved = conn
+        .execute(
+            "UPDATE users SET totp_enabled = 1, totp_last_step = ?1 \
+             WHERE id = ?2 AND (totp_last_step IS NULL OR totp_last_step < ?1)",
+            rusqlite::params![accepted.step as i64, user_id],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(moved == 1)
 }
 
 /// Removes the factor entirely, secret included.
@@ -1049,12 +1052,19 @@ pub fn verify_user_totp(conn: &Connection, user_id: &str, code: &str) -> Result<
     let Some(accepted) = crate::totp::verify(&secret, code, last, crate::totp::now_unix()) else {
         return Ok(false);
     };
-    conn.execute(
-        "UPDATE users SET totp_last_step = ?1 WHERE id = ?2",
-        rusqlite::params![accepted.step as i64, user_id],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(true)
+    // The mark moves only forward, and only if nobody moved it since it was read above.
+    // It was an unconditional UPDATE: two attempts with the same code both read the old
+    // mark, both verified, both wrote and both were let in, and a slower attempt with an
+    // OLDER code could write after a newer one and move the mark backwards, making the
+    // newer code (seen by anyone watching) valid again.
+    let moved = conn
+        .execute(
+            "UPDATE users SET totp_last_step = ?1 \
+             WHERE id = ?2 AND (totp_last_step IS NULL OR totp_last_step < ?1)",
+            rusqlite::params![accepted.step as i64, user_id],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(moved == 1)
 }
 
 /// Deletes a user plus all their tokens and permissions.
@@ -1078,6 +1088,13 @@ pub fn delete_user(conn: &Connection, user_id: &str) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
     conn.execute(
         "DELETE FROM user_tokens WHERE user_id = ?1",
+        rusqlite::params![user_id],
+    )
+    .map_err(|e| e.to_string())?;
+    // The user's expressions would otherwise outlive them: the row was read by id alone,
+    // so a deleted user's session kept its old grant.
+    conn.execute(
+        "DELETE FROM permission_expressions WHERE subject_kind = 'user' AND subject_id = ?1",
         rusqlite::params![user_id],
     )
     .map_err(|e| e.to_string())?;
@@ -1158,6 +1175,16 @@ pub fn update_user_class(
     ).map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// How many users are assigned to this class.
+pub fn class_member_count(conn: &Connection, class_id: &str) -> Result<i64, String> {
+    conn.query_row(
+        "SELECT COUNT(*) FROM users WHERE class_id = ?1",
+        rusqlite::params![class_id],
+        |r| r.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
 pub fn delete_user_class(conn: &Connection, class_id: &str) -> Result<(), String> {
     // Unassign users first
     conn.execute(
@@ -1167,6 +1194,11 @@ pub fn delete_user_class(conn: &Connection, class_id: &str) -> Result<(), String
     .map_err(|e| e.to_string())?;
     conn.execute(
         "DELETE FROM user_class_permissions WHERE class_id = ?1",
+        rusqlite::params![class_id],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM permission_expressions WHERE subject_kind = 'class' AND subject_id = ?1",
         rusqlite::params![class_id],
     )
     .map_err(|e| e.to_string())?;
@@ -1389,13 +1421,43 @@ pub fn seed_default_admin(
     conn: &Connection,
     env_password: Option<&str>,
 ) -> Result<AdminSeed, String> {
+    // Seeded once. Every owner unlock used to create an `admin` whenever none was named
+    // "admin", so an admin the owner had deleted or renamed came back on the next unlock,
+    // with a known password when UNV_ADMIN_PASSWORD is set. The marker records that the
+    // decision was made; an install that already has other users and no admin is treated
+    // as having made it (the admin was removed on purpose).
+    let marker = |conn: &Connection| -> Result<(), String> {
+        conn.execute(
+            "INSERT OR REPLACE INTO vault_meta (key, value) VALUES ('default_admin_seeded', '1')",
+            [],
+        )
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+    };
+    let already: Option<String> = conn
+        .query_row(
+            "SELECT value FROM vault_meta WHERE key = 'default_admin_seeded'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if already.is_some() {
+        return Ok(AdminSeed::Exists);
+    }
     let exists: Option<String> = conn
         .query_row("SELECT id FROM users WHERE username = 'admin'", [], |r| {
             r.get(0)
         })
         .optional()
         .map_err(|e| e.to_string())?;
-    if exists.is_some() {
+    let others: i64 = conn
+        .query_row("SELECT COUNT(*) FROM users WHERE is_owner = 0", [], |r| {
+            r.get(0)
+        })
+        .map_err(|e| e.to_string())?;
+    if exists.is_some() || others > 0 {
+        marker(conn)?;
         return Ok(AdminSeed::Exists);
     }
 
@@ -1411,6 +1473,7 @@ pub fn seed_default_admin(
 
     let user = create_user(conn, "admin", Some(&password), false)?;
     assign_user_class(conn, &user.id, Some("cls-admin"))?;
+    marker(conn)?;
     Ok(AdminSeed::Created {
         generated_password: generated,
     })
@@ -1873,7 +1936,13 @@ pub fn merge_user_vault_write(
 
     // Validate: every submitted entry must satisfy the write expression.
     for entry in user_keys {
-        if !writable(entry) {
+        let id = entry_ck(entry);
+        let prior = full_keys.iter().find(|old| entry_ck(old) == id);
+        // An entry the user can read but not write, sent back exactly as it was served, is
+        // not a write. Checking every submitted entry refused a faithful save of the user's
+        // own, untouched view.
+        let unchanged = prior.is_some_and(|old| old == entry) && readable(entry);
+        if !writable(entry) && !unchanged {
             return Err(format!(
                 "Write permission denied for '{}'",
                 entry
@@ -1882,8 +1951,6 @@ pub fn merge_user_vault_write(
                     .unwrap_or("?")
             ));
         }
-        let id = entry_ck(entry);
-        let prior = full_keys.iter().find(|old| entry_ck(old) == id);
         let old_bundle = prior
             .and_then(|old| old.get("bundle_id"))
             .and_then(serde_json::Value::as_str);
@@ -2544,11 +2611,46 @@ mod tests {
 
     // ── Write merge ───────────────────────────────────────────────────────────
 
+    /// BUG: the write check ran on every submitted entry, so a faithful save of the user's
+    /// own served view was refused whenever it held an entry they could read but not write.
+    #[test]
+    fn merge_accepts_an_unchanged_entry_the_user_can_only_read() {
+        let full = sample_vault();
+        let submitted = json!({ "api_keys": [
+            { "id": "1", "provider": "Mine",   "categories": ["dev"],  "projectIds": ["Universal", "p1"] },
+            { "id": "2", "provider": "Theirs", "categories": ["ops"],  "projectIds": ["Universal", "p2"] },
+        ]});
+        merge_user_vault_write(
+            full,
+            submitted,
+            Some(&ex("vault:*")),
+            Some(&ex("project:Alpha")),
+        )
+        .expect("an untouched read-only entry is not a write");
+    }
+
+    /// The same entry, when the user could not even read it, is still refused: the check
+    /// is "unchanged and visible to them", not "unchanged".
+    #[test]
+    fn merge_refuses_an_unchanged_entry_the_user_cannot_read() {
+        let full = sample_vault();
+        let submitted = json!({ "api_keys": [
+            { "id": "2", "provider": "Theirs", "categories": ["ops"],  "projectIds": ["Universal", "p2"] },
+        ]});
+        merge_user_vault_write(
+            full,
+            submitted,
+            Some(&ex("project:Alpha")),
+            Some(&ex("project:Alpha")),
+        )
+        .expect_err("a hidden entry cannot be submitted");
+    }
+
     #[test]
     fn merge_rejects_submission_outside_write_scope() {
         let full = sample_vault();
         let submitted = json!({ "api_keys": [
-            { "id": "2", "provider": "Theirs", "categories": ["ops"], "projectIds": ["Universal", "p2"] }
+            { "id": "2", "provider": "Theirs", "categories": ["ops", "changed-by-the-user"], "projectIds": ["Universal", "p2"] }
         ]});
         let err = merge_user_vault_write(
             full,
