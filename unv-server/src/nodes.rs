@@ -438,6 +438,9 @@ pub(crate) async fn revoke_node(
                 .lock()
                 .unwrap()
                 .retain(|(i, _), _| i != &id);
+            // Held beats of this node return now, to find it revoked, instead of at their
+            // timeout.
+            state.nodes_wake.notify_waiters();
             audit(
                 &state,
                 &session.vault_key,
@@ -456,6 +459,10 @@ pub(crate) async fn revoke_node(
 #[derive(Deserialize)]
 pub(crate) struct TargetRequest {
     target: String,
+    /// For `accept`: the hash of the bytes the owner fetched. Optional, so older clients
+    /// keep working; when present it must still be what the node reports.
+    #[serde(default)]
+    sha256: Option<String>,
 }
 
 pub(crate) async fn request_pull(
@@ -490,6 +497,15 @@ pub(crate) async fn request_pull(
         )
         .into_response();
     }
+    // Bytes left over from an earlier pull that nobody fetched (the CLI died, the owner
+    // walked away) are older than this request. Serving them would hand the owner a file
+    // that is not the one just asked for, and `--into-chunk --apply` would write it into
+    // the vault.
+    state
+        .node_uploads
+        .lock()
+        .unwrap()
+        .remove(&(id.clone(), req.target.clone()));
     state
         .node_wants
         .lock()
@@ -568,7 +584,9 @@ pub(crate) async fn accept_pull(
     if let Err(e) = require_owner(&session) {
         return e.into_response();
     }
-    match with_store(&state, |s| s.accept(&id, &req.target)) {
+    match with_store(&state, |s| {
+        s.accept(&id, &req.target, req.sha256.as_deref())
+    }) {
         Ok(Ok(sha)) => {
             audit(
                 &state,
@@ -579,6 +597,9 @@ pub(crate) async fn accept_pull(
                 "owner",
             );
             Json(serde_json::json!({ "sha256": sha })).into_response()
+        }
+        Ok(Err(e)) if e.starts_with(vault_core::nodes::ACCEPT_CHANGED) => {
+            err_json(StatusCode::CONFLICT, &e).into_response()
         }
         Ok(Err(e)) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
         Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
@@ -1026,6 +1047,17 @@ pub(crate) async fn beat(
     let wait = beat.wait_secs.min(MAX_WAIT_SECS);
     if reply.actions.is_empty() && wait > 0 {
         let _ = tokio::time::timeout(Duration::from_secs(u64::from(wait)), notified).await;
+        // The node record was cloned when the request arrived, up to MAX_WAIT_SECS ago.
+        // Read it again: a node revoked while it waited must get nothing, and the policy
+        // the second pass acts on (approval, device) is the current one, not the one the
+        // request started with.
+        let node = match with_store(&state, |s| s.find(&node.id)) {
+            Ok(Some(n)) if n.revoked_at.is_none() => n,
+            _ => {
+                return err_json(StatusCode::UNAUTHORIZED, "Node authentication failed")
+                    .into_response()
+            }
+        };
         let acked = reply.results_ack;
         reply = process(&state, &node, &beat, false);
         reply.results_ack = acked || reply.results_ack;
@@ -2238,6 +2270,8 @@ mod tests {
                 is_owner: false,
                 expires_at: Instant::now() + Duration::from_secs(600),
                 hard_expires_at: Instant::now() + Duration::from_secs(600),
+                via_token: false,
+                served: None,
             },
         );
         let sub = Request::builder()
