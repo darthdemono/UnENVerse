@@ -556,6 +556,9 @@ enum Commands {
         /// Use the source folder / vault name as the category.
         #[arg(long)]
         keep_folders: bool,
+        /// Replace an existing entry whose secret differs (default: refuse).
+        #[arg(long)]
+        force: bool,
     },
     /// Pin a project and environment to this directory (writes `.unv.json`).
     ///
@@ -964,7 +967,14 @@ enum NodeCmd {
     },
     /// Record a pull target's current file as accepted into the vault, so it
     /// reads `in_sync` until it changes again.
-    Accept { node: String, target: String },
+    Accept {
+        node: String,
+        target: String,
+        /// The SHA-256 of the file you fetched and reviewed. Refused (exit 6) if the node
+        /// now reports a different file, instead of accepting bytes nobody has seen.
+        #[arg(long)]
+        sha256: Option<String>,
+    },
     /// Hold every push to a node for a human (`required`), or stop (`none`).
     Policy {
         node: String,
@@ -3076,7 +3086,11 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 *apply,
                 *timeout,
             ),
-            NodeCmd::Accept { node, target } => node_cmd::accept(a, node, target),
+            NodeCmd::Accept {
+                node,
+                target,
+                sha256,
+            } => node_cmd::accept(a, node, target, sha256.as_deref()),
             NodeCmd::Policy { node, approval } => node_cmd::policy(a, node, approval),
             NodeCmd::Approver { cmd } => match cmd {
                 ApproverCmd::Show => node_cmd::approver_show(),
@@ -3562,6 +3576,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             project,
             category,
             keep_folders,
+            force,
         } => {
             let project = scoped_project(a, project.as_deref())?;
             import_vaults::run(
@@ -3573,6 +3588,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     project: project.as_deref(),
                     category: category.as_deref(),
                     keep_folders: *keep_folders,
+                    force: *force,
                 },
             )
         }
