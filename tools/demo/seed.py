@@ -52,7 +52,7 @@ def entry(provider, value, **kw):
 
 
 # ----- projects first, so entries can join them ---------------------------
-for name, ptype in [('Home VPN','wireguard'),('Media Stack','docker'),('Edge Proxy','nginx')]:
+for name, ptype in [('Home VPN','wireguard'),('Site VPN','wireguard'),('Media Stack','docker'),('Edge Proxy','nginx')]:
     run('project', 'add', name, '--type', ptype)
 
 for cat in ['ai','cloud','cloud/aws','comms','dev','dev/source','dev/apis','homelab','observability','payments','personal','productivity']:
@@ -146,6 +146,9 @@ entry("Postgres", f"postgres://app:{rnd(20)}@db.internal:5432/app", type="connec
       account="app", env="production", tags="db,primary", categories="cloud", projects="media-stack",
       desc="Application database", details="Primary instance. Read replicas use a separate role.",
       version="16", rotation_days=90)
+entry("Postgres Password", rnd(28), type="password", account="app", env="production", tags="db,primary",
+      categories="cloud", projects="media-stack", desc="Role password for the application database",
+      rotation_days=90)
 entry("Backup Passphrase", "", type="env_var", env="production", tags="backup,restic", categories="homelab",
       desc="Restic repository for nightly backups",
       var=[f"!RESTIC_PASSWORD={rnd(32)}", "RESTIC_REPOSITORY=s3:s3.example.com/backups"])
@@ -172,19 +175,135 @@ entry("Wireguard", base64.b64encode(secrets.token_bytes(32)).decode(), account="
 run("bundle", "new", "TMDB", "--member", "v3=TMDB v3", "--member", "v4=TMDB v4", check=False)
 
 # ----- projects -------------------------------------------------------------
-def chunk(p, name, *pairs):
-    run("project", "chunk", "set", p, name, *pairs)
+# Shaped after a lived-in vault: a Compose project with many services (TZ, PUID/PGID,
+# restart policy, networks, volumes, ports, depends_on, devices, limits, secret
+# references), nginx servers with TLS, security headers, gzip and several locations,
+# and WireGuard interfaces with PostUp/PostDown, MTU and keepalive. Invented hosts.
+def wgkey():
+    return base64.b64encode(secrets.token_bytes(32)).decode()
 
-chunk("home-vpn", "Interface", "Address=10.10.0.1/24", "ListenPort=51820", "DNS=10.10.0.1",
-      "PrivateKey=${Wireguard}")
-chunk("home-vpn", "Peer", "PublicKey=" + base64.b64encode(secrets.token_bytes(32)).decode(), "AllowedIPs=10.10.0.2/32")
+
+# The CLI records one field type per call, and the exporters read it: an env var left
+# as a plain `var` would be written as a service key instead of under `environment:`.
+FIELD_TYPE = {
+    "ports": "port", "volumes": "volume_mount", "networks": "list", "depends_on": "list",
+    "devices": "list", "group_add": "list", "user": "user_id", "PostUp": "multiline",
+    "PostDown": "multiline", "PrivateKey": "secret", "PresharedKey": "secret", "listen": "port",
+    "ssl_certificate": "cert", "ssl_certificate_key": "cert", "fastcgi_pass": "endpoint",
+    "Endpoint": "endpoint", "AllowedIPs": "subnet", "Address": "subnet",
+}
+
+
+def field_type(key):
+    k = key.split("=", 1)[0]
+    if k in FIELD_TYPE:
+        return FIELD_TYPE[k]
+    return "env_var" if k.isupper() and "_" in k or k in ("TZ", "PUID", "PGID") else "var"
+
+
+# These keys hold several values in a real config (one `volumes:` entry per mount, one
+# `listen` line per address), so a comma list becomes one appended field each.
+MULTI = {"ports", "volumes", "networks", "depends_on", "devices", "group_add"}
+
+
+def chunk(p, name, *pairs):
+    groups = {}
+    for pair in pairs:
+        key, value = pair.split("=", 1)
+        values = value.split(",") if key in MULTI and "," in value else [value]
+        for v in values:
+            groups.setdefault((field_type(pair), key in MULTI), []).append(f"{key}={v}")
+    for (ftype, many), group in groups.items():
+        extra = ["--append"] if many else []
+        run("project", "chunk", "set", p, name, "--field-type", ftype, *extra, *group)
+
+
+def add(p, name, ctype, *pairs):
+    run("project", "chunk", "add", p, name, "--type", ctype)
+    if pairs:
+        chunk(p, name, *pairs)
+
+
+# WireGuard: a hub with five peers (one is a site-to-site gateway with a keepalive).
+chunk("home-vpn", "Interface", "Address=10.10.0.1/24", "ListenPort=51820", "DNS=10.10.0.1", "MTU=1420",
+      "PrivateKey=${Wireguard}",
+      "PostUp=iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE",
+      "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE")
+chunk("home-vpn", "Peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.2/32")
 run("project", "chunk", "rename", "home-vpn", "Peer", "Laptop")
-run("project", "chunk", "add", "home-vpn", "Phone", "--type", "wg_peer")
-chunk("home-vpn", "Phone", "PublicKey=" + base64.b64encode(secrets.token_bytes(32)).decode(), "AllowedIPs=10.10.0.3/32")
-chunk("media-stack", "service-1", "image=ghcr.io/example/app:2.4", "container_name=app", "restart=unless-stopped",
-      "ports=8080:8080", "DATABASE_URL=${Postgres}")
-run("project", "chunk", "rename", "media-stack", "service-1", "app")
-chunk("edge-proxy", "HTTPS :443 main", "server_name=app.example.com", "listen=443 ssl http2")
+add("home-vpn", "Phone", "wg_peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.3/32", "PersistentKeepalive=25")
+add("home-vpn", "Tablet", "wg_peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.4/32", "PersistentKeepalive=25")
+add("home-vpn", "Raspberry Pi", "wg_peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.5/32, 192.168.50.0/24")
+add("home-vpn", "Office gateway", "wg_peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.6/32, 10.20.0.0/24",
+    "Endpoint=203.0.113.9:51820", "PersistentKeepalive=25")
+# A second, smaller tunnel.
+chunk("site-vpn", "Interface", "Address=10.30.0.2/24", "ListenPort=51821", "MTU=1380",
+      "PrivateKey=${Wireguard}", "Table=off")
+run("project", "chunk", "rename", "site-vpn", "Peer", "Datacentre")
+chunk("site-vpn", "Datacentre", "PublicKey=" + wgkey(), "AllowedIPs=10.30.0.0/24",
+      "Endpoint=198.51.100.7:51821", "PersistentKeepalive=15")
+
+# Compose: a small production-shaped stack.
+chunk("media-stack", "networks", "frontend=bridge", "backend=bridge")
+chunk("media-stack", "volumes", "pgdata=local", "redisdata=local", "grafanadata=local", "media=local")
+chunk("media-stack", "service-1", "image=postgres:16-alpine", "container_name=db", "restart=unless-stopped",
+      "networks=backend", "volumes=pgdata:/var/lib/postgresql/data", "POSTGRES_USER=app", "POSTGRES_DB=app",
+      "POSTGRES_PASSWORD=${Postgres Password}", "TZ=Europe/Budapest", "mem_limit=1g")
+run("project", "chunk", "rename", "media-stack", "service-1", "db")
+add("media-stack", "cache", "docker_service", "image=redis:7-alpine", "container_name=cache", "restart=unless-stopped",
+    "command=redis-server --appendonly yes", "networks=backend", "volumes=redisdata:/data", "mem_limit=256m")
+add("media-stack", "app", "docker_service", "image=ghcr.io/example/app:2.4", "container_name=app",
+    "restart=unless-stopped", "depends_on=db,cache", "ports=8080:8080", "networks=frontend,backend",
+    "user=1000:1000", "DATABASE_URL=${Postgres}", "REDIS_URL=redis://cache:6379", "LOG_LEVEL=info",
+    "TZ=Europe/Budapest")
+add("media-stack", "worker", "docker_service", "image=ghcr.io/example/app:2.4", "container_name=worker",
+    "restart=unless-stopped", "command=worker --queues=default,mail", "depends_on=db,cache", "networks=backend",
+    "DATABASE_URL=${Postgres}", "REDIS_URL=redis://cache:6379", "LOG_LEVEL=info", "TZ=Europe/Budapest")
+add("media-stack", "proxy", "docker_service", "image=nginx:1.27-alpine", "container_name=proxy",
+    "restart=unless-stopped", "depends_on=app", "ports=80:80,443:443", "networks=frontend",
+    "volumes=./conf:/etc/nginx/conf.d:ro,./site:/usr/share/nginx/html:ro")
+add("media-stack", "media", "docker_service", "image=jellyfin/jellyfin:10.9", "container_name=media",
+    "restart=unless-stopped", "ports=8096:8096", "networks=frontend", "volumes=media:/media,./jellyfin:/config",
+    "devices=/dev/dri:/dev/dri", "group_add=video", "PUID=1000", "PGID=1000", "TZ=Europe/Budapest")
+add("media-stack", "monitor", "docker_service", "image=grafana/grafana-oss:11.2.0", "container_name=monitor",
+    "restart=unless-stopped", "ports=3000:3000", "networks=frontend,backend", "volumes=grafanadata:/var/lib/grafana",
+    "GF_SECURITY_ADMIN_PASSWORD=${Grafana}", "TZ=Europe/Budapest")
+add("media-stack", "backup", "docker_service", "image=restic/restic:0.17.0", "container_name=backup",
+    "restart=no", "command=backup /data", "networks=backend", "volumes=pgdata:/data:ro",
+    "RESTIC_REPOSITORY=s3:s3.example.com/backups", "TZ=Europe/Budapest")
+# The variables the services above read through `${NAME}`: Compose fills them from this file.
+add("media-stack", "secrets.env", "env_file", "POSTGRES_PASSWORD=${Postgres Password}",
+    "DATABASE_URL=${Postgres}", "GF_SECURITY_ADMIN_PASSWORD=${Grafana}", "APP_SECRET_KEY=${Stripe}",
+    "SMTP_USER=mail@example.com", "SMTP_API_KEY=${SendGrid}")
+
+# nginx: four servers and five locations.
+chunk("edge-proxy", "HTTP :80 redirect", "server_name=app.example.com media.example.com",
+      "return=301 https://$host$request_uri")
+chunk("edge-proxy", "HTTPS :443 main", "server_name=app.example.com", "listen=443 ssl http2",
+      "ssl_certificate=/etc/ssl/example/fullchain.pem", "ssl_certificate_key=/etc/ssl/example/privkey.pem",
+      "root=/var/www/app", "index=index.html", "access_log=/var/log/nginx/app.access.log",
+      "error_log=/var/log/nginx/app.error.log", 'add_header X-Frame-Options="SAMEORIGIN" always',
+      'add_header X-Content-Type-Options="nosniff" always',
+      'add_header Strict-Transport-Security="max-age=31536000; includeSubDomains" always',
+      'add_header Referrer-Policy="strict-origin-when-cross-origin" always', "gzip=on", "gzip_comp_level=5",
+      "gzip_types=text/plain text/css application/javascript application/json image/svg+xml")
+add("edge-proxy", "HTTPS media", "nginx_server", "server_name=media.example.com", "listen=443 ssl http2",
+    "ssl_certificate=/etc/ssl/example/fullchain.pem", "ssl_certificate_key=/etc/ssl/example/privkey.pem",
+    "access_log=/var/log/nginx/media.access.log", "client_max_body_size=0",
+    'add_header X-Content-Type-Options="nosniff" always')
+add("edge-proxy", "Status", "nginx_server", "listen=127.0.0.1:8081", "server_name=localhost",
+    "access_log=off", "allow=127.0.0.1", "deny=all")
+add("edge-proxy", "app_upstream", "nginx_upstream", "server=127.0.0.1:8080", "keepalive=32")
+run("project", "chunk", "rm", "edge-proxy", "HTTPS www redirect", "--yes")
+run("project", "chunk", "rm", "edge-proxy", "location ~ .php", "--yes")
+chunk("edge-proxy", "location /", "path=/", "try_files=$uri $uri/ /index.html")
+add("edge-proxy", "location /api/", "nginx_location", "path=/api/", "proxy_pass=http://127.0.0.1:8080",
+    "proxy_set_header Host=$host", "proxy_set_header X-Forwarded-For=$proxy_add_x_forwarded_for",
+    "proxy_read_timeout=60s")
+chunk("edge-proxy", "location ~ assets", "path=~* \\.(jpg|jpeg|png|gif|webp|ico|css|js|svg|woff2)$",
+      "expires=30d", 'add_header Cache-Control="public, immutable"', "access_log=off")
+add("edge-proxy", "location dotfiles", "nginx_location", "path=~ /\\.", "deny=all", "access_log=off")
+add("edge-proxy", "location /health", "nginx_location", "path=/health", "return=200 ok", "access_log=off")
 
 # ----- config history: two snapshots with a rotated secret between them ------
 # The Home VPN interface reads ${Wireguard}; rotating that entry changes the
