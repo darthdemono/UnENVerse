@@ -53,6 +53,12 @@ export interface VaultStore {
   saveRows?(patch: VaultPatch): Promise<boolean>;
   /** True when the last save did not reach the store (the failure was already toasted). */
   lastSaveFailed?(): boolean;
+  /**
+   * Make the next save fail its version check. For a copy known to be behind the store (a
+   * merged save whose reload failed): no real version describes it, so the base becomes one
+   * nothing matches and the save is refused instead of writing the copy back over the merge.
+   */
+  markStale?(): void;
   readonly isRemote: boolean;
   readonly vaultId: string;
 }
@@ -191,12 +197,8 @@ export class TauriVaultStore implements VaultStore {
     return true;
   }
 
-  /**
-   * Write regardless of what is currently stored, adopting the result as our
-   * new base. Only for a user explicitly choosing to overwrite after a conflict.
-   */
-  async forceSave(data: VaultData): Promise<void> {
-    this.adopt(await this.invoke<string>('save_vault', { data, expectVersion: null }));
+  markStale(): void {
+    this.lastVersion = 'stale-copy';
   }
 
   readonly isRemote = false;
@@ -389,6 +391,10 @@ export class RemoteVaultStore implements VaultStore {
     const m = this.merged;
     this.merged = false;
     return m;
+  }
+
+  markStale(): void {
+    this.lastVersion = 'stale-copy';
   }
 
   async save(data: VaultData): Promise<void> {
@@ -792,6 +798,14 @@ export function resetViewState(): void {
   st.bulkMode = false;
   st.bulkSelected.clear();
 
+  // A pending undo closes over entries of the vault that was just replaced. Left alive,
+  // its button (five seconds, or until the next lock) re-inserted a deleted entry into
+  // whichever vault was open by then and saved it there: a cross-vault write. Only a
+  // lock used to clear it.
+  for (const u of st.undoStack) clearTimeout(u.t);
+  st.undoStack = [];
+  document.getElementById('undo-bar')?.classList.remove('visible');
+
   // The persisted copy is a reference too. `restoreViewState()` validates before
   // applying, but leaving a previous vault's selection on disk means the *next*
   // launch tries to reapply a filter belonging to a vault the user replaced.
@@ -952,8 +966,20 @@ export async function persist(): Promise<void> {
     // The save folded in changes another writer had stored: our copy is behind,
     // and the next save from it would be judged against the wrong base.
     if (st.store.takeMerged?.()) {
-      await reloadFromStore();
-      showToast('Saved, and merged with changes someone else made', 'ok', 3500);
+      if (await reloadFromStore()) {
+        showToast('Saved, and merged with changes someone else made', 'ok', 3500);
+      } else {
+        // The store adopted the new version but our copy is behind it and could not be
+        // refreshed. A later save from this copy would be judged against the new version
+        // and delete what was just merged in, so the next save is made to fail instead.
+        forgetSynced();
+        st.store.markStale?.();
+        showToast(
+          'Saved and merged, but the vault could not be reloaded. Reload it before editing again.',
+          'err',
+          6000,
+        );
+      }
     }
   } catch (err) {
     if (err instanceof VaultConflictError) {
@@ -1094,31 +1120,76 @@ async function resolveSaveConflict(err: VaultConflictError): Promise<void> {
   const which = err.entries
     ? `You and the other writer both changed: ${err.entries}.\n\n`
     : 'Someone else changed this vault while you were editing.\n\n';
-  const overwrite = await showConfirm(
+  const keepMine = await showConfirm(
     which +
       'Changes to other entries were not in conflict and are already kept.\n\n' +
-      'OK: keep your version of these entries and overwrite theirs.\n' +
+      'OK: keep your version of the entries you changed, on top of theirs.\n' +
       'Cancel: discard your unsaved change and reload theirs.',
   );
 
-  if (overwrite) {
-    const store = st.store as TauriVaultStore;
-    if (typeof store.forceSave === 'function') {
-      try {
-        await store.forceSave(st.vault);
-        forgetSynced();
-        showToast('Your version saved, overwriting the other change', 'ok', 3500);
-        return;
-      } catch (e) {
-        showToast(`Overwrite failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 4000);
-        return;
-      }
+  if (keepMine) {
+    // "Keep mine" means my CHANGES on top of what is stored now, not my whole copy over
+    // it. The old answer wrote the whole copy with no expected version, which deletes every
+    // row the other writer added (my copy never had them), and on a remote store there was
+    // no such write at all, so the choice silently discarded the user's edit.
+    const mine = currentPatch();
+    if (mine && (await reloadFromStore())) {
+      applyPatchLocal(st.vault, mine);
+      showToast('Your changes were applied on top of the other writer’s', 'ok', 3500);
+      await persist();
+      return;
     }
+    showToast(
+      'Could not apply your change on top of theirs. Reloaded their version; your change was discarded.',
+      'err',
+      6000,
+    );
+    await reloadFromStore();
+    return;
   }
 
   if (await reloadFromStore()) {
     showToast('Reloaded the other version — your unsaved change was discarded', 'err', 5000);
+  } else {
+    showToast('Could not reload the vault; your change is still unsaved.', 'err', 5000);
   }
+}
+
+/** `vault_core::apply_row_patch` for the in-memory document: put by id, delete by id. */
+export function applyPatchLocal(v: VaultData, p: VaultPatch): void {
+  const putInto = <T extends { id?: unknown }>(list: T[], put: T[] | undefined): T[] => {
+    for (const item of put ?? []) {
+      const at = list.findIndex((x) => x.id === item.id);
+      if (at >= 0) list[at] = item;
+      else list.push(item);
+    }
+    return list;
+  };
+  v.api_keys = putInto(v.api_keys, p.put);
+  if (p.delete?.length) {
+    const gone = new Set(p.delete);
+    v.api_keys = v.api_keys.filter((e) => !gone.has(e.id as string));
+  }
+  v.projects = putInto(v.projects, p.projects_put);
+  if (p.projects_delete?.length) {
+    const gone = new Set(p.projects_delete);
+    v.projects = v.projects.filter((x) => !gone.has(x.id));
+  }
+  if (p.categories) v.user_categories = p.categories;
+}
+
+/**
+ * The store could not load (a 404 for a vault that does not exist yet, a network error,
+ * a refused login). `st.vault` still held the vault that was open before the switch, with
+ * `st.vaultOpen` set, so the grid painted it and the next edit, import or undo saved it into
+ * the NEW store: a cross-vault write. Drop it. A store that cannot be loaded starts empty.
+ */
+export function dropPreviousVault(): void {
+  st.vault.api_keys = [];
+  st.vault.user_categories = [];
+  st.vault.projects = [{ id: 'Universal', name: 'Universal', description: '' }];
+  forgetSynced();
+  st.vaultOpen = false;
 }
 
 /** Adopt what is now stored, replacing our copy. `false` when nothing could be loaded. */
