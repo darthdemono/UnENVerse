@@ -415,14 +415,18 @@ fn import_into_chunk(
     Ok(())
 }
 
-pub fn accept(a: &Access, node: &str, target: &str) -> CliResult {
+pub fn accept(a: &Access, node: &str, target: &str, sha256: Option<&str>) -> CliResult {
     let c = hub(a)?;
     let n = find(c, node)?;
     let id = n["id"].as_str().unwrap_or("");
+    let mut body = json!({ "target": target });
+    if let Some(h) = sha256 {
+        body["sha256"] = json!(h);
+    }
     let r = c.send_json(
         Method::POST,
         &format!("/api/nodes/{id}/accept"),
-        Some(&json!({ "target": target })),
+        Some(&body),
     )?;
     out::ok("node.accept", r.clone(), || {
         println!(
