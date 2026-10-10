@@ -25,6 +25,8 @@ interface Plan {
   updated: number;
   unchanged: number;
   skipped: number;
+  /** Names whose stored secret differs from the file; left untouched. */
+  conflicts?: string[];
   preview: PlanRow[];
   /** Parts of the source that could not be read (Nextcloud's PHP). */
   warnings?: string[];
@@ -101,7 +103,7 @@ export function initVendorImportPane(): void {
         });
         pending = plan;
         applyBtn.disabled = plan.created + plan.updated === 0;
-        status.textContent = `${plan.created} to create, ${plan.updated} to update, ${plan.unchanged} unchanged, ${plan.skipped} skipped.`;
+        status.textContent = `${plan.created} to create, ${plan.updated} to update, ${plan.unchanged} unchanged, ${plan.skipped} skipped.${plan.conflicts?.length ? ` Not replaced (stored secret differs): ${plan.conflicts.join(', ')}. Use the CLI with --force to replace.` : ''}`;
         paint(plan);
       } catch (e) {
         pending = null;
