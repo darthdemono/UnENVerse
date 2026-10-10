@@ -241,6 +241,8 @@ mod tests {
                 is_owner: false,
                 expires_at: Instant::now() + Duration::from_secs(600),
                 hard_expires_at: Instant::now() + Duration::from_secs(600),
+                via_token: false,
+                served: None,
             },
         );
         let (st, _) = h
