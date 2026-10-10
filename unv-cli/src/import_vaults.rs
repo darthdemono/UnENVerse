@@ -549,23 +549,34 @@ pub struct ImportOpts<'a> {
     pub category: Option<&'a str>,
     /// Use the source folder/vault name as the category.
     pub keep_folders: bool,
+    /// Replace an existing entry's secret with a different one. Without it a
+    /// differing secret, or a name that matches several entries, is a conflict.
+    pub force: bool,
 }
 
 /// Turn incoming records into vault entries.
 ///
-/// Returns `(entries_to_write, created, updated, unchanged)`.
+/// Returns `(entries_to_write, created, updated, unchanged, conflicts)`.
 fn merge(
     vault: &Value,
     incoming: &[Incoming],
     opts: &ImportOpts<'_>,
-) -> (Vec<Value>, usize, usize, usize) {
+) -> (Vec<Value>, usize, usize, usize, Vec<String>) {
     let mut entries = crate::data::entries(vault).to_vec();
     let (mut created, mut updated, mut unchanged) = (0, 0, 0);
+    let mut conflicts: Vec<String> = Vec::new();
 
     for rec in incoming {
+        let same_name = |e: &&Value| crate::data::provider_of(e) == rec.provider;
+        // Prefer the entry that already holds this exact secret, so a second
+        // import of the same export is a no-op even when names repeat.
         let idx = entries
             .iter()
-            .position(|e| crate::data::provider_of(e) == rec.provider);
+            .position(|e| {
+                same_name(&e)
+                    && e.get("api_key").and_then(|v| v.as_str()) == Some(rec.secret.as_str())
+            })
+            .or_else(|| entries.iter().position(|e| same_name(&e)));
 
         let categories: Vec<String> = opts
             .category
@@ -584,6 +595,13 @@ fn merge(
                 // double the vault — `unv import` shipped that bug once.
                 let same =
                     entries[i].get("api_key").and_then(|v| v.as_str()) == Some(rec.secret.as_str());
+                // Integrations rule: never replace an existing secret with a
+                // different one on import without --force. Several entries with
+                // this name is the same question (which one?), so it needs --force too.
+                if !same && !opts.force {
+                    conflicts.push(rec.provider.clone());
+                    continue;
+                }
                 // A seed the entry does not have yet is added. A *different* seed
                 // is never replaced (integrations rule: no silent overwrite).
                 let new_seed = rec
@@ -662,7 +680,7 @@ fn merge(
             }
         }
     }
-    (entries, created, updated, unchanged)
+    (entries, created, updated, unchanged, conflicts)
 }
 
 /// Everything an import would do, computed without writing anything. Shared by
@@ -675,6 +693,8 @@ pub struct ImportPlan {
     pub updated: usize,
     pub unchanged: usize,
     pub skipped: usize,
+    /// Names whose stored secret differs from the incoming one (left untouched).
+    pub conflicts: Vec<String>,
     /// One row per incoming credential: fingerprint, never the value.
     pub preview: Vec<Value>,
 }
@@ -698,7 +718,7 @@ pub fn plan_import(
              identities and items with no password have nothing this vault can store."
         )));
     }
-    let (entries, created, updated, unchanged) = merge(vault, &incoming, opts);
+    let (entries, created, updated, unchanged, conflicts) = merge(vault, &incoming, opts);
     let preview = incoming
         .iter()
         .map(|r| {
@@ -718,6 +738,7 @@ pub fn plan_import(
         updated,
         unchanged,
         skipped,
+        conflicts,
         preview,
     })
 }
@@ -741,6 +762,7 @@ pub fn run(
         updated,
         unchanged,
         skipped,
+        conflicts,
         preview,
     } = plan_import(&vault, vendor, &doc, opts)?;
 
@@ -751,6 +773,7 @@ pub fn run(
                 "applied": false,
                 "created": created, "updated": updated, "unchanged": unchanged,
                 "skipped": skipped,
+                "conflicts": conflicts,
                 "warnings": warnings,
                 "items": preview,
             }),
@@ -762,6 +785,13 @@ pub fn run(
                     "{} would create, {updated} update, {unchanged} unchanged, {skipped} skipped.",
                     created
                 );
+                if !conflicts.is_empty() {
+                    println!(
+                        "{} would conflict (stored secret differs or name is ambiguous): {}. --force replaces.",
+                        conflicts.len(),
+                        conflicts.join(", ")
+                    );
+                }
                 for p in &preview {
                     println!(
                         "  {:<28} {:<18} {}",
@@ -776,6 +806,13 @@ pub fn run(
         return Ok(());
     }
 
+    if !conflicts.is_empty() {
+        return Err(CliError::conflict(format!(
+            "{} existing entries hold a different secret or share a name: {}. Nothing was written; re-run with --force to replace them.",
+            conflicts.len(),
+            conflicts.join(", ")
+        )));
+    }
     let mut next = vault.clone();
     next["api_keys"] = json!(entries);
     // `Access::save` is the single write point — it is also where `--dry-run`
