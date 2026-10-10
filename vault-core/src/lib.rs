@@ -99,12 +99,12 @@ pub mod totp;
 // how `entropy` and `totp` have each broken the docs build before.
 pub mod totp_import;
 pub use users::{
-    assign_user_class, authority_tier, class_authority_tier, create_user, create_user_class,
-    create_user_token, delete_user, delete_user_class, effective_permission_expr,
-    ensure_owner_user, filter_vault_for_user, get_class_permissions, get_permission_expr,
-    get_user_capabilities, get_user_permissions, glob_matches, init_users_schema,
-    list_user_classes, list_user_tokens, list_users, merge_user_vault_write, rename_user,
-    revoke_user_token, seed_default_admin, set_class_permissions, set_permission_expr,
+    assign_user_class, authority_tier, class_authority_tier, class_member_count, create_user,
+    create_user_class, create_user_token, delete_user, delete_user_class,
+    effective_permission_expr, ensure_owner_user, filter_vault_for_user, get_class_permissions,
+    get_permission_expr, get_user_capabilities, get_user_permissions, glob_matches,
+    init_users_schema, list_user_classes, list_user_tokens, list_users, merge_user_vault_write,
+    rename_user, revoke_user_token, seed_default_admin, set_class_permissions, set_permission_expr,
     set_user_password, set_user_permissions, token_user_id, update_user_class, user_authority_tier,
     verify_user_password, verify_user_token, AdminSeed, ClassPermission, PermissionRecord,
     TokenRecord, UserClass, UserRecord,
@@ -503,6 +503,40 @@ fn historied_extra_vars(entry: &serde_json::Value) -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
+/// The stored version and the document, read as one snapshot (`None` for an empty vault).
+///
+/// `GET /api/vault` read the document and then the version as two statements; a save
+/// landing between them paired the document with a newer token.
+pub fn snapshot_vault(
+    conn: &Connection,
+) -> Result<(Option<String>, Option<serde_json::Value>), String> {
+    storage::in_snapshot(conn, || Ok((vault_version(conn)?, load_vault(conn)?)))
+}
+
+/// The base version and the current document a row patch is applied to.
+///
+/// Both come from one snapshot, and when the caller names no version the one read here is
+/// the base. `PATCH /api/vault` without an `If-Match` used to load the document and then
+/// save it with no expected version at all, which `storage::merge` treats as "the writer's
+/// document is the whole truth": any row another writer committed between the load and the
+/// save was silently reverted, or deleted if it was new. With the version read first, that
+/// writer's rows are merged (or reported as a conflict) like any stale save.
+pub fn begin_row_patch(
+    conn: &Connection,
+    expect: Option<&str>,
+) -> Result<(Option<String>, serde_json::Value), String> {
+    storage::in_snapshot(conn, || {
+        let base = match expect {
+            Some(v) => Some(v.to_string()),
+            None => vault_version(conn)?,
+        };
+        let doc = load_vault(conn)?.unwrap_or_else(
+            || serde_json::json!({ "api_keys": [], "user_categories": [], "projects": [] }),
+        );
+        Ok((base, doc))
+    })
+}
+
 /// Phase 30.1: apply a delta to a stored vault document. Shared by `PATCH
 /// /api/vault` and the desktop's `save_vault_rows` so they cannot differ.
 ///
@@ -646,6 +680,9 @@ fn save_vault_txn(
     // vault; a caller expecting a specific version against one is out of date.
     let snap = storage::snapshot(conn)?;
     let (mut ents, merged) = storage::merge(conn, &snap, storage::split(data), ctx.expect_version)?;
+    // Rows only one writer touched merge cleanly, so a reference to something the other writer
+    // deleted can survive the merge. Repair it here, where the merged whole is visible.
+    storage::repair_references(&mut ents);
 
     let stored: std::collections::HashMap<&str, &str> = snap
         .iter()
@@ -677,6 +714,14 @@ fn save_vault_txn(
                 let mut entry = ent.full();
                 let provider = ent.provider();
                 let entry = &mut entry;
+                // The writer's copy of the history may be older than what is stored
+                // (another writer rotated the secret first): start from the union.
+                if let Some(h) = storage::merge_history(old.history.as_ref(), ent.history.as_ref())
+                {
+                    if let Some(obj) = entry.as_object_mut() {
+                        obj.insert("version_history".to_string(), h);
+                    }
+                }
                 // Every secret-carrying value the entry holds, snapshot into one
                 // history. `api_key` writes no `field` discriminator so a vault
                 // stays readable to a build that predates the others — an
@@ -896,6 +941,34 @@ pub struct AuditRow {
 
 /// Appends an audit entry and computes `entry_hash = SHA256(action|provider|ts|prev_hash)`.
 fn append_audit(
+    conn: &Connection,
+    action: &str,
+    provider: &str,
+    timestamp: &str,
+    details: Option<&str>,
+    actor: Option<&str>,
+) -> Result<(), String> {
+    // Reading the previous hash and inserting the next row are two statements. Run
+    // as two autocommit statements, two writers (a node event beside a vault save, two
+    // server threads) both read the same `prev` and write two rows that claim it: the
+    // chain forks and can never verify again, because rows cannot be repaired. Inside
+    // `save_vault` the caller's `BEGIN IMMEDIATE` already makes them one unit; anywhere
+    // else this opens its own.
+    if conn.is_autocommit() {
+        conn.execute_batch("BEGIN IMMEDIATE")
+            .map_err(|e| e.to_string())?;
+        return match append_audit_in_txn(conn, action, provider, timestamp, details, actor) {
+            Ok(()) => conn.execute_batch("COMMIT").map_err(|e| e.to_string()),
+            Err(e) => {
+                let _ = conn.execute_batch("ROLLBACK");
+                Err(e)
+            }
+        };
+    }
+    append_audit_in_txn(conn, action, provider, timestamp, details, actor)
+}
+
+fn append_audit_in_txn(
     conn: &Connection,
     action: &str,
     provider: &str,
