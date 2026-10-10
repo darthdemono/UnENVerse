@@ -60,6 +60,20 @@ struct Session {
     /// `issued_at + session_max_lifetime` however busy it is — which is the only
     /// thing that limits a leaked bearer token to a finite window.
     hard_expires_at: Instant,
+    /// True when this session was made from an API token rather than a password. Revoking
+    /// the token must end exactly these sessions; a password change must end the others.
+    via_token: bool,
+    /// What this session was last served by `GET /api/vault`. A non-owner save is judged
+    /// against it: entries added since are not the user's to delete, and a change of the
+    /// user's permissions since invalidates the view the save was based on.
+    served: Option<Served>,
+}
+
+#[derive(Clone)]
+struct Served {
+    version: String,
+    /// `AppState::perm_epoch` when the vault was read.
+    epoch: u64,
 }
 
 impl Session {
@@ -82,6 +96,28 @@ fn purge_expired(sessions: &mut HashMap<String, Session>) {
     });
 }
 
+/// Ends every session `pred` selects, zeroizing its key. An identity change (user
+/// deleted, token revoked, password changed, second factor removed) has to reach the
+/// sessions that identity already holds; the session map alone never re-checks the user.
+fn purge_sessions(state: &AppState, mut pred: impl FnMut(&Session) -> bool) {
+    let mut g = state.sessions.lock().unwrap();
+    g.retain(|_, s| {
+        if pred(s) {
+            s.vault_key.zeroize();
+            false
+        } else {
+            true
+        }
+    });
+}
+
+/// Marks that who-may-do-what changed (see `AppState::perm_epoch`).
+fn bump_perm_epoch(state: &AppState) {
+    state
+        .perm_epoch
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// Live (non-expired) sessions, purging as a side effect.
 fn live_sessions(state: &AppState) -> std::sync::MutexGuard<'_, HashMap<String, Session>> {
     let mut guard = state.sessions.lock().unwrap();
@@ -95,6 +131,50 @@ fn live_sessions(state: &AppState) -> std::sync::MutexGuard<'_, HashMap<String, 
 struct RateBucket {
     failures: u32,
     window_start: Option<Instant>,
+    /// Attempts that passed the check and have not finished. The password check takes a
+    /// second, and failures are recorded only after it: a burst of N simultaneous guesses
+    /// all saw zero failures and all got a full guess. In-flight attempts count against
+    /// the limit from the moment they start.
+    inflight: u32,
+}
+
+/// Holds one in-flight attempt open for a key; releases it when dropped.
+struct RateGuard {
+    limiter: Arc<Mutex<HashMap<String, RateBucket>>>,
+    key: String,
+}
+
+impl Drop for RateGuard {
+    fn drop(&mut self) {
+        if let Ok(mut g) = self.limiter.lock() {
+            if let Some(b) = g.get_mut(&self.key) {
+                b.inflight = b.inflight.saturating_sub(1);
+            }
+        }
+    }
+}
+
+/// Checks the limit and, in the same critical section, reserves an attempt. `Err` carries
+/// the seconds to wait.
+fn rate_begin(
+    limiter: &Arc<Mutex<HashMap<String, RateBucket>>>,
+    key: &str,
+) -> Result<RateGuard, u64> {
+    let mut g = limiter.lock().unwrap();
+    if let Some(retry) = rate_retry_after(&mut g, key) {
+        return Err(retry);
+    }
+    let b = g.entry(key.to_string()).or_default();
+    if b.failures + b.inflight >= 10 {
+        let ws = b.window_start.unwrap_or_else(Instant::now);
+        let remaining = RATE_WINDOW.saturating_sub(Instant::now().duration_since(ws));
+        return Err(remaining.as_secs().max(1));
+    }
+    b.inflight += 1;
+    Ok(RateGuard {
+        limiter: limiter.clone(),
+        key: key.to_string(),
+    })
 }
 
 /// Returns `true` when the caller is **not** rate-limited (i.e. they may proceed).
@@ -333,6 +413,14 @@ pub struct AppState {
     /// route refuses rather than silently creating `registry.db` for a
     /// deployment that never asked for it.
     uid_registry_enabled: bool,
+    /// Bumped by every change to who may do what (permissions, classes, assignments,
+    /// strict-write, user deletion). A session records the value it read the vault under;
+    /// a non-owner save made under an older value is refused, because the document it
+    /// holds was filtered by permissions that no longer apply.
+    perm_epoch: Arc<std::sync::atomic::AtomicU64>,
+    /// Bumped by an owner lock, under the session lock. A sign-in records it before its
+    /// slow password check and refuses to mint a session if it moved.
+    lock_gen: Arc<std::sync::atomic::AtomicU64>,
     /// Argon2 is ~64 MiB and ~100 ms of CPU per call. Run on the async runtime it
     /// stalls every other request (`/api/health` included) on a 2-thread server,
     /// and unbounded it is a memory amplifier: N parallel wrong-password logins
@@ -495,6 +583,8 @@ impl AppState {
             last_peer_activity: Arc::new(Mutex::new(Instant::now())),
             started_at: Instant::now(),
             uid_registry_enabled: false,
+            perm_epoch: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            lock_gen: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             kdf_gate: Arc::new(tokio::sync::Semaphore::new(KDF_PERMITS)),
             uid_max_bytes: 10 * 1024 * 1024 * 1024,
             limiter: Arc::new(Mutex::new(HashMap::new())),
@@ -562,6 +652,8 @@ impl AppState {
                 // nothing to bound here.
                 expires_at: Instant::now() + NEVER,
                 hard_expires_at: Instant::now() + NEVER,
+                via_token: false,
+                served: None,
             },
         );
         token
@@ -963,14 +1055,19 @@ async fn unlock(
 
     // Rate-limit by socket address — not by X-Forwarded-For (spoofable).
     let ip = addr.ip().to_string();
-    if let Some(retry) = rate_retry_after(&mut state.rate_limiter.lock().unwrap(), &ip) {
-        tracing::warn!(retry_after_secs = retry, "rate limited");
-        return err_json_retry(
-            StatusCode::TOO_MANY_REQUESTS,
-            &format!("Too many failed attempts — try again in {retry}s"),
-            retry,
-        );
-    }
+    // Held until the handler returns: the attempt counts against the limit while its slow
+    // password check runs, not only after it has failed.
+    let _attempt = match rate_begin(&state.rate_limiter, &ip) {
+        Ok(g) => g,
+        Err(retry) => {
+            tracing::warn!(retry_after_secs = retry, "rate limited");
+            return err_json_retry(
+                StatusCode::TOO_MANY_REQUESTS,
+                &format!("Too many failed attempts — try again in {retry}s"),
+                retry,
+            );
+        }
+    };
 
     let salt = match read_or_create_salt(&state.salt_path) {
         Ok(s) => s,
@@ -1021,6 +1118,8 @@ async fn unlock(
             is_owner: true,
             expires_at: Instant::now() + state.session_ttl,
             hard_expires_at: Instant::now() + state.session_max_lifetime,
+            via_token: false,
+            served: None,
         },
     );
     (StatusCode::OK, Json(serde_json::json!({ "token": token }))).into_response()
@@ -1080,6 +1179,11 @@ async fn lock(headers: HeaderMap, State(state): State<AppState>) -> StatusCode {
     let is_owner = sessions.get(&token).map(|s| s.is_owner).unwrap_or(false);
 
     if is_owner {
+        // Under the session lock, so a sign-in that is about to insert a session sees the
+        // new generation and refuses (see `auth_user`).
+        state
+            .lock_gen
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         for (_, mut s) in sessions.drain() {
             s.vault_key.zeroize();
         }
@@ -1124,15 +1228,23 @@ async fn auth_user(
 ) -> impl IntoResponse {
     // Rate-limit by socket address — not by X-Forwarded-For (spoofable).
     let ip = addr.ip().to_string();
-    if let Some(retry) = rate_retry_after(&mut state.rate_limiter.lock().unwrap(), &ip) {
-        tracing::warn!(retry_after_secs = retry, "rate limited");
-        return err_json_retry(
-            StatusCode::TOO_MANY_REQUESTS,
-            &format!("Too many failed attempts — try again in {retry}s"),
-            retry,
-        );
-    }
+    // Held until the handler returns: the attempt counts against the limit while its slow
+    // password check runs, not only after it has failed.
+    let _attempt = match rate_begin(&state.rate_limiter, &ip) {
+        Ok(g) => g,
+        Err(retry) => {
+            tracing::warn!(retry_after_secs = retry, "rate limited");
+            return err_json_retry(
+                StatusCode::TOO_MANY_REQUESTS,
+                &format!("Too many failed attempts — try again in {retry}s"),
+                retry,
+            );
+        }
+    };
 
+    // Read before the key: a lock after this point makes the sign-in below refuse to mint
+    // a session, because the key it holds was zeroized for everyone else.
+    let lock_gen = state.lock_gen.load(std::sync::atomic::Ordering::SeqCst);
     let key = match owner_vault_key(&state) {
         Some(k) => k,
         None => {
@@ -1215,16 +1327,31 @@ async fn auth_user(
             }
 
             let session_token = uuid::Uuid::new_v4().to_string();
-            live_sessions(&state).insert(
-                session_token.clone(),
-                Session {
-                    vault_key: key,
-                    user_id: user.id,
-                    is_owner: false,
-                    expires_at: Instant::now() + state.session_ttl,
-                    hard_expires_at: Instant::now() + state.session_max_lifetime,
-                },
-            );
+            {
+                // The generation check and the insert are one critical section, the one
+                // `lock` takes to drain: either this session is drained with the rest, or
+                // it is never created.
+                let mut sessions = live_sessions(&state);
+                if state.lock_gen.load(std::sync::atomic::Ordering::SeqCst) != lock_gen {
+                    return err_json(
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        "Vault was locked while you were signing in",
+                    )
+                    .into_response();
+                }
+                sessions.insert(
+                    session_token.clone(),
+                    Session {
+                        vault_key: key,
+                        user_id: user.id,
+                        is_owner: false,
+                        expires_at: Instant::now() + state.session_ttl,
+                        hard_expires_at: Instant::now() + state.session_max_lifetime,
+                        via_token: !via_password,
+                        served: None,
+                    },
+                );
+            }
             (
                 StatusCode::OK,
                 Json(serde_json::json!({ "token": session_token })),
@@ -1251,7 +1378,7 @@ async fn auth_user(
     tag = "vault", security(("bearer_auth" = []))
 )]
 async fn get_vault(headers: HeaderMap, State(state): State<AppState>) -> impl IntoResponse {
-    let (_, session) = match extract_session(&headers, &state) {
+    let (token, session) = match extract_session(&headers, &state) {
         Ok(s) => s,
         Err(e) => return e.into_response(),
     };
@@ -1259,21 +1386,18 @@ async fn get_vault(headers: HeaderMap, State(state): State<AppState>) -> impl In
         Ok(c) => c,
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
-    let vault = match load_vault(&conn) {
-        Ok(Some(d)) => d,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+    // Read before the permissions are: a permission change that lands while this request
+    // runs leaves the recorded epoch older than the current one, so a later save made on
+    // this view is refused rather than trusted.
+    let epoch = state.perm_epoch.load(std::sync::atomic::Ordering::SeqCst);
+    // The document and the version token describe one snapshot. Read apart, a save
+    // landing between them paired a document with a NEWER token, and the client's next
+    // save then treated everything that landed in between as its own deletions.
+    let (ver, vault) = match vault_core::snapshot_vault(&conn) {
+        Ok((v, Some(d))) => (v.unwrap_or_default(), d),
+        Ok((_, None)) => return StatusCode::NOT_FOUND.into_response(),
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
-
-    // Version token (ETag) is the full-vault hash so a later PUT can detect drift.
-    // The ETag must be the *same* value save_vault compares against, so read the
-    // stored data_hash rather than re-hashing the parsed JSON. Re-serialising a
-    // Value happens to reproduce the stored bytes today, but relying on that
-    // would make every If-Match request 409 the moment it stopped being true.
-    let ver = vault_core::vault_version(&conn)
-        .ok()
-        .flatten()
-        .unwrap_or_default();
     // Reads are deliberately not audited. Every GET wrote a row, so a polling
     // client grew the table without bound, and pruning it would have broken the
     // hash chain that makes the log tamper-evident. Mutations carry the actor
@@ -1286,11 +1410,20 @@ async fn get_vault(headers: HeaderMap, State(state): State<AppState>) -> impl In
     // Non-owner: evaluate their effective read expression (class AND individual,
     // ORed with write since write implies read). No expression means no grant.
     match effective_permission_expr(&conn, &session.user_id, "read") {
-        Ok(read) => (
-            [(axum::http::header::ETAG, ver)],
-            Json(filter_vault_for_user(vault, read.as_ref())),
-        )
-            .into_response(),
+        Ok(read) => {
+            // What this session was shown, for judging its next save.
+            if let Some(s) = live_sessions(&state).get_mut(&token) {
+                s.served = Some(Served {
+                    version: ver.clone(),
+                    epoch,
+                });
+            }
+            (
+                [(axum::http::header::ETAG, ver)],
+                Json(filter_vault_for_user(vault, read.as_ref())),
+            )
+                .into_response()
+        }
         Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     }
 }
@@ -1521,6 +1654,19 @@ async fn put_vault(
         };
     }
 
+    // Non-owner: the document they hold was filtered by the permissions in force when they
+    // read it. If those changed since, what is absent from it no longer means "deleted by
+    // them": widening exposes entries they were never shown, and the save would remove
+    // them. Refuse, and let them reload.
+    if let Some(served) = &session.served {
+        if served.epoch != state.perm_epoch.load(std::sync::atomic::Ordering::SeqCst) {
+            return err_json(
+                StatusCode::CONFLICT,
+                "Your permissions changed since you last loaded the vault. Reload it and try again.",
+            )
+            .into_response();
+        }
+    }
     // Non-owner: merge, honouring their effective write expression.
     let write = match effective_permission_expr(&conn, &session.user_id, "write") {
         Ok(p) => p,
@@ -1556,9 +1702,16 @@ async fn put_vault(
         Ok(v) => v,
         Err(e) => return err_json(StatusCode::FORBIDDEN, &e).into_response(),
     };
+    // The base is, in order: the version the client names, the version this session was
+    // last served, and only then the version "now". Using "now" when the client named
+    // nothing made every entry another writer added since the user's read look deleted.
+    let served_version = session.served.as_ref().map(|s| s.version.clone());
     let ctx = vault_core::SaveCtx {
         actor: Some(&session.user_id),
-        expect_version: expect.as_deref().or(merge_base.as_deref()),
+        expect_version: expect
+            .as_deref()
+            .or(served_version.as_deref())
+            .or(merge_base.as_deref()),
     };
     match save_vault(&conn, merged, ctx) {
         Ok(v) => {
@@ -1624,22 +1777,23 @@ async fn patch_vault(
         Ok(c) => c,
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
-    let doc = match load_vault(&conn) {
-        Ok(Some(v)) => v,
-        Ok(None) => serde_json::json!({ "api_keys": [], "user_categories": [], "projects": [] }),
+    let expect = headers
+        .get(axum::http::header::IF_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.trim_matches('"').to_string());
+    // No `If-Match` means "against what is stored right now", read before the document,
+    // not "against nothing": see `begin_row_patch`.
+    let (base, doc) = match vault_core::begin_row_patch(&conn, expect.as_deref()) {
+        Ok(x) => x,
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
     let doc = match vault_core::apply_row_patch(doc, &patch) {
         Ok(d) => d,
         Err(e) => return err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     };
-    let expect = headers
-        .get(axum::http::header::IF_MATCH)
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v.trim_matches('"').to_string());
     let ctx = vault_core::SaveCtx {
         actor: Some(&session.user_id),
-        expect_version: expect.as_deref(),
+        expect_version: base.as_deref(),
     };
     match save_vault(&conn, doc, ctx) {
         Ok(v) => {
@@ -1794,7 +1948,13 @@ async fn delete_user_handler(
         return e;
     }
     match vault_core::delete_user(&conn, &user_id) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            // Every session the user holds ends now, and so does any view built from
+            // their permissions.
+            purge_sessions(&state, |s| s.user_id == user_id);
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -1838,11 +1998,32 @@ async fn create_token_handler(
     if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
         return e;
     }
+    // `expires_at` is compared as text against the current time, so it has to be a real
+    // UTC timestamp in one shape: "never" or "tomorrow" sorted after every date and never
+    // expired, and a bare date expired at the start of that day.
+    let expires = match req
+        .expires_at
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        None => None,
+        Some(raw) => match vault_core::pool::parse_rfc3339(raw) {
+            Some(ts) => Some(vault_core::pool::iso_at(ts)),
+            None => {
+                return err_json(
+                    StatusCode::BAD_REQUEST,
+                    "expires_at must be an RFC 3339 timestamp such as 2027-01-31T00:00:00Z",
+                )
+                .into_response()
+            }
+        },
+    };
     match vault_core::create_user_token(
         &conn,
         &user_id,
         req.description.as_deref(),
-        req.expires_at.as_deref(),
+        expires.as_deref(),
     ) {
         Ok((token_id, plaintext)) => (
             StatusCode::CREATED,
@@ -1881,7 +2062,12 @@ async fn revoke_token_handler(
         return e;
     }
     match vault_core::revoke_user_token(&conn, &token_id) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            // Sessions made from API tokens end; the same user's password sessions are a
+            // different credential and stay.
+            purge_sessions(&state, |s| s.user_id == owner_id && s.via_token);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     }
 }
@@ -1959,7 +2145,10 @@ async fn set_permissions_handler(
     // set_permission_expr parses before storing, so a malformed rule is a 400
     // rather than a silently-denies-everything grant.
     match store_exprs(&conn, "user", &user_id, &exprs) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -2015,7 +2204,10 @@ async fn set_strict_write_handler(
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
     match vault_core::users::set_strict_write(&conn, kind, &id, req.strict) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::NOT_FOUND, &e).into_response(),
     }
 }
@@ -2056,12 +2248,18 @@ async fn set_password_handler(
         return e;
     }
     let password = req.password.clone();
+    let target = user_id.clone();
     let changed = run_kdf(&state, move || {
         vault_core::set_user_password(&conn, &user_id, password.as_deref())
     })
     .await;
     match changed {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            // A session signed in with the old password ends; token sessions are a
+            // different credential.
+            purge_sessions(&state, |s| s.user_id == target && !s.via_token);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -2091,7 +2289,10 @@ async fn assign_class_handler(
         }
     }
     match vault_core::assign_user_class(&conn, &user_id, req.class_id.as_deref()) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -2196,7 +2397,10 @@ async fn totp_disable_handler(
         return e;
     }
     match vault_core::users::totp_disable(&conn, &user_id) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            purge_sessions(&state, |s| s.user_id == user_id && !s.via_token);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -2313,7 +2517,10 @@ async fn update_class_handler(
         req.cap_manage_classes,
         req.cap_delete_projects,
     ) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -2344,8 +2551,26 @@ async fn delete_class_handler(
             return forbidden("Cannot delete a class of equal or higher authority");
         }
     }
+    // A class is a restriction: its expression is ANDed with each member's own. Deleting
+    // it unassigned every member, and a member with a broad individual expression became
+    // unrestricted. Removing a restriction is a decision about each member, so the
+    // members have to be moved first.
+    match vault_core::class_member_count(&conn, &class_id) {
+        Ok(0) => {}
+        Ok(n) => {
+            return err_json(
+                StatusCode::CONFLICT,
+                &format!("The class still has {n} member(s). Assign them to another class first."),
+            )
+            .into_response()
+        }
+        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
+    }
     match vault_core::delete_user_class(&conn, &class_id) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -2395,7 +2620,10 @@ async fn set_class_perms_handler(
         return forbidden("Cannot modify a class of equal or higher authority");
     }
     match store_exprs(&conn, "class", &class_id, &exprs) {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            bump_perm_epoch(&state);
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
     }
 }
@@ -3264,6 +3492,8 @@ pub fn auto_unlock(state: &AppState, password: &str) -> Result<(), String> {
             // stays reachable for `POST /api/auth` — so no ceiling applies.
             expires_at: Instant::now() + NEVER,
             hard_expires_at: Instant::now() + NEVER,
+            via_token: false,
+            served: None,
         },
     );
     Ok(())
@@ -3528,6 +3758,11 @@ impl AppState {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+// Multi-actor scenarios (roadmap: chaos testing). Kept beside the handlers they
+// exercise so they can use the private session and router internals.
+#[cfg(test)]
+mod chaos_tests;
 
 #[cfg(test)]
 mod tests {
@@ -4903,6 +5138,8 @@ mod tests {
                 is_owner: false,
                 expires_at: Instant::now() - Duration::from_secs(1),
                 hard_expires_at: Instant::now() + NEVER,
+                via_token: false,
+                served: None,
             },
         );
         assert_eq!(s.peer_count(), 0);
@@ -4928,6 +5165,8 @@ mod tests {
             // …but the session was minted a minute ago with a ceiling that has
             // already passed.
             hard_expires_at: issued - Duration::from_secs(1),
+            via_token: false,
+            served: None,
         };
         assert!(
             sess.deadline() < Instant::now(),
