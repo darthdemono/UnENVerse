@@ -2223,6 +2223,20 @@ export async function saveModal() {
         return;
       }
     }
+    // `idx` was read from the form when the modal opened and `old` before several awaits (the
+    // seed check, the rename confirmation). A reload in between (a merged save, the vault
+    // watcher, a conflict resolution) replaces the array and its entries, and `api_keys[idx]`
+    // then names a different entry, so the form's contents overwrote a neighbour and kept
+    // its id (invariant 1). Find the entry again by identity, at the moment of the write.
+    const at = idx >= 0 && old ? resolveEditTarget(st.vault.api_keys, old) : -1;
+    if (idx >= 0 && old && at < 0) {
+      showToast(
+        'This entry was changed or deleted elsewhere while you were editing it. Your edit was not saved.',
+        'err',
+        6000,
+      );
+      return;
+    }
     if (idx >= 0 && old) {
       // `id` is the one field that must exist even when the base had none: it is
       // this entry's identity for audit attribution, version history and RBAC
@@ -2230,7 +2244,7 @@ export async function saveModal() {
       // Everything else the form does not offer — `created_at`,
       // `last_rotated_at`, `version_history`, `pinned` and every field a later
       // phase adds — now arrives through the spread in `formToEntry`.
-      st.vault.api_keys[idx] = {
+      st.vault.api_keys[at] = {
         ...entry,
         id: old.id ?? newEntryId(),
       };
@@ -2243,7 +2257,7 @@ export async function saveModal() {
             const after = row.querySelector<HTMLInputElement>('.extra-var-key')?.value.trim() ?? '';
             if (before && after && before !== after) renamed.set(before, after);
           });
-        const bundleWithOldName = { ...st.vault.api_keys[idx], provider: old.provider };
+        const bundleWithOldName = { ...st.vault.api_keys[at], provider: old.provider };
         for (const [before, after] of renamed) {
           const moved = renameBundleLocalRefs(
             st.vault.api_keys,
@@ -2404,6 +2418,17 @@ function deleteKeyNow(e: Event, idx: number) {
     void persist();
     triggerRender();
   });
+}
+
+/**
+ * Where an entry now lives in the array: the very object if it is still there, else the one
+ * with the same id, else -1. The editor holds an index across awaits and a reload can reorder
+ * or replace the array under it.
+ */
+export function resolveEditTarget(list: VaultEntry[], old: VaultEntry): number {
+  const same = list.indexOf(old);
+  if (same >= 0) return same;
+  return old.id ? list.findIndex((k) => k.id === old.id) : -1;
 }
 
 export function pushUndo(msg: string, fn: () => void) {
