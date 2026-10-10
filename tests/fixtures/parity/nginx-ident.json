@@ -1,0 +1,14 @@
+{
+  "_comment": "Chunk name -> the identifier an nginx upstream block is written with. Asserted by unv-cli/tests/parity.rs and tests/cli-parity.test.ts.",
+  "cases": [
+    { "name": "app_upstream", "ident": "app_upstream" },
+    { "name": "app upstream", "ident": "app_upstream" },
+    { "name": "  media / api  ", "ident": "media_api" },
+    { "name": "web-1.internal", "ident": "web-1.internal" },
+    { "name": "Résumé ключ", "ident": "R_sum" },
+    { "name": "a{b};c", "ident": "a_b_c" },
+    { "name": "$evil", "ident": "evil" },
+    { "name": "///", "ident": "" },
+    { "name": "", "ident": "" }
+  ]
+}
