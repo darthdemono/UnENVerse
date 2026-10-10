@@ -12,6 +12,7 @@ import {
   triggerRender,
   switchPanel,
   persist,
+  dropPreviousVault,
   entryId,
   ensureEntryIds,
   backfillCreatedAt,
@@ -309,9 +310,11 @@ async function finishInit() {
       startVaultWatch();
       showToast(`Loaded ${st.vault.api_keys.length} keys`, 'ok', 1800);
     } else {
+      dropPreviousVault();
       document.getElementById('load-banner')!.style.display = 'flex';
     }
   } catch {
+    dropPreviousVault();
     document.getElementById('load-banner')!.style.display = 'flex';
   }
 
