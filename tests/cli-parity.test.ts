@@ -31,6 +31,7 @@ import {
   exportWireGuard,
   exportDockerCompose,
   exportNginx,
+  nginxIdent,
   exportK8s,
   exportSshConfig,
   exportTraefik,
@@ -425,5 +426,38 @@ describe('exporter parity fixtures', () => {
       (c: any) => c.chunk_type === 'nginx_upstream',
     );
     golden('chunk-nginx-upstream.txt', chunkToString(chunk));
+  });
+});
+
+// An upstream chunk is named for people ("app upstream") but written as one nginx
+// word. Rust asserts the same table in unv-cli/tests/parity.rs.
+describe('nginx upstream identifiers', () => {
+  const table = JSON.parse(
+    readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'fixtures/parity/nginx-ident.json'),
+      'utf8',
+    ),
+  ) as { cases: { name: string; ident: string }[] };
+
+  it('match the shared table', () => {
+    for (const c of table.cases) expect(nginxIdent(c.name), JSON.stringify(c.name)).toBe(c.ident);
+  });
+
+  it('keep a chunk named with a space from producing an invalid upstream block', () => {
+    const out = exportNginx({
+      id: 'p',
+      name: 'P',
+      project_type: 'nginx',
+      chunks: [
+        {
+          id: 'u',
+          name: 'app upstream',
+          chunk_type: 'nginx_upstream',
+          fields: [{ key: 'server', value: '127.0.0.1:8080', field_type: 'var' }],
+        },
+      ],
+    } as never);
+    expect(out).toContain('upstream app_upstream {');
+    expect(out).not.toContain('upstream app upstream');
   });
 });
