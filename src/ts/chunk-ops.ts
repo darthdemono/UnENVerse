@@ -1541,8 +1541,8 @@ export function chunkToString(chunk: SecretChunk): string {
           ? ` ${pathField.value}`
           : ''
         : chunk.chunk_type === 'nginx_upstream'
-          ? chunk.name
-            ? ` ${chunk.name}`
+          ? nginxIdent(chunk.name)
+            ? ` ${nginxIdent(chunk.name)}`
             : ''
           : ''; // server block has no inline name
     const inner = chunk.fields
@@ -2298,6 +2298,17 @@ export function makeConfigViewHeaderBtns(project: Project): SafeHtml | '' {
   }
 }
 
+/**
+ * The identifier an nginx `upstream` block is written with, from a chunk name.
+ * A chunk is named for people ("app upstream"); nginx wants one word, and a space
+ * made `upstream app upstream {`, which `nginx -t` refuses. Runs of anything outside
+ * `[A-Za-z0-9_.-]` become one `_` and the ends are trimmed. Rust has the same
+ * function (`nginx_ident`); tests/fixtures/parity/nginx-ident.json pins both.
+ */
+export function nginxIdent(name: string): string {
+  return name.replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
 export function exportNginx(project: Project): string {
   const chunks = activeChunks(project);
   const upstreams = chunks.filter((c) => c.chunk_type === 'nginx_upstream');
@@ -2313,7 +2324,7 @@ export function exportNginx(project: Project): string {
   const rv = (v: string) => resolveFieldRef(v ?? '', true).resolved ?? v ?? '';
 
   for (const u of upstreams) {
-    lines.push(`upstream ${u.name} {`);
+    lines.push(`upstream ${nginxIdent(u.name)} {`);
     for (const f of u.fields) {
       if (!f.value) continue;
       if (f.key === 'server') {
