@@ -49,53 +49,48 @@ fn rand32() -> [u8; 32] {
 /// never see the values live anywhere but here and inside the open registry
 /// connection.
 pub fn ensure_registry_secrets(vault_conn: &Connection) -> Result<([u8; 32], [u8; 32]), String> {
-    let read = |key: &str| -> Result<Option<String>, String> {
+    Ok((
+        get_or_create_secret(vault_conn, META_KEY, "uid_registry_key")?,
+        get_or_create_secret(vault_conn, META_PEPPER, "uid_registry_pepper")?,
+    ))
+}
+
+/// Reads the 32-byte secret stored under `meta_key`, creating it on first use.
+///
+/// Creation is `INSERT OR IGNORE` followed by a read, so two callers that both find
+/// nothing converge on whichever row landed first. It used to be a read, a random
+/// value and `INSERT OR REPLACE`: the second caller's value replaced the first's, a
+/// registry file already created under the first key became unreadable ("Wrong
+/// registry key"), and a changed pepper made every issued id look unissued, which
+/// silently breaks uniqueness.
+fn get_or_create_secret(
+    vault_conn: &Connection,
+    meta_key: &str,
+    label: &str,
+) -> Result<[u8; 32], String> {
+    let read = || -> Result<Option<String>, String> {
         vault_conn
             .query_row(
                 "SELECT value FROM vault_meta WHERE key = ?1",
-                params![key],
+                params![meta_key],
                 |r| r.get::<_, String>(0),
             )
             .optional()
             .map_err(|e| e.to_string())
     };
-    let write = |key: &str, value: &str| -> Result<(), String> {
+    if read()?.is_none() {
         vault_conn
             .execute(
-                "INSERT OR REPLACE INTO vault_meta (key, value) VALUES (?1, ?2)",
-                params![key, value],
+                "INSERT OR IGNORE INTO vault_meta (key, value) VALUES (?1, ?2)",
+                params![meta_key, hex::encode(rand32())],
             )
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    };
-
-    let key = match read(META_KEY)? {
-        Some(hex_str) => {
-            let bytes = hex::decode(&hex_str).map_err(|e| e.to_string())?;
-            bytes
-                .try_into()
-                .map_err(|_| "uid_registry_key is corrupt (wrong length)".to_string())?
-        }
-        None => {
-            let k = rand32();
-            write(META_KEY, &hex::encode(k))?;
-            k
-        }
-    };
-    let pepper = match read(META_PEPPER)? {
-        Some(hex_str) => {
-            let bytes = hex::decode(&hex_str).map_err(|e| e.to_string())?;
-            bytes
-                .try_into()
-                .map_err(|_| "uid_registry_pepper is corrupt (wrong length)".to_string())?
-        }
-        None => {
-            let p = rand32();
-            write(META_PEPPER, &hex::encode(p))?;
-            p
-        }
-    };
-    Ok((key, pepper))
+            .map_err(|e| e.to_string())?;
+    }
+    let hex_str = read()?.ok_or_else(|| format!("{label} could not be created"))?;
+    hex::decode(&hex_str)
+        .map_err(|e| e.to_string())?
+        .try_into()
+        .map_err(|_| format!("{label} is corrupt (wrong length)"))
 }
 
 // ── Opening the registry file ──────────────────────────────────────────────────
