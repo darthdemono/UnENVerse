@@ -86,6 +86,22 @@ pub fn append(path: &Path, rec: &Record) -> Result<(), String> {
         use std::os::unix::fs::OpenOptionsExt;
         opts.mode(0o600);
     }
+    // One writer at a time across processes: the append, the line count and the compaction
+    // (read, rewrite, rename) are one unit. Two processes compacting at once shared one
+    // temporary file and could interleave their rewrites, and a record appended between
+    // the read and the rename was lost.
+    let mut lock_name = path
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    lock_name.push(".lock");
+    let lock = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path.with_file_name(lock_name))
+        .map_err(|e| e.to_string())?;
+    lock.lock().map_err(|e| e.to_string())?;
     let mut f = opts.open(path).map_err(|e| e.to_string())?;
     let line = serde_json::to_string(rec).map_err(|e| e.to_string())?;
     writeln!(f, "{line}").map_err(|e| e.to_string())?;
@@ -96,8 +112,10 @@ pub fn append(path: &Path, rec: &Record) -> Result<(), String> {
         .unwrap_or(0);
     if lines >= COMPACT_AT {
         let all = read_records(path);
-        let keep = &all[all.len() - MAX_RECORDS..];
-        let tmp = path.with_extension("jsonl.tmp");
+        // The newline count includes torn or garbled lines that do not parse, so fewer
+        // than MAX_RECORDS records can remain: `len() - MAX` underflowed and panicked.
+        let keep = &all[all.len().saturating_sub(MAX_RECORDS)..];
+        let tmp = path.with_extension(format!("jsonl.{}.tmp", std::process::id()));
         let mut o = std::fs::OpenOptions::new();
         o.write(true).create(true).truncate(true);
         #[cfg(unix)]
@@ -240,5 +258,41 @@ mod tests {
             .unwrap();
         append(&p, &rec(2)).unwrap();
         assert_eq!(read(&p).len(), 2);
+    }
+
+    /// BUG: the newline count includes lines that do not parse (a torn append, garbage).
+    /// `len() - MAX_RECORDS` underflowed when fewer records parsed than the cap, and the
+    /// append panicked.
+    #[test]
+    fn compaction_survives_a_file_full_of_unparseable_lines() {
+        let p = scratch();
+        let junk: String = (0..COMPACT_AT + 5).map(|_| "{not json\n").collect();
+        std::fs::write(&p, junk).unwrap();
+        append(&p, &rec(777)).expect("append must not panic or fail on a damaged file");
+        assert!(read(&p).iter().any(|r| r.note == "777"));
+    }
+
+    /// BUG: append, count and compaction were not one unit across writers, so concurrent
+    /// writers shared one temporary file and could lose or tear records.
+    #[test]
+    fn concurrent_writers_leave_a_file_of_whole_records() {
+        let p = std::sync::Arc::new(scratch());
+        let hs: Vec<_> = (0..4)
+            .map(|t| {
+                let p = p.clone();
+                std::thread::spawn(move || {
+                    for i in 0..(COMPACT_AT) {
+                        append(&p, &rec(t * 1000 + i)).unwrap();
+                    }
+                })
+            })
+            .collect();
+        for h in hs {
+            h.join().unwrap();
+        }
+        let text = std::fs::read_to_string(&*p).unwrap();
+        let lines = text.lines().count();
+        assert_eq!(read(&p).len(), lines, "a line in the log does not parse");
+        assert!(lines <= COMPACT_AT, "{lines} lines");
     }
 }
