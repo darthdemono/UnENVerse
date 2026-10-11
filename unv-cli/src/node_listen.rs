@@ -267,15 +267,50 @@ fn authenticate(agent: &mut Agent, req: &Request) -> Result<(), ()> {
     node_agent::save_state(&dir, agent.state()).map_err(|_| ())
 }
 
+/// A socket that stops working at a fixed instant. The deadline used to be checked
+/// between `read_request`'s reads only; the TLS handshake runs inside the first read,
+/// where every socket read got a fresh [`IO_TIMEOUT`], so a client that sent one handshake
+/// byte every few seconds held its thread far past the "hard total deadline".
+struct Limited {
+    tcp: TcpStream,
+    deadline: Instant,
+}
+
+impl Limited {
+    fn left(&self) -> std::io::Result<Duration> {
+        let left = self.deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return Err(std::io::ErrorKind::TimedOut.into());
+        }
+        Ok(left.min(IO_TIMEOUT))
+    }
+}
+
+impl Read for Limited {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.tcp.set_read_timeout(Some(self.left()?))?;
+        self.tcp.read(buf)
+    }
+}
+
+impl Write for Limited {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.tcp.set_write_timeout(Some(self.left()?))?;
+        self.tcp.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.tcp.flush()
+    }
+}
+
 fn handle(
     agent: &Mutex<&mut Agent>,
     cfg: &Arc<rustls::ServerConfig>,
-    mut tcp: TcpStream,
+    tcp: TcpStream,
 ) -> Result<(), String> {
     let deadline = Instant::now() + TOTAL_DEADLINE;
     tcp.set_nonblocking(false).map_err(|e| e.to_string())?;
-    tcp.set_read_timeout(Some(IO_TIMEOUT)).ok();
-    tcp.set_write_timeout(Some(IO_TIMEOUT)).ok();
+    let mut tcp = Limited { tcp, deadline };
     let mut conn = rustls::ServerConnection::new(cfg.clone()).map_err(|e| e.to_string())?;
     let mut tls = rustls::Stream::new(&mut conn, &mut tcp);
 
@@ -344,5 +379,48 @@ fn route(agent: &mut Agent, req: &Request) -> Result<Reply, u16> {
                 Err(e) => Ok((409, Vec::new(), error_body(&e.to_string()))),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // N7: a client that trickles bytes kept resetting the per-read timeout, so the
+    // "hard total deadline" never fired while the handshake was in progress.
+    #[test]
+    fn a_trickling_peer_is_cut_off_at_the_total_deadline() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let drip = std::thread::spawn(move || {
+            let mut c = TcpStream::connect(addr).unwrap();
+            for _ in 0..40 {
+                if c.write_all(b"x").is_err() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        });
+        let (tcp, _) = listener.accept().unwrap();
+        let mut limited = Limited {
+            tcp,
+            deadline: Instant::now() + Duration::from_millis(400),
+        };
+        let started = Instant::now();
+        let mut buf = [0u8; 16];
+        let err = loop {
+            match limited.read(&mut buf) {
+                Ok(0) => panic!("peer closed first"),
+                Ok(_) => {}
+                Err(e) => break e,
+            }
+        };
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
+        assert!(
+            started.elapsed() < Duration::from_millis(1500),
+            "{:?}",
+            started.elapsed()
+        );
+        drip.join().unwrap();
     }
 }
