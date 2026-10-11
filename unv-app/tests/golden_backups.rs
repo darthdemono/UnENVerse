@@ -12,7 +12,7 @@
 //! `cargo test -p unv-cli --test golden_backups -- --ignored generate`
 
 use std::path::{Path, PathBuf};
-use unv_cli::{access, backup};
+use unv_app::{access, backup};
 
 const PW: &str = "golden-fixture-password";
 const BAK_PW: &str = "golden-backup-password-1";
@@ -105,7 +105,7 @@ fn old_backups_restore() {
         true,
     )
     .unwrap_err();
-    assert_eq!(err.code, unv_cli::error::Code::Denied, "{err}");
+    assert_eq!(err.code, unv_app::error::Code::Denied, "{err}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
