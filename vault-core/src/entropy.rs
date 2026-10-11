@@ -31,7 +31,7 @@ use std::fmt;
 use std::io::Read;
 use std::time::Duration;
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -257,12 +257,12 @@ fn hkdf_sha256(ikm: &[u8], info: &[u8], out: &mut [u8]) -> Result<(), String> {
 /// two generators asking for bytes in the same instant cannot receive the same
 /// stream.
 pub fn fill(source: &Source, purpose: &str, buf: &mut [u8]) -> Result<(), String> {
-    use rand::RngCore;
+    use rand::Rng;
 
     // OS bytes always, and always first. Even in the external case they are the
     // floor under the result.
     let mut os_bytes = vec![0u8; buf.len().max(32)];
-    rand::rngs::OsRng.fill_bytes(&mut os_bytes);
+    rand::rng().fill_bytes(&mut os_bytes);
 
     if !source.is_external() {
         buf.copy_from_slice(&os_bytes[..buf.len()]);
@@ -301,7 +301,7 @@ impl EntropyRng {
     }
 }
 
-impl rand::RngCore for EntropyRng {
+impl ssh_key::rand_core::RngCore for EntropyRng {
     fn next_u32(&mut self) -> u32 {
         let mut b = [0u8; 4];
         self.fill_bytes(&mut b);
@@ -322,13 +322,13 @@ impl rand::RngCore for EntropyRng {
             panic!("entropy source failed during key generation: {e}");
         }
     }
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), ssh_key::rand_core::Error> {
         fill(&self.source, self.purpose, dest)
-            .map_err(|e| rand::Error::new(std::io::Error::other(e)))
+            .map_err(|e| ssh_key::rand_core::Error::new(std::io::Error::other(e)))
     }
 }
 
-impl rand::CryptoRng for EntropyRng {}
+impl ssh_key::rand_core::CryptoRng for EntropyRng {}
 
 #[cfg(test)]
 mod tests {
@@ -384,9 +384,9 @@ mod tests {
 
     #[test]
     fn real_random_bytes_pass_the_health_tests() {
-        use rand::RngCore;
+        use rand::Rng;
         let mut bytes = vec![0u8; 4096];
-        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
         assert!(health_check(&bytes).is_ok());
     }
 
