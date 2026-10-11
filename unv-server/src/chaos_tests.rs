@@ -748,3 +748,148 @@ async fn a_token_expiry_that_is_not_a_timestamp_is_refused() {
     .await;
     assert_eq!(st, StatusCode::CREATED);
 }
+
+// ── Self-service second factor ───────────────────────────────────────────────
+
+/// BUG (R15): every TOTP route ran `guard_manage_user`, whose rule is "manage-users
+/// capability and strictly outranks the target". A plain user is neither, so the comment
+/// that says "a user reaches their own factor" was false and nobody without an admin could
+/// turn the second factor on for themselves. The same guard must not become a weaker door:
+/// re-enrolling an ENABLED factor resets it to disabled, so only a manager may do that.
+#[tokio::test]
+async fn a_plain_user_can_enrol_their_own_second_factor_but_not_replace_an_enabled_one() {
+    let rig = rig(vec![e("a", "api_key", "k")]);
+    let u = make_user(&rig, "carol", "type:*", "type:*").await;
+    let base = format!("/api/users/{}/totp", u.id);
+    let (st, body) = call(
+        &rig.router,
+        "POST",
+        &format!("{base}/enroll"),
+        Some(&u.token),
+        None,
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let secret = body["secret"].as_str().unwrap().to_string();
+    let code = vault_core::totp::totp_at(&secret, vault_core::totp::now_unix()).unwrap();
+    let (st, body) = call(
+        &rig.router,
+        "POST",
+        &format!("{base}/confirm"),
+        Some(&u.token),
+        Some(json!({ "code": code })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    // Enabled now: a stolen session must not be able to reset it by enrolling again.
+    let (st, _) = call(
+        &rig.router,
+        "POST",
+        &format!("{base}/enroll"),
+        Some(&u.token),
+        None,
+    )
+    .await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+    let (st, _) = call(&rig.router, "DELETE", &base, Some(&u.token), None).await;
+    assert_eq!(st, StatusCode::FORBIDDEN, "disabling stays with a manager");
+    // And never someone else's.
+    let other = make_user(&rig, "dave", "type:*", "type:*").await;
+    let (st, _) = call(
+        &rig.router,
+        "POST",
+        &format!("/api/users/{}/totp/enroll", other.id),
+        Some(&u.token),
+        None,
+    )
+    .await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+}
+
+// ── A delegate cannot confer more than they hold ─────────────────────────────
+
+/// BUG (R10): a user with the manage-users capability could set ANY data permission on a
+/// user below them, and reset that user's password. A delegate who could read only
+/// `type:api_key` could therefore hand a subordinate `type:*`, sign in as them and read
+/// everything. A grant must be covered by what the grantor holds.
+#[tokio::test]
+async fn a_delegate_cannot_grant_more_than_they_hold() {
+    let rig = rig(vec![e("a", "api_key", "k"), e("b", "ssh_key", "s")]);
+    // A class with manage-users, then a delegate in it whose own data access is narrow.
+    let (st, class) = call(
+        &rig.router,
+        "POST",
+        "/api/classes",
+        Some(&rig.owner),
+        Some(json!({ "name": "mods", "cap_manage_users": true })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED, "{class}");
+    let delegate = make_user(&rig, "mod1", "type:api_key", "type:api_key").await;
+    let (st, _) = call(
+        &rig.router,
+        "PUT",
+        &format!("/api/users/{}/class", delegate.id),
+        Some(&rig.owner),
+        Some(json!({ "class_id": class["id"] })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+    let sub = make_user(&rig, "sub1", "", "").await;
+    let url = format!("/api/users/{}/permissions", sub.id);
+    let (st, body) = call(
+        &rig.router,
+        "PUT",
+        &url,
+        Some(&delegate.token),
+        Some(json!({ "read": "type:*", "write": "" })),
+    )
+    .await;
+    assert_eq!(
+        st,
+        StatusCode::FORBIDDEN,
+        "wider than the delegate holds: {body}"
+    );
+    let (st, _) = call(
+        &rig.router,
+        "PUT",
+        &url,
+        Some(&delegate.token),
+        Some(json!({ "read": "type:api_key AND env:prod", "write": "" })),
+    )
+    .await;
+    assert_eq!(
+        st,
+        StatusCode::NO_CONTENT,
+        "narrower than the delegate's own is fine"
+    );
+
+    // Assigning a class that holds wider permissions is the same grant by another door.
+    let (st, wide) = call(
+        &rig.router,
+        "POST",
+        "/api/classes",
+        Some(&rig.owner),
+        Some(json!({ "name": "wide" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+    let (st, _) = call(
+        &rig.router,
+        "PUT",
+        &format!("/api/classes/{}/permissions", wide["id"].as_str().unwrap()),
+        Some(&rig.owner),
+        Some(json!({ "read": "type:*", "write": "" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+    let (st, _) = call(
+        &rig.router,
+        "PUT",
+        &format!("/api/users/{}/class", sub.id),
+        Some(&delegate.token),
+        Some(json!({ "class_id": wide["id"] })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+}
