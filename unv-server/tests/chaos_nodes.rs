@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tower::ServiceExt;
-use unv_cli::node_agent::{self, Agent};
+use unv_app::node_agent::{self, Agent};
 use unv_server::{build_router, AppState};
 
 fn scratch(tag: &str) -> PathBuf {
