@@ -276,6 +276,14 @@ struct Limited {
     deadline: Instant,
 }
 
+/// A socket timeout is `WouldBlock` on Unix and `TimedOut` on Windows; one kind for both.
+fn normalise(e: std::io::Error) -> std::io::Error {
+    match e.kind() {
+        std::io::ErrorKind::WouldBlock => std::io::ErrorKind::TimedOut.into(),
+        _ => e,
+    }
+}
+
 impl Limited {
     fn left(&self) -> std::io::Result<Duration> {
         let left = self.deadline.saturating_duration_since(Instant::now());
@@ -289,14 +297,14 @@ impl Limited {
 impl Read for Limited {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.tcp.set_read_timeout(Some(self.left()?))?;
-        self.tcp.read(buf)
+        self.tcp.read(buf).map_err(normalise)
     }
 }
 
 impl Write for Limited {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.tcp.set_write_timeout(Some(self.left()?))?;
-        self.tcp.write(buf)
+        self.tcp.write(buf).map_err(normalise)
     }
     fn flush(&mut self) -> std::io::Result<()> {
         self.tcp.flush()
@@ -422,5 +430,22 @@ mod tests {
             started.elapsed()
         );
         drip.join().unwrap();
+    }
+
+    // The socket's own timeout surfaces as WouldBlock on Unix and TimedOut on Windows. A
+    // silent peer hits it at the deadline; callers (and rustls) must see one kind, not a
+    // "retry me" WouldBlock.
+    #[test]
+    fn a_silent_peer_times_out_with_one_error_kind_on_every_platform() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let _quiet = TcpStream::connect(addr).unwrap();
+        let (tcp, _) = listener.accept().unwrap();
+        let mut limited = Limited {
+            tcp,
+            deadline: Instant::now() + Duration::from_millis(200),
+        };
+        let err = limited.read(&mut [0u8; 8]).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
     }
 }
