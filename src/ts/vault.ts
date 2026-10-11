@@ -1,5 +1,5 @@
 import { buildBundle, bundleSuggestions } from './bundle-scope';
-import { codeStatus, markUsed, nextCode } from './recovery-codes';
+import { codeStatus, nextCode } from './recovery-codes';
 import { hideWifiQr } from './wifi-qr';
 import {
   st,
@@ -13,6 +13,8 @@ import {
   switchPanel,
   persist,
   dropPreviousVault,
+  removeBundleLive,
+  spendRecoveryCodeLive,
   entryId,
   ensureEntryIds,
   backfillCreatedAt,
@@ -28,7 +30,6 @@ import type { AppSettings, VaultEntry } from './types';
 import { initIconPicker, openIconPicker, iconHTML } from './icons';
 import {
   showToast,
-  errorMessage,
   showConfirm,
   showPrompt,
   showPasswordPrompt,
@@ -1479,12 +1480,16 @@ async function init() {
             ))
           )
             return;
-          const positions = doomed.map((entry) => st.vault.api_keys.indexOf(entry));
-          st.vault.api_keys = st.vault.api_keys.filter((entry) => !doomed.includes(entry));
+          // The dialog was an await: delete what is in the vault now, not what was there.
+          const { removed, positions } = removeBundleLive(bundleId);
+          if (!removed.length) {
+            showToast('That bundle was already removed.', 'err');
+            return;
+          }
           await persist();
           render();
-          pushUndo(`Deleted bundle "${bundle.provider}" and ${doomed.length - 1} members`, () => {
-            doomed.forEach((entry, i) =>
+          pushUndo(`Deleted bundle "${bundle.provider}" and ${removed.length - 1} members`, () => {
+            removed.forEach((entry, i) =>
               st.vault.api_keys.splice(Math.min(positions[i], st.vault.api_keys.length), 0, entry),
             );
             void persist().then(() => render());
@@ -1525,17 +1530,18 @@ async function init() {
           if (!code) return;
           if (!(await showConfirm(`Mark the next recovery code as used for "${entry.provider}"?`)))
             return;
-          const codes = entry.extra_vars?.find((v) => v.key === 'codes');
-          if (!codes) return;
-          try {
-            codes.value = markUsed(entry, null, new Date().toISOString().slice(0, 10));
-          } catch (err) {
-            showToast(errorMessage(err), 'err');
+          // The dialog was an await: mark the entry that is in the vault now.
+          const spent = spendRecoveryCodeLive(
+            entry.id as string,
+            new Date().toISOString().slice(0, 10),
+          );
+          if ('error' in spent) {
+            showToast(spent.error, 'err');
             return;
           }
           await persist();
           render();
-          showToast(`${codeStatus(entry).remaining} recovery codes left`, 'ok');
+          showToast(`${codeStatus(spent.entry).remaining} recovery codes left`, 'ok');
         })();
         break;
       }
