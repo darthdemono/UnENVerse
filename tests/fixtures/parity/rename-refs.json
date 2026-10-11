@@ -1,5 +1,5 @@
 {
-  "_comment": "Entry rename -> how every chunk reference is rewritten. Asserted by unv-cli/tests/parity.rs (rename_provider_refs) and tests/cli-parity.test.ts (renameProviderRefs).",
+  "_comment": "Entry rename -> how every chunk reference is rewritten. Asserted by unv-app/tests/parity.rs (rename_provider_refs) and tests/cli-parity.test.ts (renameProviderRefs).",
   "entries": [
     { "id": "a", "provider": "Stripe", "key_id": "v2" },
     { "id": "b", "provider": "Twilio" },
