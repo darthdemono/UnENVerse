@@ -92,6 +92,24 @@ pub fn load_state(dir: &Path) -> CliResult<NodeState> {
         .map_err(|e| CliError::invalid(format!("{} is not a node state file: {e}", p.display())))
 }
 
+/// What a 401 from the hub means. Only a revoked node or a key mismatch is final.
+/// A request timestamp that is too far from the hub's clock, or not newer than the last one
+/// it accepted (this clock stepped back, or the node restarted just after one), clears itself
+/// once the clocks agree; treating it as a revocation made the agent exit and stay down.
+pub(crate) fn classify_rejection(message: &str) -> CliError {
+    use vault_core::nodes::AuthError;
+    if message == AuthError::Skew.message() || message == AuthError::Replay.message() {
+        return CliError::unavailable(format!(
+            "The hub refused this node's timestamp ({message}). Check the clock on this host; \
+             retrying."
+        ));
+    }
+    CliError::denied(
+        "The hub rejected this node: it was revoked, or the key no longer matches. \
+         Re-enroll with a new token.",
+    )
+}
+
 pub(crate) fn save_state(dir: &Path, st: &NodeState) -> CliResult {
     use std::io::Write;
     std::fs::create_dir_all(dir).map_err(|e| CliError::from(e.to_string()))?;
@@ -489,10 +507,8 @@ impl Agent {
         let resp = self.signed_post("/api/nodes/beat", &body)?;
         let status = resp.status();
         if status.as_u16() == 401 {
-            return Err(CliError::denied(
-                "The hub rejected this node: it was revoked, or the key no longer matches. \
-                 Re-enroll with a new token.",
-            ));
+            let v: serde_json::Value = resp.json().unwrap_or(serde_json::Value::Null);
+            return Err(classify_rejection(v["error"].as_str().unwrap_or("")));
         }
         if !status.is_success() {
             let v: serde_json::Value = resp.json().unwrap_or(serde_json::Value::Null);
@@ -542,8 +558,13 @@ impl Agent {
         if seen.len() > 256 {
             seen.drain(..seen.len() - 256);
         }
+        // Write-then-rename: a torn file reads as "nothing seen" and would make
+        // every spent approval usable again.
         if let Ok(text) = serde_json::to_string(&seen) {
-            let _ = std::fs::write(self.nonces_path(), text);
+            let tmp = self.nonces_path().with_extension("json.tmp");
+            if std::fs::write(&tmp, text).is_ok() {
+                let _ = std::fs::rename(&tmp, self.nonces_path());
+            }
         }
     }
 
@@ -750,6 +771,26 @@ fn sleep_unless(stop: &std::sync::atomic::AtomicBool, d: Duration) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // N11: any 401 ended the agent as "revoked"; a clock that stepped back (or a restart just
+    // after one) is a 401 that goes away by itself.
+    #[test]
+    fn a_timestamp_rejection_is_retried_and_a_revocation_is_final() {
+        use vault_core::nodes::AuthError;
+        assert_ne!(
+            classify_rejection(AuthError::Skew.message()).code,
+            crate::error::Code::Denied
+        );
+        assert_ne!(
+            classify_rejection(AuthError::Replay.message()).code,
+            crate::error::Code::Denied
+        );
+        assert_eq!(
+            classify_rejection(AuthError::Revoked.message()).code,
+            crate::error::Code::Denied
+        );
+        assert_eq!(classify_rejection("").code, crate::error::Code::Denied);
+    }
 
     #[test]
     fn plain_http_is_for_the_loopback_only() {
