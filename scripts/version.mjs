@@ -2,14 +2,14 @@
 /**
  * Single-writer for the project version.
  *
- * The number is stated in six places — `src-tauri/tauri.conf.json`,
- * `package.json` and four `Cargo.toml` files — because each of them is read by
+ * The number is stated in eight places: `src-tauri/tauri.conf.json`, two
+ * `package.json` manifests and five `Cargo.toml` files, because each is read by
  * a different tool and none of them can read another. Tauri stamps its copy
  * into every bundle filename and into the Windows installer metadata; Cargo
  * stamps its copy into `CARGO_PKG_VERSION`, which is what `unv --version` and
  * `unv describe` report.
  *
- * Before this script existed, the only thing keeping the six in agreement was
+ * Before this script existed, the only thing keeping the copies in agreement was
  * the `meta` job in `.github/workflows/build.yml`, which *detects* drift and
  * cannot *fix* it. Editing five of six by hand produced a release labelled
  * 0.7.0 containing `EnvVault_0.6.0.AppImage`.
@@ -17,7 +17,7 @@
  * Usage:
  *
  *   node scripts/version.mjs                 # print the current version
- *   node scripts/version.mjs --check         # exit 1 if the six disagree
+ *   node scripts/version.mjs --check         # exit 1 if the eight disagree
  *   node scripts/version.mjs 0.7.0           # set an explicit version
  *   node scripts/version.mjs patch|minor|major
  *
@@ -36,12 +36,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const CRATES = ['src-tauri', 'vault-core', 'unv-server', 'unv-cli'];
+const CRATES = ['src-tauri', 'vault-core', 'unv-app', 'unv-server', 'unv-cli'];
 
 // Directory names and crate names differ for exactly one member: the Tauri app
 // lives in `src-tauri/` and is published as `unenverse`. Cargo.lock keys on the
 // crate name, so the two lists cannot be collapsed into one.
-const CRATE_NAMES = ['unenverse', 'vault-core', 'unv-server', 'unv-cli'];
+const CRATE_NAMES = ['unenverse', 'vault-core', 'unv-app', 'unv-server', 'unv-cli'];
 
 /** Semver `major.minor.patch`, no pre-release or build metadata. */
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -114,7 +114,7 @@ function survey() {
 }
 
 /**
- * Verify all six agree with `tauri.conf.json`.
+ * Verify all eight agree with `tauri.conf.json`.
  *
  * @returns {boolean} true when consistent
  */
@@ -163,7 +163,7 @@ function set(version) {
   // Patched textually rather than by shelling out to `cargo`: regenerating the
   // lock needs a resolver run, which needs the registry, which means this
   // script would fail offline and in any sandbox without network — for an edit
-  // that only ever touches four lines of a file already in the tree. Only the
+  // that only ever touches five lines of a file already in the tree. Only the
   // `version` line inside each workspace member's own `[[package]]` block is
   // rewritten; every third-party pin is left exactly as it is, which is the
   // entire point of committing the lockfile (rand 0.10 and rusqlite 0.39 have
