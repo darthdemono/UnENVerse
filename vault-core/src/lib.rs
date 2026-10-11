@@ -618,6 +618,18 @@ pub fn apply_row_patch(
     Ok(doc)
 }
 
+/// `COMMIT`, and if it fails, `ROLLBACK`. A failed COMMIT (busy, I/O error, a deferred
+/// constraint) can leave the transaction open; the connection would then refuse every
+/// later `BEGIN` ("cannot start a transaction within a transaction") until it was dropped.
+pub(crate) fn commit(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch("COMMIT").map_err(|e| {
+        if !conn.is_autocommit() {
+            let _ = conn.execute_batch("ROLLBACK");
+        }
+        e.to_string()
+    })
+}
+
 /// Serialises `data` to the vault, updating `version_history` on key changes
 /// and appending to the `vault_audit` hash chain. Returns the new version.
 ///
@@ -646,7 +658,7 @@ pub fn save_vault(
         .map_err(|e| e.to_string())?;
     match save_vault_txn(conn, data, ctx) {
         Ok(hash) => {
-            conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
+            commit(conn)?;
             Ok(hash)
         }
         Err(e) => {
@@ -958,7 +970,7 @@ fn append_audit(
         conn.execute_batch("BEGIN IMMEDIATE")
             .map_err(|e| e.to_string())?;
         return match append_audit_in_txn(conn, action, provider, timestamp, details, actor) {
-            Ok(()) => conn.execute_batch("COMMIT").map_err(|e| e.to_string()),
+            Ok(()) => commit(conn),
             Err(e) => {
                 let _ = conn.execute_batch("ROLLBACK");
                 Err(e)
@@ -1013,6 +1025,49 @@ pub fn record_event(
     actor: Option<&str>,
 ) -> Result<(), String> {
     append_audit(conn, action, provider, &iso_now(), details, actor)
+}
+
+/// Like [`record_event`], but does nothing if an identical event (same action, subject and
+/// details) is already in the chain. For a report that may arrive twice because its
+/// acknowledgement was lost: the second delivery must not become a second audit row.
+/// Returns whether a row was written.
+pub fn record_event_once(
+    conn: &Connection,
+    action: &str,
+    provider: &str,
+    details: &str,
+    actor: Option<&str>,
+) -> Result<bool, String> {
+    let own_txn = conn.is_autocommit();
+    if own_txn {
+        conn.execute_batch("BEGIN IMMEDIATE")
+            .map_err(|e| e.to_string())?;
+    }
+    let run = || -> Result<bool, String> {
+        let seen: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM vault_audit \
+                 WHERE action = ?1 AND entry_provider = ?2 AND details = ?3)",
+                rusqlite::params![action, provider, details],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if seen {
+            return Ok(false);
+        }
+        append_audit_in_txn(conn, action, provider, &iso_now(), Some(details), actor)?;
+        Ok(true)
+    };
+    let r = run();
+    if own_txn {
+        match &r {
+            Ok(_) => commit(conn)?,
+            Err(_) => {
+                let _ = conn.execute_batch("ROLLBACK");
+            }
+        }
+    }
+    r
 }
 
 /// Hash for one audit row, binding it to its predecessor.
@@ -2105,4 +2160,30 @@ pub fn env_quote(value: &str) -> String {
     }
     out.push('"');
     out
+}
+
+#[cfg(test)]
+mod commit_tests {
+    use super::*;
+
+    // S9: a COMMIT that failed left the transaction open, so the connection refused
+    // every later BEGIN. A deferred foreign key is the portable way to make COMMIT fail.
+    #[test]
+    fn a_failed_commit_leaves_the_connection_usable() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE p (id INTEGER PRIMARY KEY);
+             CREATE TABLE c (pid INTEGER REFERENCES p(id) DEFERRABLE INITIALLY DEFERRED);",
+        )
+        .unwrap();
+        conn.execute_batch("BEGIN IMMEDIATE; INSERT INTO c VALUES (99);")
+            .unwrap();
+        assert!(commit(&conn).is_err());
+        assert!(
+            conn.is_autocommit(),
+            "the failed transaction was rolled back"
+        );
+        conn.execute_batch("BEGIN IMMEDIATE; COMMIT;").unwrap();
+    }
 }
