@@ -1,5 +1,5 @@
 {
-  "_comment": "Chunk name -> the identifier an nginx upstream block is written with. Asserted by unv-cli/tests/parity.rs and tests/cli-parity.test.ts.",
+  "_comment": "Chunk name -> the identifier an nginx upstream block is written with. Asserted by unv-app/tests/parity.rs and tests/cli-parity.test.ts.",
   "cases": [
     { "name": "app_upstream", "ident": "app_upstream" },
     { "name": "app upstream", "ident": "app_upstream" },
