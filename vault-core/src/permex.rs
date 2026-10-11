@@ -219,6 +219,47 @@ fn eval_pred(field: Field, glob: &str, e: &EntryView<'_>) -> bool {
     }
 }
 
+// ── Containment ───────────────────────────────────────────────────────────────
+
+/// Does everything `new` grants also fall inside what `grantor` grants?
+///
+/// Used to stop a delegate conferring more than they hold. **Sound, not complete**: it
+/// answers `true` only when containment follows from the shape of the two expressions
+/// (equal, a narrowing `AND`, every branch of an `OR`, a wildcard or matching glob on the
+/// same field), and `false` when unsure, so a legitimate grant it cannot prove is refused
+/// and the owner makes it instead. It never answers `true` wrongly.
+pub fn covers(grantor: &Expr, new: &Expr) -> bool {
+    if grantor == new {
+        return true;
+    }
+    match (grantor, new) {
+        // a AND b is inside a, and inside b.
+        (g, Expr::And(a, b)) => covers(g, a) || covers(g, b),
+        // a OR b is inside g only if both halves are.
+        (g, Expr::Or(a, b)) => covers(g, a) && covers(g, b),
+        (Expr::Or(x, y), n) => covers(x, n) || covers(y, n),
+        (Expr::And(x, y), n) => covers(x, n) && covers(y, n),
+        (
+            Expr::Pred {
+                field: Field::Vault,
+                ..
+            },
+            _,
+        ) => true,
+        (
+            Expr::Pred {
+                field: gf,
+                glob: gg,
+            },
+            Expr::Pred {
+                field: nf,
+                glob: ng,
+            },
+        ) => gf == nf && (gg == "*" || gg == ng || (!ng.contains('*') && glob_matches(gg, ng))),
+        _ => false,
+    }
+}
+
 // ── Lexer ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -841,5 +882,26 @@ mod tests {
         // Guards the emptiness rule: with AND composition, treating absent as
         // `true` would give a user with no permissions full access.
         assert!(combine(None, None).is_none());
+    }
+
+    #[test]
+    fn covers_is_sound_and_says_no_when_unsure() {
+        let p = |s: &str| parse(s).unwrap();
+        // Same, narrower by AND, a wildcard grantor, a glob that matches a literal.
+        assert!(covers(&p("type:api_key"), &p("type:api_key")));
+        assert!(covers(&p("type:api_key"), &p("type:api_key AND env:prod")));
+        assert!(covers(&p("type:*"), &p("type:ssh_key")));
+        assert!(covers(&p("project:prod-*"), &p("project:prod-api")));
+        assert!(covers(&p("type:a OR type:b"), &p("type:b")));
+        assert!(covers(&p("vault:*"), &p("tag:x OR type:y")));
+        // Wider, different field, an OR that leaks, a NOT.
+        assert!(!covers(&p("type:api_key"), &p("type:*")));
+        assert!(!covers(&p("type:api_key"), &p("env:prod")));
+        assert!(!covers(
+            &p("type:api_key"),
+            &p("type:api_key OR type:ssh_key")
+        ));
+        assert!(!covers(&p("type:api_key"), &p("NOT type:ssh_key")));
+        assert!(!covers(&p("project:prod-*"), &p("project:*")));
     }
 }
