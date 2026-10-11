@@ -9,7 +9,7 @@ import type {
   AuditRow,
   Project,
 } from './types';
-import { dump as yamlDump } from 'js-yaml';
+import { stringify as yamlStringify } from 'yaml';
 import { hexAlpha, onClipboardWrite, showToast } from './utils';
 import { invokeTauri, isTauri } from './tauri';
 export { inTauri } from './tauri';
@@ -2250,7 +2250,7 @@ export const Exporter = {
   /**
    * YAML export.
    *
-   * Delegates quoting to js-yaml. The previous implementation concatenated
+   * Delegates quoting to YAML. The previous implementation concatenated
    * `KEY: "value"` by hand, which produced invalid YAML for any secret
    * containing a double quote, backslash or newline — i.e. exactly the
    * characters that show up in passwords and PEM blobs.
@@ -2266,7 +2266,7 @@ export const Exporter = {
       }
     });
     const header = `# UnENVerse Export\n# Generated: ${new Date().toISOString()}\n\n`;
-    return header + yamlDump(doc, { indent: 2, lineWidth: -1, noRefs: true });
+    return header + yamlStringify(doc, { indent: 2, lineWidth: 0 });
   },
   json(keys: VaultEntry[]): string {
     return JSON.stringify({ api_keys: keys }, null, 2);
