@@ -21,7 +21,7 @@ import { importPythonConfig } from './bundle-import';
 import { buildBundle } from './bundle-scope';
 import { getFiltered, sorted } from './filters';
 import { buildCopyTextAll, type CopyProfile, type MetadataStyle } from './copy-profile';
-import * as yaml from 'js-yaml';
+import { parse as parseYaml } from 'yaml';
 import { invokeTauri } from './tauri';
 import { html, setHtml } from './html';
 
@@ -169,7 +169,7 @@ export function exportTfvars() {
 // ── Encrypted backup (AES-256-GCM, PBKDF2-SHA256) ──────────────────────────
 
 const BAK_MAGIC = 'ENVVBAK1';
-const PBKDF2_ITERS = 210_000;
+const PBKDF2_ITERS = 600_000;
 
 async function deriveBackupKey(
   password: string,
@@ -515,7 +515,7 @@ export function handleFileSelect(input: HTMLInputElement) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data: unknown = yaml.load(ev.target!.result as string);
+        const data: unknown = parseYaml(ev.target!.result as string);
         const record = objectRecord(data);
         if (Array.isArray(record.api_keys)) {
           loadFullVault(backupData(data));
