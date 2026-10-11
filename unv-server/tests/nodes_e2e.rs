@@ -9,7 +9,7 @@ use axum::http::Request;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use tower::ServiceExt;
-use unv_cli::node_agent::{self, Agent};
+use unv_app::node_agent::{self, Agent};
 use unv_server::{build_router, AppState};
 
 fn scratch(tag: &str) -> PathBuf {
@@ -232,7 +232,7 @@ async fn the_agent_enrolls_applies_reports_and_stays_in_sync() {
     })
     .await;
     let e = r.unwrap_err();
-    assert_eq!(e.code, unv_cli::error::Code::Denied, "{e}");
+    assert_eq!(e.code, unv_app::error::Code::Denied, "{e}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -885,7 +885,7 @@ async fn a_changed_hub_signing_key_is_refused() {
     })
     .await;
     let e = r.unwrap_err();
-    assert_eq!(e.code, unv_cli::error::Code::Denied, "{e}");
+    assert_eq!(e.code, unv_app::error::Code::Denied, "{e}");
     assert!(e.message.contains("approval-signing key changed"), "{e}");
 }
 
@@ -1017,7 +1017,7 @@ async fn listening_node(h: &Hub, name: &str, target_path: &Path, apply: bool) ->
     let (d, s2) = (dir.clone(), stop.clone());
     std::thread::spawn(move || {
         let mut agent = Agent::new(&d, &cfg).unwrap();
-        let _ = unv_cli::node_listen::serve(&mut agent, &s2);
+        let _ = unv_app::node_listen::serve(&mut agent, &s2);
     });
     // Wait until it accepts.
     for _ in 0..50 {
@@ -1113,7 +1113,7 @@ async fn a_listening_node_answers_only_the_hub_it_enrolled_with_and_only_once_pe
     let fp = node.fingerprint.clone();
     let post = move |path: &'static str, ts: i64, sig: String, body: &'static [u8]| {
         let (fp, base) = (fp.clone(), base.clone());
-        blocking(move || unv_cli::tls::hub_post(&fp, &base, path, ts, &sig, body))
+        blocking(move || unv_app::tls::hub_post(&fp, &base, path, ts, &sig, body))
     };
     let sign = |seed: &str, path: &str, ts: i64, body: &[u8]| {
         vault_core::nodes::sign_hub_request(seed, "POST", path, ts, body).unwrap()
@@ -1257,7 +1257,7 @@ async fn a_listening_node_answers_only_the_hub_it_enrolled_with_and_only_once_pe
     let r = blocking(move || {
         let sig =
             vault_core::nodes::sign_hub_request(&seed2, "POST", "/node/v1/poll", t5, b"").unwrap();
-        unv_cli::tls::hub_post(&wrong, &base2, "/node/v1/poll", t5, &sig, b"")
+        unv_app::tls::hub_post(&wrong, &base2, "/node/v1/poll", t5, &sig, b"")
     })
     .await;
     assert!(r.is_err(), "a wrong pin must not connect");
@@ -1683,7 +1683,7 @@ async fn a_stalled_stranger_cannot_lock_the_hub_out_of_a_listening_node() {
         .unwrap()
         .as_millis() as i64;
     let sig = vault_core::nodes::sign_hub_request(&seed, "POST", "/node/v1/poll", ts, b"").unwrap();
-    let r = blocking(move || unv_cli::tls::hub_post(&fp, &base, "/node/v1/poll", ts, &sig, b""))
+    let r = blocking(move || unv_app::tls::hub_post(&fp, &base, "/node/v1/poll", ts, &sig, b""))
         .await
         .unwrap();
     assert_eq!(r.status, 200);
