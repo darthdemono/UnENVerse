@@ -20,6 +20,7 @@
 //! single-statement prune held the writer lock for 45.7s at 10M rows in that
 //! benchmark, which would stall every mint and register behind it.
 
+use hmac::KeyInit;
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use serde::Serialize;
 use sha2::Sha256;
@@ -38,9 +39,9 @@ const META_KEY: &str = "uid_registry_key";
 const META_PEPPER: &str = "uid_registry_pepper";
 
 fn rand32() -> [u8; 32] {
-    use rand::RngCore;
+    use rand::Rng;
     let mut b = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut b);
+    rand::rng().fill_bytes(&mut b);
     b
 }
 
