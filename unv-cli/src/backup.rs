@@ -11,11 +11,11 @@ use crate::fmt::confirm;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
-use rand::RngCore;
+use rand::Rng;
 use serde_json::{json, Value};
 
 const BAK_MAGIC: &str = "ENVVBAK1";
-const PBKDF2_ITERS: u32 = 210_000;
+const PBKDF2_ITERS: u32 = 600_000;
 /// Same floor the app enforces, and for the same reason: this one file is the
 /// whole vault, so it must not be the weakest link in the chain.
 const MIN_PASSWORD: usize = 12;
@@ -57,15 +57,17 @@ pub fn export(access: &Access, path: &std::path::Path, password: Option<&str>) -
 
     let mut salt = [0u8; 16];
     let mut iv = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut salt);
-    rand::thread_rng().fill_bytes(&mut iv);
+    rand::rng().fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut iv);
 
     let key = derive(&pw, &salt, PBKDF2_ITERS);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
     let plain = serde_json::to_vec(&vault).map_err(|e| CliError::from(e.to_string()))?;
+    let nonce =
+        Nonce::try_from(iv.as_slice()).map_err(|_| CliError::invalid("Invalid backup IV"))?;
     let ct = cipher
         .encrypt(
-            Nonce::from_slice(&iv),
+            &nonce,
             Payload {
                 msg: &plain,
                 aad: b"",
@@ -133,8 +135,10 @@ pub fn import(
 
     let key = derive(&pw, &salt, iters);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
+    let nonce =
+        Nonce::try_from(iv.as_slice()).map_err(|_| CliError::invalid("Corrupt backup: bad iv"))?;
     let plain = cipher
-        .decrypt(Nonce::from_slice(&iv), Payload { msg: &ct, aad: b"" })
+        .decrypt(&nonce, Payload { msg: &ct, aad: b"" })
         .map_err(|_| CliError::denied("Decryption failed — wrong password or corrupt file"))?;
     let data: Value = serde_json::from_slice(&plain).map_err(|e| CliError::from(e.to_string()))?;
     let count = data
@@ -315,8 +319,8 @@ pub fn build_archive(db: &[u8], salt: &[u8], pw: &str) -> CliResult<(String, Val
     });
     let mut kdf_salt = [0u8; 16];
     let mut iv = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut kdf_salt);
-    rand::thread_rng().fill_bytes(&mut iv);
+    rand::rng().fill_bytes(&mut kdf_salt);
+    rand::rng().fill_bytes(&mut iv);
     let key = derive(pw, &kdf_salt, PBKDF2_ITERS);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
     let plain = json!({
@@ -325,9 +329,11 @@ pub fn build_archive(db: &[u8], salt: &[u8], pw: &str) -> CliResult<(String, Val
         "manifest": manifest.clone(),
     });
     let plain = serde_json::to_vec(&plain).map_err(|e| CliError::from(e.to_string()))?;
+    let nonce =
+        Nonce::try_from(iv.as_slice()).map_err(|_| CliError::invalid("Invalid archive IV"))?;
     let ct = cipher
         .encrypt(
-            Nonce::from_slice(&iv),
+            &nonce,
             Payload {
                 msg: &plain,
                 aad: ARCHIVE_MAGIC.as_bytes(),
@@ -373,9 +379,11 @@ pub fn open_archive(raw: &str, pw: &str) -> CliResult<(Vec<u8>, Vec<u8>)> {
         .unwrap_or(PBKDF2_ITERS as u64) as u32;
     let key = derive(pw, &kdf_salt, iters);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
+    let nonce =
+        Nonce::try_from(iv.as_slice()).map_err(|_| CliError::invalid("Corrupt archive: bad iv"))?;
     let plain = cipher
         .decrypt(
-            Nonce::from_slice(&iv),
+            &nonce,
             Payload {
                 msg: &ct,
                 aad: ARCHIVE_MAGIC.as_bytes(),
