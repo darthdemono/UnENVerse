@@ -5,7 +5,7 @@
 // third-party is referenced by a mutable tag.
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import { parse as parseYaml } from 'yaml';
 import { describe, expect, it } from 'vitest';
 
 const root = path.resolve(__dirname, '..');
@@ -30,7 +30,7 @@ type Workflow = {
 };
 
 function load(name: string): Workflow {
-  return yaml.load(fs.readFileSync(path.join(root, '.github/workflows', name), 'utf8')) as Workflow;
+  return parseYaml(fs.readFileSync(path.join(root, '.github/workflows', name), 'utf8')) as Workflow;
 }
 const needs = (j: Job): string[] => (Array.isArray(j.needs) ? j.needs : j.needs ? [j.needs] : []);
 /** Every job a job depends on, directly or not. */
@@ -206,7 +206,7 @@ describe('schedules and Dependabot', () => {
     expect(cron.split(' ').slice(2, 5)).toEqual(['*', '*', '1']);
   });
 
-  const dep = yaml.load(fs.readFileSync(path.join(root, '.github/dependabot.yml'), 'utf8')) as {
+  const dep = parseYaml(fs.readFileSync(path.join(root, '.github/dependabot.yml'), 'utf8')) as {
     updates: {
       'package-ecosystem': string;
       groups?: Record<string, unknown>;
