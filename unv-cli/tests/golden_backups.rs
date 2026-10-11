@@ -90,6 +90,13 @@ fn old_backups_restore() {
     let v = acc.load_vault().unwrap();
     assert_eq!(v["api_keys"].as_array().unwrap().len(), 3);
 
+    // R03: the header remains backwards-compatible, but new files cost more to crack.
+    let fresh = dir.join("new.vaultbak");
+    backup::export(&acc, &fresh, Some(BAK_PW)).unwrap();
+    let fresh: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(fresh).unwrap()).unwrap();
+    assert_eq!(fresh["kdf"]["iters"], 600_000);
+
     // ── Control: the wrong password is refused, nothing is replaced ──────────
     let err = backup::import(
         &acc,
