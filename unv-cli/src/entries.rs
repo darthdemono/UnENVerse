@@ -1101,6 +1101,75 @@ pub fn cmd_rm(access: &Access, query: &str, yes: bool) -> CliResult {
     Ok(())
 }
 
+/// Rewrites every `${Provider…}` chunk reference after the entry `self_id` was
+/// renamed from `old` to `new_name` (the entry itself is already renamed). Twin of
+/// `renameProviderRefs()` in `chunk-ops.ts`, pinned by `rename-refs.json`.
+///
+/// An entry with a `key_id` is referenced by its compound `Provider_KeyId`, so a
+/// bare reference to it becomes the compound name. A bare `${Old}` is left alone
+/// while another entry still carries that provider name: it was ambiguous before
+/// and the rename must not quietly resolve it.
+pub fn rename_provider_refs(
+    vault: &mut Value,
+    self_id: &str,
+    old: &str,
+    key_id: &str,
+    new_name: &str,
+) -> usize {
+    let bare_is_shared = data::entries(vault).iter().any(|e| {
+        data::provider_of(e) == old && e.get("id").and_then(|v| v.as_str()) != Some(self_id)
+    });
+    let compound_old = (!key_id.is_empty()).then(|| format!("{old}_{key_id}"));
+    let compound_new = (!key_id.is_empty()).then(|| format!("{new_name}_{key_id}"));
+    let mut rewritten = 0usize;
+    for project in data::projects_mut(vault).iter_mut() {
+        let Some(chunks) = project.get_mut("chunks").and_then(|c| c.as_array_mut()) else {
+            continue;
+        };
+        for chunk in chunks.iter_mut() {
+            let Some(fields) = chunk.get_mut("fields").and_then(|f| f.as_array_mut()) else {
+                continue;
+            };
+            for field in fields.iter_mut() {
+                let Some(val) = field
+                    .get("value")
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+                else {
+                    continue;
+                };
+                let Some(inner) = val.strip_prefix("${").and_then(|s| s.strip_suffix('}')) else {
+                    continue;
+                };
+                if inner.starts_with("chunk:") || inner.starts_with("bundle:") {
+                    continue;
+                }
+                let (head, tail) = match inner.split_once('/') {
+                    Some((h, t)) => (h, Some(t)),
+                    None => (inner, None),
+                };
+                let new_head = if head == old && !bare_is_shared {
+                    compound_new.clone().unwrap_or_else(|| new_name.to_string())
+                } else if Some(head) == compound_old.as_deref() {
+                    compound_new.clone().unwrap_or_default()
+                } else {
+                    continue;
+                };
+                let next = match tail {
+                    Some(t) => format!("${{{new_head}/{t}}}"),
+                    None => format!("${{{new_head}}}"),
+                };
+                if field.get("ref_name").and_then(|v| v.as_str()) == Some(head) {
+                    field["ref_name"] = json!(new_head);
+                }
+                field["value"] = json!(next);
+                rewritten += 1;
+            }
+        }
+    }
+    rewritten
+}
+
 /// Rename an entry, carrying every `${Provider…}` chunk reference with it.
 ///
 /// The rename cascade is not optional: references resolve by provider *name*, so
@@ -1119,67 +1188,14 @@ pub fn cmd_rename(access: &Access, query: &str, new_name: &str) -> CliResult {
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
+    let self_id = data::entries(&vault)[idx]
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     entries_mut(&mut vault)[idx]["provider"] = json!(new_name);
-
-    let mut rewritten = 0usize;
-    let compound_old = if key_id.is_empty() {
-        None
-    } else {
-        Some(format!("{old}_{key_id}"))
-    };
-    let compound_new = if key_id.is_empty() {
-        None
-    } else {
-        Some(format!("{new_name}_{key_id}"))
-    };
-
-    for project in data::projects_mut(&mut vault).iter_mut() {
-        let Some(chunks) = project.get_mut("chunks").and_then(|c| c.as_array_mut()) else {
-            continue;
-        };
-        for chunk in chunks.iter_mut() {
-            let Some(fields) = chunk.get_mut("fields").and_then(|f| f.as_array_mut()) else {
-                continue;
-            };
-            for field in fields.iter_mut() {
-                let val = match field.get("value").and_then(|v| v.as_str()) {
-                    Some(v) => v.to_string(),
-                    None => continue,
-                };
-                let Some(inner) = val.strip_prefix("${").and_then(|s| s.strip_suffix('}')) else {
-                    continue;
-                };
-                if inner.starts_with("chunk:") {
-                    continue;
-                }
-                let (head, tail) = match inner.split_once('/') {
-                    Some((h, t)) => (h.to_string(), Some(t.to_string())),
-                    None => (inner.to_string(), None),
-                };
-                let replacement = if head == old {
-                    Some(new_name.to_string())
-                } else if Some(head.clone()) == compound_old {
-                    compound_new.clone()
-                } else {
-                    None
-                };
-                if let Some(new_head) = replacement {
-                    let next = match &tail {
-                        Some(t) => format!("${{{new_head}/{t}}}"),
-                        None => format!("${{{new_head}}}"),
-                    };
-                    let ref_matches =
-                        field.get("ref_name").and_then(|v| v.as_str()) == Some(head.as_str());
-                    field["value"] = json!(next);
-                    if ref_matches {
-                        field["ref_name"] = json!(new_head);
-                    }
-                    rewritten += 1;
-                }
-            }
-        }
-    }
+    let rewritten = rename_provider_refs(&mut vault, &self_id, &old, &key_id, new_name);
 
     access.save(&vault)?;
     out::ok(
