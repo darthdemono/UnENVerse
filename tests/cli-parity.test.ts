@@ -32,6 +32,7 @@ import {
   exportDockerCompose,
   exportNginx,
   nginxIdent,
+  renameProviderRefs,
   exportK8s,
   exportSshConfig,
   exportTraefik,
@@ -460,4 +461,44 @@ describe('nginx upstream identifiers', () => {
     expect(out).toContain('upstream app_upstream {');
     expect(out).not.toContain('upstream app upstream');
   });
+});
+
+describe('entry rename reference rewriting', () => {
+  const table = JSON.parse(
+    readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'fixtures/parity/rename-refs.json'),
+      'utf8',
+    ),
+  ) as {
+    entries: { id: string; provider: string; key_id?: string }[];
+    refs: string[];
+    renames: { entry: string; to: string; rewritten: number; refs: string[] }[];
+  };
+
+  for (const c of table.renames) {
+    it(`matches the shared table when ${c.entry} becomes ${c.to}`, () => {
+      const entries = table.entries.map((e) => ({ ...e }));
+      const target = entries.find((e) => e.id === c.entry)!;
+      const { provider: oldProvider, key_id: oldKey } = target;
+      target.provider = c.to;
+      st.vault = {
+        api_keys: entries,
+        projects: [
+          {
+            id: 'p',
+            name: 'P',
+            chunks: [
+              { id: 'c', name: 'c', fields: table.refs.map((v) => ({ key: 'k', value: v })) },
+            ],
+          },
+        ],
+      } as never;
+      const n = renameProviderRefs(oldProvider, oldKey, c.to, oldKey, c.entry);
+      const got = (st.vault.projects[0].chunks![0].fields as { value: string }[]).map(
+        (f) => f.value,
+      );
+      expect(got).toEqual(c.refs);
+      expect(n).toBe(c.rewritten);
+    });
+  }
 });
