@@ -15,33 +15,12 @@ name = "unv"
 path = "src/main.rs"
 
 [dependencies]
-vault-core = { path = "../vault-core", features = ["tls", "telemetry"] }
-tracing    = "0.1"
-clap       = { version = "4", features = ["derive", "env"] }
-serde      = { version = "1", features = ["derive"] }
-serde_json = "1"
-rpassword  = "7"
-dirs       = "7"
-# Blocking HTTP client for remote-mode operations
-# default-features = false is load-bearing: the default pulls native-tls, which
-# would give the CLI a different TLS stack from the desktop app and from the
-# shared verifier in vault_core::tls.
-reqwest       = { version = "0.13", default-features = false, features = ["json", "form", "blocking", "rustls-no-provider"] }
+unv-app      = { path = "../unv-app" }
+vault-core   = { path = "../vault-core", features = ["tls", "telemetry"] }
+tracing      = "0.1"
+clap         = { version = "4", features = ["derive", "env"] }
 clap_complete = "4"
-notify        = "8"
-uuid          = { version = "1", features = ["v4"] }
-# Encrypted backup envelope (.vaultbak) — must match the WebCrypto format the
-# desktop app writes: PBKDF2-SHA256 → AES-256-GCM.
-aes-gcm    = "0.11"
-pbkdf2     = { version = "0.13", default-features = false, features = ["hmac"] }
-sha2       = "0.11"
-hex        = "0.4"
-hmac       = "0.13"
-base64     = "0.23"
-rand       = "0.10"
-time       = { version = "0.3.55", features = ["parsing"] }
-aho-corasick = "1"
-walkdir      = "2"
+serde_json   = "1"
 
 # Deny warnings, per [workspace.lints.rust] at the repo root.
 [lints]
