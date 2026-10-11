@@ -2,6 +2,7 @@
 name    = "unenverse"
 version = "0.42.7"
 edition = "2021"
+rust-version.workspace = true
 publish = false
 license = "Apache-2.0"
 
@@ -10,12 +11,11 @@ name       = "unenverse_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-tauri                        = { version = "2", features = ["tray-icon"] }
-tauri-plugin-shell           = "2"
-tauri-plugin-global-shortcut = "2"
+tauri                        = { version = "2.12", features = ["tray-icon"] }
+tauri-plugin-shell           = "2.4"
 # Window size/position persistence. Saved to <app_config_dir>/.window-state.json
 # by the plugin itself — no vault data involved, so it is deliberately outside
 # SQLCipher and survives a vault reset.
@@ -32,16 +32,16 @@ tracing           = "0.1"
 # second database.
 unv-server       = { path = "../unv-server" }
 tokio             = { version = "1", features = ["rt", "sync", "time"] }
-zeroize           = { version = "=1.8.1", features = ["zeroize_derive"] }
+zeroize           = { version = "1.9", features = ["zeroize_derive"] }
 # HTTP proxy for remote vault with TLS cert pinning (Phase 6)
-reqwest           = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest           = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
 rustls            = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
 rustls-pki-types  = "1"
-sha2              = "0.10"
-hex               = "=0.4.3"
+sha2              = "0.11"
+hex               = "0.4"
 # A3: where an export actually lands on disk (write_export_file), rather than
 # a WebKitGTK `<a download>` click the webview has no handler for.
-dirs              = "5"
+dirs              = "7"
 
 # Caps Lock from GDK's keymap (A4). Linux only: glib-sys needs pkg-config and the
 # GTK headers, which a Windows build has neither of, and the Windows path of
