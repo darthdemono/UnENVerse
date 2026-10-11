@@ -3,7 +3,7 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use unv_cli::access::RemoteClient;
+use unv_app::access::RemoteClient;
 use unv_server::{build_router, AppState};
 
 fn scratch() -> PathBuf {
@@ -121,5 +121,5 @@ async fn a_remote_cli_save_of_an_entry_both_changed_is_a_conflict() {
         a.save_vault(&doc_a).unwrap_err()
     })
     .await;
-    assert_eq!(err.code, unv_cli::error::Code::Conflict, "{err}");
+    assert_eq!(err.code, unv_app::error::Code::Conflict, "{err}");
 }
