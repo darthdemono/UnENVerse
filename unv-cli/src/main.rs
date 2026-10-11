@@ -15,8 +15,8 @@
 //! export covers the four stable project types; the experimental ones stay in the
 //! app rather than existing as a second implementation that can drift.
 
-use unv_cli::error::{CliError, CliResult};
-use unv_cli::{
+use unv_app::error::{CliError, CliResult};
+use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
     emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
     node_cmd, oauth_cmd, out, pool, projects, render, scan, session, session_cmd, shield, uid_cmd,
@@ -461,7 +461,7 @@ enum Commands {
     /// Entry presets for common services: list them or show what one pre-fills.
     Template {
         #[command(subcommand)]
-        cmd: unv_cli::template_cmd::TemplateCmd,
+        cmd: unv_app::template_cmd::TemplateCmd,
     },
     /// Delete the local vault and its salt (the app's Settings -> Reset).
     ///
@@ -472,7 +472,7 @@ enum Commands {
     /// The signed provider catalogue `enrich` reads before its compiled table.
     Catalogue {
         #[command(subcommand)]
-        cmd: unv_cli::catalogue_cmd::CatalogueCmd,
+        cmd: unv_app::catalogue_cmd::CatalogueCmd,
     },
     /// OAuth clients: exchange a refresh token for a new access token.
     Oauth {
@@ -1543,7 +1543,7 @@ enum ProjectCmd {
         project: String,
         /// Output format. Defaults to the exporter for the project's own type —
         /// all eleven of them, not the four that used to be wired up.
-        #[arg(long, value_parser = clap::builder::PossibleValuesParser::new(unv_cli::chunks::export_formats()))]
+        #[arg(long, value_parser = clap::builder::PossibleValuesParser::new(unv_app::chunks::export_formats()))]
         format: Option<String>,
         /// Write to this file instead of stdout (compose also writes .env beside it).
         #[arg(long, short = 'o')]
@@ -1976,7 +1976,7 @@ fn real_main() {
     // wins; otherwise a pin remembered by `unv login --tofu` for this server
     // applies, so pinning survives across invocations without repeating the
     // 64-character flag every time.
-    if let Err(e) = unv_cli::tls::configure(cli.fingerprint.as_deref(), cli.ca_cert.as_deref()) {
+    if let Err(e) = unv_app::tls::configure(cli.fingerprint.as_deref(), cli.ca_cert.as_deref()) {
         finish(Err(e));
         return;
     }
@@ -1989,7 +1989,7 @@ fn real_main() {
     if cli.fingerprint.is_none() && cli.ca_cert.is_none() {
         if let Some(server) = cli.server.as_deref() {
             if let Some(fp) = session::fingerprint(server) {
-                unv_cli::tls::adopt_remembered(&fp);
+                unv_app::tls::adopt_remembered(&fp);
             }
         }
     }
@@ -2010,13 +2010,13 @@ fn real_main() {
     }
     // Nor do the preset listings: compiled-in public reference data.
     if let Commands::Template { cmd } = &cli.command {
-        finish(unv_cli::template_cmd::run(cmd));
+        finish(unv_app::template_cmd::run(cmd));
         return;
     }
     // Nor does a reset: it exists for the vault whose password is gone.
     if matches!(&cli.command, Commands::ResetVault) {
         access::set_paths(cli.db_path.clone(), cli.salt_path.clone());
-        finish(unv_cli::reset_cmd::run(cli.yes, cli.dry_run));
+        finish(unv_app::reset_cmd::run(cli.yes, cli.dry_run));
         return;
     }
     // Nor does the agent half of `node`: it runs on a host that has no vault.
@@ -2028,7 +2028,7 @@ fn real_main() {
     }
     // Nor does the catalogue: public reference data, no vault involved.
     if let Commands::Catalogue { cmd } = &cli.command {
-        finish(unv_cli::catalogue_cmd::run(cmd));
+        finish(unv_app::catalogue_cmd::run(cmd));
         return;
     }
     // Neither do the generators, unless they are asked to save into the vault.
@@ -2066,7 +2066,7 @@ fn real_main() {
 /// The `node` subcommands that run on the managed host. `None` means the
 /// command is a hub command and needs a connection.
 fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
-    let dir = |d: &Option<PathBuf>| d.clone().unwrap_or_else(unv_cli::node_agent::default_dir);
+    let dir = |d: &Option<PathBuf>| d.clone().unwrap_or_else(unv_app::node_agent::default_dir);
     Some(match cmd {
         NodeCmd::Enroll {
             hub,
@@ -2118,9 +2118,9 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
         } => (|| {
             let specs = targets
                 .iter()
-                .map(|t| unv_cli::node_install::parse_target(t))
+                .map(|t| unv_app::node_install::parse_target(t))
                 .collect::<Result<Vec<_>, _>>()?;
-            let o = unv_cli::node_install::Options {
+            let o = unv_app::node_install::Options {
                 hub: hub.clone(),
                 relay: relay.clone(),
                 listen: listen.clone().zip(advertise.clone()),
@@ -2128,7 +2128,7 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
                 approver: approver.clone(),
                 interval_secs: *interval,
             };
-            let steps = unv_cli::node_install::plan(&o)?;
+            let steps = unv_app::node_install::plan(&o)?;
             let token = if *plan {
                 String::new()
             } else {
@@ -2144,7 +2144,7 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
                 }
             };
             let state = std::path::PathBuf::from("/var/lib/unv-node");
-            let hub_url = unv_cli::node_install::effective_hub(&o);
+            let hub_url = unv_app::node_install::effective_hub(&o);
             let mut enrol = || {
                 node_cmd::enroll(
                     &state,
@@ -2156,7 +2156,7 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
                     o.listen.as_ref().map(|(a, b)| (a.as_str(), b.as_str())),
                 )
             };
-            unv_cli::node_install::execute(&steps, &mut enrol, *plan)?;
+            unv_app::node_install::execute(&steps, &mut enrol, *plan)?;
             if *plan {
                 println!("Plan only; nothing was changed.");
             }
@@ -2174,10 +2174,10 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
 
 fn run(cli: &Cli) -> CliResult {
     access::set_paths(cli.db_path.clone(), cli.salt_path.clone());
-    unv_cli::envfile::set_naming(
+    unv_app::envfile::set_naming(
         cli.env_case
             .as_deref()
-            .map(unv_cli::envfile::NameCase::parse),
+            .map(unv_app::envfile::NameCase::parse),
         cli.env_prefix,
     );
 
@@ -2257,7 +2257,7 @@ fn run(cli: &Cli) -> CliResult {
             show,
             clear,
         } if *show || *clear || (project.is_none() && env.is_none()) => {
-            return unv_cli::context::cmd_use(
+            return unv_app::context::cmd_use(
                 None,
                 project.as_deref(),
                 env.as_deref(),
@@ -2283,7 +2283,7 @@ fn run(cli: &Cli) -> CliResult {
     // problem the caller can fix by retrying — drop it and say so, or every
     // later command fails the same way with the same unhelpful 401.
     if let (Err(e), Some(server), true) = (&result, server.as_deref(), cached.is_some()) {
-        if e.code == unv_cli::error::Code::Denied {
+        if e.code == unv_app::error::Code::Denied {
             // Clear only the identity that was actually used. Dropping every
             // session for the server because one expired would log the other
             // cached users out too, which they would discover one at a time.
@@ -2354,8 +2354,8 @@ fn cmd_login(cli: &Cli, password: Option<&str>) -> CliResult {
                 &existing[..16.min(existing.len())]
             )));
         }
-        let fp = unv_cli::tls::probe(server)?;
-        unv_cli::tls::adopt_remembered(&fp);
+        let fp = unv_app::tls::probe(server)?;
+        unv_app::tls::adopt_remembered(&fp);
         learned = Some(fp);
     }
     // Authenticating here is exactly what `open_access` would do; the difference
@@ -2428,8 +2428,8 @@ fn cmd_calendar(
 ) -> CliResult {
     let vault = a.load_vault()?;
     let list = match project {
-        Some(p) => unv_cli::data::entries_in_project(&vault, p),
-        None => unv_cli::data::entries(&vault),
+        Some(p) => unv_app::data::entries_in_project(&vault, p),
+        None => unv_app::data::entries(&vault),
     };
 
     let selected = if kinds.is_empty() {
@@ -2484,7 +2484,7 @@ fn cmd_calendar(
             // Written here rather than through `fmt::emit`, which prints its own
             // "Wrote <path>" to stderr — two success messages for one action.
             std::fs::write(path, &ics).map_err(|e| {
-                unv_cli::error::CliError::from(format!("Cannot write {}: {e}", path.display()))
+                unv_app::error::CliError::from(format!("Cannot write {}: {e}", path.display()))
             })?;
             out::ok(
                 "calendar",
@@ -2512,15 +2512,15 @@ fn cmd_calendar(
 /// simply list everything, which looks exactly like a vault with no scoping at
 /// all. Invariant 7, one directory at a time.
 fn scoped_project(a: &Access, explicit: Option<&str>) -> Result<Option<String>, CliError> {
-    let resolved = unv_cli::context::project(explicit)?;
+    let resolved = unv_app::context::project(explicit)?;
     let (Some(name), true) = (
         resolved.as_deref(),
-        unv_cli::context::is_from_context(explicit),
+        unv_app::context::is_from_context(explicit),
     ) else {
         return Ok(resolved);
     };
     let vault = a.load_vault()?;
-    if unv_cli::context::resolve_in_vault(&vault, name).is_none() {
+    if unv_app::context::resolve_in_vault(&vault, name).is_none() {
         return Err(CliError::not_found(format!(
             "This directory is pinned to project '{name}', which is not in the vault.\n\
              Run `unv use <project>` to point it somewhere real, or `unv use --clear`."
@@ -2535,7 +2535,7 @@ fn scoped_project(a: &Access, explicit: Option<&str>) -> Result<Option<String>, 
 /// entry, so "matches nothing" is an ordinary answer rather than a stale
 /// reference.
 fn scoped_env(explicit: Option<&str>) -> Result<Option<String>, CliError> {
-    unv_cli::context::environment(explicit)
+    unv_app::context::environment(explicit)
 }
 
 fn cmd_whoami(cli: &Cli) -> CliResult {
@@ -3223,9 +3223,9 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
 
         Commands::Totp { cmd } => match cmd {
             EntryTotpCmd::Code { provider, next } => {
-                unv_cli::totp_cmd::cmd_code(a, provider, *next)
+                unv_app::totp_cmd::cmd_code(a, provider, *next)
             }
-            EntryTotpCmd::Ls => unv_cli::totp_cmd::cmd_ls(a),
+            EntryTotpCmd::Ls => unv_app::totp_cmd::cmd_ls(a),
             EntryTotpCmd::Add {
                 name,
                 seed,
@@ -3247,18 +3247,18 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 provider,
                 by,
                 yes: cmd_yes,
-            } => unv_cli::totp_cmd::cmd_advance(a, provider, *by, yes || *cmd_yes),
+            } => unv_app::totp_cmd::cmd_advance(a, provider, *by, yes || *cmd_yes),
             EntryTotpCmd::Uri { provider, out } => {
-                unv_cli::totp_cmd::cmd_uri(a, provider, out.as_ref())
+                unv_app::totp_cmd::cmd_uri(a, provider, out.as_ref())
             }
-            EntryTotpCmd::Rm { provider } => unv_cli::totp_cmd::cmd_rm(a, provider, yes),
+            EntryTotpCmd::Rm { provider } => unv_app::totp_cmd::cmd_rm(a, provider, yes),
             EntryTotpCmd::Import {
                 file,
                 format,
                 project,
                 category,
                 force,
-            } => unv_cli::totp_cmd::cmd_import(
+            } => unv_app::totp_cmd::cmd_import(
                 a,
                 file,
                 format.as_deref(),
@@ -3267,7 +3267,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 *force,
             ),
             EntryTotpCmd::Export { format, out, only } => {
-                unv_cli::totp_cmd::cmd_export(a, format, out.as_ref(), only.as_deref())
+                unv_app::totp_cmd::cmd_export(a, format, out.as_ref(), only.as_deref())
             }
         },
         Commands::Pool { cmd } => match cmd {
@@ -3547,7 +3547,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 timeout_secs: *timeout,
             },
         ),
-        Commands::Diff { a: left, b: right } => unv_cli::diff_cmd::run(a, left, right),
+        Commands::Diff { a: left, b: right } => unv_app::diff_cmd::run(a, left, right),
         Commands::Check {
             project,
             fail_on,
@@ -3597,7 +3597,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             env,
             show,
             clear,
-        } => unv_cli::context::cmd_use(Some(a), project.as_deref(), env.as_deref(), *show, *clear),
+        } => unv_app::context::cmd_use(Some(a), project.as_deref(), env.as_deref(), *show, *clear),
         Commands::Status => scan::cmd_status(a),
         Commands::Doctor { fix } => doctor::run(Some(a), None, *fix),
 
