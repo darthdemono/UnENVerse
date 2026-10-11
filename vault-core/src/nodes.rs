@@ -26,7 +26,7 @@
 //! contains a private key and `nodes.json` is not encrypted.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -74,7 +74,7 @@ pub const EXPORTERS: &[&str] = &[
 /// A fresh node identity as `(seed_hex, public_key_hex)`.
 pub fn generate_identity() -> (String, String) {
     let mut seed = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut seed);
+    rand::rng().fill_bytes(&mut seed);
     let public = SigningKey::from_bytes(&seed).verifying_key().to_bytes();
     (hex::encode(seed), hex::encode(public))
 }
@@ -707,7 +707,7 @@ impl NodeStore {
         }
         let ttl = ttl_secs.clamp(30, 7 * 86_400);
         let mut raw = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut raw);
+        rand::rng().fill_bytes(&mut raw);
         let token = format!("envn_{}", hex::encode(raw));
         let expires = now_secs + ttl;
         // Expired and spent tokens are dead weight; dropping them here keeps
@@ -1219,7 +1219,7 @@ pub fn hub_public(seed_hex: &str) -> Result<String, String> {
 /// A fresh hub approval seed, hex.
 pub fn generate_hub_seed() -> String {
     let mut seed = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut seed);
+    rand::rng().fill_bytes(&mut seed);
     hex::encode(seed)
 }
 
@@ -2565,5 +2565,26 @@ reload = "systemctl reload nginx"
         assert!(NodeConfig::parse(&format!("approver = \"{p}\"")).is_ok());
         assert!(NodeConfig::parse("approver = \"zz\"").is_err());
         assert!(NodeConfig::parse("").unwrap().approver.is_none());
+    }
+
+    #[test]
+    fn device_approver_path_stays_under_the_platform_data_directory() {
+        let expected = dirs::data_dir().map(|dir| dir.join("io.unenverse"));
+        assert_eq!(default_approver_dir(), expected);
+
+        #[cfg(target_os = "linux")]
+        if let Some(data_home) = std::env::var_os("XDG_DATA_HOME") {
+            assert_eq!(
+                default_approver_dir(),
+                Some(PathBuf::from(data_home).join("io.unenverse"))
+            );
+        }
+        #[cfg(windows)]
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            assert_eq!(
+                default_approver_dir(),
+                Some(PathBuf::from(appdata).join("io.unenverse"))
+            );
+        }
     }
 }
