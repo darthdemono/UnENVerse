@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { st, LocalVaultStore } from '../src/ts/state';
 import { lockVault, showRelockScreen } from '../src/ts/lock';
-import { deleteKey } from '../src/ts/modals';
+import { deleteKey, openModal, saveModal } from '../src/ts/modals';
 import { loadRealIndexHtml, makeEntry, makeProject, makeVault, resetState } from './helpers';
 
 vi.mock('../src/ts/utils', async (importOriginal) => {
@@ -136,5 +136,27 @@ describe('showRelockScreen', () => {
   it('opens the overlay', () => {
     showRelockScreen('manual');
     expect(document.getElementById('relock-overlay')!.classList.contains('open')).toBe(true);
+  });
+
+  // C15: an auto-lock fired while the edit form was open. The form (a typed secret
+  // included) stayed on screen behind the lock screen, and its Save wrote into the
+  // vault that had just been emptied.
+  it('closes an open edit form, secret and all', async () => {
+    openModal('Edit', 0);
+    (document.getElementById('f-key') as HTMLInputElement).value = 'sk-typed-but-unsaved';
+    await lockVault('auto');
+    expect(document.getElementById('modal-overlay')!.classList.contains('open')).toBe(false);
+  });
+
+  it('refuses to save an edit once the vault is locked', async () => {
+    openModal('Edit', 0);
+    (document.getElementById('f-provider') as HTMLInputElement).value = 'Renamed';
+    (document.getElementById('f-key') as HTMLInputElement).value = 'sk-new';
+    const save = vi.fn(() => Promise.resolve());
+    st.store.save = save;
+    st.vaultOpen = false;
+    await saveModal();
+    expect(save).not.toHaveBeenCalled();
+    expect(st.vault.api_keys[0].provider).toBe('Alpha');
   });
 });
