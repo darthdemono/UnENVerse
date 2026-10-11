@@ -1,3 +1,4 @@
+import { markUsed } from './recovery-codes';
 import { entropySource, setEntropySource } from './generators';
 import type {
   VaultData,
@@ -959,7 +960,17 @@ onClipboardWrite((text) => {
  * import, template, chunk link, manual add — can persist an entry without a
  * stable identity. Always use this instead of calling `st.store.save` directly.
  */
-export async function persist(): Promise<void> {
+export function persist(): Promise<void> {
+  // One save at a time. Overlapping saves reach the server in no fixed order and share
+  // the store's one "last save failed" flag, so a failure of one was read as the other's.
+  const run = persistChain.then(persistNow, persistNow);
+  persistChain = run.catch(() => undefined);
+  return run;
+}
+
+let persistChain: Promise<void> = Promise.resolve();
+
+async function persistNow(): Promise<void> {
   ensureEntryIds(st.vault.api_keys);
   try {
     await saveWholeOrDelta();
@@ -1018,7 +1029,11 @@ let synced: Synced | null = null;
 /** Forget what the store holds; the next save is a whole-document one. */
 export function forgetSynced(): void {
   synced = null;
+  syncGeneration++;
 }
+
+/** Bumped by every `forgetSynced`, so a save that was in flight cannot restore a snapshot taken before it. */
+let syncGeneration = 0;
 
 function jsonById(list: { id?: unknown }[]): Map<string, string> | null {
   const m = new Map<string, string>();
@@ -1029,22 +1044,22 @@ function jsonById(list: { id?: unknown }[]): Map<string, string> | null {
   return m;
 }
 
-function snapshotNow(): void {
+/** What the document looks like right now, to be trusted only once a save of exactly this reached the store. */
+function captureSnapshot(): Synced | null {
   const entries = jsonById(st.vault.api_keys);
   const projectJson = jsonById(st.vault.projects);
-  synced =
-    entries && projectJson
-      ? {
-          vault: st.vault,
-          store: st.store,
-          keys: st.vault.api_keys,
-          projects: st.vault.projects,
-          cats: st.vault.user_categories,
-          entries,
-          projectJson,
-          catsJson: JSON.stringify(st.vault.user_categories ?? []),
-        }
-      : null;
+  return entries && projectJson
+    ? {
+        vault: st.vault,
+        store: st.store,
+        keys: st.vault.api_keys,
+        projects: st.vault.projects,
+        cats: st.vault.user_categories,
+        entries,
+        projectJson,
+        catsJson: JSON.stringify(st.vault.user_categories ?? []),
+      }
+    : null;
 }
 
 /** True when `now` is `before` minus the deleted ids with new ids appended. */
@@ -1096,6 +1111,10 @@ export function currentPatch(): VaultPatch | null {
 async function saveWholeOrDelta(): Promise<void> {
   const store = st.store;
   const patch = store.saveRows ? currentPatch() : null;
+  // Taken before the await: an edit made while the request is in flight is not in it,
+  // and must still count as unsent when the response comes back.
+  const sentState = captureSnapshot();
+  const generation = syncGeneration;
   let sent = false;
   if (patch) {
     if (Object.keys(patch).length === 0) return; // nothing changed since the last save
@@ -1104,7 +1123,9 @@ async function saveWholeOrDelta(): Promise<void> {
   if (!sent) await store.save(st.vault);
   // A save that never reached the store (toasted already) leaves the old snapshot,
   // so the same changes go out again with the next one.
-  if (!store.lastSaveFailed?.()) snapshotNow();
+  if (!store.lastSaveFailed?.() && generation === syncGeneration && store === st.store) {
+    synced = sentState;
+  }
 }
 
 /**
@@ -1136,7 +1157,7 @@ async function resolveSaveConflict(err: VaultConflictError): Promise<void> {
     if (mine && (await reloadFromStore())) {
       applyPatchLocal(st.vault, mine);
       showToast('Your changes were applied on top of the other writer’s', 'ok', 3500);
-      await persist();
+      await persistNow(); // inside the running save: queueing behind it would wait on itself
       return;
     }
     showToast(
@@ -1190,6 +1211,43 @@ export function dropPreviousVault(): void {
   st.vault.projects = [{ id: 'Universal', name: 'Universal', description: '' }];
   forgetSynced();
   st.vaultOpen = false;
+}
+
+/**
+ * Removes a bundle and its members from the document as it is NOW. A confirm dialog is an
+ * await, and a reload (a merged save, a peer's change) replaces every entry object while
+ * it is open, so objects captured before the dialog no longer belong to `st.vault`:
+ * filtering by them removed nothing while the toast and the undo stack said it was gone.
+ */
+export function removeBundleLive(bundleId: string): { removed: VaultEntry[]; positions: number[] } {
+  const removed = st.vault.api_keys.filter((e) => e.id === bundleId || e.bundle_id === bundleId);
+  const positions = removed.map((e) => st.vault.api_keys.indexOf(e));
+  const gone = new Set(removed);
+  st.vault.api_keys = st.vault.api_keys.filter((e) => !gone.has(e));
+  return { removed, positions };
+}
+
+/**
+ * Marks the next unused recovery code of the entry with this id as spent, in the document
+ * as it is now (see {@link removeBundleLive} for why the entry is looked up again).
+ * Returns the entry, or the reason nothing was marked.
+ */
+export function spendRecoveryCodeLive(
+  entryId: string,
+  date: string,
+): { entry: VaultEntry } | { error: string } {
+  const entry = st.vault.api_keys.find(
+    (e) => e.id === entryId && e.secretType === 'recovery_codes',
+  );
+  if (!entry) return { error: 'That entry changed or was deleted while you were deciding.' };
+  const codes = entry.extra_vars?.find((v) => v.key === 'codes');
+  if (!codes) return { error: 'That entry has no recovery codes.' };
+  try {
+    codes.value = markUsed(entry, null, date);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+  return { entry };
 }
 
 /** Adopt what is now stored, replacing our copy. `false` when nothing could be loaded. */
