@@ -7,14 +7,14 @@
 //! different answer in the CLI and the app.
 
 use serde_json::{json, Value};
-use unv_cli::ratelimit::{self, Period};
+use unv_app::ratelimit::{self, Period};
 
 fn table() -> Value {
-    // CARGO_MANIFEST_DIR is unv-cli/; the fixture is shared with the frontend
+    // CARGO_MANIFEST_DIR is unv-app/; the fixture is shared with the frontend
     // suite and lives at the workspace root.
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("unv-cli has a parent directory")
+        .expect("unv-app has a parent directory")
         .join("tests/fixtures/parity/rate-limit.json");
     let raw = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
