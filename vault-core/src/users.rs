@@ -17,7 +17,7 @@
 //! Glob rules: `*` matches any sequence of characters (including empty); `?` matches one char.
 
 use crate::iso_now;
-use rand::RngCore;
+use rand::Rng;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -536,14 +536,12 @@ fn new_uuid() -> String {
 /// Uses lower cost params than the vault KDF to keep interactive login fast
 /// while still providing >200ms hash time on modern hardware.
 fn hash_password(password: &str) -> String {
-    use argon2::password_hash::{rand_core::OsRng, SaltString};
     use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
 
-    let salt = SaltString::generate(&mut OsRng);
     let params = Params::new(32_768, 2, 1, None).expect("valid argon2 params");
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     argon2
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password(password.as_bytes())
         .expect("argon2 hash")
         .to_string()
 }
@@ -558,7 +556,7 @@ fn hash_password(password: &str) -> String {
 /// `hash_password` after a successful legacy verification to upgrade the stored hash.
 fn verify_password_hash(password: &str, stored: &str) -> bool {
     if stored.starts_with("$argon2") {
-        use argon2::password_hash::PasswordHash;
+        use argon2::password_hash::phc::PasswordHash;
         use argon2::{Argon2, PasswordVerifier};
         let Ok(parsed) = PasswordHash::new(stored) else {
             return false;
@@ -1465,7 +1463,7 @@ pub fn seed_default_admin(
         Some(p) if !p.is_empty() => (p.to_string(), None),
         _ => {
             let mut raw = [0u8; 16];
-            rand::thread_rng().fill_bytes(&mut raw);
+            rand::rng().fill_bytes(&mut raw);
             let pw = hex::encode(raw);
             (pw.clone(), Some(pw))
         }
@@ -1491,7 +1489,7 @@ pub fn create_user_token(
 ) -> Result<(String, String), String> {
     let token_id = new_uuid();
     let mut raw = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut raw);
+    rand::rng().fill_bytes(&mut raw);
     let plaintext = hex::encode(raw);
     let token_hash = sha256_hex(&plaintext);
     conn.execute(
