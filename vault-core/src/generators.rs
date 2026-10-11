@@ -2,7 +2,7 @@
 //!
 //! Every generator here takes an [`crate::entropy::Source`]. That is the whole
 //! reason this module changed in Phase 17: the CLI's secret and password
-//! generators used `rand::thread_rng()` while these two used `OsRng`, so there
+//! generators used the default RNG while these two used an OS RNG, so there
 //! was no single seam an entropy source could attach to. There is one now, and
 //! the source reaches the key material rather than being applied to it
 //! afterwards — `rcgen` and `ssh-key` both generate their own keys, so bytes
