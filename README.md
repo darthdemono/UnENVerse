@@ -1073,7 +1073,7 @@ Two ESLint rules are off, with the evidence in the config. `no-unnecessary-type-
 
 ### Versioning
 
-The version lives in six files plus `Cargo.lock`.
+The version lives in eight files plus `Cargo.lock`.
 
 ```bash
 npm run version           # print
