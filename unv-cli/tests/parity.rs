@@ -817,3 +817,55 @@ fn a_space_in_an_upstream_chunk_name_cannot_reach_the_nginx_file() {
     assert!(out.contains("upstream app_upstream {"), "{out}");
     assert!(!out.contains("upstream app upstream"), "{out}");
 }
+
+// C8: the app and `unv entry rename` rewrote references differently for an entry
+// with a key_id (bare ref became `${New}` in the CLI, `${New_keyid}` in the app), and
+// the CLI ignored `${bundle:…}` skipping and shared provider names. One table, both sides.
+#[test]
+fn renaming_an_entry_rewrites_references_as_the_shared_table_says() {
+    let table: Value = serde_json::from_str(
+        &std::fs::read_to_string(fixtures().join("rename-refs.json")).unwrap(),
+    )
+    .unwrap();
+    for case in table["renames"].as_array().unwrap() {
+        let mut entries = table["entries"].clone();
+        let target = case["entry"].as_str().unwrap();
+        let (mut old, mut key_id) = (String::new(), String::new());
+        for e in entries.as_array_mut().unwrap() {
+            if e["id"] == target {
+                old = e["provider"].as_str().unwrap().into();
+                key_id = e["key_id"].as_str().unwrap_or("").into();
+                e["provider"] = case["to"].clone();
+            }
+        }
+        let fields: Vec<Value> = table["refs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| serde_json::json!({ "key": "k", "value": r }))
+            .collect();
+        let mut vault = serde_json::json!({
+            "api_keys": entries,
+            "projects": [{ "id": "p", "name": "P", "chunks": [{ "id": "c", "name": "c", "fields": fields }] }],
+        });
+        let n = unv_cli::entries::rename_provider_refs(
+            &mut vault,
+            target,
+            &old,
+            &key_id,
+            case["to"].as_str().unwrap(),
+        );
+        let got: Vec<Value> = vault["projects"][0]["chunks"][0]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["value"].clone())
+            .collect();
+        assert_eq!(Value::Array(got), case["refs"], "rename of {target}");
+        assert_eq!(
+            n as u64,
+            case["rewritten"].as_u64().unwrap(),
+            "count for {target}"
+        );
+    }
+}
