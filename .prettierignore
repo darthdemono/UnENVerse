@@ -23,6 +23,7 @@ Cargo.lock
 # bytes. Reformatting one makes both sides fail against a file that no longer
 # describes any real config format.
 tests/fixtures/
+unv-server/tests/fixtures/
 
 # index.html is formatted by hand. A formatter has already silently deleted an
 # element from it once (#new-category-form, Phase 3), and the app queries ids
