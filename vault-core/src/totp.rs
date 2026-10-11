@@ -41,7 +41,7 @@
 //! forty lines and lives here rather than behind a crate, for the same reason
 //! HKDF does: the encoding is part of what a reader has to check.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use sha2::{Sha256, Sha512};
@@ -324,9 +324,9 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 /// Generates a fresh base32 secret from the OS CSPRNG.
 pub fn generate_secret() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut buf = [0u8; SECRET_BYTES];
-    rand::rngs::OsRng.fill_bytes(&mut buf);
+    rand::rng().fill_bytes(&mut buf);
     base32_encode(&buf)
 }
 
