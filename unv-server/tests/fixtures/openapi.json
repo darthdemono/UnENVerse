@@ -1,0 +1,521 @@
+{
+  "components": {
+    "schemas": {
+      "AuthRequest": {
+        "properties": {
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "totp": {
+            "description": "Second-factor code. Required only when the user has a confirmed factor\n**and** authenticated by password — never for token auth, which is what\nCI uses and which has no human present to read a phone.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "detail": {
+            "description": "Present only when `status` is not `\"ok\"`; says what failed, without\nnaming a path or anything about the vault's contents.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "`\"ok\"` or `\"degraded\"`. Anything but `\"ok\"` is also a 503.",
+            "type": "string"
+          },
+          "unlocked": {
+            "description": "Whether an owner session currently holds the vault key.",
+            "type": "boolean"
+          },
+          "uptime_secs": {
+            "description": "Seconds since this process began serving.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vault_exists": {
+            "description": "Whether the database file is present. False is not a fault — a server\nthat has never been unlocked has no file yet.",
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "unlocked",
+          "vault_exists",
+          "uptime_secs"
+        ],
+        "type": "object"
+      },
+      "StatsResponse": {
+        "properties": {
+          "secrets_stored": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "users_connected": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "users_total": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vault_unlocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "secrets_stored",
+          "users_total",
+          "users_connected",
+          "vault_unlocked"
+        ],
+        "type": "object"
+      },
+      "StatusResponse": {
+        "properties": {
+          "cert_fingerprint": {
+            "description": "SHA-256 hex fingerprint of the server TLS certificate, or null when running plain HTTP.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unlocked": {
+            "type": "boolean"
+          },
+          "vault_exists": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unlocked",
+          "vault_exists"
+        ],
+        "type": "object"
+      },
+      "UnlockRequest": {
+        "properties": {
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "type": "object"
+      },
+      "UnlockResponse": {
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer_auth": {
+        "bearerFormat": "UUID",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Remote vault API — owner unlocks, users authenticate with /api/auth.",
+    "license": {
+      "identifier": "Apache-2.0",
+      "name": "Apache-2.0"
+    },
+    "title": "UnENVerse Server",
+    "version": "0.42.7"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/audit": {
+      "get": {
+        "operationId": "audit",
+        "responses": {
+          "200": {
+            "description": "Audit rows"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ],
+        "summary": "Return the audit log (newest first).",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/auth": {
+      "post": {
+        "operationId": "auth_user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid credentials"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Vault not unlocked"
+          }
+        },
+        "summary": "Authenticate as a regular user (username+password or token).\nRequires the vault to be unlocked by the owner first.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "description": "Distinct from `/api/stats` on purpose, and the distinction is a security\none: usage data about a secrets manager is itself sensitive, so the\nunauthenticated endpoint a monitor polls every few seconds must never grow a\nfield that answers \"how much is in there\".\n\nIt also has to fail when the process is *wedged* rather than merely bound.\nThe old Docker healthcheck opened the TCP port, which a hung process answers\nperfectly well; supervised restart is worthless on top of a check that\ncannot go red. So when an owner session claims the vault is unlocked, this\nactually opens the database and runs a query. If that cannot be done, the\nanswer is 503 — which is the signal `restart: unless-stopped` needs.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Serving normally"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Wedged — bound but not functional"
+          }
+        },
+        "summary": "Liveness and lock state, deliberately without any counts.",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "operationId": "stats",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            },
+            "description": "Instance statistics"
+          }
+        },
+        "summary": "Public statistics — no auth required.\nReturns 0 for vault-backed counts when locked.",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/status": {
+      "get": {
+        "operationId": "status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Return vault locked/exists status plus the TLS cert fingerprint (if TLS is enabled).",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/unlock": {
+      "delete": {
+        "description": "An **owner** lock is global: every session is dropped and its key zeroized,\nso the vault is genuinely closed and users must re-authenticate once the\nowner unlocks again. Previously this only removed the caller's own row from\nthe session map, while every user session held its *own copy* of the vault\nkey — so the owner \"locking\" left everyone else reading and writing\nindefinitely, and the word meant nothing.\n\nA non-owner lock stays a personal logout.",
+        "operationId": "lock",
+        "responses": {
+          "204": {
+            "description": "Locked"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ],
+        "summary": "Lock the vault.",
+        "tags": [
+          "auth"
+        ]
+      },
+      "post": {
+        "operationId": "unlock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockResponse"
+                }
+              }
+            },
+            "description": "Authenticated"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Wrong password"
+          }
+        },
+        "summary": "Authenticate with master password; receive owner session token.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/vault": {
+      "get": {
+        "operationId": "get_vault",
+        "responses": {
+          "200": {
+            "description": "Vault data"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ],
+        "summary": "Load vault data (filtered by user permissions for non-owner sessions).",
+        "tags": [
+          "vault"
+        ]
+      },
+      "put": {
+        "operationId": "put_vault",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ],
+        "summary": "Save vault data (owner: full replace; user: writes only to permitted scopes).",
+        "tags": [
+          "vault"
+        ]
+      }
+    },
+    "/api/vault/expiring": {
+      "get": {
+        "operationId": "expiring",
+        "parameters": [
+          {
+            "description": "Lookahead days",
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expiring entries"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ],
+        "summary": "List entries expiring within N days (default: 30).",
+        "tags": [
+          "vault"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer_auth": []
+    }
+  ],
+  "tags": [
+    {
+      "description": "Session management",
+      "name": "auth"
+    },
+    {
+      "description": "Vault read/write",
+      "name": "vault"
+    },
+    {
+      "description": "Append-only audit log",
+      "name": "audit"
+    },
+    {
+      "description": "Public instance metadata",
+      "name": "meta"
+    }
+  ]
+}
