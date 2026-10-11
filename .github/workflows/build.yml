@@ -58,10 +58,10 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Version is stated in six files. This job is the only thing that stops them
+  # Version is stated in eight files. This job is the only thing that stops them
   # from drifting, because nothing else in the build reads more than one of them
   # and a mismatch is invisible until a user downloads `EnvVault_0.6.0.AppImage`
-  # from a release labelled 0.7.0. `npm run version <x.y.z>` writes all six;
+  # from a release labelled 0.7.0. `npm run version <x.y.z>` writes all eight;
   # `npm run version:check` is the same comparison this job performs, so drift
   # is catchable before pushing.
   #
@@ -106,7 +106,8 @@ jobs:
           }
 
           check package.json          "$(jq -r .version package.json)"
-          for c in src-tauri vault-core unv-server unv-cli; do
+          check vscode-extension/package.json "$(jq -r .version vscode-extension/package.json)"
+          for c in src-tauri vault-core unv-app unv-server unv-cli; do
             check "$c/Cargo.toml" \
               "$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$c/Cargo.toml" | head -n1)"
           done
@@ -124,7 +125,7 @@ jobs:
 
           case "${GITHUB_REF}" in
             refs/tags/v*)
-              # A hand-pushed tag. It is a seventh copy of the number, so it
+              # A hand-pushed tag. It is a ninth copy of the number, so it
               # gets checked like the rest.
               TAG="${GITHUB_REF#refs/tags/v}"
               if [ "$TAG" != "$VERSION" ]; then
