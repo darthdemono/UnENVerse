@@ -23,9 +23,9 @@ tauri-plugin-window-state    = "2"
 serde             = { version = "1", features = ["derive"] }
 serde_json        = "1"
 vault-core        = { path = "../vault-core", features = ["tls", "telemetry"] }
-# `enrich`'s planner (Phase 33.1): the app calls the same `plan_entry` the CLI does,
-# so what a Preview shows is what `unv enrich` would propose.
-unv-cli          = { path = "../unv-cli" }
+# The app calls the same application engine as `unv`, so what a Preview shows is
+# what the CLI would propose.
+unv-app          = { path = "../unv-app" }
 tracing           = "0.1"
 # "Open to LAN": the desktop hosts the same axum router in-process against the
 # vault it already has open, rather than shelling out to a second process with a
