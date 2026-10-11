@@ -2,6 +2,7 @@
 name    = "vault-core"
 version = "0.42.7"
 edition = "2021"
+rust-version.workspace = true
 publish = false
 license = "Apache-2.0"
 
@@ -30,41 +31,41 @@ telemetry = ["dep:tracing", "dep:tracing-subscriber"]
 # Unix links the system SQLCipher by default: it builds in seconds instead of
 # minutes, which matters far more during development than portability does.
 rusqlite   = { version = "=0.40.2", features = ["sqlcipher"] }
-argon2     = "=0.5.3"
-rand       = "=0.8.6"
-hex        = "=0.4.3"
-zeroize    = { version = "=1.8.1", features = ["zeroize_derive"] }
-rcgen      = "=0.13.2"
-ssh-key    = { version = "=0.6.7", features = ["ed25519", "crypto"] }
+argon2     = "=0.6.0"
+rand       = "0.10"
+hex        = "0.4"
+zeroize    = { version = "1.9", features = ["zeroize_derive"] }
+rcgen      = "0.14"
+ssh-key    = { version = "0.6", features = ["ed25519", "crypto"] }
 time       = { version = "0.3.55", features = ["parsing"] }
-sha2       = "0.10"
-ed25519-dalek = "2"
+sha2       = "0.11"
+ed25519-dalek = "3"
 # HKDF is implemented over this rather than pulled in as `hkdf`: the extract and
 # expand steps are ten lines, and `entropy.rs` needs them to be readable — the
 # mixing rule is the security property of that module.
-hmac       = "0.12"
+hmac       = "0.13"
 # RFC 6238 pins HMAC-SHA1 for TOTP interoperability. Every authenticator app
 # assumes it; the newer variants exist in the spec and are read by almost
 # nothing, so using one would produce codes that are correct and rejected.
-sha1       = "0.10"
+sha1       = "0.11"
 # Google Authenticator's migration payload is base64 inside a URI. The CLI
 # already depended on this for embedded icons; it lives here now because the
 # desktop app reads the same payload through `totp_import`.
-base64     = "0.22"
+base64     = "0.23"
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml       = "=0.8.2"
+toml       = "1"
 # Locating the per-user state directory for pools.json ($XDG_STATE_HOME on Unix,
 # %LOCALAPPDATA% on Windows). The CLI already depended on this; the path lives
 # here now because the desktop app reads the same file.
-dirs       = "5"
+dirs       = "7"
 
 # TLS client policy, feature-gated behind `tls`. Versions match src-tauri's, which
 # is not a coincidence: two rustls majors in one dependency graph means two
 # CryptoProviders, and the custom verifier only satisfies the trait of one.
 rustls           = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"], optional = true }
 rustls-pki-types = { version = "1", optional = true }
-webpki-roots     = { version = "0.26", optional = true }
+webpki-roots     = { version = "1", optional = true }
 
 # Structured logging, feature-gated behind `telemetry`.
 tracing            = { version = "0.1", optional = true }
