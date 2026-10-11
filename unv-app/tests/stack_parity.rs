@@ -10,7 +10,7 @@
 
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use unv_cli::{chunks, exporters, refs::Resolver};
+use unv_app::{chunks, exporters, refs::Resolver};
 use vault_core::config_check;
 
 fn fixtures() -> PathBuf {
