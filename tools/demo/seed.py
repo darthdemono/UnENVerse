@@ -226,10 +226,11 @@ def add(p, name, ctype, *pairs):
 
 # WireGuard: a hub with five peers (one is a site-to-site gateway with a keepalive).
 chunk("home-vpn", "Interface", "Address=10.10.0.1/24", "ListenPort=51820", "DNS=10.10.0.1", "MTU=1420",
-      "PrivateKey=${Wireguard}",
+      "PrivateKey=${Wireguard}", "Table=auto",
       "PostUp=iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE",
       "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE")
-chunk("home-vpn", "Peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.2/32")
+chunk("home-vpn", "Peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.2/32", "PresharedKey=${Wireguard}",
+      "Endpoint=198.51.100.23:51820", "PersistentKeepalive=25")
 run("project", "chunk", "rename", "home-vpn", "Peer", "Laptop")
 add("home-vpn", "Phone", "wg_peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.3/32", "PersistentKeepalive=25")
 add("home-vpn", "Tablet", "wg_peer", "PublicKey=" + wgkey(), "AllowedIPs=10.10.0.4/32", "PersistentKeepalive=25")
@@ -297,7 +298,7 @@ add("edge-proxy", "app_upstream", "nginx_upstream", "server=127.0.0.1:8080", "ke
 run("project", "chunk", "rm", "edge-proxy", "HTTPS www redirect", "--yes")
 run("project", "chunk", "rm", "edge-proxy", "location ~ .php", "--yes")
 chunk("edge-proxy", "location /", "path=/", "try_files=$uri $uri/ /index.html")
-add("edge-proxy", "location /api/", "nginx_location", "path=/api/", "proxy_pass=http://127.0.0.1:8080",
+add("edge-proxy", "location /api/", "nginx_location", "path=/api/", "proxy_pass=http://app_upstream",
     "proxy_set_header Host=$host", "proxy_set_header X-Forwarded-For=$proxy_add_x_forwarded_for",
     "proxy_read_timeout=60s")
 chunk("edge-proxy", "location ~ assets", "path=~* \\.(jpg|jpeg|png|gif|webp|ico|css|js|svg|woff2)$",

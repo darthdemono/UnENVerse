@@ -232,7 +232,9 @@ pub fn reload_units(t: &TargetSpec, unit: &str) -> (String, String) {
         "[Unit]\nDescription=Reload {unit} when {} changes (written by unv node install)\n\n\
          [Path]\nPathChanged={}\nUnit={name}.service\n\n[Install]\nWantedBy=multi-user.target\n",
         t.path.display(),
-        t.path.display()
+        // Not the target file: the agent writes this one after it validated the new file.
+        vault_core::nodes_apply::reload_signal_path(std::path::Path::new(STATE_DIR), &t.id)
+            .display()
     );
     let service = format!(
         "[Unit]\nDescription=Reload {unit}\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/systemctl reload {unit}\n"
@@ -567,7 +569,10 @@ mod tests {
     fn reloading_is_a_root_unit_watching_one_file_for_one_service() {
         let t = wg(true);
         let (path, service) = reload_units(&t, "wg-quick@wg0");
-        assert!(path.contains("PathChanged=/etc/wireguard/wg0.conf"));
+        // N5: not the target file. Watching it reloaded the service on the rename,
+        // before the agent had validated the new file.
+        assert!(path.contains("PathChanged=/var/lib/unv-node/reload/wg0"));
+        assert!(!path.contains("PathChanged=/etc/wireguard"), "{path}");
         assert!(path.contains("Unit=unv-reload-wg0.service"));
         assert!(service.contains("ExecStart=/usr/bin/systemctl reload wg-quick@wg0"));
         assert!(
