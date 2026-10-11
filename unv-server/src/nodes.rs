@@ -770,21 +770,27 @@ fn render_gated(
 }
 
 fn record_results(state: &AppState, key: &VaultKey, node: &NodeRecord, results: &[ApplyResult]) {
+    let Ok(conn) = open_db(&state.db_path, key) else {
+        return;
+    };
     for r in results.iter().take(64) {
-        audit(
-            state,
-            key,
+        let details = serde_json::json!({
+            "node": node.id,
+            "target": short(&r.target, 63),
+            "at": short(&r.at, 40),
+            "sha256": short(&r.sha256, 64),
+            "ok": r.ok,
+            "error": r.error.as_deref().map(|e| short(e, 400)),
+        })
+        .to_string();
+        // The node resends a result until the hub acknowledges it; when that reply is lost
+        // the same result arrives again and must not become a second audit row.
+        let _ = vault_core::record_event_once(
+            &conn,
             "node.apply",
             &node.name,
-            serde_json::json!({
-                "node": node.id,
-                "target": short(&r.target, 63),
-                "at": short(&r.at, 40),
-                "sha256": short(&r.sha256, 64),
-                "ok": r.ok,
-                "error": r.error.as_deref().map(|e| short(e, 400)),
-            }),
-            &format!("node:{}", node.name),
+            &details,
+            Some(&format!("node:{}", node.name)),
         );
     }
 }
@@ -824,6 +830,32 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
         reply.results_ack = true;
     }
 
+    // A grant names a project; once the project is gone the grant goes with it, so
+    // a project created later under the same name is not inherited.
+    if let Some(v) = &vault {
+        // A grant may name a project by id or by name.
+        let names: Vec<String> = unv_cli::data::projects(v)
+            .iter()
+            .flat_map(|p| {
+                ["id", "name"].map(|k| p.get(k).and_then(|x| x.as_str()).map(String::from))
+            })
+            .flatten()
+            .collect();
+        if let Ok(Ok(gone)) = with_store(state, |s| s.prune_projects(&names)) {
+            if let (Some(k), true) = (&key, first) {
+                for (node_name, project) in gone {
+                    audit(
+                        state,
+                        k,
+                        "node.project.pruned",
+                        &node_name,
+                        serde_json::json!({ "project": project }),
+                        "hub",
+                    );
+                }
+            }
+        }
+    }
     let plan = plan(vault.as_ref(), node, &beat.targets);
     let desired = |t: &TargetReport| -> Result<String, String> {
         match plan.rendered.get(&t.id) {
@@ -865,12 +897,8 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
                     Some(&actor),
                 )
                 .ok()
-                .flatten()
-                .or_else(|| {
-                    vault_core::config_history::find_by_sha(c, &sha, 1)
-                        .ok()
-                        .and_then(|m| m.first().map(|x| x.seq))
-                });
+                .flatten();
+                let to_seq = reviewable_seq(c, to_seq, &sha);
                 let from_seq = t.sha256.as_deref().and_then(|h| {
                     vault_core::config_history::find_by_sha(c, h, 1)
                         .ok()
@@ -987,7 +1015,9 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
                             approved_at: a.decided_at.clone().unwrap_or_default(),
                             expires_secs: a.decided_secs.unwrap_or(0)
                                 + vault_core::nodes::APPROVAL_TTL_SECS,
-                            nonce: vault_core::new_uuid(),
+                            // One approval, one nonce: the node remembers it once it has
+                            // written, so the same yes cannot overwrite a later local edit.
+                            nonce: a.id.clone(),
                         };
                         vault_core::nodes::sign_approval(seed, &token).ok()
                     } else {
@@ -1017,6 +1047,56 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
     reply
 }
 
+/// The history snapshot a human should read before approving `sha`: the candidate if it
+/// really holds those bytes, otherwise the newest snapshot that does, otherwise none. The
+/// approval binds the hash; the review link used to be whatever snapshot the stream last
+/// wrote, which can be a different rendering than the bytes the node would be sent.
+fn reviewable_seq(
+    conn: &vault_core::SqlConnection,
+    candidate: Option<i64>,
+    sha: &str,
+) -> Option<i64> {
+    if let Some(seq) = candidate {
+        if let Ok(Some(snap)) = vault_core::config_history::get(conn, seq) {
+            if snap.meta.sha256 == sha {
+                return Some(seq);
+            }
+        }
+    }
+    vault_core::config_history::find_by_sha(conn, sha, 1)
+        .ok()
+        .and_then(|m| m.first().map(|x| x.seq))
+}
+
+/// How many beats are processed at once. A save wakes every held beat in the same
+/// instant; each pass opens the vault and renders, so without a limit they all ran together.
+const PROCESS_PARALLEL: usize = 4;
+
+/// Runs [`off_thread`] on a gate of [`PROCESS_PARALLEL`].
+async fn process_off_thread(
+    state: &AppState,
+    node: &NodeRecord,
+    beat: &Arc<Beat>,
+    first: bool,
+) -> BeatReply {
+    static GATE: std::sync::OnceLock<Arc<tokio::sync::Semaphore>> = std::sync::OnceLock::new();
+    let gate = GATE
+        .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(PROCESS_PARALLEL)))
+        .clone();
+    let _permit = gate.acquire_owned().await;
+    let (st, n, b) = (state.clone(), node.clone(), beat.clone());
+    off_thread(move || process(&st, &n, &b, first)).await
+}
+
+/// Blocking work (SQLCipher, rendering, std locks) on the blocking pool. The server has
+/// two async workers (ADR-0015); a pass run inline stalled every other request on its worker.
+async fn off_thread<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+    match tokio::task::spawn_blocking(f).await {
+        Ok(r) => r,
+        Err(e) => std::panic::resume_unwind(e.into_panic()),
+    }
+}
+
 pub(crate) async fn beat(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
@@ -1043,7 +1123,8 @@ pub(crate) async fn beat(
     tokio::pin!(notified);
     notified.as_mut().enable();
 
-    let mut reply = process(&state, &node, &beat, true);
+    let beat = Arc::new(beat);
+    let mut reply = process_off_thread(&state, &node, &beat, true).await;
     let wait = beat.wait_secs.min(MAX_WAIT_SECS);
     if reply.actions.is_empty() && wait > 0 {
         let _ = tokio::time::timeout(Duration::from_secs(u64::from(wait)), notified).await;
@@ -1059,7 +1140,7 @@ pub(crate) async fn beat(
             }
         };
         let acked = reply.results_ack;
-        reply = process(&state, &node, &beat, false);
+        reply = process_off_thread(&state, &node, &beat, false).await;
         reply.results_ack = acked || reply.results_ack;
     }
     Json(reply).into_response()
@@ -1157,23 +1238,45 @@ pub(crate) fn spawn_poller(state: AppState) {
             };
             let nodes = with_store(&state, |s| s.listening()).unwrap_or_default();
             last.retain(|id, _| nodes.iter().any(|n| &n.id == id));
+            let mut batch = Vec::new();
             for n in nodes {
                 let due = last.get(&n.id).is_none_or(|t| t.elapsed() >= POLL_EVERY);
                 if !(woken || due) {
                     continue;
                 }
                 last.insert(n.id.clone(), Instant::now());
-                let st = state.clone();
-                let node = n.clone();
-                let r = tokio::task::spawn_blocking(move || poll_node(&st, &node)).await;
-                match r {
-                    Ok(Ok(())) => {}
-                    Ok(Err(e)) => tracing::warn!(node = %n.name, error = %e, "node poll failed"),
-                    Err(e) => tracing::warn!(node = %n.name, error = %e, "node poll panicked"),
-                }
+                batch.push(n);
             }
+            let st = state.clone();
+            poll_all(batch, 8, move |node| poll_node(&st, &node)).await;
         }
     });
+}
+
+/// Polls `nodes` side by side (at most `parallel` at once) and returns when all are done.
+/// One after another, a node that never answers held every node behind it for the whole
+/// connect timeout, every cycle.
+async fn poll_all<F>(nodes: Vec<NodeRecord>, parallel: usize, poll: F)
+where
+    F: Fn(NodeRecord) -> Result<(), String> + Send + Sync + 'static,
+{
+    let gate = Arc::new(tokio::sync::Semaphore::new(parallel.max(1)));
+    let poll = Arc::new(poll);
+    let mut set = tokio::task::JoinSet::new();
+    for n in nodes {
+        let (gate, poll) = (gate.clone(), poll.clone());
+        set.spawn(async move {
+            let _permit = gate.acquire_owned().await;
+            let name = n.name.clone();
+            let r = tokio::task::spawn_blocking(move || poll(n)).await;
+            match r {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => tracing::warn!(node = %name, error = %e, "node poll failed"),
+                Err(e) => tracing::warn!(node = %name, error = %e, "node poll panicked"),
+            }
+        });
+    }
+    while set.join_next().await.is_some() {}
 }
 
 #[derive(Deserialize)]
@@ -2393,6 +2496,183 @@ mod tests {
             "a node that needs none is sent none"
         );
     }
+    // N3: every beat used to mint a fresh nonce for the same approval, so the node's
+    // "already used" memory never matched and one yes could overwrite the file again
+    // after each local edit. One approval, one nonce.
+    #[tokio::test]
+    async fn one_approval_carries_the_same_nonce_on_every_beat() {
+        let h = hub(true, true);
+        let a = app(&h);
+        let n = enrolled(&h, &a, &["edge"]).await;
+        require(&h, &a, &n).await;
+        do_beat(&a, &n, push_beat()).await;
+        let id = approvals_of(&h, &a).await[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        decide(&h, &a, &id, "approve").await;
+        let nonce = |r: &serde_json::Value| {
+            let tok = r["actions"][0]["approval"]["token"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            serde_json::from_str::<serde_json::Value>(&tok).unwrap()["nonce"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        let (_, r1) = do_beat(&a, &n, push_beat()).await;
+        let (_, r2) = do_beat(&a, &n, push_beat()).await;
+        assert_eq!(nonce(&r1), nonce(&r2));
+    }
+
+    // N9: `beat` ran `process` (SQLCipher, rendering, std locks) inline on one of the
+    // two async workers, and a save woke every held beat to do it at once.
+    #[tokio::test(flavor = "current_thread")]
+    async fn blocking_work_leaves_the_runtime_free() {
+        let ticks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let t2 = ticks.clone();
+        let ticker = tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                t2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        off_thread(|| std::thread::sleep(Duration::from_millis(300))).await;
+        ticker.abort();
+        assert!(ticks.load(std::sync::atomic::Ordering::SeqCst) >= 5);
+    }
+
+    #[test]
+    fn the_beat_handler_never_calls_process_inline() {
+        let src = include_str!("nodes.rs");
+        let body = &src[src.find("pub(crate) async fn beat(").unwrap()..];
+        let body = &body[..body.find("// ── Dialling listening nodes").unwrap()];
+        assert!(
+            !body.contains("= process("),
+            "process must go through process_off_thread"
+        );
+        assert!(body.contains("process_off_thread("));
+    }
+
+    // N14: the review link was whichever snapshot the stream had written last, which can
+    // hold other bytes than the ones the approval binds.
+    #[test]
+    fn the_review_link_points_at_the_bytes_the_approval_covers() {
+        let c = vault_core::SqlConnection::open_in_memory().unwrap();
+        vault_core::init_schema(&c).unwrap();
+        let s = vault_core::config_history::Stream {
+            project: "p1",
+            project_name: "edge",
+            exporter: "env",
+        };
+        let rec = |body: &str| {
+            let sha = vault_core::nodes_apply::sha256_hex(body.as_bytes());
+            let seq = vault_core::config_history::record(&c, &s, body, "m", "[]", "save", None)
+                .unwrap()
+                .unwrap();
+            (seq, sha)
+        };
+        let (first, first_sha) = rec("A=1\n");
+        let (second, _) = rec("A=2\n");
+        // The candidate holds other bytes: the snapshot that does is found instead.
+        assert_eq!(reviewable_seq(&c, Some(second), &first_sha), Some(first));
+        // A candidate that does hold them is kept.
+        assert_eq!(reviewable_seq(&c, Some(first), &first_sha), Some(first));
+        // Bytes that were never recorded have nothing to review.
+        assert_eq!(reviewable_seq(&c, Some(second), "00"), None);
+    }
+
+    // N15: the node resends a result until it is acknowledged. A lost acknowledgement made
+    // the same result an audit row twice.
+    #[tokio::test]
+    async fn a_result_sent_twice_is_one_audit_row() {
+        let h = hub(true, true);
+        let a = app(&h);
+        let n = enrolled(&h, &a, &["edge"]).await;
+        let result = ApplyResult {
+            target: "env-main".into(),
+            at: "2026-10-11T00:00:00Z".into(),
+            sha256: "abc".into(),
+            ok: true,
+            error: None,
+        };
+        let body = || beat_body(vec![], vec![result.clone()], 0);
+        do_beat(&a, &n, body()).await;
+        do_beat(&a, &n, body()).await;
+        let conn = vault_core::open_db(&h.state.db_path, &h.key).unwrap();
+        let rows = vault_core::load_audit(&conn).unwrap();
+        assert_eq!(rows.iter().filter(|r| r.action == "node.apply").count(), 1);
+        for w in rows.windows(2) {
+            assert_eq!(w[0].prev_hash, w[1].entry_hash, "audit chain broken");
+        }
+    }
+
+    // N8: the poller awaited each node in turn, so one node that never answered held up
+    // every node after it for the whole connect timeout, every cycle.
+    #[tokio::test]
+    async fn a_silent_node_does_not_hold_up_the_others() {
+        let node = |n: &str| NodeRecord {
+            id: n.into(),
+            name: n.into(),
+            pubkey: String::new(),
+            fingerprint: String::new(),
+            projects: vec![],
+            enrolled_at: String::new(),
+            last_seen: None,
+            last_ts_ms: 0,
+            revoked_at: None,
+            host: None,
+            targets: vec![],
+            approval: String::new(),
+            listen: None,
+            last_polled: None,
+        };
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let s2 = seen.clone();
+        let started = Instant::now();
+        poll_all(vec![node("slow"), node("b"), node("c")], 8, move |n| {
+            if n.name == "slow" {
+                std::thread::sleep(Duration::from_millis(600));
+            }
+            s2.lock().unwrap().push(n.name.clone());
+            Ok(())
+        })
+        .await;
+        // Serially the others would have waited 600 ms; side by side they finish first.
+        assert_eq!(
+            seen.lock().unwrap().last().map(String::as_str),
+            Some("slow")
+        );
+        assert!(started.elapsed() < Duration::from_millis(1100));
+    }
+
+    // N6: a grant is a project name. After the project was deleted and another one
+    // created under the same name, the node was pushed the new project's secrets.
+    #[tokio::test]
+    async fn a_project_recreated_under_a_deleted_name_is_not_inherited_by_the_node() {
+        let h = hub(true, true);
+        let a = app(&h);
+        let n = enrolled(&h, &a, &["edge"]).await;
+        let conn = vault_core::open_db(&h.state.db_path, &h.key).unwrap();
+        let mut gone = vault_with(PASS);
+        gone["projects"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|p| p["id"] != "edge");
+        vault_core::save_vault(&conn, gone, vault_core::SaveCtx::default()).unwrap();
+        do_beat(&a, &n, push_beat()).await;
+        // Someone later makes a different project called "edge".
+        vault_core::save_vault(
+            &conn,
+            vault_with("other-secret"),
+            vault_core::SaveCtx::default(),
+        )
+        .unwrap();
+        let (_, r) = do_beat(&a, &n, push_beat()).await;
+        assert!(r["actions"].as_array().unwrap().is_empty(), "{r}");
+    }
+
     // ── Stack integrations (Phase 38) ─────────────────────────────────────────
 
     fn prom_vault(second_job: &str) -> serde_json::Value {
