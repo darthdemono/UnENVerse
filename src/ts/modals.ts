@@ -2092,6 +2092,12 @@ export async function saveModal() {
       showToast('Update UnENVerse to edit this entry', 'err');
       return;
     }
+    // A lock (auto-lock, another window) can land while the form is open. The vault in
+    // memory is then empty and the store is locked: saving would write into nothing.
+    if (!st.vaultOpen) {
+      showToast('The vault is locked. Unlock it to save.', 'err');
+      return;
+    }
     const idx = parseInt((document.getElementById('edit-index') as HTMLInputElement).value);
     // The entry being edited is the *base*: every field with no form input rides
     // through by construction rather than by the save path remembering it (E4).
@@ -2283,7 +2289,13 @@ export async function saveModal() {
       // Chunk references address entries by provider name, so a rename has to
       // carry them or every `${Provider/field}` pointing here goes stale.
       if (old.provider !== entry.provider || (old.key_id ?? '') !== (entry.key_id ?? '')) {
-        const moved = renameProviderRefs(old.provider, old.key_id, entry.provider, entry.key_id);
+        const moved = renameProviderRefs(
+          old.provider,
+          old.key_id,
+          entry.provider,
+          entry.key_id,
+          st.vault.api_keys[at].id,
+        );
         if (moved)
           showToast(`Updated ${moved} project reference${moved === 1 ? '' : 's'}`, 'ok', 2500);
       }
