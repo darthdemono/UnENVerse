@@ -890,6 +890,30 @@ fn guard_manage_user(
     Ok(())
 }
 
+/// Guard for a user's own second factor. Looking at it, starting an enrolment and
+/// confirming one are open to the user themselves: switching a factor ON can only
+/// strengthen the account. Replacing a factor that is already enabled resets it to
+/// disabled, so that (and disabling) stays with a manager, like a password reset.
+fn guard_own_totp(
+    conn: &vault_core::SqlConnection,
+    session: &Session,
+    target: &str,
+    replaces: bool,
+) -> Result<(), axum::response::Response> {
+    if !session.is_owner && session.user_id == target {
+        let enabled = vault_core::users::totp_status(conn, target)
+            .map(|s| s.enabled)
+            .unwrap_or(true);
+        if replaces && enabled {
+            return Err(forbidden(
+                "A second factor is already on; ask an administrator to reset it",
+            ));
+        }
+        return Ok(());
+    }
+    guard_manage_user(conn, session, target)
+}
+
 /// Error envelope. Every failure the server emits goes through here, so every
 /// failure carries the same `request_id` the response header does.
 ///
@@ -2092,6 +2116,36 @@ fn load_exprs(
     })
 }
 
+/// A delegate may confer only what they hold. Without this, manage-users plus a narrow own
+/// scope was enough to give a subordinate `type:*`, reset their password and read it all.
+/// The owner is exempt; an empty expression grants nothing and is always allowed.
+fn guard_grant_within_own(
+    conn: &vault_core::SqlConnection,
+    session: &Session,
+    e: &PermissionExprs,
+) -> Result<(), axum::response::Response> {
+    if session.is_owner {
+        return Ok(());
+    }
+    for (kind, src) in [("read", &e.read), ("write", &e.write)] {
+        if src.trim().is_empty() {
+            continue;
+        }
+        let Ok(new) = vault_core::permex::parse(src) else {
+            continue; // store_exprs reports the syntax error
+        };
+        let own = vault_core::effective_permission_expr(conn, &session.user_id, kind)
+            .ok()
+            .flatten();
+        if !own.is_some_and(|own| vault_core::permex::covers(&own, &new)) {
+            return Err(forbidden(
+                "Cannot grant access wider than your own; ask the owner",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn store_exprs(
     conn: &vault_core::SqlConnection,
     kind: &str,
@@ -2140,6 +2194,9 @@ async fn set_permissions_handler(
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
     if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
+        return e;
+    }
+    if let Err(e) = guard_grant_within_own(&conn, &session, &exprs) {
         return e;
     }
     // set_permission_expr parses before storing, so a malformed rule is a 400
@@ -2287,6 +2344,15 @@ async fn assign_class_handler(
         if !session.is_owner && actor_tier <= class_authority_tier(&conn, cid) {
             return forbidden("Cannot assign a class of equal or higher authority");
         }
+        // A class carries data permissions too; assigning one is granting them.
+        match load_exprs(&conn, "class", cid) {
+            Ok(exprs) => {
+                if let Err(e) = guard_grant_within_own(&conn, &session, &exprs) {
+                    return e;
+                }
+            }
+            Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
+        }
     }
     match vault_core::assign_user_class(&conn, &user_id, req.class_id.as_deref()) {
         Ok(()) => {
@@ -2302,8 +2368,8 @@ async fn assign_class_handler(
 // Gated by `guard_manage_user`, the same tier check that governs setting a
 // password: managing someone's second factor is exactly as strong as being able
 // to reset their credentials, so it must not be a weaker door to the same room.
-// A user reaches their *own* factor because `guard_manage_user` already permits
-// acting on oneself.
+// A user reaches their *own* factor through `guard_own_totp` (status, enrol, confirm);
+// replacing an enabled factor and disabling one need a manager.
 
 #[derive(Deserialize)]
 struct TotpCodeRequest {
@@ -2323,7 +2389,7 @@ async fn totp_status_handler(
         Ok(c) => c,
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
-    if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
+    if let Err(e) = guard_own_totp(&conn, &session, &user_id, false) {
         return e;
     }
     match vault_core::users::totp_status(&conn, &user_id) {
@@ -2346,7 +2412,7 @@ async fn totp_enroll_handler(
         Ok(c) => c,
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
-    if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
+    if let Err(e) = guard_own_totp(&conn, &session, &user_id, true) {
         return e;
     }
     match vault_core::users::totp_enroll(&conn, &user_id, "UnENVerse") {
@@ -2370,7 +2436,7 @@ async fn totp_confirm_handler(
         Ok(c) => c,
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
-    if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
+    if let Err(e) = guard_own_totp(&conn, &session, &user_id, false) {
         return e;
     }
     match vault_core::users::totp_confirm(&conn, &user_id, &req.code) {
@@ -2618,6 +2684,9 @@ async fn set_class_perms_handler(
     }
     if !session.is_owner && actor_tier <= class_authority_tier(&conn, &class_id) {
         return forbidden("Cannot modify a class of equal or higher authority");
+    }
+    if let Err(e) = guard_grant_within_own(&conn, &session, &exprs) {
+        return e;
     }
     match store_exprs(&conn, "class", &class_id, &exprs) {
         Ok(()) => {
