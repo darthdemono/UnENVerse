@@ -152,9 +152,9 @@ describe('exporter validators', () => {
       }
     }
     for (const must of [
-      'unv-cli/src/exporters.rs',
-      'unv-cli/src/chunks.rs',
-      'unv-cli/src/refs.rs',
+      'unv-app/src/exporters.rs',
+      'unv-app/src/chunks.rs',
+      'unv-app/src/refs.rs',
       'vault-core/src/config_check.rs',
       'src/ts/chunks/**',
     ]) {
