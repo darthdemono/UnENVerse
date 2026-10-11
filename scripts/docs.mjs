@@ -8,7 +8,7 @@
  * Spawning from Node sets the variable the same way on every platform.
  *
  * The alternative — writing the number into the Doxyfile — would make it a
- * seventh copy of a value that already lives in six places, which is the exact
+ * ninth copy of a value that already lives in eight places, which is the exact
  * problem scripts/version.mjs exists to solve.
  */
 
