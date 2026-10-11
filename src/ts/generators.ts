@@ -60,7 +60,9 @@ async function refill(): Promise<void> {
 }
 
 /** Fills `buf` from the chosen source: the OS CSPRNG, or the pool. */
-export function fillRandom<T extends Uint8Array | Uint32Array>(buf: T): T {
+export function fillRandom<T extends Uint8Array<ArrayBuffer> | Uint32Array<ArrayBuffer>>(
+  buf: T,
+): T {
   if (source === 'os') {
     crypto.getRandomValues(buf);
     return buf;
