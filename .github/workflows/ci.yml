@@ -145,7 +145,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       # First, because it is the cheapest and the one whose failure invalidates
-      # a release rather than a commit. The version is stated in six files and
+      # a release rather than a commit. The version is stated in eight files and
       # nothing else in this workflow reads more than one of them.
       - name: Version numbers agree
         run: npm run version:check
