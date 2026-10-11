@@ -526,7 +526,11 @@ export function renameProviderRefs(
   oldKeyId: string | null | undefined,
   newProvider: string,
   newKeyId: string | null | undefined,
+  selfId?: string,
 ): number {
+  // A bare `${Provider}` while another entry still carries that provider name was
+  // already ambiguous (and refused); renaming one of them must not quietly pick it.
+  const bareIsShared = st.vault.api_keys.some((e) => e.provider === oldProvider && e.id !== selfId);
   const oldNames = new Set<string>([oldProvider]);
   if (oldKeyId) oldNames.add(`${oldProvider}_${oldKeyId}`);
   const newCompound = newKeyId ? `${newProvider}_${newKeyId}` : newProvider;
@@ -543,12 +547,14 @@ export function renameProviderRefs(
         const slash = body.indexOf('/');
         const head = slash >= 0 ? body.slice(0, slash) : body;
         if (!oldNames.has(head)) continue;
+        if (head === oldProvider && bareIsShared) continue;
 
         // A bare `${Provider}` becomes the new compound name; a `${x/field}`
         // keeps its field suffix.
         const replacement =
           head === oldProvider && slash < 0 && !oldKeyId ? newProvider : newCompound;
         field.value = slash >= 0 ? `\${${replacement}${body.slice(slash)}}` : `\${${replacement}}`;
+        if (field.ref_name === head) field.ref_name = replacement;
         changed++;
       }
     }
