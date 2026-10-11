@@ -5,7 +5,7 @@
 //! credit cards would mean the reader had quietly mangled them.
 
 use serde_json::Value;
-use unv_cli::import_vaults::{read_bitwarden, read_onepassword, read_proton, Incoming};
+use unv_app::import_vaults::{read_bitwarden, read_onepassword, read_proton, Incoming};
 
 fn load(name: &str) -> Value {
     let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -138,7 +138,7 @@ fn nextcloud(name: &str) -> (Value, Vec<String>) {
     let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
         .join(name);
-    unv_cli::import_vaults::source_value("nextcloud", &std::fs::read_to_string(p).unwrap())
+    unv_app::import_vaults::source_value("nextcloud", &std::fs::read_to_string(p).unwrap())
         .expect("parse")
 }
 
@@ -147,7 +147,7 @@ fn a_real_sqlite_nextcloud_yields_its_two_instance_secrets_and_nothing_else() {
     // Written by a Nextcloud 29 container's installer, not by hand.
     let (doc, warnings) = nextcloud("nextcloud-config.php");
     assert!(warnings.is_empty(), "{warnings:?}");
-    let (items, skipped) = unv_cli::import_vaults::read_nextcloud(&doc);
+    let (items, skipped) = unv_app::import_vaults::read_nextcloud(&doc);
     assert_eq!(skipped, 0);
     let names: Vec<&str> = items.iter().map(|i| i.provider.as_str()).collect();
     assert_eq!(
@@ -168,7 +168,7 @@ fn a_full_nextcloud_config_yields_database_smtp_redis_and_object_store_secrets()
         1,
         "the getenv() licence key is reported: {warnings:?}"
     );
-    let (items, skipped) = unv_cli::import_vaults::read_nextcloud(&doc);
+    let (items, skipped) = unv_app::import_vaults::read_nextcloud(&doc);
     assert_eq!(skipped, 1, "and counted as skipped");
     let db = by_name(&items, "Nextcloud database (ocabc123)");
     assert_eq!(db.username.as_deref(), Some("nc"));
@@ -194,7 +194,7 @@ fn a_full_nextcloud_config_yields_database_smtp_redis_and_object_store_secrets()
 
 #[test]
 fn importing_a_nextcloud_config_twice_changes_nothing_the_second_time() {
-    use unv_cli::import_vaults::{plan_import, ImportOpts};
+    use unv_app::import_vaults::{plan_import, ImportOpts};
     let (doc, _) = nextcloud("nextcloud-full.php");
     let opts = ImportOpts {
         apply: false,
@@ -222,7 +222,7 @@ fn importing_a_nextcloud_config_twice_changes_nothing_the_second_time() {
 // ── TOTP seeds land in `totp_secret`, not in notes (roadmap R01) ─────────────
 
 fn plan(vendor: &str, fixture: &str) -> Vec<Value> {
-    use unv_cli::import_vaults::{plan_import, ImportOpts};
+    use unv_app::import_vaults::{plan_import, ImportOpts};
     let opts = ImportOpts {
         apply: false,
         project: None,
@@ -278,7 +278,7 @@ fn onepassword_and_proton_totp_uris_become_seeds() {
 
 #[test]
 fn an_unusable_totp_value_is_kept_in_the_notes_not_lost() {
-    use unv_cli::import_vaults::{plan_import, ImportOpts};
+    use unv_app::import_vaults::{plan_import, ImportOpts};
     let mut doc = load("bitwarden.json");
     doc["items"][0]["login"]["totp"] = serde_json::json!("not a seed !!");
     let opts = ImportOpts {
@@ -299,7 +299,7 @@ fn an_unusable_totp_value_is_kept_in_the_notes_not_lost() {
 
 #[test]
 fn reimporting_adds_a_missing_seed_but_never_replaces_a_different_one() {
-    use unv_cli::import_vaults::{plan_import, ImportOpts};
+    use unv_app::import_vaults::{plan_import, ImportOpts};
     let opts = ImportOpts {
         apply: false,
         project: None,
@@ -351,7 +351,7 @@ fn reimporting_adds_a_missing_seed_but_never_replaces_a_different_one() {
 // same name, silently, and picked an arbitrary one when several shared the name.
 #[test]
 fn import_never_replaces_a_different_secret_without_force() {
-    use unv_cli::import_vaults::{plan_import, ImportOpts};
+    use unv_app::import_vaults::{plan_import, ImportOpts};
     let mut opts = ImportOpts {
         apply: false,
         project: None,
