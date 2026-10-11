@@ -597,7 +597,7 @@
       "tauri": [
         "history_call"
       ],
-      "note": "Phase 35. Tools -> Config history. One dispatcher (unv_cli::history::call) answers the local CLI, the desktop app (history_call) and the server (POST /api/history), so the three cannot disagree. Stdout/UI show fingerprinted text; the real values need --reveal / Reveal, or go to a file (--out / Save file).",
+      "note": "Phase 35. Tools -> Config history. One dispatcher (unv_app::history::call) answers the local CLI, the desktop app (history_call) and the server (POST /api/history), so the three cannot disagree. Stdout/UI show fingerprinted text; the real values need --reveal / Reveal, or go to a file (--out / Save file).",
       "cli_flags": []
     },
     {
