@@ -96,7 +96,7 @@ describe('round trip', () => {
 
   it('opens a 0.42 backup that recorded the old PBKDF2 cost', async () => {
     const old = fs.readFileSync(
-      path.resolve(__dirname, '../unv-cli/tests/fixtures/backups-0.42.x/golden.vaultbak'),
+      path.resolve(__dirname, '../unv-app/tests/fixtures/backups-0.42.x/golden.vaultbak'),
       'utf8',
     );
     expect(JSON.parse(old).kdf.iters).toBe(210_000);
