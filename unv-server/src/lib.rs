@@ -3837,6 +3837,13 @@ mod chaos_tests;
 mod tests {
     use super::*;
 
+    #[test]
+    fn openapi_document_matches_the_reviewed_snapshot() {
+        let expected: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/openapi.json")).unwrap();
+        assert_eq!(serde_json::to_value(ApiDoc::openapi()).unwrap(), expected);
+    }
+
     fn scratch(tag: &str) -> PathBuf {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
