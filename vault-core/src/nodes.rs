@@ -694,6 +694,17 @@ impl NodeStore {
         {
             return Err(format!("a node named '{name}' is already enrolled"));
         }
+        // Two open tokens for one name would enrol two nodes with the same name.
+        if self
+            .data
+            .tokens
+            .iter()
+            .any(|t| t.name == name && !t.used && t.expires_at_secs > now_secs)
+        {
+            return Err(format!(
+                "an enrollment token for '{name}' is already open; use it or let it expire"
+            ));
+        }
         let ttl = ttl_secs.clamp(30, 7 * 86_400);
         let mut raw = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut raw);
@@ -748,10 +759,25 @@ impl NodeStore {
         if rec.used || rec.expires_at_secs <= now_secs {
             return Err("Invalid or expired enrollment token".into());
         }
+        let name = rec.name.clone();
+        if self
+            .data
+            .nodes
+            .iter()
+            .any(|n| n.name == name && n.revoked_at.is_none())
+        {
+            return Err(format!("a node named '{name}' is already enrolled"));
+        }
+        let rec = self
+            .data
+            .tokens
+            .iter_mut()
+            .find(|t| t.hash == h)
+            .expect("found above");
         rec.used = true;
         let node = NodeRecord {
             id: crate::new_uuid(),
-            name: rec.name.clone(),
+            name,
             pubkey: pubkey_hex.to_ascii_lowercase(),
             fingerprint,
             projects: rec.projects.clone(),
@@ -766,7 +792,15 @@ impl NodeStore {
             last_polled: None,
         };
         self.data.nodes.push(node.clone());
-        self.save()?;
+        if let Err(e) = self.save() {
+            // Not on disk, so not enrolled: leave memory as the file is, and the
+            // token usable for a retry.
+            self.data.nodes.pop();
+            if let Some(t) = self.data.tokens.iter_mut().find(|t| t.hash == h) {
+                t.used = false;
+            }
+            return Err(e);
+        }
         Ok(node)
     }
 
@@ -953,10 +987,16 @@ impl NodeStore {
         // An approved push whose bytes the node now reports has done its job; one
         // nobody acted on in time, or a request nobody answered, lapses.
         for a in self.data.approvals.iter_mut().filter(|a| a.node_id == id) {
+            // The node reports having the bytes, or reports the write that put them
+            // there (the file may have been edited again before this beat).
             let applied = beat
                 .targets
                 .iter()
-                .any(|r| r.id == a.target && r.sha256.as_deref() == Some(a.sha256.as_str()));
+                .any(|r| r.id == a.target && r.sha256.as_deref() == Some(a.sha256.as_str()))
+                || beat
+                    .results
+                    .iter()
+                    .any(|r| r.ok && r.target == a.target && r.sha256 == a.sha256);
             match a.status.as_str() {
                 "approved" if applied => a.status = "consumed".into(),
                 "approved" if now_secs >= a.decided_secs.unwrap_or(0) + APPROVAL_TTL_SECS => {
@@ -969,6 +1009,29 @@ impl NodeStore {
             }
         }
         self.save()
+    }
+
+    /// Drops grants for projects that no longer exist. A grant is a project NAME,
+    /// so without this a deleted project's name would pass to whoever creates a
+    /// project of that name later. Returns `(node name, project)` for each grant removed.
+    pub fn prune_projects(&mut self, existing: &[String]) -> Result<Vec<(String, String)>, String> {
+        let mut removed = Vec::new();
+        for n in self.data.nodes.iter_mut() {
+            n.projects.retain(|p| {
+                let keep = existing.iter().any(|e| e == p);
+                if !keep {
+                    removed.push((n.name.clone(), p.clone()));
+                }
+                keep
+            });
+        }
+        for t in self.data.tokens.iter_mut().filter(|t| !t.used) {
+            t.projects.retain(|p| existing.iter().any(|e| e == p));
+        }
+        if !removed.is_empty() {
+            self.save()?;
+        }
+        Ok(removed)
     }
 
     /// Records the hash a human accepted into the vault for a pull target.
@@ -1991,6 +2054,77 @@ reload = "systemctl reload nginx"
             expires_secs: exp,
             nonce: "n1".into(),
         }
+    }
+
+    // N3: the node wrote the approved bytes, then somebody edited the file before the
+    // next beat. The beat reports the edited hash plus the ok result of the write. The
+    // approval stayed "approved", so the hub pushed the same bytes again over the edit.
+    // N6: grants are project names. A deleted project's name stayed on the node, so a
+    // project created later under that name was pushed to the node without the owner
+    // ever granting it.
+    #[test]
+    fn a_grant_for_a_deleted_project_is_dropped() {
+        let (mut s, n, _seed, _d) = enrolled();
+        assert_eq!(s.get(&n.id).unwrap().projects, vec!["edge".to_string()]);
+        assert!(s.prune_projects(&["edge".into()]).unwrap().is_empty());
+        let gone = s.prune_projects(&["other".into()]).unwrap();
+        assert_eq!(gone, vec![("vps-01".to_string(), "edge".to_string())]);
+        assert!(s.get(&n.id).unwrap().projects.is_empty());
+    }
+
+    // N12: two open tokens for one name enrolled two nodes with that name, and a
+    // failed save left the node live in memory with its token spent.
+    #[test]
+    fn a_name_has_one_open_token_and_a_failed_enrol_save_is_rolled_back() {
+        let dir = scratch("dup");
+        let mut s = NodeStore::open(&dir.join("nodes.json")).unwrap();
+        let (tok, _) = s
+            .mint_token("vps-01", vec!["edge".into()], 900, 1_000)
+            .unwrap();
+        assert!(s
+            .mint_token("vps-01", vec!["edge".into()], 900, 1_001)
+            .unwrap_err()
+            .contains("already open"));
+        // The file's directory vanishes: save fails.
+        let (_seed, public) = generate_identity();
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::write(&dir, b"not a directory").unwrap();
+        assert!(s.enroll(&tok, &public, None, 1_002, "t").is_err());
+        assert!(
+            s.list().is_empty(),
+            "a node that is not on disk is not enrolled"
+        );
+        std::fs::remove_file(&dir).unwrap();
+        std::fs::create_dir_all(&dir).unwrap();
+        let n = s.enroll(&tok, &public, None, 1_003, "t").unwrap();
+        assert_eq!(n.name, "vps-01", "the token still works for a retry");
+    }
+
+    #[test]
+    fn a_reported_write_spends_the_approval_even_if_the_file_was_edited_since() {
+        let (mut s, n, _seed, _d) = enrolled();
+        let a = request(&mut s, &n.id, "v1", 1_000);
+        s.decide(&a.id, true, "owner", 1_001, "t").unwrap();
+        let beat = Beat {
+            targets: vec![report("push", true, Some("edited-locally"))],
+            results: vec![ApplyResult {
+                target: "nginx-main".into(),
+                at: "t".into(),
+                sha256: "v1".into(),
+                ok: true,
+                error: None,
+            }],
+            ..Default::default()
+        };
+        s.record_beat(&n.id, &beat, &|_| Ok("v1".into()), "t")
+            .unwrap();
+        assert_eq!(
+            s.approval_for(&n.id, "nginx-main", "v1").unwrap().status,
+            "consumed"
+        );
+        assert!(s
+            .usable_approval(&n.id, "nginx-main", "v1", 1_002)
+            .is_none());
     }
 
     #[test]
