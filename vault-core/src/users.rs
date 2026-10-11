@@ -2075,7 +2075,10 @@ pub fn merge_user_vault_write(
             user_projects,
             &served_projects,
             &|p| p.get("id").and_then(|v| v.as_str()).map(str::to_string),
-            &|pid| project_write_allowed(pid, full_keys, &writable),
+            // `Universal` is every user's shared default: "all its entries are mine" is
+            // true by accident (a vault where only this user has entries), and renaming
+            // or deleting it would break the next user's view.
+            &|pid| pid != "Universal" && project_write_allowed(pid, full_keys, &writable),
             "project",
         )?,
     };
@@ -2836,6 +2839,30 @@ mod tests {
         let err = merge_user_vault_write(sample_vault(), submitted, Some(&r), Some(&w))
             .expect_err("must refuse rather than accept-and-discard");
         assert!(err.contains("Universal"), "must name the refusal: {err}");
+    }
+
+    // R12: when every entry in Universal happened to be the user's own, "all its
+    // entries are writable" held vacuously and a sub-user could delete or rename the
+    // shared default project.
+    #[test]
+    fn the_shared_universal_project_is_not_a_sub_users_to_delete_or_rename() {
+        let mut vault = sample_vault();
+        vault["api_keys"].as_array_mut().unwrap().remove(1); // only "Mine" is left in it
+        let (r, w) = alpha();
+        let mut gone = filter_vault_for_user(vault.clone(), Some(&r));
+        gone["projects"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|p| p["id"] != "Universal");
+        let err = merge_user_vault_write(vault.clone(), gone, Some(&r), Some(&w)).unwrap_err();
+        assert!(err.contains("Universal"), "{err}");
+        let mut renamed = filter_vault_for_user(vault.clone(), Some(&r));
+        for p in renamed["projects"].as_array_mut().unwrap() {
+            if p["id"] == "Universal" {
+                p["name"] = json!("Mine now");
+            }
+        }
+        assert!(merge_user_vault_write(vault, renamed, Some(&r), Some(&w)).is_err());
     }
 
     #[test]
