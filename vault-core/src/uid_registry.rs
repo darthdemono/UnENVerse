@@ -320,19 +320,55 @@ pub fn register(
     mode: Normalise,
     meta: &BatchMeta,
 ) -> Result<Vec<RegisterOutcome>, String> {
+    // One savepoint: the batch's provenance row and its ids stand or fall together, and a
+    // batch that registered nothing leaves no provenance row behind.
+    conn.execute_batch("SAVEPOINT uid_register")
+        .map_err(|e| e.to_string())?;
+    let result = register_in_savepoint(conn, pepper, values, mode, meta);
+    let end = if result.is_ok() {
+        "RELEASE uid_register"
+    } else {
+        "ROLLBACK TO uid_register; RELEASE uid_register"
+    };
+    conn.execute_batch(end).map_err(|e| e.to_string())?;
+    result
+}
+
+fn register_in_savepoint(
+    conn: &Connection,
+    pepper: &[u8; 32],
+    values: &[String],
+    mode: Normalise,
+    meta: &BatchMeta,
+) -> Result<Vec<RegisterOutcome>, String> {
     let meta_id = insert_meta_row(conn, meta, mode)?;
     let t = now_ts();
     let mut out = Vec::with_capacity(values.len());
     for v in values {
         let h = hash_value(pepper, v, mode);
-        let res = conn.execute(
+        let registered = match conn.execute(
             "INSERT INTO uid (h, t, m) VALUES (?1, ?2, ?3)",
             params![h.as_slice(), t, meta_id],
-        );
+        ) {
+            Ok(_) => true,
+            // Only the primary key saying "already issued" is a conflict. Any other
+            // failure (disk full, locked, read-only) used to be reported the same way,
+            // so a mint retried against a broken database and answered "collision".
+            Err(rusqlite::Error::SqliteFailure(e, _))
+                if e.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                false
+            }
+            Err(e) => return Err(e.to_string()),
+        };
         out.push(RegisterOutcome {
             value: v.clone(),
-            registered: res.is_ok(),
+            registered,
         });
+    }
+    if !out.iter().any(|o| o.registered) {
+        conn.execute("DELETE FROM uid_meta WHERE id = ?1", [meta_id])
+            .map_err(|e| e.to_string())?;
     }
     Ok(out)
 }
@@ -579,6 +615,36 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM uid", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    // S8: every insert failure was reported as "already registered", so a broken
+    // database looked like a run of collisions, and the batch's provenance row stayed.
+    #[test]
+    fn a_failed_insert_is_an_error_and_a_batch_of_conflicts_leaves_no_provenance() {
+        let conn = mem();
+        let pepper = [7u8; 32];
+        let meta = BatchMeta::default();
+        let metas = |c: &Connection| -> i64 {
+            c.query_row("SELECT COUNT(*) FROM uid_meta", [], |r| r.get(0))
+                .unwrap()
+        };
+        register(&conn, &pepper, &["abc".to_string()], Normalise::None, &meta).unwrap();
+        assert_eq!(metas(&conn), 1);
+        register(&conn, &pepper, &["abc".to_string()], Normalise::None, &meta).unwrap();
+        assert_eq!(
+            metas(&conn),
+            1,
+            "an all-conflict batch leaves no provenance row"
+        );
+        conn.execute_batch("ALTER TABLE uid RENAME TO uid_gone")
+            .unwrap();
+        let err = register(&conn, &pepper, &["new".to_string()], Normalise::None, &meta);
+        assert!(err.is_err(), "a failing insert is not a conflict");
+        assert_eq!(
+            metas(&conn),
+            1,
+            "the failed batch's provenance row was rolled back"
+        );
     }
 
     #[test]
