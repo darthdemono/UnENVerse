@@ -144,7 +144,7 @@ pub fn init_schema(conn: &Connection) -> Result<(), String> {
 }
 
 fn sha(s: &str) -> String {
-    format!("{:x}", Sha256::digest(s.as_bytes()))
+    hex::encode(Sha256::digest(s.as_bytes()))
 }
 
 /// SHA-256 of a value's compact JSON, without building the string. Identical to
@@ -164,7 +164,7 @@ impl std::io::Write for HashWriter {
 fn rev_of(v: &Value) -> String {
     let mut w = HashWriter(Sha256::new());
     let _ = serde_json::to_writer(&mut w, v);
-    format!("{:x}", w.0.finalize())
+    hex::encode(w.0.finalize())
 }
 
 /// One storable unit of the document.
