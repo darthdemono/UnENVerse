@@ -13,7 +13,7 @@ on:
   push:
     branches: [main]
     # One list for both triggers. The pull_request list used to be a shorter copy
-    # of this one, so a PR that changed unv-cli's exporter, its chunk parsing or
+    # of this one, so a PR that changed the application exporter, its chunk parsing or
     # `${ref}` resolution ran none of these validators.
     paths:
       - "src/ts/chunk-ops.ts"
@@ -22,10 +22,10 @@ on:
       - "vault-core/src/stack.rs"
       - "vault-core/src/config_check.rs"
       - "vault-core/data/stack-adapters.json"
-      - "unv-cli/src/enrich.rs"
-      - "unv-cli/src/exporters.rs"
-      - "unv-cli/src/chunks.rs"
-      - "unv-cli/src/refs.rs"
+      - "unv-app/src/enrich.rs"
+      - "unv-app/src/exporters.rs"
+      - "unv-app/src/chunks.rs"
+      - "unv-app/src/refs.rs"
       - "tests/cli-parity.test.ts"
       - "tests/stack.test.ts"
       - "tests/fixtures/parity/**"
@@ -38,10 +38,10 @@ on:
       - "vault-core/src/stack.rs"
       - "vault-core/src/config_check.rs"
       - "vault-core/data/stack-adapters.json"
-      - "unv-cli/src/enrich.rs"
-      - "unv-cli/src/exporters.rs"
-      - "unv-cli/src/chunks.rs"
-      - "unv-cli/src/refs.rs"
+      - "unv-app/src/enrich.rs"
+      - "unv-app/src/exporters.rs"
+      - "unv-app/src/chunks.rs"
+      - "unv-app/src/refs.rs"
       - "tests/cli-parity.test.ts"
       - "tests/stack.test.ts"
       - "tests/fixtures/parity/**"
