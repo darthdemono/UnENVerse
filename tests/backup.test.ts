@@ -6,6 +6,8 @@
  * refuse to decrypt anything it cannot authenticate.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { st, resetViewState } from '../src/ts/state';
 import { exportEncryptedBackup, importEncryptedBackup } from '../src/ts/import-export';
 import { loadRealIndexHtml, makeEntry, makeProject, makeVault, resetState } from './helpers';
@@ -85,10 +87,22 @@ describe('round trip', () => {
 
   it('restores every entry', async () => {
     const env = (await exportAndCapture(GOOD_PW))!;
+    expect(JSON.parse(env).kdf.iters).toBe(600_000);
     st.vault = makeVault();
     await importEncryptedBackup(env, GOOD_PW);
     expect(st.vault.api_keys.map((e) => e.provider)).toEqual(['Alpha', 'Bravo']);
     expect(st.vault.api_keys[0].api_key).toBe('sk-alpha');
+  });
+
+  it('opens a 0.42 backup that recorded the old PBKDF2 cost', async () => {
+    const old = fs.readFileSync(
+      path.resolve(__dirname, '../unv-cli/tests/fixtures/backups-0.42.x/golden.vaultbak'),
+      'utf8',
+    );
+    expect(JSON.parse(old).kdf.iters).toBe(210_000);
+    st.vault = makeVault();
+    await importEncryptedBackup(old, 'golden-backup-password-1');
+    expect(st.vault.api_keys).toHaveLength(3);
   });
 
   it('restores projects and categories', async () => {
