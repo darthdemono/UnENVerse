@@ -2,6 +2,9 @@
 members  = ["src-tauri", "vault-core", "unv-server", "unv-cli"]
 resolver = "2"
 
+[workspace.package]
+rust-version = "1.90"
+
 # Warnings are errors — but only for the four crates in this workspace.
 #
 # This lives here rather than in CI's RUSTFLAGS because RUSTFLAGS applies to
