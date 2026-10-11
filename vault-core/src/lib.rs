@@ -189,9 +189,9 @@ pub fn read_or_create_salt(salt_path: &Path) -> Result<[u8; SALT_LEN], String> {
         raw.try_into()
             .map_err(|_| "vault.salt is corrupt (wrong length)".to_string())
     } else {
-        use rand::RngCore;
+        use rand::Rng;
         let mut s = [0u8; SALT_LEN];
-        rand::thread_rng().fill_bytes(&mut s);
+        rand::rng().fill_bytes(&mut s);
         if let Some(parent) = salt_path.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
@@ -1154,9 +1154,9 @@ pub fn migrate_legacy_json(conn: &Connection, raw_json: &str) -> Result<(), Stri
 /// an id shaped exactly like one created anywhere else — which matters because
 /// `entry_ck` falls back to a legacy tuple for entries that have none.
 pub fn new_uuid() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut b = [0u8; 16];
-    rand::thread_rng().fill_bytes(&mut b);
+    rand::rng().fill_bytes(&mut b);
     b[6] = (b[6] & 0x0f) | 0x40;
     b[8] = (b[8] & 0x3f) | 0x80;
     format!(
