@@ -243,6 +243,12 @@ pub fn reload_signal_path(state_dir: &Path, id: &str) -> PathBuf {
     state_dir.join("reload").join(id)
 }
 
+/// The same location as text for a systemd unit, which is Linux syntax whatever host
+/// generates it: always `/`, where `Path::display` on Windows would write `\`.
+pub fn reload_signal_unit_path(state_dir: &str, id: &str) -> String {
+    format!("{}/reload/{id}", state_dir.trim_end_matches('/'))
+}
+
 fn signal_reload(state_dir: &Path, id: &str, sha: &str) -> Result<(), String> {
     let p = reload_signal_path(state_dir, id);
     if let Some(dir) = p.parent() {
