@@ -2,6 +2,7 @@
 name    = "unv-cli"
 version = "0.42.7"
 edition = "2021"
+rust-version.workspace = true
 publish = false
 license = "Apache-2.0"
 
@@ -20,24 +21,24 @@ clap       = { version = "4", features = ["derive", "env"] }
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
 rpassword  = "7"
-dirs       = "5"
+dirs       = "7"
 # Blocking HTTP client for remote-mode operations
 # default-features = false is load-bearing: the default pulls native-tls, which
 # would give the CLI a different TLS stack from the desktop app and from the
 # shared verifier in vault_core::tls.
-reqwest       = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls"] }
+reqwest       = { version = "0.13", default-features = false, features = ["json", "form", "blocking", "rustls-no-provider"] }
 clap_complete = "4"
-notify        = "6"
+notify        = "8"
 uuid          = { version = "1", features = ["v4"] }
 # Encrypted backup envelope (.vaultbak) — must match the WebCrypto format the
 # desktop app writes: PBKDF2-SHA256 → AES-256-GCM.
-aes-gcm    = "0.10"
-pbkdf2     = { version = "0.12", default-features = false, features = ["hmac"] }
-sha2       = "0.10"
-hex        = "=0.4.3"
-hmac       = "0.12"
-base64     = "0.22"
-rand       = "=0.8.6"
+aes-gcm    = "0.11"
+pbkdf2     = { version = "0.13", default-features = false, features = ["hmac"] }
+sha2       = "0.11"
+hex        = "0.4"
+hmac       = "0.13"
+base64     = "0.23"
+rand       = "0.10"
 time       = { version = "0.3.55", features = ["parsing"] }
 aho-corasick = "1"
 walkdir      = "2"
