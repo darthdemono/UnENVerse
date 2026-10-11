@@ -733,6 +733,21 @@ fn verify_inner(conn: &Connection) -> Result<bool, String> {
             return Ok(false);
         }
     }
+    // Version history holds the OLD secrets and sat outside every check: a row edited
+    // in place (a forged rotation record, an altered old value) verified as intact.
+    let mut hist = conn
+        .prepare("SELECT data, rev FROM vault_history")
+        .map_err(|e| e.to_string())?;
+    let hist_rows = hist
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+        .map_err(|e| e.to_string())?;
+    for r in hist_rows {
+        let (data, rev) = r.map_err(|e| e.to_string())?;
+        match serde_json::from_str::<Value>(&data) {
+            Ok(v) if rev_of(&v) == rev => {}
+            _ => return Ok(false),
+        }
+    }
     if !any {
         return Ok(true);
     }
@@ -1252,8 +1267,19 @@ fn backup_v1(conn: &Connection) {
     let mut bak = path.as_os_str().to_owned();
     bak.push(".v1.bak");
     let bak = std::path::PathBuf::from(bak);
-    if !bak.exists() && std::fs::copy(&path, &bak).is_ok() {
-        let _ = crate::restrict_to_owner(&bak);
+    // Replaced on every attempt, through a temp file and a rename: an earlier attempt's
+    // half-written copy used to count as "the backup exists" and was kept forever, and a
+    // backup from before later writes would not hold the vault being converted.
+    // ponytail: a plain file copy, so a v1 build writing during the copy could still tear it;
+    // the online backup API would close that if two builds sharing one vault ever matters.
+    let mut tmp = bak.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = std::path::PathBuf::from(tmp);
+    if std::fs::copy(&path, &tmp).is_ok() {
+        let _ = crate::restrict_to_owner(&tmp);
+        if std::fs::rename(&tmp, &bak).is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
     }
 }
 
@@ -1263,6 +1289,21 @@ pub fn migrate_in_txn(conn: &Connection, now: &str) -> Result<bool, String> {
     let Some(raw) = legacy_blob(conn)? else {
         return Ok(false);
     };
+    // A blob next to rows means an older build opened an already-converted vault and
+    // wrote its own copy. Converting would DELETE every row first: whichever side was the
+    // newer one is gone, silently. Neither is provably newer, so touch nothing.
+    let rows: i64 = conn
+        .query_row("SELECT COUNT(*) FROM vault_rows", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if rows > 0 {
+        return Err(
+            "This vault holds both the current storage and an older-format copy, which \
+             an older build must have written after the upgrade. Nothing was changed. Keep \
+             the copy you trust (the older one is in the `vault` table; `vault.db.v1.bak` is \
+             the file from before the upgrade) and remove the other before opening again."
+                .to_string(),
+        );
+    }
     let doc: Value =
         serde_json::from_str(&raw).map_err(|e| format!("legacy vault is unreadable: {e}"))?;
     conn.execute("DELETE FROM vault_rows", [])
@@ -1294,7 +1335,7 @@ pub fn migrate_if_needed(conn: &Connection, now: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())
     });
     match r {
-        Ok(()) => conn.execute_batch("COMMIT").map_err(|e| e.to_string()),
+        Ok(()) => crate::commit(conn),
         Err(e) => {
             let _ = conn.execute_batch("ROLLBACK");
             Err(e)
@@ -1917,6 +1958,40 @@ mod tests {
         .unwrap();
     }
 
+    // S10: a leftover half-written backup counted as "the backup exists" and was kept.
+    // S12: vault_history (old secrets) was outside every integrity check.
+    #[test]
+    fn verify_notices_an_edited_history_row() {
+        let (conn, _dir) = open("hist-verify");
+        let doc = json!({ "api_keys": [{ "id": "1", "provider": "A", "api_key": "k",
+            "version_history": [{ "value": "old", "saved_at": "2026-01-01T00:00:00Z" }] }] });
+        crate::save_vault(&conn, doc, crate::SaveCtx::default()).unwrap();
+        assert!(verify(&conn).unwrap());
+        conn.execute(
+            "UPDATE vault_history SET data = replace(data, 'old', 'forged')",
+            [],
+        )
+        .unwrap();
+        assert!(!verify(&conn).unwrap());
+    }
+
+    #[test]
+    fn a_stale_or_torn_backup_is_replaced_by_a_copy_of_the_vault_being_converted() {
+        let (conn, dir) = open("stale-bak");
+        plant_v1(
+            &conn,
+            &json!({ "api_keys": [{ "id": "1", "provider": "A", "api_key": "k" }] }),
+        );
+        std::fs::write(dir.join("vault.db.v1.bak"), b"torn").unwrap();
+        load_vault(&conn).unwrap();
+        let bak = std::fs::read(dir.join("vault.db.v1.bak")).unwrap();
+        assert!(
+            bak.len() > 1024,
+            "the backup is a copy of the database, not the old leftover"
+        );
+        assert!(!dir.join("vault.db.v1.bak.tmp").exists());
+    }
+
     #[test]
     fn a_v1_vault_is_converted_on_first_open_with_a_backup_and_nothing_lost() {
         let (conn, dir) = open("migrate");
@@ -1997,6 +2072,28 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM vault", [], |r| r.get(0))
             .unwrap();
         assert_eq!(blob, 0);
+    }
+
+    // S14: an older build opened a converted vault and wrote its own blob; the next open
+    // of this build deleted every row and replaced them with that blob.
+    #[test]
+    fn a_blob_beside_converted_rows_is_refused_not_converted_over_them() {
+        let (conn, _d) = open("blob-and-rows");
+        save(&conn, json!({ "api_keys": [e("1", "Real")] }), None).unwrap();
+        plant_v1(
+            &conn,
+            &json!({ "api_keys": [{ "id": "9", "provider": "FromOldBuild" }] }),
+        );
+        let err = load_vault(&conn).unwrap_err();
+        assert!(err.contains("Nothing was changed"), "{err}");
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM vault_rows WHERE data LIKE '%Real%'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 1, "the rows survived the attempt");
     }
 
     #[test]
