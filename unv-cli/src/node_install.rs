@@ -233,8 +233,7 @@ pub fn reload_units(t: &TargetSpec, unit: &str) -> (String, String) {
          [Path]\nPathChanged={}\nUnit={name}.service\n\n[Install]\nWantedBy=multi-user.target\n",
         t.path.display(),
         // Not the target file: the agent writes this one after it validated the new file.
-        vault_core::nodes_apply::reload_signal_path(std::path::Path::new(STATE_DIR), &t.id)
-            .display()
+        vault_core::nodes_apply::reload_signal_unit_path(STATE_DIR, &t.id)
     );
     let service = format!(
         "[Unit]\nDescription=Reload {unit}\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/systemctl reload {unit}\n"
