@@ -14,7 +14,7 @@ import {
   markRemoteConnected,
   authUserInteractive,
 } from './remote-panel';
-import { showDropdown } from './modals';
+import { showDropdown, closeModal } from './modals';
 import { resetTotpCache, stopTotpTicker } from './totp';
 import { stopVaultWatch } from './vault-watch';
 import {
@@ -78,6 +78,9 @@ export async function lockVault(reason: 'auto' | 'manual' | 'visibility' = 'manu
   // switched on across a lock.
   resetViewState();
   st.vaultOpen = false;
+  // An open edit form holds whatever was typed into it, secrets included, and its draft
+  // is kept for restoring: closing it drops both.
+  closeModal();
   triggerRender();
 
   const lockStatus = document.getElementById('lock-status');
