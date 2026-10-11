@@ -1,5 +1,5 @@
 [workspace]
-members  = ["src-tauri", "vault-core", "unv-server", "unv-cli"]
+members  = ["src-tauri", "vault-core", "unv-app", "unv-server", "unv-cli"]
 resolver = "2"
 
 [workspace.package]
