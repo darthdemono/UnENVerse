@@ -533,23 +533,28 @@ pub fn prune(
         let doomed: Vec<(i64, String, i64)> = {
             let mut st = tx
                 .prepare(
-                    "SELECT seq, chain, bytes FROM config_snapshots \
-                     WHERE project = ?1 AND exporter = ?2 AND at < ?3 \
-                       AND seq NOT IN (SELECT seq FROM config_snapshots \
-                                       WHERE project = ?1 AND exporter = ?2 \
-                                       ORDER BY seq DESC LIMIT ?4) \
-                     ORDER BY seq ASC",
+                    "SELECT seq, chain, bytes, at FROM config_snapshots \
+                     WHERE project = ?1 AND exporter = ?2 ORDER BY seq ASC",
                 )
                 .map_err(|e| e.to_string())?;
             let rows = st
-                .query_map(params![project, exporter, cutoff, keep.max(1)], |r| {
-                    Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                .query_map(params![project, exporter], |r| {
+                    Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get::<_, String>(3)?))
                 })
                 .map_err(|e| e.to_string())?;
-            rows.collect::<Result<_, _>>().map_err(|e| e.to_string())?
+            let all: Vec<(i64, String, i64, String)> =
+                rows.collect::<Result<_, _>>().map_err(|e| e.to_string())?;
+            // The newest `keep` rows stay whatever their timestamps say.
+            let keep_from = all.len().saturating_sub(keep.max(1) as usize);
+            // Only a PREFIX can be pruned (a checkpoint stands in for everything up to
+            // a seq), so stop at the first row that is recent or inside the kept window.
+            // A clock that stepped back can leave a recent row between two old ones.
+            all.into_iter()
+                .enumerate()
+                .take_while(|(i, r)| *i < keep_from && r.3.as_str() < cutoff.as_str())
+                .map(|(_, r)| (r.0, r.1, r.2))
+                .collect()
         };
-        // The doomed rows are always a prefix of the stream: older than the
-        // cutoff and older than the kept window, both of which are monotone in seq.
         let Some((last_seq, last_chain, _)) = doomed.last().cloned() else {
             continue;
         };
@@ -1116,6 +1121,33 @@ mod tests {
         let v = verify(&c).unwrap();
         assert!(v.problems.is_empty(), "{:?}", v.problems);
         assert_eq!(list(&c, None, None, None, 10).unwrap().len(), 1);
+    }
+
+    // S13: the doomed set was "every old row beyond the newest keep" and the code
+    // assumed that is always a prefix. With a clock that stepped back, a recent row can
+    // sit between two old ones; deleting `seq <= last` then removed a row younger than the
+    // retention window and the checkpoint claimed it was old.
+    #[test]
+    fn prune_stops_at_the_first_row_that_must_stay() {
+        let c = db();
+        for i in 0..4 {
+            rec(&c, &format!("v{i}"));
+        }
+        age(&c, 1, "2020-01-01T00:00:00Z");
+        // #2 keeps its real, recent timestamp; #3 was stamped by a clock that stepped back.
+        age(&c, 3, "2020-01-02T00:00:00Z");
+        let real = prune(&c, 1, 30, false, Some("owner")).unwrap();
+        assert_eq!(
+            real.deleted, 1,
+            "only #1 is old with nothing recent before it"
+        );
+        let left: Vec<i64> = list(&c, None, None, None, 10)
+            .unwrap()
+            .iter()
+            .map(|m| m.seq)
+            .collect();
+        assert_eq!(left, vec![4, 3, 2]);
+        assert!(verify(&c).unwrap().problems.is_empty());
     }
 
     #[test]
