@@ -1,6 +1,6 @@
 import { buildBundle } from './bundle-scope';
 import { codeStatus } from './recovery-codes';
-import * as yaml from 'js-yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { VaultEntry } from './types';
 import {
   Settings,
@@ -171,7 +171,7 @@ function parseImport(raw: string, fmt: string): unknown[] {
 
   if (fmt === 'yaml') {
     try {
-      const data: unknown = yaml.load(raw);
+      const data: unknown = parseYaml(raw);
       // Accept a full vault ({api_keys:[...]}), a bare list, or a flat KEY: value map.
       if (Array.isArray(data)) return data;
       if (Array.isArray(asImportRecord(data).api_keys))
@@ -1985,8 +1985,8 @@ export function initTools() {
       }
     } else {
       try {
-        const parsed = yaml.load(input);
-        const formatted = yaml.dump(parsed, { indent: 2, lineWidth: 120 });
+        const parsed: unknown = parseYaml(input);
+        const formatted = stringifyYaml(parsed, { indent: 2, lineWidth: 120 });
         showFmtOutput(formatted);
         setFmtStatus(`Valid YAML — ${formatted.split('\n').length} lines`, 'ok');
       } catch (e) {
@@ -2010,7 +2010,7 @@ export function initTools() {
       }
     } else {
       try {
-        yaml.load(input);
+        parseYaml(input);
         setFmtStatus('Valid YAML ✓', 'ok');
       } catch (e) {
         setFmtStatus(`Invalid YAML: ${errorMessage(e)}`, 'err');
@@ -2034,10 +2034,10 @@ export function initTools() {
         setFmtStatus(`JSON parse error: ${errorMessage(e)}`, 'err');
       }
     } else {
-      // YAML minify: round-trip through js-yaml with flow style
+      // YAML minify: round-trip through YAML with flow style
       try {
-        const parsed = yaml.load(input);
-        const minified = yaml.dump(parsed, { flowLevel: 0 }).trimEnd();
+        const parsed: unknown = parseYaml(input);
+        const minified = stringifyYaml(parsed, { collectionStyle: 'flow' }).trimEnd();
         showFmtOutput(minified);
         setFmtStatus('YAML minified (flow style) ✓', 'ok');
       } catch (e) {
