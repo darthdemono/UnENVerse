@@ -98,9 +98,9 @@ pub fn create_feed(
     include_account_names: bool,
 ) -> Result<(FeedRecord, String), String> {
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-    use rand::RngCore;
+    use rand::Rng;
     let mut raw = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut raw);
+    rand::rng().fill_bytes(&mut raw);
     let token = URL_SAFE_NO_PAD.encode(raw);
     let token_hash = sha256_hex(&token);
     let id = crate::new_uuid();
