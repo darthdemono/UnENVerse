@@ -127,6 +127,8 @@ fn versions_dir(state_dir: &Path, id: &str) -> PathBuf {
     state_dir.join("versions").join(id)
 }
 
+static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn write_atomic(
     path: &Path,
     bytes: &[u8],
@@ -135,9 +137,16 @@ fn write_atomic(
     use std::io::Write;
     let dir = path.parent().ok_or("target has no parent directory")?;
     let name = path.file_name().ok_or("target has no file name")?;
-    let tmp = dir.join(format!(".{}.unv-node.tmp", name.to_string_lossy()));
+    // A name no other writer shares: a fixed one let two applies truncate and rename each
+    // other's half-written file.
+    let tmp = dir.join(format!(
+        ".{}.unv-node.{}.{}.tmp",
+        name.to_string_lossy(),
+        std::process::id(),
+        TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     let mut opts = std::fs::OpenOptions::new();
-    opts.write(true).create(true).truncate(true);
+    opts.write(true).create_new(true);
     #[cfg(unix)]
     {
         use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
@@ -163,11 +172,20 @@ fn write_atomic(
     Ok(())
 }
 
+/// Puts the previous file back, but only if the file still holds what this apply wrote.
+/// Validation takes seconds; if somebody edited the file meanwhile, rolling back would
+/// destroy their edit, so it is left alone and the failure says so.
 fn restore(
     path: &Path,
+    wrote: &[u8],
     previous: &Option<Vec<u8>>,
     meta: Option<&std::fs::Metadata>,
 ) -> Result<(), String> {
+    if std::fs::read(path).ok().as_deref() != Some(wrote) {
+        return Err(
+            "the file was changed by someone else meanwhile, so it was left as it is".into(),
+        );
+    }
     match previous {
         Some(b) => write_atomic(path, b, meta),
         None => std::fs::remove_file(path).map_err(|e| e.to_string()),
@@ -217,6 +235,23 @@ pub enum Applied {
     Written,
 }
 
+/// The file a root-owned systemd `.path` unit watches to reload a target's service.
+/// The agent writes it only after validation passed. Watching the target file itself
+/// reloaded the service on the rename, before the agent had validated anything, and
+/// again when a failed validation restored the previous file.
+pub fn reload_signal_path(state_dir: &Path, id: &str) -> PathBuf {
+    state_dir.join("reload").join(id)
+}
+
+fn signal_reload(state_dir: &Path, id: &str, sha: &str) -> Result<(), String> {
+    let p = reload_signal_path(state_dir, id);
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    // The content differs on every applied version, so the watcher sees a change.
+    write_atomic(&p, format!("{sha}\n").as_bytes(), None)
+}
+
 /// Applies `content` to `target`. See the module comment for the contract.
 pub fn apply(
     target: &Target,
@@ -253,7 +288,7 @@ pub fn apply(
 
     if let Some(v) = &target.validate {
         if let Err(e) = run(v, &text, COMMAND_TIMEOUT) {
-            return Err(match restore(path, &previous, meta.as_ref()) {
+            return Err(match restore(path, content, &previous, meta.as_ref()) {
                 Ok(()) => format!("validate failed, previous file restored: {e}"),
                 Err(r) => {
                     format!("validate failed AND restoring the previous file failed ({r}): {e}")
@@ -263,13 +298,19 @@ pub fn apply(
     }
     if let Some(r) = &target.reload {
         if let Err(e) = run(r, &text, COMMAND_TIMEOUT) {
-            return Err(match restore(path, &previous, meta.as_ref()) {
+            return Err(match restore(path, content, &previous, meta.as_ref()) {
                 Ok(()) => format!(
                     "reload failed, previous file restored and the service was not reloaded again: {e}"
                 ),
                 Err(x) => format!("reload failed AND restoring the previous file failed ({x}): {e}"),
             });
         }
+    }
+    if let Err(e) = signal_reload(state_dir, &target.id, expected_sha) {
+        return Err(match restore(path, content, &previous, meta.as_ref()) {
+            Ok(()) => format!("could not signal the reload, previous file restored: {e}"),
+            Err(x) => format!("could not signal the reload AND restoring failed ({x}): {e}"),
+        });
     }
     Ok(Applied::Written)
 }
@@ -358,6 +399,63 @@ mod tests {
             apply(&t, c.as_bytes(), &sha256_hex(c.as_bytes()), &d).unwrap();
         }
         assert_eq!(kept_versions(&d, "t").len(), KEEP_VERSIONS);
+    }
+
+    // N5: the reload trigger is written after validation, not by the rename.
+    #[cfg(unix)]
+    #[test]
+    fn the_reload_signal_is_written_only_after_a_file_validated() {
+        let d = scratch("signal");
+        let ok = target(&d, Some("exit 0"), None);
+        std::fs::write(&ok.path, "old").unwrap();
+        apply(&ok, b"new", &sha256_hex(b"new"), &d).unwrap();
+        let sig = std::fs::read_to_string(reload_signal_path(&d, "t")).unwrap();
+        assert_eq!(sig.trim(), sha256_hex(b"new"));
+
+        let d2 = scratch("signal-bad");
+        let bad = target(&d2, Some("exit 1"), None);
+        std::fs::write(&bad.path, "old").unwrap();
+        apply(&bad, b"new", &sha256_hex(b"new"), &d2).unwrap_err();
+        assert!(
+            !reload_signal_path(&d2, "t").exists(),
+            "a rejected file must not trigger a reload"
+        );
+    }
+
+    // N10: a failed validation put the old bytes back over whatever the file held by
+    // then, including an edit made by someone else while the validator ran.
+    #[cfg(unix)]
+    #[test]
+    fn a_rollback_never_overwrites_an_edit_made_during_validation() {
+        let d = scratch("clobber");
+        let t = target(&d, None, None);
+        let mut t = t;
+        t.validate = Some(format!(
+            "echo edited-by-hand > '{}'; exit 1",
+            t.path.display()
+        ));
+        std::fs::write(&t.path, "old").unwrap();
+        let e = apply(&t, b"new", &sha256_hex(b"new"), &d).unwrap_err();
+        assert!(e.contains("changed by someone else"), "{e}");
+        assert_eq!(
+            std::fs::read_to_string(&t.path).unwrap().trim(),
+            "edited-by-hand"
+        );
+    }
+
+    #[test]
+    fn two_writes_never_share_a_temp_file() {
+        let d = scratch("tmpname");
+        let p = d.join("app.conf");
+        write_atomic(&p, b"a", None).unwrap();
+        write_atomic(&p, b"b", None).unwrap();
+        let strays = std::fs::read_dir(&d)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(strays, 0);
+        assert_eq!(std::fs::read(&p).unwrap(), b"b");
     }
 
     #[cfg(unix)]
