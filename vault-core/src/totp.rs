@@ -510,7 +510,7 @@ pub struct Params {
     /// It is *state*, not configuration — the only number in this struct that a
     /// correct implementation writes back — which is why advancing it is an
     /// explicit action rather than a side effect of reading a code. See
-    /// `advance` in `unv-cli/src/totp_cmd.rs`.
+    /// `advance` in `unv-app/src/totp_cmd.rs`.
     #[serde(default)]
     pub counter: u64,
 }
