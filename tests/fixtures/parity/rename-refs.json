@@ -1,0 +1,78 @@
+{
+  "_comment": "Entry rename -> how every chunk reference is rewritten. Asserted by unv-cli/tests/parity.rs (rename_provider_refs) and tests/cli-parity.test.ts (renameProviderRefs).",
+  "entries": [
+    { "id": "a", "provider": "Stripe", "key_id": "v2" },
+    { "id": "b", "provider": "Twilio" },
+    { "id": "c", "provider": "Shared" },
+    { "id": "d", "provider": "Shared", "key_id": "x" }
+  ],
+  "refs": [
+    "${Stripe}",
+    "${Stripe/api_url}",
+    "${Stripe_v2}",
+    "${Stripe_v2/api_key}",
+    "${Twilio}",
+    "${Twilio/api_key}",
+    "${chunk:web/bare}",
+    "${bundle:Stripe}",
+    "${Shared}",
+    "${Shared_x/api_key}",
+    "plain"
+  ],
+  "renames": [
+    {
+      "entry": "a",
+      "to": "Adyen",
+      "rewritten": 4,
+      "refs": [
+        "${Adyen_v2}",
+        "${Adyen_v2/api_url}",
+        "${Adyen_v2}",
+        "${Adyen_v2/api_key}",
+        "${Twilio}",
+        "${Twilio/api_key}",
+        "${chunk:web/bare}",
+        "${bundle:Stripe}",
+        "${Shared}",
+        "${Shared_x/api_key}",
+        "plain"
+      ]
+    },
+    {
+      "entry": "b",
+      "to": "Vonage",
+      "rewritten": 2,
+      "refs": [
+        "${Stripe}",
+        "${Stripe/api_url}",
+        "${Stripe_v2}",
+        "${Stripe_v2/api_key}",
+        "${Vonage}",
+        "${Vonage/api_key}",
+        "${chunk:web/bare}",
+        "${bundle:Stripe}",
+        "${Shared}",
+        "${Shared_x/api_key}",
+        "plain"
+      ]
+    },
+    {
+      "entry": "d",
+      "to": "Other",
+      "rewritten": 1,
+      "refs": [
+        "${Stripe}",
+        "${Stripe/api_url}",
+        "${Stripe_v2}",
+        "${Stripe_v2/api_key}",
+        "${Twilio}",
+        "${Twilio/api_key}",
+        "${chunk:web/bare}",
+        "${bundle:Stripe}",
+        "${Shared}",
+        "${Other_x/api_key}",
+        "plain"
+      ]
+    }
+  ]
+}
