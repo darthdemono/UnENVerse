@@ -1904,7 +1904,6 @@ pub fn run() {
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "desktop starting");
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         // Restore the window where the user left it.
         //
         // VISIBLE is deliberately excluded from the saved flags. Clicking the
