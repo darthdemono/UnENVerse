@@ -16,13 +16,15 @@ WORKDIR /build
 # Copy workspace manifests first for layer caching
 COPY Cargo.toml Cargo.lock ./
 COPY vault-core/Cargo.toml vault-core/
+COPY unv-app/Cargo.toml unv-app/
 COPY unv-server/Cargo.toml unv-server/
 COPY unv-cli/Cargo.toml unv-cli/
 COPY src-tauri/Cargo.toml src-tauri/
 
 # Stub all crate entry points so `cargo fetch` resolves the workspace without full source
-RUN mkdir -p vault-core/src unv-server/src unv-cli/src src-tauri/src && \
+RUN mkdir -p vault-core/src unv-app/src unv-server/src unv-cli/src src-tauri/src && \
     printf 'pub fn placeholder() {}' > vault-core/src/lib.rs && \
+    printf 'pub fn placeholder() {}' > unv-app/src/lib.rs && \
     printf 'pub fn placeholder() {}' > unv-server/src/lib.rs && \
     printf 'fn main() {}' > unv-server/src/main.rs && \
     printf 'pub fn placeholder() {}' > unv-cli/src/lib.rs && \
@@ -43,13 +45,12 @@ RUN cargo build --release -p unv-server --features vault-core/bundled 2>&1 | gre
 COPY secret-types.json secret-templates.json ./
 COPY vault-core/data vault-core/data
 COPY vault-core/src vault-core/src
-# Phase 34: the hub renders node targets with the CLI's exporters, so unv-server
-# depends on the unv-cli library.
-COPY unv-cli/src unv-cli/src
+# R04: the hub renders node targets with the shared application engine.
+COPY unv-app/src unv-app/src
 COPY unv-server/src unv-server/src
 
 # Touch to force rebuild after stub replacement
-RUN touch vault-core/src/lib.rs unv-server/src/lib.rs unv-server/src/main.rs && \
+RUN touch vault-core/src/lib.rs unv-app/src/lib.rs unv-server/src/lib.rs unv-server/src/main.rs && \
     cargo build --release -p unv-server --features vault-core/bundled
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
