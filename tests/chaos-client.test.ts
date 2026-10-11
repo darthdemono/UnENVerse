@@ -20,6 +20,8 @@ import {
   resetViewState,
   dropPreviousVault,
   applyPatchLocal,
+  removeBundleLive,
+  spendRecoveryCodeLive,
   VaultConflictError,
   type VaultStore,
   type VaultPatch,
@@ -209,5 +211,135 @@ describe('the entry editor', () => {
     const write = save.slice(save.indexOf('resolveEditTarget(st.vault.api_keys, old)'));
     expect(write).toContain('st.vault.api_keys[at] = {');
     expect(write.slice(0, write.indexOf('\n}\n'))).not.toMatch(/api_keys\[idx\]/);
+  });
+});
+
+describe('overlapping saves', () => {
+  /**
+   * BUG (C9): two persist() calls overlapped. The first to finish took its "what the store
+   * holds" snapshot from the LIVE document, which already contained the second call's edit.
+   * When the second save then failed, the snapshot claimed the edit was stored, the next
+   * save found no difference and sent nothing: the edit was lost with no error left to see.
+   */
+  it('does not count an edit as stored because an earlier, overlapping save succeeded', async () => {
+    await persist(); // establishes the synced state
+    const pending: { p: VaultPatch; done: (ok: boolean) => void }[] = [];
+    let failed = false;
+    store.saveRows = (p) =>
+      new Promise((resolve) => {
+        pending.push({
+          p,
+          done: (ok) => {
+            failed = !ok;
+            if (ok) applyPatchLocal(store.stored, clone(p));
+            resolve(true);
+          },
+        });
+      });
+    store.lastSaveFailed = () => failed;
+    const until = async (n: number) => {
+      for (let i = 0; i < 200 && pending.length < n; i++) await Promise.resolve();
+    };
+
+    st.vault.api_keys[0].api_key = 'edit-a';
+    const first = persist();
+    await until(1);
+    st.vault.api_keys[1].api_key = 'edit-b';
+    const second = persist();
+    pending[0].done(true);
+    await until(2);
+    pending[1].done(false); // the second save fails on the wire
+    await Promise.all([first, second]);
+
+    // Back to a healthy connection: the next save must still carry edit-b.
+    store.saveRows = (p) => {
+      applyPatchLocal(store.stored, clone(p));
+      return Promise.resolve(true);
+    };
+    failed = false;
+    await persist();
+    expect(store.stored.api_keys.find((x) => x.id === 'b')?.api_key).toBe('edit-b');
+  });
+
+  /**
+   * BUG (C9): saves from one client were sent concurrently, so the server could apply the
+   * newer one first and the older one over it, and both read one shared failure flag.
+   */
+  it('sends one save at a time and the newest edit lands last', async () => {
+    await persist();
+    let inFlight = 0;
+    let most = 0;
+    const order: string[] = [];
+    store.saveRows = async (p) => {
+      inFlight++;
+      most = Math.max(most, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      order.push(String(p.put?.[0]?.api_key));
+      applyPatchLocal(store.stored, clone(p));
+      inFlight--;
+      return true;
+    };
+    st.vault.api_keys[0].api_key = 'one';
+    const a = persist();
+    st.vault.api_keys[0].api_key = 'two';
+    const b = persist();
+    await Promise.all([a, b]);
+    expect(most).toBe(1);
+    // Whatever was sent, the newest value is the last one the server saw.
+    expect(order[order.length - 1]).toBe('two');
+    expect(store.stored.api_keys[0].api_key).toBe('two');
+  });
+});
+
+describe('objects captured before a dialog', () => {
+  /**
+   * BUG (C12): "delete bundle and members" collected the entries, awaited the confirm
+   * dialog, then filtered by those objects. A reload during the dialog replaced every
+   * entry object, so nothing was removed while the toast and undo entry said it was.
+   */
+  it('deletes the bundle from the vault as it is after the dialog, not before', () => {
+    const bundle = { ...e('bun'), secretType: 'bundle' } as VaultEntry;
+    const member = { ...e('m1'), bundle_id: 'bun' } as VaultEntry;
+    st.vault.api_keys = [e('a'), bundle, member];
+    const doomedBefore = st.vault.api_keys.filter((x) => x.id === 'bun' || x.bundle_id === 'bun');
+    // A reload while the dialog was open: same data, new objects.
+    st.vault.api_keys = clone(st.vault.api_keys);
+    const { removed, positions } = removeBundleLive('bun');
+    expect(removed.map((x) => x.id)).toEqual(['bun', 'm1']);
+    expect(positions).toEqual([1, 2]);
+    expect(st.vault.api_keys.map((x) => x.id)).toEqual(['a']);
+    expect(doomedBefore.some((x) => st.vault.api_keys.includes(x))).toBe(false);
+  });
+
+  it('includes a member another writer added while the dialog was open', () => {
+    st.vault.api_keys = [{ ...e('bun'), secretType: 'bundle' } as VaultEntry];
+    st.vault.api_keys.push({ ...e('late'), bundle_id: 'bun' } as VaultEntry);
+    expect(removeBundleLive('bun').removed.map((x) => x.id)).toEqual(['bun', 'late']);
+  });
+
+  /**
+   * BUG (C12): "mark the next recovery code used" kept the entry it found before the
+   * dialog; after a reload it edited a detached copy, persisted nothing, and still
+   * announced "N codes left".
+   */
+  it('spends the code on the entry that is in the vault now', () => {
+    const codes = (v: string) =>
+      ({
+        ...e('rc'),
+        secretType: 'recovery_codes',
+        extra_vars: [{ key: 'codes', value: v }],
+      }) as VaultEntry;
+    st.vault.api_keys = [codes('one\ntwo')];
+    const stale = st.vault.api_keys[0];
+    st.vault.api_keys = [codes('one\ntwo')]; // reload
+    const r = spendRecoveryCodeLive('rc', '2026-10-11');
+    expect('entry' in r).toBe(true);
+    expect(st.vault.api_keys[0].extra_vars?.[0].value).toContain('one\tUSED 2026-10-11');
+    expect(stale.extra_vars?.[0].value).toBe('one\ntwo');
+  });
+
+  it('says so when the entry was deleted during the dialog', () => {
+    st.vault.api_keys = [];
+    expect(spendRecoveryCodeLive('rc', '2026-10-11')).toHaveProperty('error');
   });
 });
