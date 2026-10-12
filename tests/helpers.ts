@@ -23,7 +23,7 @@ export function loadRealIndexHtml(): void {
     if (!m) throw new Error('index.html has no <body> — fixture cannot load');
     // Strip <script> tags: the modules are imported directly by the tests, and
     // letting jsdom fetch/execute them would double-register event listeners.
-    cachedBody = m[1].replace(/<script[\s\S]*?<\/script>/gi, '');
+    cachedBody = m[1].replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, '');
   }
   document.body.innerHTML = cachedBody!;
 }
