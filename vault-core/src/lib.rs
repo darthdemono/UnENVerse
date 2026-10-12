@@ -189,9 +189,7 @@ pub fn read_or_create_salt(salt_path: &Path) -> Result<[u8; SALT_LEN], String> {
         raw.try_into()
             .map_err(|_| "vault.salt is corrupt (wrong length)".to_string())
     } else {
-        use rand::Rng;
-        let mut s = [0u8; SALT_LEN];
-        rand::rng().fill_bytes(&mut s);
+        let s: [u8; SALT_LEN] = rand::random();
         if let Some(parent) = salt_path.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
