@@ -11,7 +11,6 @@ use crate::fmt::confirm;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
-use rand::Rng;
 use serde_json::{json, Value};
 
 const BAK_MAGIC: &str = "ENVVBAK1";
@@ -25,9 +24,7 @@ fn b64() -> base64::engine::general_purpose::GeneralPurpose {
 }
 
 fn derive(password: &str, salt: &[u8], iters: u32) -> [u8; 32] {
-    let mut key = [0u8; 32];
-    pbkdf2::pbkdf2_hmac::<sha2::Sha256>(password.as_bytes(), salt, iters, &mut key);
-    key
+    pbkdf2::pbkdf2_hmac_array::<sha2::Sha256, 32>(password.as_bytes(), salt, iters)
 }
 
 fn ask_password(provided: Option<&str>, confirm_twice: bool) -> CliResult<String> {
@@ -55,10 +52,8 @@ pub fn export(access: &Access, path: &std::path::Path, password: Option<&str>) -
     }
     let vault = access.load_vault()?;
 
-    let mut salt = [0u8; 16];
-    let mut iv = [0u8; 12];
-    rand::rng().fill_bytes(&mut salt);
-    rand::rng().fill_bytes(&mut iv);
+    let salt: [u8; 16] = rand::random();
+    let iv: [u8; 12] = rand::random();
 
     let key = derive(&pw, &salt, PBKDF2_ITERS);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
@@ -317,10 +312,8 @@ pub fn build_archive(db: &[u8], salt: &[u8], pw: &str) -> CliResult<(String, Val
         "created_at":  vault_core::iso_now(),
         "version":     env!("CARGO_PKG_VERSION"),
     });
-    let mut kdf_salt = [0u8; 16];
-    let mut iv = [0u8; 12];
-    rand::rng().fill_bytes(&mut kdf_salt);
-    rand::rng().fill_bytes(&mut iv);
+    let kdf_salt: [u8; 16] = rand::random();
+    let iv: [u8; 12] = rand::random();
     let key = derive(pw, &kdf_salt, PBKDF2_ITERS);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
     let plain = json!({
