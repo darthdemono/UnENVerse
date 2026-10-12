@@ -73,6 +73,14 @@ const SOURCES = [
     write: (s, v) =>
       replaceOnce(s, /("version"\s*:\s*")([^"]*)(")/, v, 'vscode-extension/package.json'),
   },
+  {
+    // The reviewed OpenAPI golden embeds `info.version`; a bump that skipped it
+    // failed `openapi_document_matches_the_reviewed_snapshot` in CI.
+    file: 'unv-server/tests/fixtures/openapi.json',
+    read: (s) => JSON.parse(s).info.version,
+    write: (s, v) =>
+      replaceOnce(s, /("version"\s*:\s*")([^"]*)(")/, v, 'unv-server/tests/fixtures/openapi.json'),
+  },
   ...CRATES.map((c) => ({
     file: `${c}/Cargo.toml`,
     // `head -n1`-equivalent: the first `version = "…"` at column zero is the
