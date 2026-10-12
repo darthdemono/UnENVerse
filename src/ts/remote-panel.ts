@@ -79,7 +79,7 @@ function stopPing() {
 }
 
 function genId(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
 function getSaved(): RemoteVaultConfig[] {
