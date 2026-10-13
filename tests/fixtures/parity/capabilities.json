@@ -523,6 +523,50 @@
       "cli_flags": []
     },
     {
+      "id": "recovery-packages-and-ops",
+      "status": "both",
+      "cli": [
+        "unv backup package",
+        "unv backup dest add",
+        "unv backup dest ls",
+        "unv backup dest rm",
+        "unv backup recovery-key",
+        "unv backup schedule add",
+        "unv backup schedule ls",
+        "unv recover inspect",
+        "unv recover restore",
+        "unv recover verify",
+        "unv ops ls",
+        "unv ops show",
+        "unv ops cancel",
+        "unv ops run"
+      ],
+      "ui": [
+        "id:s-recovery-label"
+      ],
+      "tauri": [
+        "backup_recovery_key",
+        "backup_destination_add",
+        "backup_destination_list",
+        "backup_destination_remove",
+        "backup_package",
+        "backup_schedule_add",
+        "backup_schedule_list",
+        "ops_list",
+        "ops_show",
+        "ops_cancel"
+      ],
+      "note": "Settings -> Recovery packages uses the same streaming core and durable operations records as the CLI. The executor owns an advisory file lock and runs only while the desktop vault is unlocked.",
+      "cli_flags": [
+        "--identity",
+        "--to",
+        "--dest",
+        "--daily",
+        "--interval",
+        "--time-zone"
+      ]
+    },
+    {
       "id": "uid-registry",
       "status": "both",
       "cli": [
