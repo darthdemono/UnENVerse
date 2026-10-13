@@ -51,9 +51,12 @@ pub mod bundle_import;
 pub mod bundle_scope;
 pub mod catalogue;
 pub mod config_check;
+pub mod migrate_schema;
 pub mod oauth;
+pub mod ops;
 pub mod pgp;
 pub mod php_config;
+pub mod recovery;
 pub mod session_import;
 pub mod storage;
 pub mod templates;
@@ -248,48 +251,12 @@ pub fn open_db(db_path: &Path, key: &VaultKey) -> Result<Connection, String> {
     Ok(conn)
 }
 
-/// Creates the `vault` and `vault_audit` tables if absent; adds hash-chain
-/// columns to `vault_audit` via idempotent ALTER TABLE (errors silently ignored
-/// on existing columns).
+/// Brings the encrypted database to the current additive schema.
+///
+/// All schema changes now run through numbered, recorded migrations. Keeping
+/// this compatibility entry point prevents older callers from bypassing them.
 pub fn init_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS vault (
-             id   INTEGER PRIMARY KEY CHECK (id = 1),
-             data TEXT    NOT NULL
-         );
-         CREATE TABLE IF NOT EXISTS vault_audit (
-             id             INTEGER PRIMARY KEY AUTOINCREMENT,
-             action         TEXT    NOT NULL,
-             entry_provider TEXT,
-             timestamp      TEXT    NOT NULL,
-             details        TEXT
-         );
-         CREATE TABLE IF NOT EXISTS vault_meta (
-             key   TEXT PRIMARY KEY,
-             value TEXT NOT NULL
-         );",
-    )
-    .map_err(|e| e.to_string())?;
-    // Idempotent migration: add hash-chain columns if absent.
-    let _ = conn.execute_batch("ALTER TABLE vault_audit ADD COLUMN entry_hash TEXT;");
-    let _ = conn.execute_batch("ALTER TABLE vault_audit ADD COLUMN prev_hash  TEXT;");
-    // Who performed the action. Rows written before this column exists stay NULL
-    // and verify against the v1 hash formula (see `compute_audit_hash`).
-    let _ = conn.execute_batch("ALTER TABLE vault_audit ADD COLUMN actor TEXT;");
-    // Audit lookups by entry and by time were full scans of the only table in the
-    // schema that could have been indexed from the start.
-    let _ = conn.execute_batch(
-        "CREATE INDEX IF NOT EXISTS vault_audit_provider ON vault_audit (entry_provider);
-         CREATE INDEX IF NOT EXISTS vault_audit_time ON vault_audit (timestamp);",
-    );
-    // Row-per-entry storage (Phase 30).
-    storage::init_schema(conn)?;
-    // Multi-user tables (Phase 5)
-    users::init_users_schema(conn)?;
-    // Calendar feed tokens (Phase 24.3)
-    ics_feeds::init_schema(conn)?;
-    config_history::init_schema(conn)?;
-    Ok(())
+    migrate_schema::migrate_schema(conn)
 }
 
 // ── Entry identity ────────────────────────────────────────────────────────────
@@ -1130,6 +1097,32 @@ pub fn load_audit(conn: &Connection) -> Result<Vec<AuditRow>, String> {
     rows.into_iter()
         .map(|r| r.map_err(|e| e.to_string()))
         .collect()
+}
+
+/// Verifies the audit hash chain from its genesis anchor forward.
+pub fn verify_audit(conn: &Connection) -> Result<bool, String> {
+    let mut rows = load_audit(conn)?;
+    rows.reverse();
+    let mut previous: Option<String> = None;
+    for row in rows {
+        let expected_prev = previous.as_deref().unwrap_or("genesis");
+        if row.prev_hash.as_deref() != previous.as_deref() {
+            return Ok(false);
+        }
+        let provider = row.entry_provider.as_deref().unwrap_or("");
+        let expected = compute_audit_hash(
+            &row.action,
+            provider,
+            &row.timestamp,
+            row.actor.as_deref(),
+            expected_prev,
+        );
+        if row.entry_hash.as_deref() != Some(expected.as_str()) {
+            return Ok(false);
+        }
+        previous = Some(expected);
+    }
+    Ok(true)
 }
 
 // ── Migration helpers ─────────────────────────────────────────────────────────
