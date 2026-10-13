@@ -77,6 +77,16 @@ fn old_vault_opens_and_verifies() {
 
     // No `cipher_migrate`, no schema bump: the fixture opens as it is.
     vault_core::init_schema(&conn).unwrap();
+    // R05's migrations are additive: the pre-migration golden vault records
+    // exactly the baseline and durable-operations migrations on first open.
+    let migrations: Vec<i64> = conn
+        .prepare("SELECT id FROM schema_migrations ORDER BY id")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .map(|row| row.unwrap())
+        .collect();
+    assert_eq!(migrations, vec![1, 2]);
     let v = vault_core::load_vault(&conn).unwrap().unwrap();
     assert_eq!(v["api_keys"].as_array().unwrap().len(), 3);
     let proj = &v["projects"][0];
