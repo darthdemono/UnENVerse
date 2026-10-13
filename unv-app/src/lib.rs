@@ -45,6 +45,7 @@ pub mod pool;
 pub mod profile;
 pub mod projects;
 pub mod ratelimit;
+pub mod recovery_ops;
 pub mod refs;
 pub mod render;
 pub mod reset_cmd;
