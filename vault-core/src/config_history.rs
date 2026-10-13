@@ -69,10 +69,15 @@ pub fn init_schema(conn: &Connection) -> Result<(), String> {
          );",
     )
     .map_err(|e| e.to_string())?;
-    // A history created before blast radius (Phase 36) lacks the column.
-    let _ = conn.execute_batch(
-        "ALTER TABLE config_snapshots ADD COLUMN exposed TEXT NOT NULL DEFAULT '[]';",
-    );
+    // A history created before blast radius (Phase 36) lacks the column. The
+    // migration checks the schema first; an unexpected ALTER failure is never
+    // hidden as a harmless duplicate-column outcome.
+    crate::migrate_schema::add_column_if_missing(
+        conn,
+        "config_snapshots",
+        "exposed",
+        "TEXT NOT NULL DEFAULT '[]'",
+    )?;
     Ok(())
 }
 
