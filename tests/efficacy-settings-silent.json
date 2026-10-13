@@ -1,3 +1,9 @@
 {
-  "settings-backup-pw": "A password for the encrypted backup action, not a stored setting; it is read when Export is pressed."
+  "settings-backup-pw": "A password for the encrypted backup action, not a stored setting; it is read when Export is pressed.",
+  "s-recovery-dest-id": "An identifier consumed by the recovery destination action, not a persisted setting.",
+  "s-recovery-dest-path": "A path consumed by the recovery destination action, not a persisted setting.",
+  "s-recovery-daily": "A schedule argument consumed by the recovery schedule action, not a persisted setting.",
+  "s-recovery-interval": "A schedule argument consumed by the recovery schedule action, not a persisted setting.",
+  "s-recovery-time-zone": "A schedule argument consumed by the recovery schedule action, not a persisted setting.",
+  "s-recovery-run-id": "An operation identifier consumed by the recovery cancel action, not a persisted setting."
 }
