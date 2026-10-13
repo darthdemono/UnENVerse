@@ -173,22 +173,24 @@ pub fn init_users_schema(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
 
-    // Idempotent migrations
-    conn.execute("ALTER TABLE users ADD COLUMN class_id TEXT", [])
-        .ok();
+    // Schema migrations check the column first, so a real ALTER error cannot
+    // be mistaken for the duplicate-column case on an older vault.
+    crate::migrate_schema::add_column_if_missing(conn, "users", "class_id", "TEXT")?;
     // Strict write scoping. Defaults to 0 — existing users keep the behaviour
     // they had, because a migration that silently tightened permissions would
     // break running deployments in a way nobody could attribute to an upgrade.
-    conn.execute(
-        "ALTER TABLE users ADD COLUMN strict_write INTEGER NOT NULL DEFAULT 0",
-        [],
-    )
-    .ok();
-    conn.execute(
-        "ALTER TABLE user_classes ADD COLUMN strict_write INTEGER NOT NULL DEFAULT 0",
-        [],
-    )
-    .ok();
+    crate::migrate_schema::add_column_if_missing(
+        conn,
+        "users",
+        "strict_write",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    crate::migrate_schema::add_column_if_missing(
+        conn,
+        "user_classes",
+        "strict_write",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
     // TOTP, three columns rather than one:
     //   totp_secret     — base32, present from enrollment onwards
     //   totp_enabled    — set only once a code has been confirmed
@@ -196,15 +198,14 @@ pub fn init_users_schema(conn: &Connection) -> Result<(), String> {
     // Splitting secret from enabled is what makes enrollment two-phase: a secret
     // that exists but is not enabled locks nobody out if the authenticator never
     // actually took the QR-less manual entry.
-    conn.execute("ALTER TABLE users ADD COLUMN totp_secret TEXT", [])
-        .ok();
-    conn.execute(
-        "ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0",
-        [],
-    )
-    .ok();
-    conn.execute("ALTER TABLE users ADD COLUMN totp_last_step INTEGER", [])
-        .ok();
+    crate::migrate_schema::add_column_if_missing(conn, "users", "totp_secret", "TEXT")?;
+    crate::migrate_schema::add_column_if_missing(
+        conn,
+        "users",
+        "totp_enabled",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    crate::migrate_schema::add_column_if_missing(conn, "users", "totp_last_step", "INTEGER")?;
 
     // Seed default classes if none exist
     let class_count: i32 = conn
