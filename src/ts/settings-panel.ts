@@ -413,6 +413,162 @@ function wireArchiveRows(): void {
   };
 }
 
+// ── Streamed recovery packages (R05) ───────────────────────────────────────
+
+function wireRecoveryRows(): void {
+  const key = document.getElementById('s-recovery-key') as HTMLButtonElement | null;
+  const add = document.getElementById('s-recovery-dest-add') as HTMLButtonElement | null;
+  const packageNow = document.getElementById('s-recovery-package') as HTMLButtonElement | null;
+  const schedule = document.getElementById('s-recovery-schedule') as HTMLButtonElement | null;
+  const refresh = document.getElementById('s-recovery-refresh') as HTMLButtonElement | null;
+  const remove = document.getElementById('s-recovery-dest-remove') as HTMLButtonElement | null;
+  const cancel = document.getElementById('s-recovery-cancel') as HTMLButtonElement | null;
+  const destinationId = document.getElementById('s-recovery-dest-id') as HTMLInputElement | null;
+  const destinationPath = document.getElementById(
+    's-recovery-dest-path',
+  ) as HTMLInputElement | null;
+  const daily = document.getElementById('s-recovery-daily') as HTMLInputElement | null;
+  const interval = document.getElementById('s-recovery-interval') as HTMLInputElement | null;
+  const timeZone = document.getElementById('s-recovery-time-zone') as HTMLInputElement | null;
+  const runId = document.getElementById('s-recovery-run-id') as HTMLInputElement | null;
+  const status = document.getElementById('s-recovery-status') as HTMLOutputElement | null;
+  if (
+    !key ||
+    !add ||
+    !packageNow ||
+    !schedule ||
+    !refresh ||
+    !remove ||
+    !cancel ||
+    !destinationId ||
+    !destinationPath ||
+    !daily ||
+    !interval ||
+    !timeZone ||
+    !runId ||
+    !status
+  )
+    return;
+  const show = (text: string) => {
+    status.textContent = text;
+  };
+  if (!inTauri) {
+    for (const button of [key, add, packageNow, schedule, refresh, remove, cancel]) {
+      button.disabled = true;
+      button.title = 'Available in the desktop app. In a terminal: unv backup --help.';
+    }
+    return;
+  }
+  const reload = async () => {
+    const [destinations, schedules, runs] = await Promise.all([
+      invokeTauri<{ id: string; path: string }[]>('backup_destination_list'),
+      invokeTauri<{ id: string; target: string; next_due_at?: string }[]>('backup_schedule_list'),
+      invokeTauri<{ id: string; state: string }[]>('ops_list'),
+    ]);
+    const latest = runs[0];
+    // Fetching the current run is deliberate: its record has durable error and
+    // receipt detail that the abbreviated list leaves out.
+    if (latest) await invokeTauri('ops_show', { id: latest.id });
+    show(
+      `Destinations: ${destinations.map((d) => d.id).join(', ') || 'none'} · schedules: ${schedules.length} · latest: ${latest ? `${latest.id} ${latest.state}` : 'none'}`,
+    );
+  };
+  key.onclick = () =>
+    void (async () => {
+      try {
+        const [recipient, identity] = await invokeTauri<[string, string]>('backup_recovery_key');
+        await showConfirm(
+          `Save this recovery identity now; it is shown once only.\n\nRecipient: ${recipient}\n\n${identity}`,
+        );
+        show(`Recovery recipient configured: ${recipient}`);
+      } catch (e) {
+        showToast(
+          `Recovery key failed: ${e instanceof Error ? e.message : String(e)}`,
+          'err',
+          5000,
+        );
+      }
+    })();
+  add.onclick = () =>
+    void (async () => {
+      try {
+        await invokeTauri('backup_destination_add', {
+          id: destinationId.value,
+          path: destinationPath.value,
+        });
+        await reload();
+      } catch (e) {
+        showToast(`Destination failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 5000);
+      }
+    })();
+  packageNow.onclick = () =>
+    void (async () => {
+      try {
+        const receipt = await invokeTauri<{ package: string }>('backup_package', {
+          dest: destinationId.value,
+        });
+        show(`Verified package written: ${receipt.package}`);
+        await reload();
+      } catch (e) {
+        showToast(`Package failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 5000);
+      }
+    })();
+  schedule.onclick = () =>
+    void (async () => {
+      try {
+        const intervalValue = interval.value.trim() ? Number(interval.value) : undefined;
+        const dailyValue = daily.value.trim() || undefined;
+        if ((intervalValue === undefined) === (dailyValue === undefined))
+          throw new Error('Enter exactly one interval or daily time.');
+        await invokeTauri('backup_schedule_add', {
+          dest: destinationId.value,
+          interval: intervalValue,
+          daily: dailyValue,
+          timeZone: timeZone.value || 'UTC',
+        });
+        // First scheduling is the moment to warn: closing the app intentionally
+        // stops the unlocked executor, so a desktop scheduler is not a daemon.
+        await showConfirm(
+          'Scheduled backups run only while UnENVerse remains open and unlocked. Keep it running at the scheduled time.',
+        );
+        await reload();
+      } catch (e) {
+        showToast(`Schedule failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 5000);
+      }
+    })();
+  refresh.onclick = () =>
+    void reload().catch((e) =>
+      showToast(`Could not refresh recovery runs: ${String(e)}`, 'err', 4000),
+    );
+  remove.onclick = () =>
+    void (async () => {
+      try {
+        await invokeTauri('backup_destination_remove', { id: destinationId.value });
+        await reload();
+      } catch (e) {
+        showToast(
+          `Could not remove destination: ${e instanceof Error ? e.message : String(e)}`,
+          'err',
+          4000,
+        );
+      }
+    })();
+  cancel.onclick = () =>
+    void (async () => {
+      try {
+        await invokeTauri('ops_cancel', { id: runId.value });
+        await reload();
+      } catch (e) {
+        showToast(
+          `Could not cancel run: ${e instanceof Error ? e.message : String(e)}`,
+          'err',
+          4000,
+        );
+      }
+    })();
+  void reload().catch(() => undefined);
+}
+
 // ── Entropy source (Phase 33.4) ────────────────────────────────────────────
 // Options come from `entropy_sources` rather than a list here, so the dropdown
 // can never offer a source the backend would refuse. Applied on Save.
@@ -622,6 +778,7 @@ export function openSettings() {
 
   wireCatalogueRow();
   wireArchiveRows();
+  wireRecoveryRows();
   void wireEntropyRow(s.entropySource || 'os');
 
   const runOnboarding = document.getElementById('s-run-onboarding');
