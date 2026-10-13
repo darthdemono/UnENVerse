@@ -35,6 +35,9 @@ rand         = "0.10"
 time         = { version = "0.3.55", features = ["parsing"] }
 aho-corasick = "1"
 walkdir      = "2"
+jiff         = "0.2"
+tokio        = { version = "1", features = ["sync"] }
+rusqlite     = { version = "=0.40.2", features = ["sqlcipher"] }
 
 [lints]
 workspace = true
