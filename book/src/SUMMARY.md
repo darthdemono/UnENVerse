@@ -159,3 +159,6 @@
   - [0149: The product is UnENVerse, and the legacy names keep working](adr/0149-the-product-is-unenverse-and-the-legacy-names-keep-working.md)
   - [0150: The app is looked at through the real window in a container](adr/0150-the-app-is-looked-at-through-the-real-window-in-a-container.md)
   - [0151: The shared application engine is unv-app](adr/0151-the-shared-application-engine-is-unv-app.md)
+  - [0152: Vault schema changes are ordered and recorded](adr/0152-vault-schema-changes-are-ordered-and-recorded.md)
+  - [0153: One unlocked executor holds a fenced lease](adr/0153-one-unlocked-executor-holds-a-fenced-lease.md)
+  - [0154: Recovery packages are streamed and staged](adr/0154-recovery-packages-are-streamed-and-staged.md)
