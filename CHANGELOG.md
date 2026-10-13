@@ -2,6 +2,13 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## Unreleased
+
+### Added
+
+- R05 recovery packages: age X25519 `.unvpkg` streams with online SQLCipher snapshots, manifest and hash validation, marked local/NAS destinations, staged restore and local verification. `unv backup package|dest|recovery-key|schedule`, `unv recover`, and `unv ops` share the same core with the desktop Recovery settings.
+- Ordered SQLCipher schema migrations and durable, fenced operation records. The unlocked desktop executor holds an advisory lock, coalesces missed schedules, skips stale work, and stops before lock-time key zeroization.
+
 ## 2026-10-09 (0.42.x)
 
 ### Changed
