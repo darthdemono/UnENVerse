@@ -19,8 +19,8 @@ use unv_app::error::{CliError, CliResult};
 use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
     emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
-    node_cmd, oauth_cmd, out, pool, projects, render, scan, session, session_cmd, shield, uid_cmd,
-    users_cmd,
+    node_cmd, oauth_cmd, out, pool, projects, recovery_ops, render, scan, session, session_cmd,
+    shield, uid_cmd, users_cmd,
 };
 use vault_core::calendar;
 
@@ -498,6 +498,16 @@ enum Commands {
     Backup {
         #[command(subcommand)]
         cmd: BackupCmd,
+    },
+    /// Inspect, restore or verify a streamed recovery package.
+    Recover {
+        #[command(subcommand)]
+        cmd: RecoverCmd,
+    },
+    /// Inspect and control durable backup operation records.
+    Ops {
+        #[command(subcommand)]
+        cmd: OpsCmd,
     },
     /// Cross-chunk checks on a project's config: an nginx proxy_pass to a service
     /// that is not defined, two WireGuard peers claiming one network, a Traefik
@@ -1766,6 +1776,83 @@ enum BackupCmd {
         #[arg(long)]
         force: bool,
     },
+    /// Write an age-encrypted streamed recovery package to a named destination.
+    Package {
+        #[arg(long)]
+        dest: String,
+    },
+    /// Create, list or remove a local/NAS recovery destination.
+    Dest {
+        #[command(subcommand)]
+        cmd: BackupDestCmd,
+    },
+    /// Create and print a recovery identity exactly once; only its public recipient is stored.
+    RecoveryKey,
+    /// Schedule automatic recovery packaging while an unlocked executor is running.
+    Schedule {
+        #[command(subcommand)]
+        cmd: BackupScheduleCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum BackupDestCmd {
+    Add { id: String, path: PathBuf },
+    Ls,
+    Rm { id: String },
+}
+
+#[derive(Subcommand)]
+enum BackupScheduleCmd {
+    Add {
+        #[arg(long)]
+        dest: String,
+        /// Run every N seconds.
+        #[arg(long, conflicts_with = "daily")]
+        interval: Option<u64>,
+        /// Local wall-clock time as HH:MM.
+        #[arg(long, conflicts_with = "interval")]
+        daily: Option<String>,
+        /// IANA time zone for --daily, e.g. Europe/Budapest.
+        #[arg(long, default_value = "UTC")]
+        time_zone: String,
+        /// Skip a run delayed longer than this many seconds.
+        #[arg(long)]
+        max_lateness: Option<i64>,
+    },
+    Ls,
+}
+
+#[derive(Subcommand)]
+enum RecoverCmd {
+    /// Read non-secret envelope metadata without decrypting the package.
+    Inspect { package: PathBuf },
+    /// Decrypt into an empty directory after validating every member.
+    Restore {
+        package: PathBuf,
+        #[arg(long)]
+        to: PathBuf,
+        #[arg(long)]
+        identity: PathBuf,
+    },
+    /// Verify hashes, SQLCipher, storage, audit and configuration history.
+    Verify { directory: PathBuf },
+}
+
+#[derive(Subcommand)]
+enum OpsCmd {
+    Ls,
+    Show {
+        id: String,
+    },
+    Cancel {
+        id: String,
+    },
+    /// Run an immediate package to the named destination.
+    Run {
+        #[arg(long)]
+        dest: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2007,6 +2094,54 @@ fn real_main() {
             return;
         }
         _ => {}
+    }
+    // Recovery packages are deliberately usable when no current vault exists:
+    // inspect reveals only the envelope manifest, and restore writes only to an
+    // explicitly empty target after authentication completes.
+    if let Commands::Recover { cmd } = &cli.command {
+        let result: CliResult = match cmd {
+            RecoverCmd::Inspect { package } => vault_core::recovery::inspect_package(package)
+                .map(|manifest| {
+                    out::ok(
+                        "recover.inspect",
+                        serde_json::json!({ "manifest": manifest }),
+                        || {
+                            println!(
+                                "{}",
+                                serde_json::to_string_pretty(&manifest).unwrap_or_default()
+                            )
+                        },
+                    );
+                })
+                .map_err(CliError::from),
+            RecoverCmd::Restore {
+                package,
+                to,
+                identity,
+            } => vault_core::recovery::restore_package(package, to, identity)
+                .map(|manifest| {
+                    out::ok(
+                        "recover.restore",
+                        serde_json::json!({ "directory": to, "manifest": manifest }),
+                        || println!("Restored verified package to {}", to.display()),
+                    );
+                })
+                .map_err(CliError::from),
+            RecoverCmd::Verify { directory } => {
+                let password = access::get_password(cli.password.as_deref());
+                vault_core::recovery::verify_restored(directory, &password)
+                    .map(|manifest| {
+                        out::ok(
+                            "recover.verify",
+                            serde_json::json!({ "directory": directory, "manifest": manifest }),
+                            || println!("Recovery directory verified: {}", directory.display()),
+                        );
+                    })
+                    .map_err(CliError::from)
+            }
+        };
+        finish(result);
+        return;
     }
     // Nor do the preset listings: compiled-in public reference data.
     if let Commands::Template { cmd } = &cli.command {
@@ -2819,6 +2954,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
     match &cli.command {
         Commands::Completions { .. }
         | Commands::Describe
+        | Commands::Recover { .. }
         | Commands::Catalogue { .. }
         | Commands::ResetVault
         | Commands::Template { .. }
@@ -3529,6 +3665,61 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 backup_password,
                 force,
             } => backup::restore_archive(file, backup_password.as_deref(), *force, yes),
+            BackupCmd::Package { dest } => recovery_ops::package(a, dest).map(|receipt| {
+                out::ok("backup.package", serde_json::json!({ "receipt": receipt }), || println!("Wrote recovery package {}", receipt.package.display()));
+            }),
+            BackupCmd::Dest { cmd } => match cmd {
+                BackupDestCmd::Add { id, path } => recovery_ops::add_destination_access(a, id, path).map(|destination| {
+                    out::ok("backup.dest.add", serde_json::json!({ "destination": destination }), || println!("Added destination {} at {}", destination.id, destination.path.display()));
+                }),
+                BackupDestCmd::Ls => recovery_ops::list_destinations_access(a).map(|destinations| {
+                    out::ok("backup.dest.ls", serde_json::json!({ "destinations": destinations }), || {
+                        for destination in destinations { println!("{}\t{}", destination.id, destination.path.display()); }
+                    });
+                }),
+                BackupDestCmd::Rm { id } => recovery_ops::remove_destination_access(a, id).map(|()| {
+                    out::ok("backup.dest.rm", serde_json::json!({ "id": id }), || println!("Removed destination {id}"));
+                }),
+            },
+            BackupCmd::RecoveryKey => recovery_ops::create_recovery_identity(a).map(|(recipient, identity)| {
+                // Identity is never retained in the vault, audit, or JSON receipt.
+                if out::is_json() { println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "ok": true, "command": "backup.recovery-key", "data": { "recipient": recipient, "identity": identity, "warning": "Save this identity now; it will not be shown again." } })).unwrap_or_default()); }
+                else { println!("Recipient: {recipient}\n\nSave this recovery identity now; it will not be shown again:\n{identity}"); }
+            }),
+            BackupCmd::Schedule { cmd } => match cmd {
+                BackupScheduleCmd::Add { dest, interval, daily, time_zone, max_lateness } => {
+                    let rule = match (interval, daily) {
+                        (Some(seconds), None) => recovery_ops::ScheduleRule::Interval { seconds: *seconds },
+                        (None, Some(at)) => recovery_ops::ScheduleRule::Daily { at: at.clone(), time_zone: time_zone.clone() },
+                        _ => return Err(CliError::invalid("Specify exactly one of --interval or --daily")),
+                    };
+                    recovery_ops::add_schedule(a, dest, rule, *max_lateness).map(|schedule| {
+                        out::ok("backup.schedule.add", serde_json::json!({ "schedule": schedule }), || println!("Scheduled backup {}", schedule.id));
+                    })
+                }
+                BackupScheduleCmd::Ls => a.conn().and_then(|conn| vault_core::ops::list_schedules(&conn).map_err(CliError::from)).map(|schedules| {
+                    out::ok("backup.schedule.ls", serde_json::json!({ "schedules": schedules }), || {
+                        for schedule in schedules { println!("{}\t{}\t{}", schedule.id, schedule.target, schedule.next_due_at.unwrap_or_else(|| "none".to_string())); }
+                    });
+                }),
+            },
+        },
+
+        Commands::Ops { cmd } => match cmd {
+            OpsCmd::Ls => recovery_ops::list_runs(a).map(|runs| {
+                out::ok("ops.ls", serde_json::json!({ "runs": runs }), || {
+                    for run in runs { println!("{}\t{}\t{}", run.id, run.kind, run.state.as_str()); }
+                });
+            }),
+            OpsCmd::Show { id } => recovery_ops::show_run(a, id).map(|run| {
+                out::ok("ops.show", serde_json::json!({ "run": run }), || println!("{} {}", run.id, run.state.as_str()));
+            }),
+            OpsCmd::Cancel { id } => recovery_ops::cancel_run(a, id).map(|run| {
+                out::ok("ops.cancel", serde_json::json!({ "run": run }), || println!("Cancelled {}", run.id));
+            }),
+            OpsCmd::Run { dest } => recovery_ops::run_now(a, dest).map(|run| {
+                out::ok("ops.run", serde_json::json!({ "run": run }), || println!("Run {}: {}", run.id, run.state.as_str()));
+            }),
         },
 
         Commands::Enrich {
