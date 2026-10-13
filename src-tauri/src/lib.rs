@@ -31,6 +31,10 @@ pub struct LanServer {
 /// The LAN server, when one is running. `None` means we are not serving.
 pub struct LanState(pub Mutex<Option<LanServer>>);
 
+/// The unlocked-only durable operations executor. It owns a second copy of the
+/// derived key, so locking must stop and join it before the vault key is wiped.
+pub struct OpsState(pub Mutex<Option<unv_app::recovery_ops::Executor>>);
+
 /// Best-effort LAN address of this machine, for display.
 ///
 /// Opens a UDP socket toward a routable address and reads back which local
@@ -67,6 +71,16 @@ fn ensure_parent(path: &Path) -> Result<(), String> {
         fs::create_dir_all(p).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+fn recovery_paths(app: &AppHandle) -> Result<unv_app::recovery_ops::RecoveryPaths, String> {
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    Ok(unv_app::recovery_ops::RecoveryPaths {
+        db_path: data_dir.join("vault.db"),
+        salt_path: data_dir.join("vault.salt"),
+        materialisation_log: unv_app::matlog::path(),
+        data_dir,
+    })
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -106,6 +120,7 @@ mod commands {
     pub fn unlock_vault(
         app: AppHandle,
         state: State<VaultState>,
+        ops: State<OpsState>,
         password: String,
     ) -> Result<bool, String> {
         let db = db_path(&app)?;
@@ -117,7 +132,7 @@ mod commands {
         // password that was perfectly correct.
         vault_core::check_salt_pairing(&db, &salt_file)?;
         let salt = vault_core::read_or_create_salt(&salt_file)?;
-        let key = vault_core::derive_key(&password, &salt)?;
+        let mut key = vault_core::derive_key(&password, &salt)?;
         let conn = vault_core::open_db(&db, &key)?;
         vault_core::init_schema(&conn)?;
 
@@ -140,7 +155,15 @@ mod commands {
         // sub-user login path into an oracle for the vault key.
         vault_core::ensure_owner_user(&conn)?;
 
+        let executor = match unv_app::recovery_ops::Executor::start(key, recovery_paths(&app)?) {
+            Ok(executor) => executor,
+            Err(error) => {
+                key.zeroize();
+                return Err(error);
+            }
+        };
         *state.0.lock().map_err(|_| "State lock poisoned")? = Some(key);
+        *ops.0.lock().map_err(|_| "Operations state lock poisoned")? = Some(executor);
         Ok(true)
     }
 
@@ -149,7 +172,21 @@ mod commands {
     /// Stops the LAN server first: it holds a copy of the key, so leaving it up
     /// would mean "locked" on screen while peers kept reading and writing.
     #[tauri::command]
-    pub fn lock_vault(state: State<VaultState>, lan: State<LanState>) -> Result<(), String> {
+    pub fn lock_vault(
+        state: State<VaultState>,
+        lan: State<LanState>,
+        ops: State<OpsState>,
+    ) -> Result<(), String> {
+        // Join before LAN shutdown or key zeroization: the executor uses its
+        // own key copy and marks any in-flight run paused on this path.
+        if let Some(mut executor) = ops
+            .0
+            .lock()
+            .map_err(|_| "Operations state lock poisoned")?
+            .take()
+        {
+            executor.stop();
+        }
         lan_stop(lan)?;
         let mut g = state.0.lock().map_err(|_| "State lock poisoned")?;
         if let Some(mut k) = g.take() {
@@ -173,7 +210,16 @@ mod commands {
         app: AppHandle,
         state: State<VaultState>,
         lan: State<LanState>,
+        ops: State<OpsState>,
     ) -> Result<(), String> {
+        if let Some(mut executor) = ops
+            .0
+            .lock()
+            .map_err(|_| "Operations state lock poisoned")?
+            .take()
+        {
+            executor.stop();
+        }
         lan_stop(lan)?;
         let mut g = state.0.lock().map_err(|_| "State lock poisoned")?;
         if let Some(mut k) = g.take() {
@@ -673,10 +719,19 @@ mod commands {
         app: AppHandle,
         state: State<VaultState>,
         lan: State<LanState>,
+        ops: State<OpsState>,
         text: String,
         password: String,
     ) -> Result<(), String> {
         let (db, salt) = unv_app::backup::open_archive(&text, &password).map_err(|e| e.message)?;
+        if let Some(mut executor) = ops
+            .0
+            .lock()
+            .map_err(|_| "Operations state lock poisoned")?
+            .take()
+        {
+            executor.stop();
+        }
         lan_stop(lan)?;
         let mut g = state.0.lock().map_err(|_| "State lock poisoned")?;
         if let Some(mut k) = g.take() {
@@ -864,6 +919,139 @@ mod commands {
         vault_core::set_permission_expr(conn, kind, id, "read", &e.read)?;
         vault_core::set_permission_expr(conn, kind, id, "write", &e.write)?;
         Ok(())
+    }
+
+    fn recovery_connection(
+        app: &AppHandle,
+        state: &State<VaultState>,
+    ) -> Result<(VaultKey, vault_core::SqlConnection), String> {
+        let key = *state
+            .0
+            .lock()
+            .map_err(|_| "State lock poisoned")?
+            .as_ref()
+            .ok_or("Vault is locked")?;
+        let conn = vault_core::open_db(&db_path(app)?, &key)?;
+        Ok((key, conn))
+    }
+
+    // ── Recovery packages and durable operations (R05) ─────────────────────
+
+    #[tauri::command]
+    pub fn backup_recovery_key(
+        app: AppHandle,
+        state: State<VaultState>,
+    ) -> Result<(String, String), String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        let (recipient, identity) = vault_core::recovery::generate_identity();
+        vault_core::recovery::set_recipient(&conn, &recipient)?;
+        Ok((recipient, identity))
+    }
+
+    #[tauri::command]
+    pub fn backup_destination_add(
+        app: AppHandle,
+        state: State<VaultState>,
+        id: String,
+        path: String,
+    ) -> Result<unv_app::recovery_ops::Destination, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        unv_app::recovery_ops::add_destination(&conn, &id, Path::new(&path))
+    }
+
+    #[tauri::command]
+    pub fn backup_destination_list(
+        app: AppHandle,
+        state: State<VaultState>,
+    ) -> Result<Vec<unv_app::recovery_ops::Destination>, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        unv_app::recovery_ops::list_destinations(&conn)
+    }
+
+    #[tauri::command]
+    pub fn backup_destination_remove(
+        app: AppHandle,
+        state: State<VaultState>,
+        id: String,
+    ) -> Result<(), String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        unv_app::recovery_ops::remove_destination(&conn, &id)
+    }
+
+    #[tauri::command]
+    pub fn backup_package(
+        app: AppHandle,
+        state: State<VaultState>,
+        dest: String,
+    ) -> Result<unv_app::recovery_ops::PackageReceipt, String> {
+        let (key, conn) = recovery_connection(&app, &state)?;
+        unv_app::recovery_ops::package_for_paths(&conn, &key, &recovery_paths(&app)?, &dest)
+    }
+
+    #[tauri::command]
+    pub fn backup_schedule_add(
+        app: AppHandle,
+        state: State<VaultState>,
+        dest: String,
+        interval: Option<u64>,
+        daily: Option<String>,
+        time_zone: Option<String>,
+        max_lateness: Option<i64>,
+    ) -> Result<vault_core::ops::Schedule, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        let rule = match (interval, daily) {
+            (Some(seconds), None) => unv_app::recovery_ops::ScheduleRule::Interval { seconds },
+            (None, Some(at)) => unv_app::recovery_ops::ScheduleRule::Daily {
+                at,
+                time_zone: time_zone.unwrap_or_else(|| "UTC".to_string()),
+            },
+            _ => return Err("Specify exactly one of interval or daily".to_string()),
+        };
+        unv_app::recovery_ops::add_schedule_for_conn(&conn, &dest, rule, max_lateness)
+    }
+
+    #[tauri::command]
+    pub fn backup_schedule_list(
+        app: AppHandle,
+        state: State<VaultState>,
+    ) -> Result<Vec<vault_core::ops::Schedule>, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        vault_core::ops::list_schedules(&conn)
+    }
+
+    #[tauri::command]
+    pub fn ops_list(
+        app: AppHandle,
+        state: State<VaultState>,
+    ) -> Result<Vec<vault_core::ops::Run>, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        vault_core::ops::list_runs(&conn)
+    }
+
+    #[tauri::command]
+    pub fn ops_show(
+        app: AppHandle,
+        state: State<VaultState>,
+        id: String,
+    ) -> Result<Option<vault_core::ops::Run>, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        vault_core::ops::get_run(&conn, &id)
+    }
+
+    #[tauri::command]
+    pub fn ops_cancel(
+        app: AppHandle,
+        state: State<VaultState>,
+        id: String,
+    ) -> Result<vault_core::ops::Run, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        vault_core::ops::transition_run(
+            &conn,
+            &id,
+            vault_core::ops::RunState::Cancelled,
+            Some("cancelled"),
+            None,
+        )
     }
 
     #[tauri::command]
@@ -1927,6 +2115,7 @@ pub fn run() {
         )
         .manage(VaultState(Mutex::new(None)))
         .manage(LanState(Mutex::new(None)))
+        .manage(OpsState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             commands::unlock_vault,
             commands::caps_lock_state,
@@ -1976,6 +2165,16 @@ pub fn run() {
             commands::import_vault_plan,
             commands::backup_archive_build,
             commands::backup_archive_restore,
+            commands::backup_recovery_key,
+            commands::backup_destination_add,
+            commands::backup_destination_list,
+            commands::backup_destination_remove,
+            commands::backup_package,
+            commands::backup_schedule_add,
+            commands::backup_schedule_list,
+            commands::ops_list,
+            commands::ops_show,
+            commands::ops_cancel,
             commands::doctor_document,
             commands::doctor_file,
             commands::catalogue_status,
