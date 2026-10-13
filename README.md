@@ -539,7 +539,7 @@ One exception, named for what it is. `enrich --online` talks to github.com and s
 | `env` `render` `exec` `emit` `curl` `cookie` `file write` | Materialising values without printing them                           |
 | `gen`                                                     | Secrets, passwords, certificates, SSH keys, entropy sources          |
 | `import` `import-vault` `watch`                           | Getting existing secrets in                                          |
-| `backup`                                                  | `.vaultbak` and `.vaultarc`                                          |
+| `backup` `recover` `ops`                                  | Backups, streamed recovery packages and durable operations           |
 | `scan` `status` `doctor` `audit`                          | Checking                                                             |
 | `pool`                                                    | Key pools                                                            |
 | `user` `user token` `class` `perm`                        | Users, tokens, classes, permissions                                  |
@@ -677,10 +677,11 @@ The Tools pane reads the same file over IPC rather than reimplementing the forma
 
 Two formats, and they do different jobs. Mixing them up is how people lose vaults.
 
-| Command              | Writes                                          | Restoring needs      |
-| -------------------- | ----------------------------------------------- | -------------------- |
-| `unv backup export`  | `.vaultbak`: vault contents, re-encrypted       | The backup password  |
-| `unv backup archive` | `.vaultarc`: the database file **and its salt** | The archive password |
+| Command              | Writes                                          | Restoring needs          |
+| -------------------- | ----------------------------------------------- | ------------------------ |
+| `unv backup export`  | `.vaultbak`: vault contents, re-encrypted       | The backup password      |
+| `unv backup archive` | `.vaultarc`: the database file **and its salt** | The archive password     |
+| `unv backup package` | `.unvpkg`: streamed snapshot and recovery files | An age recovery identity |
 
 A `.vaultbak` holds the decrypted vault re-encrypted under a fresh password (PBKDF2-SHA256 into AES-256-GCM), and the desktop app reads the same format. Restoring it generates a new salt and your master password derives against that, so it never needs the original. This is the one to move between machines.
 
@@ -694,6 +695,10 @@ unv backup restore-archive vault.vaultarc
 Restoring refuses to overwrite an existing vault without `--force`, verifies both checksums _before_ writing anything, and writes the salt first. A salt without a database is recoverable, because you restore again. A database without its salt is not.
 
 `restore-archive` deliberately runs without an open vault, since "there is no vault here" is the state it exists for.
+
+For disaster recovery across a local disk or NAS, create an age recovery identity once, retain the printed private identity away from the vault, then register a marked destination. The public recipient is stored in the vault; the identity is never stored there. Packages stream an online SQLite snapshot through age encryption to a `.part` file, sync and rename it only after completion, then leave a read-back-verified receipt. They include `vault.db`, `vault.salt`, node/LAN recovery material and the materialisation log, but never `approver.key`.
+
+`unv recover inspect PACKAGE.unvpkg` reads only non-secret envelope metadata. `unv recover restore PACKAGE.unvpkg --to EMPTY_DIR --identity IDENTITY_FILE` stages and verifies every encrypted member before installing it. `unv recover verify EMPTY_DIR` additionally checks SQLCipher, storage and audit chains, configuration history, entry count and vault version. `unv backup schedule` creates interval or IANA-time-zone daily work; it executes only while the desktop app stays open and unlocked. `unv ops` lists, shows, cancels and runs durable package records.
 
 Both formats are in the app too, under Settings, Import / Export. The archive is built by the same code the CLI uses; restoring verifies the password and both checksums before touching a file, stops the LAN server, zeroizes the in-memory key and reloads. One caveat: an archive is a byte copy of `vault.db`, so lock any other tool using the vault first, or it can miss the last pages written.
 
