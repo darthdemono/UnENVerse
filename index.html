@@ -1484,6 +1484,30 @@
                 <button id="s-archive-restore-btn" class="btn btn-ghost btn-sm" aria-describedby="s-archive-hint">Restore archive…</button>
               </div>
             </div>
+            <div class="settings-row settings-row-stacked">
+              <div class="settings-label" id="s-recovery-label">
+                Recovery packages
+                <div class="settings-hint">Streamed, age-encrypted packages for an empty recovery directory. Automation runs only while this desktop app is open and the vault is unlocked.</div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <button id="s-recovery-key" class="btn btn-ghost btn-sm" aria-describedby="s-recovery-label">Create recovery key…</button>
+                <input id="s-recovery-dest-id" class="form-input" aria-label="Recovery destination id" placeholder="destination id">
+                <input id="s-recovery-dest-path" class="form-input" aria-label="Recovery destination path" placeholder="local or NAS path">
+                <button id="s-recovery-dest-add" class="btn btn-ghost btn-sm">Add destination</button>
+                <button id="s-recovery-package" class="btn btn-ghost btn-sm">Package now</button>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <input id="s-recovery-daily" class="form-input" aria-label="Daily package time" placeholder="daily HH:MM (optional)">
+                <input id="s-recovery-interval" class="form-input" aria-label="Package interval seconds" placeholder="interval seconds (optional)">
+                <input id="s-recovery-time-zone" class="form-input" aria-label="Schedule IANA time zone" value="UTC">
+                <button id="s-recovery-schedule" class="btn btn-ghost btn-sm">Schedule</button>
+                <button id="s-recovery-refresh" class="btn btn-ghost btn-sm">Refresh runs</button>
+                <button id="s-recovery-dest-remove" class="btn btn-ghost btn-sm">Remove destination</button>
+                <input id="s-recovery-run-id" class="form-input" aria-label="Operation run id to cancel" placeholder="run id">
+                <button id="s-recovery-cancel" class="btn btn-ghost btn-sm">Cancel run</button>
+              </div>
+              <output id="s-recovery-status" class="env-name-preview mono" aria-live="polite"></output>
+            </div>
             <div class="settings-row">
               <div class="settings-label">Export vault</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
