@@ -236,12 +236,79 @@ const PUBLIC_FIELDS_24_1: [&str; 5] = [
     "bundle_primary",
 ];
 
+/// Lifecycle metadata that is safe as a concept but may contain private
+/// locators inside its structured values. The structured redactor below keeps
+/// only its documented display fields.
+const PUBLIC_FIELDS_R07: [&str; 5] = [
+    "authority",
+    "provenance",
+    "issued_at",
+    "issued_at_precision",
+    "attachments",
+];
+
 /// True when a field is known not to hold secret material.
 fn is_public_field(name: &str) -> bool {
     PUBLIC_FIELDS.contains(&name)
         || PUBLIC_FIELDS_EXTRA.contains(&name)
         || PUBLIC_FIELDS_P23.contains(&name)
         || PUBLIC_FIELDS_24_1.contains(&name)
+        || PUBLIC_FIELDS_R07.contains(&name)
+}
+
+/// Retain named, non-locating metadata while masking every other member.
+fn redact_metadata_object(value: &Value, public: &[&str]) -> Value {
+    let Some(object) = value.as_object() else {
+        return masked_json(&value.to_string());
+    };
+    let mut result = serde_json::Map::new();
+    for (key, value) in object {
+        if public.contains(&key.as_str()) {
+            result.insert(key.clone(), value.clone());
+        } else if let Some(text) = value.as_str() {
+            result.insert(key.clone(), masked_json(text));
+        } else {
+            result.insert(key.clone(), json!({ "redacted": true }));
+        }
+    }
+    Value::Object(result)
+}
+
+/// Redact the lifecycle extension's structured values before the ordinary
+/// fail-closed string sweep sees only their outer objects.
+fn redact_lifecycle_metadata(entry: &Value, redacted: &mut Value) {
+    if let Some(authority) = entry.get("authority") {
+        redacted["authority"] = redact_metadata_object(authority, &["kind", "owner"]);
+    }
+    if let Some(provenance) = entry.get("provenance") {
+        redacted["provenance"] = redact_metadata_object(
+            provenance,
+            &[
+                "source_kind",
+                "imported_at",
+                "source_created_at",
+                "source_modified_at",
+            ],
+        );
+    }
+    if let Some(attachments) = entry.get("attachments").and_then(|value| value.as_array()) {
+        redacted["attachments"] = Value::Array(
+            attachments
+                .iter()
+                .map(|attachment| {
+                    redact_metadata_object(attachment, &["name", "media_type", "size"])
+                })
+                .collect(),
+        );
+    }
+    if let Some(plugin_data) = entry.get("plugin_data") {
+        let serialized = serde_json::to_string(plugin_data).unwrap_or_default();
+        redacted["plugin_data"] = json!({
+            "redacted": true,
+            "fingerprint": fingerprint(&serialized),
+            "bytes": serialized.len(),
+        });
+    }
 }
 
 /// Whether one of the two fixed value slots is deliberately public.
@@ -268,6 +335,7 @@ pub fn redact_entry(entry: &Value) -> Value {
     }
     let mut e = entry.clone();
     let is_cookie = entry.get("secretType").and_then(|v| v.as_str()) == Some("cookie");
+    redact_lifecycle_metadata(entry, &mut e);
     // The two fixed value slots can each be marked public (Phase 23, E5). An
     // OAuth client id lives in `api_key` and is printed in the issuer's own
     // documentation; masking it protects nothing and stops an agent building an
@@ -452,6 +520,12 @@ pub fn secret_pairs(entry: &Value) -> Vec<(String, String)> {
                 .map(|v| ("version_history".to_string(), v.to_string()))
         }));
     }
+    if let Some(plugin_data) = entry.get("plugin_data") {
+        let serialized = serde_json::to_string(plugin_data).unwrap_or_default();
+        if !serialized.is_empty() {
+            pairs.push(("plugin_data".to_string(), serialized));
+        }
+    }
     pairs
 }
 
@@ -547,4 +621,35 @@ pub fn refuse_reveal(what: &str) -> CliError {
     CliError::redacted(format!(
         "{what} would contain secret values. Write it with --out <file>, or pass --reveal to print it."
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lifecycle_metadata_never_leaks_private_locators_or_plugin_values() {
+        let entry = json!({
+            "provider": "Example",
+            "api_key": "very-secret",
+            "authority": { "kind": "team", "owner": "platform", "source_id": "acct-4242" },
+            "provenance": { "source_kind": "import", "source_id": "private://source" },
+            "attachments": [{ "name": "bundle", "media_type": "application/json", "data": "token" }],
+            "plugin_data": { "access_token": "plugin-secret" },
+        });
+        let text = redact_entry(&entry).to_string();
+        // Regression: R07 structured metadata used to bypass the top-level
+        // string sweep, printing nested locators and adapter credentials.
+        for private in [
+            "very-secret",
+            "acct-4242",
+            "private://source",
+            "plugin-secret",
+            "\"token\"",
+        ] {
+            assert!(!text.contains(private), "redaction leaked {private}");
+        }
+        assert!(text.contains("platform"));
+        assert!(text.contains("application/json"));
+    }
 }
