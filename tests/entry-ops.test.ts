@@ -15,7 +15,7 @@ import {
   populateProjectSelect,
   buildCatChips,
 } from '../src/ts/modals';
-import { renameProviderRefs } from '../src/ts/chunk-ops';
+import { renameProviderRefs, resolveFieldRef } from '../src/ts/chunk-ops';
 import { loadRealIndexHtml, makeEntry, makeProject, makeVault, resetState } from './helpers';
 
 vi.mock('../src/ts/utils', async (importOriginal) => {
@@ -198,6 +198,32 @@ describe('renameProviderRefs', () => {
   it('survives a project with no chunks', () => {
     st.vault.projects.push(makeProject({ id: 'p2', name: 'Empty' }));
     expect(() => renameProviderRefs('Stripe', null, 'X', null)).not.toThrow();
+  });
+
+  it('resolves a stable binding after its provider is renamed without touching its text', () => {
+    st.vault.api_keys = [
+      makeEntry({ id: 'entry-db', provider: 'Database production', api_key: 'bound-secret' }),
+    ];
+    st.vault.projects[0].bindings = [{ name: 'DB_PASSWORD', entry_id: 'entry-db' }];
+    st.vault.projects[0].chunks![0].fields = [
+      { key: 'password', value: '${DB_PASSWORD}', field_type: 'secret' },
+    ] as any;
+
+    expect(resolveFieldRef('${DB_PASSWORD}', true).resolved).toBe('bound-secret');
+    st.vault.api_keys[0].provider = 'Database production renamed';
+    renameProviderRefs(
+      'Database production',
+      null,
+      'Database production renamed',
+      null,
+      'entry-db',
+    );
+
+    // Regression: only legacy provider-name references are rewritten. A
+    // project binding identifies the entry by id and keeps its deploy text
+    // stable through the provider rename.
+    expect(resolveFieldRef('${DB_PASSWORD}', true).resolved).toBe('bound-secret');
+    expect(st.vault.projects[0].chunks![0].fields[0].value).toBe('${DB_PASSWORD}');
   });
 });
 
