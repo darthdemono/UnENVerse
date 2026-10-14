@@ -43,6 +43,7 @@ pub mod node_install;
 pub mod node_listen;
 pub mod oauth_cmd;
 pub mod out;
+pub mod password_sources;
 pub mod pool;
 pub mod profile;
 pub mod projects;
