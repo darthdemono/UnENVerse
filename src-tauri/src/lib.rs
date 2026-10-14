@@ -83,6 +83,30 @@ fn recovery_paths(app: &AppHandle) -> Result<unv_app::recovery_ops::RecoveryPath
     })
 }
 
+/// Keeps one durable executor for the lifetime of an unlocked local session.
+///
+/// A renderer reload can show the unlock screen while Rust still retains the
+/// already-validated key and executor. Revalidating its password must not start
+/// a second executor over the same advisory lock.
+fn retain_unlocked_session(
+    state: &Mutex<Option<VaultKey>>,
+    ops: &Mutex<Option<unv_app::recovery_ops::Executor>>,
+    mut key: VaultKey,
+    paths: unv_app::recovery_ops::RecoveryPaths,
+) -> Result<(), String> {
+    // Keep the same order as lock_vault: OpsState, then VaultState.
+    let mut ops_guard = ops.lock().map_err(|_| "Operations state lock poisoned")?;
+    let mut state_guard = state.lock().map_err(|_| "State lock poisoned")?;
+    if state_guard.is_some() {
+        key.zeroize();
+        return Ok(());
+    }
+    let executor = unv_app::recovery_ops::Executor::start(key, paths)?;
+    *state_guard = Some(key);
+    *ops_guard = Some(executor);
+    Ok(())
+}
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 mod commands {
@@ -132,7 +156,7 @@ mod commands {
         // password that was perfectly correct.
         vault_core::check_salt_pairing(&db, &salt_file)?;
         let salt = vault_core::read_or_create_salt(&salt_file)?;
-        let mut key = vault_core::derive_key(&password, &salt)?;
+        let key = vault_core::derive_key(&password, &salt)?;
         let conn = vault_core::open_db(&db, &key)?;
         vault_core::init_schema(&conn)?;
 
@@ -155,15 +179,7 @@ mod commands {
         // sub-user login path into an oracle for the vault key.
         vault_core::ensure_owner_user(&conn)?;
 
-        let executor = match unv_app::recovery_ops::Executor::start(key, recovery_paths(&app)?) {
-            Ok(executor) => executor,
-            Err(error) => {
-                key.zeroize();
-                return Err(error);
-            }
-        };
-        *state.0.lock().map_err(|_| "State lock poisoned")? = Some(key);
-        *ops.0.lock().map_err(|_| "Operations state lock poisoned")? = Some(executor);
+        retain_unlocked_session(&state.0, &ops.0, key, recovery_paths(&app)?)?;
         Ok(true)
     }
 
@@ -812,36 +828,6 @@ mod commands {
             let _ = fs::remove_file(p);
         }
         Ok(())
-    }
-
-    /// Phase 33.3: `unv import-vault` in the app. Pure over its arguments (the
-    /// renderer holds the decrypted vault, the A1 rule): parses a Bitwarden,
-    /// 1Password or Proton export and returns what importing would do, plus the
-    /// entry array after it. Nothing is written here; the caller applies it with
-    /// its own save, so the compare-and-swap covers the whole import.
-    #[tauri::command]
-    pub fn import_vault_plan(
-        vendor: String,
-        text: String,
-        vault: serde_json::Value,
-        project: Option<String>,
-        keep_folders: bool,
-    ) -> Result<serde_json::Value, String> {
-        let (doc, warnings) = unv_app::import_vaults::source_value(&vendor, &text)?;
-        let opts = unv_app::import_vaults::ImportOpts {
-            apply: false,
-            project: project.as_deref(),
-            category: None,
-            keep_folders,
-            force: false,
-        };
-        let plan = unv_app::import_vaults::plan_import(&vault, &vendor, &doc, &opts)
-            .map_err(|e| e.message)?;
-        Ok(serde_json::json!({
-            "entries": plan.entries, "created": plan.created, "updated": plan.updated,
-            "unchanged": plan.unchanged, "skipped": plan.skipped, "conflicts": plan.conflicts, "preview": plan.preview,
-            "warnings": warnings,
-        }))
     }
 
     /// Phase 33.4: bytes from a chosen entropy source for the UI generators, the
@@ -2311,7 +2297,6 @@ pub fn run() {
             commands::enrich_online,
             commands::set_strict_write,
             commands::entropy_fill,
-            commands::import_vault_plan,
             commands::backup_archive_build,
             commands::backup_archive_restore,
             commands::backup_recovery_key,
@@ -2456,6 +2441,53 @@ mod export_file_tests {
         let path = write_export_file_to(&dir, "perms.env", "x").unwrap();
         let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod unlocked_session_tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn scratch() -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("unenverse-unlock-reload-test-{nanos}"));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_renderer_reload_reuses_the_existing_operations_executor() {
+        // A renderer reload used to display the unlock screen and then fail
+        // every second unlock because it attempted to take the same ops lock.
+        let dir = scratch();
+        let salt = dir.join("vault.salt");
+        fs::write(&salt, b"0123456789abcdef").unwrap();
+        let paths = unv_app::recovery_ops::RecoveryPaths {
+            db_path: dir.join("vault.db"),
+            salt_path: salt.clone(),
+            materialisation_log: dir.join("materialisations.jsonl"),
+            data_dir: dir.clone(),
+        };
+        let state = Mutex::new(None);
+        let ops = Mutex::new(None);
+        let key =
+            vault_core::derive_key("viewer-test-password", &fs::read(&salt).unwrap()).unwrap();
+        retain_unlocked_session(&state, &ops, key, paths.clone()).unwrap();
+        let key =
+            vault_core::derive_key("viewer-test-password", &fs::read(&salt).unwrap()).unwrap();
+        retain_unlocked_session(&state, &ops, key, paths).unwrap();
+        assert!(state.lock().unwrap().is_some());
+        let mut executor = ops.lock().unwrap().take().unwrap();
+        executor.stop();
+        if let Some(mut key) = state.lock().unwrap().take() {
+            key.zeroize();
+        }
         fs::remove_dir_all(dir).unwrap();
     }
 }
