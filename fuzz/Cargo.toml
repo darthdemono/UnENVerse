@@ -1,0 +1,38 @@
+[package]
+name = "unenverse-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+unv-app = { path = "../unv-app" }
+
+[[bin]]
+name = "migrate_env"
+path = "fuzz_targets/migrate_env.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "migrate_compose"
+path = "fuzz_targets/migrate_compose.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "migrate_wireguard"
+path = "fuzz_targets/migrate_wireguard.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "migrate_nginx"
+path = "fuzz_targets/migrate_nginx.rs"
+test = false
+doc = false
