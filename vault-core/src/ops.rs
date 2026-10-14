@@ -302,9 +302,30 @@ pub fn create_run(
     missed_occurrences: i64,
     lease_epoch: Option<i64>,
 ) -> Result<Run, String> {
+    create_run_with_kind(
+        conn,
+        id,
+        schedule,
+        "backup.package",
+        missed_occurrences,
+        lease_epoch,
+    )
+}
+
+/// Creates a manual or scheduled run with an explicit operation kind.  A
+/// schedule remains authoritative when present; the explicit kind is used only
+/// for manually-triggered operations such as a restore drill.
+pub fn create_run_with_kind(
+    conn: &Connection,
+    id: &str,
+    schedule: Option<&Schedule>,
+    manual_kind: &str,
+    missed_occurrences: i64,
+    lease_epoch: Option<i64>,
+) -> Result<Run, String> {
     let (schedule_id, kind, policy_rev) = match schedule {
         Some(s) => (Some(s.id.as_str()), s.kind.as_str(), s.policy_rev),
-        None => (None, "backup.package", 1),
+        None => (None, manual_kind, 1),
     };
     let now = crate::iso_now();
     conn.execute(
