@@ -277,6 +277,19 @@ Two of them have a trap worth naming. A Bitwarden secure note keeps the secret i
 
 `unv watch FILE` keeps a `.env` in sync with the vault as you edit it. It upserts by provider, because the first version appended unconditionally and added a full copy of the file to the vault on every save.
 
+### Lossless config migration
+
+`unv migrate` imports a configuration file with a durable source identity instead of treating its display name as an identity. It reads `.env`, Docker Compose, WireGuard and nginx files locally, plans first, and keeps the source read-only. A repeat with unchanged source values is a no-op. When both the source and the mapped vault entry changed, apply stops with named conflicts rather than choosing a side.
+
+```powershell
+unv migrate plan env .\app.env --template
+unv migrate apply env .\app.env --template
+unv migrate report
+unv migrate verify <migration-id>
+```
+
+Template mode stores a byte-preserving template in the encrypted vault. Imported values become `${UNV_MIG_...}` references and `$${` keeps a literal `${` in the source. Verification renders the template and compares its SHA-256 with the imported bytes. Without template mode, comments and constructs a reader cannot operate are kept in an encrypted source archive and named in the report. `unv migrate archive ls` lists those records; `unv migrate archive export <id> --out <path>` writes one to a private file. Migration needs direct access to the local vault because it reads local source files and stores their encrypted archive.
+
 ### Icons
 
 Around three hundred Simple Icons slugs, searchable, with a letter-avatar fallback. You can also upload your own file: PNG, JPEG, GIF, WebP, BMP or ICO, up to 96 KB encoded, typed by magic bytes rather than by the file extension.
@@ -696,9 +709,21 @@ Restoring refuses to overwrite an existing vault without `--force`, verifies bot
 
 `restore-archive` deliberately runs without an open vault, since "there is no vault here" is the state it exists for.
 
-For disaster recovery across a local disk or NAS, create an age recovery identity once, retain the printed private identity away from the vault, then register a marked destination. The public recipient is stored in the vault; the identity is never stored there. Packages stream an online SQLite snapshot through age encryption to a `.part` file, sync and rename it only after completion, then leave a read-back-verified receipt. They include `vault.db`, `vault.salt`, node/LAN recovery material and the materialisation log, but never `approver.key`.
+For disaster recovery across a local disk, mounted NAS or SFTP server, create an age recovery identity once and retain the printed private identity away from the vault. Local and NAS destinations have an UnENVerse marker. SFTP destinations use a password or private key from a vault entry, show the server's SHA-256 host-key fingerprint for explicit confirmation, and reject every later mismatch rather than silently re-pinning.
 
-`unv recover inspect PACKAGE.unvpkg` reads only non-secret envelope metadata. `unv recover restore PACKAGE.unvpkg --to EMPTY_DIR --identity IDENTITY_FILE` stages and verifies every encrypted member before installing it. `unv recover verify EMPTY_DIR` additionally checks SQLCipher, storage and audit chains, configuration history, entry count and vault version. `unv backup schedule` creates interval or IANA-time-zone daily work; it executes only while the desktop app stays open and unlocked. `unv ops` lists, shows, cancels and runs durable package records.
+Packages stream an online SQLite snapshot through age encryption to a uniquely named `.part` file, sync it, rename it only after completion, then write and read back a completion receipt with its size and SHA-256. SFTP uses `fsync@openssh.com` when the server advertises it. A destination retains seven daily, four weekly and six monthly verified receipts by default; it never removes the newest verified package and ignores files without a matching destination receipt. They include `vault.db`, `vault.salt`, node/LAN recovery material and the materialisation log, but never `approver.key`.
+
+`unv backup drill --dest NAME` downloads the newest completed package, restores it to a temporary directory, runs the same local verification, records the result in `unv ops`, and deletes the temporary data without activating the restored vault. A monthly drill can be scheduled with `unv backup schedule drill --dest NAME`. The vault keeps an SQLCipher-encrypted copy of the recovery identity solely while unlocked for that drill; no command displays or exports that copy. The printed identity remains the recovery key for a different machine.
+
+Mounted SMB/NFS paths remain local destinations: mount them before the executor runs, and verify that their server honors the durability semantics your recovery plan assumes. Network latency, client caching and weak server-side flush behavior can delay or weaken a local `fsync`; use the restore drill as the practical check and prefer SFTP when you need a separate host-key trust boundary.
+
+`unv recover inspect PACKAGE.unvpkg` reads only non-secret envelope metadata. `unv recover restore PACKAGE.unvpkg --to EMPTY_DIR --identity IDENTITY_FILE` stages and verifies every encrypted member before installing it. `unv recover verify EMPTY_DIR` additionally checks SQLCipher, storage and audit chains, configuration history, entry count and vault version. `unv backup schedule` creates interval, IANA-time-zone daily and monthly drill work; it executes only while the desktop app stays open and unlocked. `unv ops` lists, shows, cancels and records durable package and drill results.
+
+### Credential lifecycle
+
+Every saved secret now has a vault-local credential generation. Its fingerprint is an HMAC under a per-vault key, so two vaults holding the same value cannot be compared from their metadata. Older vaults receive generation one with an explicitly unknown issue date, never an invented timestamp. `unv entry timeline NAME` and the card-level Timeline action show import, creation, rotation and verification events without printing secret material.
+
+Projects can retain `${NAME}` text while binding `NAME` to an immutable entry id. A provider rename then cannot break a deployed reference. Config history records the row revisions of each project and its references, so a save re-renders only the config streams whose inputs changed.
 
 Both formats are in the app too, under Settings, Import / Export. The archive is built by the same code the CLI uses; restoring verifies the password and both checksums before touching a file, stops the LAN server, zeroizes the in-memory key and reloads. One caveat: an archive is a byte copy of `vault.db`, so lock any other tool using the vault first, or it can miss the last pages written.
 
