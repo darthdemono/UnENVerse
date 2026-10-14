@@ -140,6 +140,33 @@ export type ValueKind =
  */
 export type RateLimitPeriod = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
+/** How precisely the issuer's creation date is known. */
+export type IssuedAtPrecision = 'exact' | 'date' | 'month' | 'year' | 'unknown';
+
+/** Who owns a credential without treating an account locator as display-safe metadata. */
+export interface EntryAuthority {
+  kind?: string;
+  owner?: string;
+  source_id?: string;
+}
+
+/** Provenance retained when a credential was imported or migrated. */
+export interface EntryProvenance {
+  source_kind?: string;
+  source_id?: string;
+  imported_at?: string;
+  source_created_at?: string;
+  source_modified_at?: string;
+}
+
+/** Descriptive attachment metadata. Attachment content stays outside normal output. */
+export interface EntryAttachment {
+  name?: string;
+  media_type?: string;
+  size?: number;
+  [key: string]: unknown;
+}
+
 export interface VaultEntry {
   /**
    * Stable unique identifier, assigned once on creation and never mutated.
@@ -151,6 +178,18 @@ export interface VaultEntry {
    * entry lacking one, and everything written afterwards always has it.
    */
   id?: string;
+  /** Ownership/account authority. Locating fields are redacted by CLI output. */
+  authority?: EntryAuthority | null;
+  /** Import or migration provenance. Locating fields are redacted by CLI output. */
+  provenance?: EntryProvenance | null;
+  /** Issuer-side creation time. Missing remains unknown rather than invented. */
+  issued_at?: string | null;
+  /** Precision of {@link issued_at}; old vaults use `unknown`. */
+  issued_at_precision?: IssuedAtPrecision | null;
+  /** Attachment descriptors; bytes and locators are redacted in non-reveal output. */
+  attachments?: EntryAttachment[];
+  /** Adapter-specific data. Treated as secret and redacted unless explicitly revealed. */
+  plugin_data?: Record<string, unknown> | null;
   /** Service or provider name (e.g. `"GitHub"`, `"DATABASE_URL"`). Always required. */
   provider: string;
   /** Optional sub-account identifier within the same provider. */
@@ -626,6 +665,14 @@ export interface VaultEntry {
  * Slash-delimited names encode a virtual tree: `"Cloud/AWS"` is a child of `"Cloud"`.
  * The reserved entry with `id === "Universal"` is a catch-all; every entry belongs to it.
  */
+/** A project-local name that keeps resolving through an immutable entry id. */
+export interface ProjectBinding {
+  name: string;
+  entry_id: string;
+  /** Explicit entry field; absent means the configured env-copy field. */
+  field?: string;
+}
+
 export interface Project {
   /** Stable, URL-safe, lowercase identifier derived from `name`. */
   id: string;
@@ -637,6 +684,8 @@ export interface Project {
   project_type?: ProjectType;
   /** Structured config chunks for WireGuard or Docker projects. */
   chunks?: SecretChunk[];
+  /** Stable-id bindings, preferred over legacy provider-name references. */
+  bindings?: ProjectBinding[];
 }
 
 /** Sub-type of a field in a structured config chunk. */
