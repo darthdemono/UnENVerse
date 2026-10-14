@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UnENVerse: a free desktop vault for homelab credentials</title>
-  <meta name="description" content="UnENVerse is a free, open-source desktop vault and CLI. Import your .env files and password-manager exports, render configs from one vault, and see which machines saw each credential.">
+  <title>UnENVerse: private secrets for AI agents, scripts and homelabs</title>
+  <meta name="description" content="A local desktop vault for AI agents, scripts and homelabs. The CLI gives a process the credential it needs without putting it in output.">
   <link rel="canonical" href="{{SITE_URL}}/">
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
   <meta property="og:type" content="website">
   <meta property="og:title" content="UnENVerse">
-  <meta property="og:description" content="One place for your homelab's credentials, and proof of where they went.">
+  <meta property="og:description" content="Your AI agents need credentials. They do not need your vault.">
   <meta property="og:url" content="{{SITE_URL}}/">
   <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,8 +21,8 @@
 <main id="main">
   <section>
     <div class="wrap">
-      <h1>One place for your homelab's credentials, and proof of where they went.</h1>
-      <p class="lead">A free, open-source desktop vault with a command-line tool. Import your <code>.env</code> files and password-manager exports, render configs from one vault, deploy them to your machines through small node agents, and keep encrypted backups. It runs on your desktop: no account, no cloud.</p>
+      <h1>Your AI agents need credentials. They do not need your vault.</h1>
+      <p class="lead">UnENVerse holds the credentials, 2FA seeds, configurations and recovery material for the services, scripts and coding agents you run. A process can receive one secret through <code>unv</code> without putting it in its output. Projects turn those records into the configuration your stack expects. Your nodes receive a file when you approve it.</p>
       <div class="actions">
         <a class="btn primary" href="/download/">Download {{VERSION}}</a>
         <a class="btn secondary" href="/quickstart/">Read the quickstart</a>
@@ -37,19 +37,19 @@
 
   <section aria-labelledby="benefits">
     <div class="wrap">
-      <h2 id="benefits">What it does for you</h2>
+      <h2 id="benefits">One vault, many jobs</h2>
       <div class="grid three">
         <div class="card">
-          <h3>Bring what you have</h3>
-          <p>Import <code>.env</code> files, Bitwarden, 1Password and Proton Pass exports, a Nextcloud <code>config.php</code>, and authenticator exports from Aegis, 2FAS, andOTP, Ente and Google Authenticator. You get a report of what was imported and what was skipped, and encrypted exports from other apps are refused by name, not guessed at.</p>
+          <h3>Give agents a boundary</h3>
+          <p>An AI agent can use one credential through <code>unv exec</code>. The value goes into its child process. Routine output stays redacted.</p>
         </div>
         <div class="card">
-          <h3>Render, don't copy</h3>
-          <p>A project holds the parts of a real config: WireGuard, Docker Compose, nginx, Kubernetes, Traefik, HAProxy and more. Fields point at vault entries with <code>${refs}</code>, so a value lives in one place and the files are rendered from it. A config checker flags mistakes across files.</p>
+          <h3>Keep the old mess useful</h3>
+          <p>Import <code>.env</code> files, Bitwarden, 1Password and Proton Pass exports, a Nextcloud <code>config.php</code>, and plain-text Ente Auth, Aegis, 2FAS, andOTP or Google Authenticator exports. The report names every item that did not make it. Encrypted exports are refused by product name.</p>
         </div>
         <div class="card">
-          <h3>Know where it went</h3>
-          <p>Every save that changes a rendered config leaves a snapshot with secrets masked. The audit log is hash-chained, and a blast-radius report lists which credentials were on a machine and which ones are still live, so a leak scare ends with an exact rotation list.</p>
+          <h3>Generate what the stack expects</h3>
+          <p>WireGuard, Docker Compose, nginx, Kubernetes, Traefik and HAProxy use the same vault records. A config checker finds mistakes before a node gets a file.</p>
         </div>
       </div>
     </div>

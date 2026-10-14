@@ -57,7 +57,8 @@ a:hover { text-decoration-thickness: 2px; }
 
 header.site { border-bottom: 1px solid var(--line); background: var(--bg); }
 header.site .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding-top: 12px; padding-bottom: 12px; }
-.brand { font: 700 1.25rem var(--font-head); color: var(--ink); text-decoration: none; margin-right: auto; }
+.brand { display: inline-flex; align-items: center; gap: 8px; font: 700 1.25rem var(--font-head); color: var(--ink); text-decoration: none; margin-right: auto; }
+.brand-mark { width: 32px; height: 32px; flex: none; }
 nav.main { display: flex; flex-wrap: wrap; gap: 4px 20px; }
 nav.main a { color: var(--ink); text-decoration: none; padding: 6px 2px; border-bottom: 2px solid transparent; }
 nav.main a:hover, nav.main a[aria-current="page"] { border-bottom-color: var(--accent); }
