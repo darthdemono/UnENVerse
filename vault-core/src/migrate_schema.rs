@@ -4,7 +4,7 @@
 //! column additions that older builds used to attempt on every open. Later
 //! migrations can therefore be additive without re-running ad hoc DDL.
 
-use crate::{config_history, ics_feeds, ops, storage, users};
+use crate::{config_history, ics_feeds, lifecycle, migration, ops, storage, users};
 use rusqlite::{Connection, OptionalExtension};
 
 /// Add one known column only when this known table does not already have it.
@@ -74,6 +74,14 @@ fn migration_0002(conn: &Connection) -> Result<(), String> {
     ops::init_schema(conn)
 }
 
+fn migration_0003(conn: &Connection) -> Result<(), String> {
+    lifecycle::init_schema(conn)
+}
+
+fn migration_0004(conn: &Connection) -> Result<(), String> {
+    migration::init_schema(conn)
+}
+
 /// Applies every pending migration in one immediate transaction.
 pub fn migrate_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch("BEGIN IMMEDIATE;")
@@ -98,6 +106,16 @@ pub fn migrate_schema(conn: &Connection) -> Result<(), String> {
                 2_i64,
                 "ops_records",
                 migration_0002 as fn(&Connection) -> Result<(), String>,
+            ),
+            (
+                3_i64,
+                "metadata_lifecycle",
+                migration_0003 as fn(&Connection) -> Result<(), String>,
+            ),
+            (
+                4_i64,
+                "migration_core",
+                migration_0004 as fn(&Connection) -> Result<(), String>,
             ),
         ] {
             let done: Option<i64> = conn
