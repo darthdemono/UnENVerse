@@ -1,5 +1,6 @@
 import type {
   Project,
+  ProjectBinding,
   SecretChunk,
   ChunkField,
   ChunkFieldType,
@@ -411,6 +412,36 @@ function resolveBundleRef(body: string, useEnvCopyField: boolean): string | null
   return m ? primary(m) : field(bundle, second);
 }
 
+/** Resolve an exact project binding before falling back to legacy provider names. */
+function resolveBoundRef(
+  refName: string,
+  useEnvCopyField: boolean,
+): { handled: boolean; resolved: string | null } {
+  const matches: ProjectBinding[] = (st.vault?.projects ?? []).flatMap((project) =>
+    (project.bindings ?? []).filter((binding) => binding.name === refName),
+  );
+  if (!matches.length) return { handled: false, resolved: null };
+  // A duplicate or stale binding is unsafe to guess around. In particular, do
+  // not let a newly renamed provider win after the stable binding stopped being
+  // unique or its target was deleted.
+  if (matches.length !== 1) return { handled: true, resolved: null };
+  const binding = matches[0];
+  const entry = st.vault?.api_keys.find((candidate) => candidate.id === binding.entry_id);
+  if (!entry) return { handled: true, resolved: null };
+  if (binding.field) {
+    const value = getEntryFieldValue(entry, binding.field);
+    return { handled: true, resolved: value != null && value !== '' ? String(value) : null };
+  }
+  const configured = useEnvCopyField
+    ? entry[(Settings.get('envCopyField') || 'api_key') as keyof VaultEntry]
+    : entry.api_key;
+  const resolved = typeof configured === 'string' && configured ? configured : entry.api_key;
+  return {
+    handled: true,
+    resolved: resolved || null,
+  };
+}
+
 export function resolveFieldRef(
   value: string,
   useEnvCopyField = false,
@@ -461,6 +492,16 @@ export function resolveFieldRef(
       }
     }
     return { resolved: null, refName, unresolved: true, source: null };
+  }
+
+  const binding = resolveBoundRef(refName, useEnvCopyField);
+  if (binding.handled) {
+    return {
+      resolved: binding.resolved,
+      refName,
+      unresolved: binding.resolved == null,
+      source: binding.resolved == null ? null : 'vault',
+    };
   }
 
   // Slash notation: ${PROVIDER/field} or ${PROVIDER_LABEL/field} — direct field access.
