@@ -12,9 +12,28 @@
 
 use crate::chunks::{default_format_for, render_project_as};
 use crate::data::projects;
+use rusqlite::OptionalExtension;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::{BTreeMap, BTreeSet};
 use vault_core::config_history as ch;
 use vault_core::SqlConnection as Connection;
+
+const RENDER_REVISIONS_META: &str = "history_render_revisions_v1";
+
+/// The exact row revisions that influenced each rendered project. This lives in
+/// SQLCipher's `vault_meta`, not beside a user's project files, and contains no
+/// secret material: only opaque row hashes and stable ids.
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct RenderRevisionState {
+    projects: BTreeMap<String, ProjectRevision>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+struct ProjectRevision {
+    project_rev: String,
+    dependencies: BTreeMap<String, String>,
+}
 
 /// `(project id, project name, exporter)` for every config a project renders.
 fn streams(vault: &Value) -> Vec<(String, String, String)> {
@@ -69,6 +88,9 @@ pub fn snapshot_stream(
 
 #[derive(Debug, Default, PartialEq)]
 pub struct SnapshotReport {
+    /// Streams whose renderer was invoked. This makes the incremental work
+    /// observable in tests without treating "unchanged" as "unrendered".
+    pub considered: usize,
     pub recorded: usize,
     pub unchanged: usize,
     /// Streams that render to nothing or fail to render (a generic project with
@@ -77,11 +99,10 @@ pub struct SnapshotReport {
     pub errors: Vec<String>,
 }
 
-/// Renders every project's config and records the ones that changed.
-pub fn snapshot_all(
+fn snapshot_matching(
     conn: &Connection,
     vault: &Value,
-    only_project: Option<&str>,
+    include: impl Fn(&str, &str) -> bool,
     cause: &str,
     actor: Option<&str>,
 ) -> SnapshotReport {
@@ -92,11 +113,10 @@ pub fn snapshot_all(
     // Built on first use: most saves change no config and never need it.
     let matcher = std::cell::OnceCell::new();
     for (id, name, exporter) in streams(vault) {
-        if let Some(q) = only_project {
-            if q != id && q != name {
-                continue;
-            }
+        if !include(&id, &name) {
+            continue;
         }
+        rep.considered += 1;
         let real = render_project_as(vault, &id, &exporter, false);
         let masked = render_project_as(vault, &id, &exporter, true);
         let (Ok(real), Ok(masked)) = (real, masked) else {
@@ -112,9 +132,6 @@ pub fn snapshot_all(
             project_name: &name,
             exporter: &exporter,
         };
-        // The secrets whose exact value is in this file, kept with the snapshot
-        // because by the time of a compromise the entry may have been rotated,
-        // edited or deleted (blast radius, Phase 36).
         let exposed = serde_json::to_string(
             &matcher
                 .get_or_init(|| crate::exposure::Matcher::from_vault(vault))
@@ -128,6 +145,193 @@ pub fn snapshot_all(
         }
     }
     rep
+}
+
+/// Renders every project's config and records the ones that changed.
+pub fn snapshot_all(
+    conn: &Connection,
+    vault: &Value,
+    only_project: Option<&str>,
+    cause: &str,
+    actor: Option<&str>,
+) -> SnapshotReport {
+    snapshot_matching(
+        conn,
+        vault,
+        |id, name| only_project.is_none_or(|query| query == id || query == name),
+        cause,
+        actor,
+    )
+}
+
+fn entry_revisions(conn: &Connection) -> Result<BTreeMap<String, String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT data, rev FROM vault_rows WHERE kind = 'entry'")
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| error.to_string())?;
+    let mut revisions = BTreeMap::new();
+    for row in rows {
+        let (data, rev) = row.map_err(|error| error.to_string())?;
+        let entry: Value = serde_json::from_str(&data).map_err(|error| error.to_string())?;
+        if let Some(id) = entry.get("id").and_then(Value::as_str) {
+            revisions.insert(id.to_string(), rev);
+        }
+    }
+    Ok(revisions)
+}
+
+fn project_revisions(conn: &Connection) -> Result<BTreeMap<String, String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT data, rev FROM vault_rows WHERE kind = 'project'")
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| error.to_string())?;
+    let mut revisions = BTreeMap::new();
+    for row in rows {
+        let (data, rev) = row.map_err(|error| error.to_string())?;
+        let project: Value = serde_json::from_str(&data).map_err(|error| error.to_string())?;
+        if let Some(id) = project.get("id").and_then(Value::as_str) {
+            revisions.insert(id.to_string(), rev);
+        }
+    }
+    Ok(revisions)
+}
+
+/// Entry ids whose current values can affect one project's rendered streams.
+/// Complex cross-project forms are deliberately conservative: rendering an
+/// extra project is preferable to missing a new config dependency.
+fn project_dependencies(vault: &Value, project: &Value) -> BTreeSet<String> {
+    let entries = vault
+        .get("api_keys")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut bindings: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for binding in project
+        .get("bindings")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if let (Some(name), Some(id)) = (
+            binding.get("name").and_then(Value::as_str),
+            binding.get("entry_id").and_then(Value::as_str),
+        ) {
+            bindings
+                .entry(name.to_string())
+                .or_default()
+                .push(id.to_string());
+        }
+    }
+    let mut dependencies = BTreeSet::new();
+    for field in project
+        .get("chunks")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .flat_map(|chunk| {
+            chunk
+                .get("fields")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+        })
+    {
+        let Some(value) = field.get("value").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(inner) = value
+            .strip_prefix("${")
+            .and_then(|value| value.strip_suffix('}'))
+        else {
+            continue;
+        };
+        if inner.starts_with("bundle:") || inner.starts_with("chunk:") {
+            dependencies.extend(
+                entries.iter().filter_map(|entry| {
+                    entry.get("id").and_then(Value::as_str).map(str::to_string)
+                }),
+            );
+            continue;
+        }
+        if let Some(ids) = bindings.get(inner) {
+            if ids.len() == 1 {
+                dependencies.insert(ids[0].clone());
+            }
+            continue;
+        }
+        let provider = inner.split_once('/').map_or(inner, |(name, _)| name);
+        if let Some(entry) = crate::refs::find_entry(&entries, provider) {
+            if let Some(id) = entry.get("id").and_then(Value::as_str) {
+                dependencies.insert(id.to_string());
+            }
+        }
+    }
+    dependencies
+}
+
+fn current_render_revisions(
+    conn: &Connection,
+    vault: &Value,
+) -> Result<RenderRevisionState, String> {
+    let entries = entry_revisions(conn)?;
+    let projects_by_id = project_revisions(conn)?;
+    let mut current = RenderRevisionState::default();
+    for project in projects(vault) {
+        let Some(id) = project.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(project_rev) = projects_by_id.get(id) else {
+            // A migration from an old vault can briefly have no split row.
+            // Treat it as changed rather than claiming nothing depends on it.
+            continue;
+        };
+        let dependencies = project_dependencies(vault, &project)
+            .into_iter()
+            .map(|entry_id| {
+                let revision = entries.get(&entry_id).cloned().unwrap_or_default();
+                (entry_id, revision)
+            })
+            .collect();
+        current.projects.insert(
+            id.to_string(),
+            ProjectRevision {
+                project_rev: project_rev.clone(),
+                dependencies,
+            },
+        );
+    }
+    Ok(current)
+}
+
+fn load_render_revisions(conn: &Connection) -> Result<Option<RenderRevisionState>, String> {
+    let raw: Option<String> = conn
+        .query_row(
+            "SELECT value FROM vault_meta WHERE key = ?1",
+            [RENDER_REVISIONS_META],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    raw.map(|value| serde_json::from_str(&value).map_err(|error| error.to_string()))
+        .transpose()
+}
+
+fn save_render_revisions(conn: &Connection, revisions: &RenderRevisionState) -> Result<(), String> {
+    let value = serde_json::to_string(revisions).map_err(|error| error.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO vault_meta (key, value) VALUES (?1, ?2)",
+        [RENDER_REVISIONS_META, &value],
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 /// The differing lines of a diff reduced to their names: the text before the
@@ -157,11 +361,43 @@ fn masked_summary(ops: &[vault_core::textdiff::Op<'_>]) -> String {
 /// The hook every writer calls after a successful save. Never fails the save: a
 /// history that cannot record is reported on the log, not by losing the user's
 /// edit.
-pub fn after_save(conn: &Connection, vault: &Value, actor: Option<&str>) {
-    let rep = snapshot_all(conn, vault, None, "save", actor);
+pub fn after_save(conn: &Connection, vault: &Value, actor: Option<&str>) -> SnapshotReport {
+    if !ch::policy(conn).enabled {
+        return SnapshotReport::default();
+    }
+    let current = match current_render_revisions(conn, vault) {
+        Ok(current) => current,
+        Err(error) => {
+            tracing::warn!(error = %error, "config history could not inspect row revisions");
+            return SnapshotReport::default();
+        }
+    };
+    let previous = match load_render_revisions(conn) {
+        Ok(previous) => previous,
+        Err(error) => {
+            tracing::warn!(error = %error, "config history could not read render revisions");
+            None
+        }
+    };
+    let changed: BTreeSet<String> = match &previous {
+        None => current.projects.keys().cloned().collect(),
+        Some(previous) => current
+            .projects
+            .iter()
+            .filter(|(id, revision)| previous.projects.get(*id) != Some(*revision))
+            .map(|(id, _)| id.clone())
+            .collect(),
+    };
+    let rep = snapshot_matching(conn, vault, |id, _| changed.contains(id), "save", actor);
     for e in &rep.errors {
         tracing::warn!(error = %e, "config history could not record a snapshot");
     }
+    if rep.errors.is_empty() {
+        if let Err(error) = save_render_revisions(conn, &current) {
+            tracing::warn!(error = %error, "config history could not save render revisions");
+        }
+    }
+    rep
 }
 
 fn s<'a>(args: &'a Value, k: &str) -> Option<&'a str> {
@@ -601,5 +837,85 @@ mod tests {
         let v = json!({ "api_keys": [], "projects": [{ "id": "c", "name": "c", "project_type": "docker", "chunks": [] }] });
         let ex: Vec<String> = streams(&v).into_iter().map(|s| s.2).collect();
         assert_eq!(ex, vec!["compose", "compose-env"]);
+    }
+
+    fn two_project_vault(first: &str, second: &str) -> Value {
+        json!({
+            "api_keys": [
+                { "id": "entry-one", "provider": "One", "api_key": first },
+                { "id": "entry-two", "provider": "Two", "api_key": second }
+            ],
+            "user_categories": [],
+            "projects": [
+                { "id": "one", "name": "one", "project_type": "generic", "chunks": [{ "id": "one-env", "name": "one.env", "chunk_type": "env_file", "fields": [{ "key": "ONE", "value": "${One}" }] }] },
+                { "id": "two", "name": "two", "project_type": "generic", "chunks": [{ "id": "two-env", "name": "two.env", "chunk_type": "env_file", "fields": [{ "key": "TWO", "value": "${Two}" }] }] }
+            ]
+        })
+    }
+
+    #[test]
+    fn after_save_rerenders_only_the_project_depending_on_a_changed_entry() {
+        let c = conn();
+        let original = two_project_vault("first", "second");
+        vault_core::save_vault(&c, original.clone(), vault_core::SaveCtx::default()).unwrap();
+        assert_eq!(after_save(&c, &original, None).considered, 2);
+
+        let changed = two_project_vault("first-rotated", "second");
+        vault_core::save_vault(&c, changed.clone(), vault_core::SaveCtx::default()).unwrap();
+        let rerender = after_save(&c, &changed, None);
+
+        // Regression: `after_save` rendered every project after an unrelated
+        // edit. A changed entry now revisits only the project that references
+        // it, while the snapshot count for the other project remains one.
+        assert_eq!((rerender.considered, rerender.recorded), (1, 1));
+        assert_eq!(ch::list(&c, Some("one"), None, None, 10).unwrap().len(), 2);
+        assert_eq!(ch::list(&c, Some("two"), None, None, 10).unwrap().len(), 1);
+        assert_eq!(after_save(&c, &changed, None).considered, 0);
+    }
+
+    fn fifty_by_twenty_vault() -> Value {
+        let mut entries = Vec::new();
+        let mut projects = Vec::new();
+        for project in 0..50 {
+            let mut fields = Vec::new();
+            for field in 0..20 {
+                let id = format!("entry-{project}-{field}");
+                let provider = format!("Entry{project}_{field}");
+                entries.push(json!({ "id": id, "provider": provider, "api_key": format!("value-{project}-{field}") }));
+                fields.push(
+                    json!({ "key": format!("KEY_{field}"), "value": format!("${{{provider}}}") }),
+                );
+            }
+            projects.push(json!({
+                "id": format!("project-{project}"), "name": format!("project-{project}"), "project_type": "generic",
+                "chunks": [{ "id": format!("env-{project}"), "name": "app.env", "chunk_type": "env_file", "fields": fields }]
+            }));
+        }
+        json!({ "api_keys": entries, "user_categories": [], "projects": projects })
+    }
+
+    #[test]
+    fn fifty_projects_by_twenty_references_rerenders_one_stream_after_one_change() {
+        let c = conn();
+        let mut large = fifty_by_twenty_vault();
+        vault_core::save_vault(&c, large.clone(), vault_core::SaveCtx::default()).unwrap();
+        let full_started = std::time::Instant::now();
+        let initial = after_save(&c, &large, None);
+        let full_elapsed = full_started.elapsed();
+        assert_eq!(initial.considered, 50);
+
+        large["api_keys"][347]["api_key"] = json!("rotated-17-7");
+        vault_core::save_vault(&c, large.clone(), vault_core::SaveCtx::default()).unwrap();
+        let incremental_started = std::time::Instant::now();
+        let incremental = after_save(&c, &large, None);
+        let incremental_elapsed = incremental_started.elapsed();
+
+        // This is the R07 50 x 20 benchmark fixture. Timing is reported for
+        // the handoff, while the non-flaky assertion pins the actual contract:
+        // one changed credential cannot cause the other 49 configs to render.
+        eprintln!(
+            "R07 50x20 history benchmark: initial={full_elapsed:?}, incremental={incremental_elapsed:?}"
+        );
+        assert_eq!((incremental.considered, incremental.recorded), (1, 1));
     }
 }
