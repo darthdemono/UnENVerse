@@ -6,6 +6,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
+- R08 lossless config migration core: encrypted migration manifests, source archives and template bindings; Rust `.env`, Compose, WireGuard and nginx readers; `unv migrate plan|apply|verify|report|archive`; a desktop Rust-backed preview; and parser fuzz targets.
+- R07 metadata and lifecycle core: ordered credential-generation, pending, lifecycle-event and deployment-state tables; vault-scoped HMAC generation fingerprints; stable-id project bindings; incremental config-history rerendering; and a secret-free entry timeline in the app and `unv entry timeline`.
 - R05 recovery packages: age X25519 `.unvpkg` streams with online SQLCipher snapshots, manifest and hash validation, marked local/NAS destinations, staged restore and local verification. `unv backup package|dest|recovery-key|schedule`, `unv recover`, and `unv ops` share the same core with the desktop Recovery settings.
 - Ordered SQLCipher schema migrations and durable, fenced operation records. The unlocked desktop executor holds an advisory lock, coalesces missed schedules, skips stale work, and stops before lock-time key zeroization.
 
