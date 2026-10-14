@@ -1,4 +1,5 @@
 import { buildBundle, bundleSuggestions } from './bundle-scope';
+import { showEntryTimeline } from './entry-timeline';
 import { codeStatus, nextCode } from './recovery-codes';
 import { hideWifiQr } from './wifi-qr';
 import {
@@ -1074,6 +1075,11 @@ async function init() {
       case 'rotate':
         markAsRotated(idx);
         break;
+      case 'timeline': {
+        const entry = st.vault.api_keys[idx];
+        if (entry) void showEntryTimeline(entry);
+        break;
+      }
       // The session equivalent (E13). Rotating a cookie means logging in again
       // in a browser, which nothing here can do, so "never rotated" was a
       // finding with no available fix; "never verified" has one.
