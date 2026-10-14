@@ -322,6 +322,10 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
             Import
           </button>
+          <button class="tool-nav-btn" data-tool="migrate">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+            Migrate Config
+          </button>
           <button class="tool-nav-btn" data-tool="templates">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             Templates
@@ -1493,14 +1497,25 @@
                 <button id="s-recovery-key" class="btn btn-ghost btn-sm" aria-describedby="s-recovery-label">Create recovery key…</button>
                 <input id="s-recovery-dest-id" class="form-input" aria-label="Recovery destination id" placeholder="destination id">
                 <input id="s-recovery-dest-path" class="form-input" aria-label="Recovery destination path" placeholder="local or NAS path">
-                <button id="s-recovery-dest-add" class="btn btn-ghost btn-sm">Add destination</button>
+                <button id="s-recovery-dest-add" class="btn btn-ghost btn-sm">Add local/NAS</button>
                 <button id="s-recovery-package" class="btn btn-ghost btn-sm">Package now</button>
+                <button id="s-recovery-drill" class="btn btn-ghost btn-sm">Run restore drill</button>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <input id="s-recovery-sftp-host" class="form-input" aria-label="SFTP host" placeholder="SFTP host">
+                <input id="s-recovery-sftp-port" class="form-input" aria-label="SFTP port" value="22">
+                <input id="s-recovery-sftp-user" class="form-input" aria-label="SFTP user" placeholder="SFTP user">
+                <input id="s-recovery-sftp-path" class="form-input" aria-label="SFTP remote path" placeholder="remote path">
+                <input id="s-recovery-sftp-credential" class="form-input" aria-label="SFTP credential entry" placeholder="credential entry">
+                <select id="s-recovery-sftp-auth" class="form-input" aria-label="SFTP authentication"><option value="password">password</option><option value="private-key">private key</option></select>
+                <button id="s-recovery-sftp-add" class="btn btn-ghost btn-sm">Pin and add SFTP</button>
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
                 <input id="s-recovery-daily" class="form-input" aria-label="Daily package time" placeholder="daily HH:MM (optional)">
                 <input id="s-recovery-interval" class="form-input" aria-label="Package interval seconds" placeholder="interval seconds (optional)">
                 <input id="s-recovery-time-zone" class="form-input" aria-label="Schedule IANA time zone" value="UTC">
                 <button id="s-recovery-schedule" class="btn btn-ghost btn-sm">Schedule</button>
+                <button id="s-recovery-drill-schedule" class="btn btn-ghost btn-sm">Schedule monthly drill</button>
                 <button id="s-recovery-refresh" class="btn btn-ghost btn-sm">Refresh runs</button>
                 <button id="s-recovery-dest-remove" class="btn btn-ghost btn-sm">Remove destination</button>
                 <input id="s-recovery-run-id" class="form-input" aria-label="Operation run id to cancel" placeholder="run id">
