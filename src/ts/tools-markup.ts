@@ -453,20 +453,19 @@ export const TOOLS_PANES_HTML = String.raw`
             </div>
             <div class="tool-header" style="margin-top:22px">
               <h3>From another password manager</h3>
-              <p>Bitwarden, 1Password or Proton Pass JSON exports, or a Nextcloud config.php (read, never run). Shows what would change before anything is written; an existing entry with the same secret is left alone.</p>
+              <p>Full-fidelity Bitwarden, 1Password and KeePass migration is currently CLI-only: it saves source identities and encrypted attachments atomically. It is implemented from published formats and awaits sanitized real-export verification.</p>
             </div>
             <div class="tool-row">
               <label class="tool-label" for="vi-vendor">Export from</label>
               <select id="vi-vendor" class="tool-select">
-                <option value="bitwarden">Bitwarden (JSON)</option>
-                <option value="onepassword">1Password (1pif or JSON)</option>
-                <option value="proton">Proton Pass (JSON)</option>
-                <option value="nextcloud">Nextcloud (config.php)</option>
+                <option value="bitwarden">Bitwarden (JSON or ZIP)</option>
+                <option value="onepassword">1Password (.1pux or JSON)</option>
+                <option value="keepass">KeePassXC or KeePass (KDBX)</option>
               </select>
               <label class="tool-label" for="vi-folders"><input type="checkbox" id="vi-folders"> Keep folders as categories</label>
             </div>
             <div class="tool-actions" style="margin-top:6px;gap:10px">
-              <button id="vi-file-btn" class="btn btn-ghost btn-sm">Choose file and preview</button>
+              <button id="vi-file-btn" class="btn btn-ghost btn-sm">Use CLI migration</button>
               <button id="vi-apply-btn" class="btn btn-accent btn-sm" disabled>Import</button>
               <span id="vi-status" class="tool-status" style="font-size:12px;color:var(--text3)"></span>
             </div>

@@ -517,17 +517,13 @@
     },
     {
       "id": "import-vault",
-      "status": "both",
+      "status": "exempt",
       "cli": [
         "unv import-vault"
       ],
-      "ui": [
-        "id:vi-file-btn"
-      ],
-      "tauri": [
-        "import_vault_plan"
-      ],
-      "note": "Tools -> Import -> From another password manager: Bitwarden, 1Password, Proton. Same plan_import as the CLI; the preview shows fingerprints, and Import saves once.",
+      "ui": [],
+      "tauri": [],
+      "note": "R09 full-fidelity Bitwarden, 1Password and KeePass imports require one local SQLCipher transaction for entry rows, source identities and vault_blobs, plus an in-memory KDBX password/key-file prompt. The existing renderer quick-import path cannot provide that atomicity and is disabled with a CLI direction until a desktop migration transaction exists.",
       "cli_flags": []
     },
     {
