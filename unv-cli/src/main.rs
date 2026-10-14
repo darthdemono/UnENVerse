@@ -19,8 +19,8 @@ use unv_app::error::{CliError, CliResult};
 use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
     emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
-    migrate, node_cmd, oauth_cmd, out, pool, projects, recovery_ops, render, scan, session,
-    session_cmd, shield, uid_cmd, users_cmd,
+    migrate, node_cmd, oauth_cmd, out, password_sources, pool, projects, recovery_ops, render,
+    scan, session, session_cmd, shield, uid_cmd, users_cmd,
 };
 use vault_core::calendar;
 
@@ -543,16 +543,15 @@ enum Commands {
     },
     /// Where this CLI is pointed and what the vault holds.
     Status,
-    /// Import from another password manager (Bitwarden, 1Password, Proton Pass) or a
-    /// Nextcloud `config.php`.
+    /// Import from another password manager or a Nextcloud `config.php`.
     ///
     /// Preview by default — nothing is written without `--apply`, and the
     /// preview shows fingerprints rather than values.
     ImportVault {
         /// Which product the file came from.
-        #[arg(value_parser = ["bitwarden", "onepassword", "proton", "nextcloud"])]
+        #[arg(value_parser = ["bitwarden", "onepassword", "keepass", "proton", "nextcloud"])]
         vendor: String,
-        /// The exported JSON file.
+        /// The source export: JSON, ZIP/.1pux, or KDBX as the selected vendor permits.
         file: PathBuf,
         /// Actually write. Without it this is a dry run.
         #[arg(long)]
@@ -566,9 +565,16 @@ enum Commands {
         /// Use the source folder / vault name as the category.
         #[arg(long)]
         keep_folders: bool,
-        /// Replace an existing entry whose secret differs (default: refuse).
+        /// Legacy quick-import only: replace an existing entry whose secret differs.
+        /// Source migrations always report a conflict rather than forcing either side.
         #[arg(long)]
         force: bool,
+        /// KeePass key file. Its bytes are read only in memory.
+        #[arg(long)]
+        key_file: Option<PathBuf>,
+        /// KeePass source has no password component and is unlocked with --key-file only.
+        #[arg(long, requires = "key_file")]
+        no_password: bool,
     },
     /// Losslessly plan and import a local configuration file.
     Migrate {
@@ -3908,20 +3914,51 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             category,
             keep_folders,
             force,
+            key_file,
+            no_password,
         } => {
             let project = scoped_project(a, project.as_deref())?;
-            import_vaults::run(
-                a,
-                vendor,
-                file,
-                &import_vaults::ImportOpts {
-                    apply: *apply,
-                    project: project.as_deref(),
-                    category: category.as_deref(),
-                    keep_folders: *keep_folders,
-                    force: *force,
-                },
-            )
+            match password_sources::SourceFormat::parse(vendor) {
+                Ok(format) => {
+                    if *force {
+                        return Err(CliError::invalid(
+                            "--force is not accepted for durable source migrations; resolve the named source conflict instead",
+                        ));
+                    }
+                    if format != password_sources::SourceFormat::KeePass
+                        && (key_file.is_some() || *no_password)
+                    {
+                        return Err(CliError::invalid(
+                            "--key-file and --no-password only apply to a KeePass source",
+                        ));
+                    }
+                    password_sources::run(
+                        a,
+                        format,
+                        file,
+                        &password_sources::SourceOpts {
+                            project: project.as_deref(),
+                            category: category.as_deref(),
+                            keep_folders: *keep_folders,
+                            key_file: key_file.as_deref(),
+                            no_password: *no_password,
+                        },
+                        *apply,
+                    )
+                }
+                Err(_) => import_vaults::run(
+                    a,
+                    vendor,
+                    file,
+                    &import_vaults::ImportOpts {
+                        apply: *apply,
+                        project: project.as_deref(),
+                        category: category.as_deref(),
+                        keep_folders: *keep_folders,
+                        force: *force,
+                    },
+                ),
+            }
         }
         Commands::Migrate { cmd } => match cmd {
             MigrateCmd::Plan {
