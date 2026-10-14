@@ -5,7 +5,7 @@
  *   node scripts/check-site.mjs site            # serves ./site on a free port
  *
  * For every page at 1440 and 390 px wide: no horizontal scroll, exactly one h1,
- * every link and button has an accessible name, images have alt text and size,
+ * every link and button has an accessible name, images declare alt text and size,
  * the first Tab stop is the skip link and shows a visible focus ring, no console
  * errors, no failed requests. Exits 1 on any finding so CI can gate on it.
  */
@@ -93,7 +93,9 @@ for (const [vp, width, height] of [
           .filter((e) => !name(e))
           .map((e) => e.outerHTML.slice(0, 80)),
         badImg: [...document.querySelectorAll('img')]
-          .filter((i) => !i.alt || !i.getAttribute('width') || !i.getAttribute('height'))
+          .filter(
+            (i) => !i.hasAttribute('alt') || !i.getAttribute('width') || !i.getAttribute('height'),
+          )
           .map((i) => i.src),
         main: document.querySelectorAll('main#main').length,
       };
@@ -105,7 +107,7 @@ for (const [vp, width, height] of [
     if (r.lang !== 'en') add(url, vp, 'missing lang');
     if (r.main !== 1) add(url, vp, 'needs exactly one main#main');
     for (const u of r.unnamed) add(url, vp, `link/button without a name: ${u}`);
-    for (const i of r.badImg) add(url, vp, `image missing alt/width/height: ${i}`);
+    for (const i of r.badImg) add(url, vp, `image missing alt attribute/width/height: ${i}`);
 
     await page.keyboard.press('Tab');
     const first = await page.evaluate(() => {

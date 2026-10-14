@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs without types
 import * as site from '../scripts/build-site.mjs';
 
-const { build, classify, fmtSize, jsonLd, parseSums, sitemap, table } = site;
+const { GENERATED_SITE_ASSETS, build, classify, fmtSize, jsonLd, parseSums, sitemap, table } = site;
 
 const root = path.resolve(__dirname, '..');
 
@@ -115,6 +115,9 @@ describe('assembling the site', () => {
     expect(map).not.toContain('/book/');
     expect(map).not.toContain('/rust/</loc>');
     expect(fs.existsSync(path.join(out, 'book/index.html'))).toBe(true);
+    expect(fs.readFileSync(path.join(out, 'assets/app-icon.png'))).toEqual(
+      fs.readFileSync(path.join(root, 'src-tauri/icons/128x128.png')),
+    );
     fs.rmSync(out, { recursive: true, force: true });
   });
   it('fails on a placeholder nobody fills', () => {
@@ -222,11 +225,17 @@ describe('the site source is complete', () => {
         /(?:src|href)="(\/assets\/[^"#?]+)"|url\("(\/assets\/[^")]+)"\)/g,
       )) {
         const ref = m[1] ?? m[2];
-        if (!fs.existsSync(path.join(site, ref)))
+        if (!GENERATED_SITE_ASSETS.includes(ref) && !fs.existsSync(path.join(site, ref)))
           missing.push(`${path.relative(root, file)} -> ${ref}`);
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it('uses the desktop icon as an explicitly decorative brand mark', () => {
+    const header = fs.readFileSync(path.join(site, 'partials/header.html'), 'utf8');
+    expect(header).toContain('src="/assets/app-icon.png"');
+    expect(header).toContain('width="32" height="32" alt=""');
   });
 
   it('has a screenshot manifest that matches the images on disk', () => {

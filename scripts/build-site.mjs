@@ -19,6 +19,9 @@ import { fileURLToPath } from 'node:url';
 export const SITE_URL = 'https://unenverse.darthdemono.com';
 const REPO = 'darthdemono/UnENVerse';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const APP_ICON = path.join(ROOT, 'src-tauri', 'icons', '128x128.png');
+/** Assets copied from the desktop app rather than stored under website/. */
+export const GENERATED_SITE_ASSETS = ['/assets/app-icon.png'];
 
 /** `SHA256SUMS` text to a name -> hex map. Accepts both `hash  name` and `hash *name`. */
 export function parseSums(text) {
@@ -159,6 +162,11 @@ export function build({ src, out, release, sums, today = new Date().toISOString(
     } else {
       fs.copyFileSync(file, dest);
     }
+  }
+  for (const asset of GENERATED_SITE_ASSETS) {
+    const dest = path.join(out, asset);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(APP_ICON, dest);
   }
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemap(urls.sort(), today));
   return { version, pages: urls };
