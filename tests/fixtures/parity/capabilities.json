@@ -19,16 +19,19 @@
         "unv entry rotate",
         "unv entry verify",
         "unv entry history",
+        "unv entry timeline",
         "unv entry restore"
       ],
       "ui": [
         "id:add-btn",
-        "src:src/ts/modals.ts"
+        "src:src/ts/modals.ts",
+        "src:src/ts/entry-timeline.ts"
       ],
       "tauri": [
         "load_vault",
         "save_vault",
-        "save_vault_rows"
+        "save_vault_rows",
+        "entry_timeline"
       ],
       "note": "The app edits the vault document and saves it whole; the CLI goes through Access::save.",
       "cli_flags": []
@@ -189,6 +192,29 @@
       ],
       "note": "",
       "cli_flags": []
+    },
+    {
+      "id": "config-migration",
+      "status": "both",
+      "cli": [
+        "unv migrate plan",
+        "unv migrate apply",
+        "unv migrate verify",
+        "unv migrate report",
+        "unv migrate archive ls",
+        "unv migrate archive export"
+      ],
+      "ui": [
+        "tool:migrate"
+      ],
+      "tauri": [
+        "migrate_plan",
+        "migrate_apply"
+      ],
+      "note": "The desktop and CLI use the shared Rust readers, planner and transactional writer. The desktop accepts pasted local text; the CLI additionally reads source files and exports archives.",
+      "cli_flags": [
+        "--template"
+      ]
     },
     {
       "id": "pools",
@@ -527,11 +553,14 @@
       "status": "both",
       "cli": [
         "unv backup package",
-        "unv backup dest add",
+        "unv backup dest add local",
+        "unv backup dest add sftp",
         "unv backup dest ls",
         "unv backup dest rm",
         "unv backup recovery-key",
+        "unv backup drill",
         "unv backup schedule add",
+        "unv backup schedule drill",
         "unv backup schedule ls",
         "unv recover inspect",
         "unv recover restore",
@@ -542,27 +571,43 @@
         "unv ops run"
       ],
       "ui": [
-        "id:s-recovery-label"
+        "id:s-recovery-label",
+        "id:s-recovery-sftp-add",
+        "id:s-recovery-drill",
+        "id:s-recovery-drill-schedule"
       ],
       "tauri": [
         "backup_recovery_key",
         "backup_destination_add",
+        "backup_sftp_host_key",
+        "backup_destination_add_sftp",
         "backup_destination_list",
         "backup_destination_remove",
         "backup_package",
+        "backup_drill",
         "backup_schedule_add",
+        "backup_schedule_drill",
         "backup_schedule_list",
         "ops_list",
         "ops_show",
         "ops_cancel"
       ],
-      "note": "Settings -> Recovery packages uses the same streaming core and durable operations records as the CLI. The executor owns an advisory file lock and runs only while the desktop vault is unlocked.",
+      "note": "Settings -> Recovery packages uses the same streaming core and durable operations records as the CLI. SFTP host keys require an explicit pin and restore drills run only while the desktop vault is unlocked.",
       "cli_flags": [
         "--identity",
         "--to",
         "--dest",
         "--daily",
         "--interval",
+        "--host",
+        "--port",
+        "--user",
+        "--path",
+        "--credential",
+        "--auth",
+        "--host-key",
+        "--day",
+        "--at",
         "--time-zone"
       ]
     },
