@@ -474,6 +474,37 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Config migration preview -->
+        <div id="tool-migrate" class="tool-pane" style="display:none">
+          <div class="tool-header">
+            <h3>Migrate Config</h3>
+            <p>Preview and apply a local config migration. The table shows names and statuses, never copied values.</p>
+          </div>
+          <div class="tool-body">
+            <div class="tool-row">
+              <label class="tool-label" for="migrate-format">Format</label>
+              <select id="migrate-format" class="tool-select">
+                <option value="env">.env</option>
+                <option value="compose">Docker Compose</option>
+                <option value="wireguard">WireGuard</option>
+                <option value="nginx">nginx</option>
+              </select>
+            </div>
+            <div class="tool-row">
+              <label class="tool-label" for="migrate-source-label">Source label</label>
+              <input id="migrate-source-label" class="tool-input" value="pasted-config" maxlength="240">
+            </div>
+            <label class="tool-checks"><input id="migrate-template" type="checkbox"> Preserve a lossless encrypted template</label>
+            <textarea id="migrate-text" class="tool-textarea mono" rows="8" placeholder="Paste a configuration file to preview its fields"></textarea>
+            <div class="tool-actions">
+              <button id="migrate-preview" class="btn btn-accent btn-sm">Preview migration</button>
+              <button id="migrate-apply" class="btn btn-ghost btn-sm" disabled>Apply reviewed migration</button>
+            </div>
+            <div id="migrate-status" class="tool-status" style="display:none"></div>
+            <div id="migrate-results"></div>
+          </div>
+        </div>
+
         <!-- Tool: Templates (item 23) -->
         <div id="tool-templates" class="tool-pane" style="display:none">
           <div class="tool-header">
