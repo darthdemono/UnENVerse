@@ -345,6 +345,56 @@ fn resolve_bundle_ref(entries: &[Value], body: &str, env_field: &str) -> Option<
     }
 }
 
+/// Resolve a project binding by immutable entry id.
+///
+/// `Some(None)` means a binding named `inner` exists but is ambiguous or stale;
+/// callers must not fall back to a provider-name lookup in that case. That
+/// refusal preserves the point of bindings: a duplicate binding cannot silently
+/// reattach a deployed config to another credential after a rename.
+fn resolve_bound_ref(
+    entries: &[Value],
+    projects: &[Value],
+    inner: &str,
+    env_field: &str,
+) -> Option<Option<String>> {
+    let matches: Vec<&Value> = projects
+        .iter()
+        .flat_map(|project| {
+            project
+                .get("bindings")
+                .and_then(|bindings| bindings.as_array())
+                .into_iter()
+                .flatten()
+        })
+        .filter(|binding| binding.get("name").and_then(|name| name.as_str()) == Some(inner))
+        .collect();
+    if matches.is_empty() {
+        return None;
+    }
+    if matches.len() != 1 {
+        return Some(None);
+    }
+    let binding = matches[0];
+    let entry_id = binding.get("entry_id").and_then(|id| id.as_str())?;
+    let entry = entries
+        .iter()
+        .find(|entry| entry.get("id").and_then(|id| id.as_str()) == Some(entry_id))?;
+    if let Some(field) = binding.get("field").and_then(|field| field.as_str()) {
+        return Some(entry_field(entry, field));
+    }
+    let chosen = entry
+        .get(env_field)
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty());
+    Some(chosen.map(String::from).or_else(|| {
+        entry
+            .get("api_key")
+            .and_then(|value| value.as_str())
+            .filter(|value| !value.is_empty())
+            .map(String::from)
+    }))
+}
+
 /// Resolve a `${...}` ref inner-string against vault entries and chunks.
 pub fn resolve_ref(
     entries: &[Value],
@@ -386,6 +436,10 @@ pub fn resolve_ref(
             }
         }
         return None;
+    }
+
+    if let Some(value) = resolve_bound_ref(entries, projects, inner, env_field) {
+        return value;
     }
 
     if let Some(slash) = inner.find('/') {
@@ -615,5 +669,43 @@ mod composite_ref_tests {
             "extra_vars": []
         })];
         assert_eq!(resolve_ref(&entries, &[], "Broken", "api_key", 0), None);
+    }
+}
+
+#[cfg(test)]
+mod binding_ref_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn stable_binding_survives_provider_rename_without_rewriting_legacy_text() {
+        let mut entries = vec![json!({
+            "id": "entry-db-1",
+            "provider": "Database production",
+            "api_key": "before-and-after",
+        })];
+        let projects = vec![json!({
+            "id": "app",
+            "bindings": [{ "name": "DB_PASSWORD", "entry_id": "entry-db-1" }],
+            "chunks": [{ "chunk_type": "env_file", "fields": [{ "key": "DB_PASSWORD", "value": "${DB_PASSWORD}" }] }],
+        })];
+
+        assert_eq!(
+            resolve_ref(&entries, &projects, "DB_PASSWORD", "api_key", 0).as_deref(),
+            Some("before-and-after")
+        );
+        entries[0]["provider"] = json!("Database production renamed");
+
+        // Regression: provider-name cascades used to be the only reference
+        // identity. A stable binding must keep rendering and leave its legacy
+        // `${DB_PASSWORD}` text intact through an unrelated provider rename.
+        assert_eq!(
+            resolve_ref(&entries, &projects, "DB_PASSWORD", "api_key", 0).as_deref(),
+            Some("before-and-after")
+        );
+        assert_eq!(
+            projects[0]["chunks"][0]["fields"][0]["value"],
+            json!("${DB_PASSWORD}")
+        );
     }
 }
