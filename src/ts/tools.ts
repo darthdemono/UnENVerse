@@ -300,6 +300,111 @@ export function initTools() {
   initHistoryPane();
   initVendorImportPane();
   initDoctorPane();
+  const migratePreview = document.getElementById('migrate-preview');
+  const migrateApply = document.getElementById('migrate-apply') as HTMLButtonElement | null;
+  let migrationPlanIsCurrent = false;
+  const migrationInput = (): {
+    format: string;
+    sourceLabel: string;
+    text: string;
+    template: boolean;
+  } | null => {
+    const format = (document.getElementById('migrate-format') as HTMLSelectElement | null)?.value;
+    const sourceLabel = (
+      document.getElementById('migrate-source-label') as HTMLInputElement | null
+    )?.value.trim();
+    const text = (document.getElementById('migrate-text') as HTMLTextAreaElement | null)?.value;
+    const template = (document.getElementById('migrate-template') as HTMLInputElement | null)
+      ?.checked;
+    return format && sourceLabel && text && template !== undefined
+      ? { format, sourceLabel, text, template }
+      : null;
+  };
+  const invalidateMigrationPlan = () => {
+    migrationPlanIsCurrent = false;
+    if (migrateApply) migrateApply.disabled = true;
+  };
+  ['migrate-format', 'migrate-source-label', 'migrate-template', 'migrate-text'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('input', invalidateMigrationPlan);
+    document.getElementById(id)?.addEventListener('change', invalidateMigrationPlan);
+  });
+  migratePreview?.addEventListener('click', () => {
+    void (async () => {
+      const status = document.getElementById('migrate-status');
+      const results = document.getElementById('migrate-results');
+      const input = migrationInput();
+      invalidateMigrationPlan();
+      if (!status || !results || !input) {
+        if (status) {
+          status.textContent = 'Choose a format, name the source, and paste configuration text.';
+          status.className = 'tool-status err';
+          status.style.display = '';
+        }
+        return;
+      }
+      if (!invoke) {
+        status.textContent = 'Migration preview is available in the desktop app.';
+        status.className = 'tool-status warn';
+        status.style.display = '';
+        return;
+      }
+      try {
+        const parsed = await invokeTauri<{
+          format: string;
+          counts: {
+            read: number;
+            imported: number;
+            archived: number;
+            skipped: number;
+            conflicts: number;
+          };
+          items: { name: string; source_id: string; status: string; conflict?: string }[];
+          unsupported: string[];
+        }>('migrate_plan', input);
+        status.textContent = `${parsed.counts.read} item(s): ${parsed.counts.imported} ready, ${parsed.counts.skipped} skipped, ${parsed.counts.conflicts} conflict(s).`;
+        status.className = 'tool-status ok';
+        status.style.display = '';
+        const rows = parsed.items.map(
+          (item) =>
+            html`<tr><td>${item.name}</td><td>${item.status}${item.conflict ? `: ${item.conflict}` : ''}</td></tr>`,
+        );
+        const unsupported = parsed.unsupported.length
+          ? html`<p class="tool-status warn">Archived with this migration: ${parsed.unsupported.join(', ')}</p>`
+          : '';
+        setHtml(
+          results,
+          html`<table class="diff-table"><thead><tr><th>Field</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>${unsupported}`,
+        );
+        migrationPlanIsCurrent = parsed.counts.conflicts === 0;
+        if (migrateApply) migrateApply.disabled = !migrationPlanIsCurrent;
+      } catch (error) {
+        status.textContent = errorMessage(error);
+        status.className = 'tool-status err';
+        status.style.display = '';
+      }
+    })();
+  });
+  migrateApply?.addEventListener('click', () => {
+    void (async () => {
+      const status = document.getElementById('migrate-status');
+      const input = migrationInput();
+      if (!status || !input || !migrationPlanIsCurrent || !invoke) return;
+      migrateApply.disabled = true;
+      try {
+        const applied = await invokeTauri<{
+          counts: { imported: number; archived: number; skipped: number; conflicts: number };
+        }>('migrate_apply', input);
+        status.textContent = `Migration applied: ${applied.counts.imported} imported, ${applied.counts.archived} archived, ${applied.counts.skipped} skipped.`;
+        status.className = 'tool-status ok';
+        status.style.display = '';
+        migrationPlanIsCurrent = false;
+      } catch (error) {
+        status.textContent = errorMessage(error);
+        status.className = 'tool-status err';
+        status.style.display = '';
+      }
+    })();
+  });
   if ((Settings.get('activeTool') || '') === 'timeline') renderTimeline();
   document.getElementById('pools-refresh-btn')?.addEventListener('click', () => {
     void renderPoolsPane();
