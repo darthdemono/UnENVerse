@@ -77,8 +77,8 @@ fn old_vault_opens_and_verifies() {
 
     // No `cipher_migrate`, no schema bump: the fixture opens as it is.
     vault_core::init_schema(&conn).unwrap();
-    // R05's migrations are additive: the pre-migration golden vault records
-    // exactly the baseline and durable-operations migrations on first open.
+    // R05, R07 and R08 migrations are additive: the pre-migration golden vault
+    // records baseline, durable operations and metadata lifecycle tables.
     let migrations: Vec<i64> = conn
         .prepare("SELECT id FROM schema_migrations ORDER BY id")
         .unwrap()
@@ -86,12 +86,50 @@ fn old_vault_opens_and_verifies() {
         .unwrap()
         .map(|row| row.unwrap())
         .collect();
-    assert_eq!(migrations, vec![1, 2]);
+    assert_eq!(migrations, vec![1, 2, 3, 4]);
     let v = vault_core::load_vault(&conn).unwrap().unwrap();
     assert_eq!(v["api_keys"].as_array().unwrap().len(), 3);
     let proj = &v["projects"][0];
     assert_eq!(proj["name"], "homelab");
     assert_eq!(proj["chunks"].as_array().unwrap().len(), 2);
+
+    let lifecycle_tables: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('credential_generations', 'pending_credentials', 'lifecycle_events', 'deployment_state')",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        lifecycle_tables, 4,
+        "R07 tables migrate old vaults together"
+    );
+    for table in [
+        "migrations",
+        "migration_items",
+        "source_archives",
+        "vault_blobs",
+    ] {
+        let found: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                [table],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(found, 1, "R08 migration must create {table}");
+    }
+    let migrated_generations: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM credential_generations WHERE source = 'migration' AND generation = 1 AND issued_at IS NULL AND issued_at_precision = 'unknown'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(
+        migrated_generations >= 1,
+        "old secrets receive a first generation without inventing an issue date"
+    );
 
     // History kept the old value of the edited key.
     let stripe = v["api_keys"]
