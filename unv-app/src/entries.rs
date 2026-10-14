@@ -1438,6 +1438,44 @@ pub fn cmd_history(access: &Access, query: &str) -> CliResult {
     Ok(())
 }
 
+/// Show secret-free lifecycle events for an entry. Unlike `entry history`, this
+/// is not a list of old values: it answers when a credential was imported,
+/// created, rotated or verified, and which generation was affected.
+pub fn cmd_timeline(access: &Access, query: &str) -> CliResult {
+    let vault = access.load_vault()?;
+    let idx = find_entry_index(&vault, query)?;
+    let entry = &data::entries(&vault)[idx];
+    let entry_id = entry.get("id").and_then(|id| id.as_str()).ok_or_else(|| {
+        CliError::invalid("Entry has no stable id; open and save the vault first")
+    })?;
+    let provider = data::provider_of(entry).to_string();
+    let events = match access.local_conn()? {
+        Some(conn) => vault_core::lifecycle::timeline(&conn, entry_id).map_err(CliError::from)?,
+        None => access
+            .remote()
+            .ok_or_else(|| CliError::unavailable("No vault connection"))?
+            .get_json(&format!("/api/vault/entries/{entry_id}/timeline"))?
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(serde_json::from_value)
+            .collect::<Result<Vec<vault_core::lifecycle::TimelineEvent>, _>>()
+            .map_err(|error| CliError::from(error.to_string()))?,
+    };
+    out::ok(
+        "entry.timeline",
+        json!({ "provider": provider, "id": entry_id, "events": events }),
+        || {
+            println!("{provider} lifecycle timeline");
+            for event in &events {
+                println!("{:<26} {:<12} {}", event.at, event.kind, event.source);
+            }
+        },
+    );
+    Ok(())
+}
+
 /// `unv curl <entry> [-- URL]` — the command that actually sends the credential.
 ///
 /// A **materialising** path: the output contains the real value, so it follows
