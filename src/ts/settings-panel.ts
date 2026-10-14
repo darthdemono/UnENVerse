@@ -413,13 +413,17 @@ function wireArchiveRows(): void {
   };
 }
 
-// ── Streamed recovery packages (R05) ───────────────────────────────────────
+// ── Streamed recovery packages (R05/R06) ───────────────────────────────────
 
 function wireRecoveryRows(): void {
   const key = document.getElementById('s-recovery-key') as HTMLButtonElement | null;
   const add = document.getElementById('s-recovery-dest-add') as HTMLButtonElement | null;
   const packageNow = document.getElementById('s-recovery-package') as HTMLButtonElement | null;
+  const drill = document.getElementById('s-recovery-drill') as HTMLButtonElement | null;
   const schedule = document.getElementById('s-recovery-schedule') as HTMLButtonElement | null;
+  const drillSchedule = document.getElementById(
+    's-recovery-drill-schedule',
+  ) as HTMLButtonElement | null;
   const refresh = document.getElementById('s-recovery-refresh') as HTMLButtonElement | null;
   const remove = document.getElementById('s-recovery-dest-remove') as HTMLButtonElement | null;
   const cancel = document.getElementById('s-recovery-cancel') as HTMLButtonElement | null;
@@ -427,6 +431,15 @@ function wireRecoveryRows(): void {
   const destinationPath = document.getElementById(
     's-recovery-dest-path',
   ) as HTMLInputElement | null;
+  const sftpHost = document.getElementById('s-recovery-sftp-host') as HTMLInputElement | null;
+  const sftpPort = document.getElementById('s-recovery-sftp-port') as HTMLInputElement | null;
+  const sftpUser = document.getElementById('s-recovery-sftp-user') as HTMLInputElement | null;
+  const sftpPath = document.getElementById('s-recovery-sftp-path') as HTMLInputElement | null;
+  const sftpCredential = document.getElementById(
+    's-recovery-sftp-credential',
+  ) as HTMLInputElement | null;
+  const sftpAuth = document.getElementById('s-recovery-sftp-auth') as HTMLSelectElement | null;
+  const sftpAdd = document.getElementById('s-recovery-sftp-add') as HTMLButtonElement | null;
   const daily = document.getElementById('s-recovery-daily') as HTMLInputElement | null;
   const interval = document.getElementById('s-recovery-interval') as HTMLInputElement | null;
   const timeZone = document.getElementById('s-recovery-time-zone') as HTMLInputElement | null;
@@ -436,12 +449,21 @@ function wireRecoveryRows(): void {
     !key ||
     !add ||
     !packageNow ||
+    !drill ||
     !schedule ||
+    !drillSchedule ||
     !refresh ||
     !remove ||
     !cancel ||
     !destinationId ||
     !destinationPath ||
+    !sftpHost ||
+    !sftpPort ||
+    !sftpUser ||
+    !sftpPath ||
+    !sftpCredential ||
+    !sftpAuth ||
+    !sftpAdd ||
     !daily ||
     !interval ||
     !timeZone ||
@@ -453,7 +475,18 @@ function wireRecoveryRows(): void {
     status.textContent = text;
   };
   if (!inTauri) {
-    for (const button of [key, add, packageNow, schedule, refresh, remove, cancel]) {
+    for (const button of [
+      key,
+      add,
+      packageNow,
+      drill,
+      sftpAdd,
+      schedule,
+      drillSchedule,
+      refresh,
+      remove,
+      cancel,
+    ]) {
       button.disabled = true;
       button.title = 'Available in the desktop app. In a terminal: unv backup --help.';
     }
@@ -463,14 +496,16 @@ function wireRecoveryRows(): void {
     const [destinations, schedules, runs] = await Promise.all([
       invokeTauri<{ id: string; path: string }[]>('backup_destination_list'),
       invokeTauri<{ id: string; target: string; next_due_at?: string }[]>('backup_schedule_list'),
-      invokeTauri<{ id: string; state: string }[]>('ops_list'),
+      invokeTauri<
+        { id: string; kind: string; state: string; outcome?: string; error_msg?: string }[]
+      >('ops_list'),
     ]);
     const latest = runs[0];
     // Fetching the current run is deliberate: its record has durable error and
     // receipt detail that the abbreviated list leaves out.
     if (latest) await invokeTauri('ops_show', { id: latest.id });
     show(
-      `Destinations: ${destinations.map((d) => d.id).join(', ') || 'none'} · schedules: ${schedules.length} · latest: ${latest ? `${latest.id} ${latest.state}` : 'none'}`,
+      `Destinations: ${destinations.map((d) => d.id).join(', ') || 'none'} · schedules: ${schedules.length} · latest: ${latest ? `${latest.kind} ${latest.state}${latest.outcome ? `: ${latest.outcome}` : latest.error_msg ? `: ${latest.error_msg}` : ''}` : 'none'}`,
     );
   };
   key.onclick = () =>
@@ -513,6 +548,57 @@ function wireRecoveryRows(): void {
         showToast(`Package failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 5000);
       }
     })();
+  drill.onclick = () =>
+    void (async () => {
+      try {
+        const run = await invokeTauri<{ id: string; state: string }>('backup_drill', {
+          dest: destinationId.value,
+        });
+        show(`Restore drill ${run.id}: ${run.state}`);
+        await reload();
+      } catch (e) {
+        showToast(
+          `Restore drill failed: ${e instanceof Error ? e.message : String(e)}`,
+          'err',
+          5000,
+        );
+      }
+    })();
+  sftpAdd.onclick = () =>
+    void (async () => {
+      try {
+        const port = Number(sftpPort.value || '22');
+        if (!Number.isInteger(port) || port < 1 || port > 65535)
+          throw new Error('SFTP port must be between 1 and 65535.');
+        const fingerprint = await invokeTauri<string>('backup_sftp_host_key', {
+          host: sftpHost.value,
+          port,
+        });
+        if (
+          !(await showConfirm(
+            `The SFTP server presented this host key:\n\n${fingerprint}\n\nAdd this exact key as the permanent pin? A changed key will always be refused.`,
+          ))
+        )
+          return;
+        await invokeTauri('backup_destination_add_sftp', {
+          id: destinationId.value,
+          host: sftpHost.value,
+          port,
+          user: sftpUser.value,
+          path: sftpPath.value,
+          credential: sftpCredential.value,
+          auth: sftpAuth.value,
+          hostKey: fingerprint,
+        });
+        await reload();
+      } catch (e) {
+        showToast(
+          `SFTP destination failed: ${e instanceof Error ? e.message : String(e)}`,
+          'err',
+          5000,
+        );
+      }
+    })();
   schedule.onclick = () =>
     void (async () => {
       try {
@@ -534,6 +620,27 @@ function wireRecoveryRows(): void {
         await reload();
       } catch (e) {
         showToast(`Schedule failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 5000);
+      }
+    })();
+  drillSchedule.onclick = () =>
+    void (async () => {
+      try {
+        await invokeTauri('backup_schedule_drill', {
+          dest: destinationId.value,
+          day: 1,
+          at: '03:00',
+          timeZone: timeZone.value || 'UTC',
+        });
+        await showConfirm(
+          'A restore drill will run monthly while UnENVerse stays open and unlocked. It restores only to a temporary directory and never activates the restored vault.',
+        );
+        await reload();
+      } catch (e) {
+        showToast(
+          `Drill schedule failed: ${e instanceof Error ? e.message : String(e)}`,
+          'err',
+          5000,
+        );
       }
     })();
   refresh.onclick = () =>
