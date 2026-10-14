@@ -360,10 +360,7 @@ pub fn cmd_rm(access: &Access, query: &str, yes: bool) -> CliResult {
         return Ok(());
     }
     if let Some(obj) = data::entries_mut(&mut vault)[idx].as_object_mut() {
-        obj.remove("totp_secret");
-        obj.remove("totp_algorithm");
-        obj.remove("totp_digits");
-        obj.remove("totp_period");
+        clear_totp_fields(obj);
     }
     access.save(&vault)?;
     out::ok(
@@ -372,6 +369,22 @@ pub fn cmd_rm(access: &Access, query: &str, yes: bool) -> CliResult {
         || println!("Removed the TOTP seed from '{provider}'"),
     );
     Ok(())
+}
+
+/// Remove every field whose meaning depends on a stored authenticator seed.
+/// Keeping one after the seed is gone makes an entry look like a half-configured
+/// second factor to later edits and imports.
+fn clear_totp_fields(entry: &mut serde_json::Map<String, Value>) {
+    for field in [
+        "totp_secret",
+        "totp_algorithm",
+        "totp_digits",
+        "totp_period",
+        "totp_kind",
+        "totp_counter",
+    ] {
+        entry.remove(field);
+    }
 }
 
 // ── Import and export ─────────────────────────────────────────────────────────
@@ -640,4 +653,37 @@ pub fn cmd_export(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn removing_an_hotp_seed_clears_its_counter_and_kind() {
+        // `unv totp rm` used to leave HOTP's kind and counter behind. A later
+        // import or edit could then inherit state from a seed the user removed.
+        let mut entry = serde_json::json!({
+            "provider": "Example",
+            "totp_secret": "JBSWY3DPEHPK3PXP",
+            "totp_algorithm": "SHA256",
+            "totp_digits": 8,
+            "totp_period": 60,
+            "totp_kind": "hotp",
+            "totp_counter": 42,
+        });
+        clear_totp_fields(entry.as_object_mut().expect("entry object"));
+
+        for field in [
+            "totp_secret",
+            "totp_algorithm",
+            "totp_digits",
+            "totp_period",
+            "totp_kind",
+            "totp_counter",
+        ] {
+            assert!(entry.get(field).is_none(), "{field} remained after removal");
+        }
+        assert_eq!(entry["provider"], "Example");
+    }
 }

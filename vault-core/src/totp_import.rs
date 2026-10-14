@@ -24,12 +24,11 @@
 //! saying to export again without encryption. Refusing with a reason beats
 //! failing to parse with none.
 //!
-//! # What is deliberately not read
+//! # Counter-based codes
 //!
-//! `otpauth://hotp/` and every counter-based entry in every format. HOTP has no
-//! clock, so "the current code" does not exist for it: importing one produces an
-//! entry whose code never changes and never works. They are counted and named in
-//! the report rather than silently dropped.
+//! `otpauth://hotp/` entries carry their counter through import and export. HOTP
+//! has no clock, so callers request the next code explicitly and advance the
+//! stored counter only after the target service accepts it.
 
 use crate::totp::{self, Params, Stored};
 use base64::Engine;
@@ -190,6 +189,18 @@ pub fn detect(text: &str) -> Result<Format, String> {
     }
 
     if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
+        // Ente Auth's encrypted export. The decrypted payload is a plain
+        // newline-delimited otpauth:// list, but the envelope needs the export
+        // password. The official Ente CLI owns that decryption step.
+        if v.get("kdfParams").is_some()
+            && v.get("encryptedData").is_some()
+            && v.get("encryptionNonce").is_some()
+        {
+            return Err(encrypted_msg(
+                "Ente Auth",
+                "Decrypt it with the Ente CLI into a plain-text otpauth:// list",
+            ));
+        }
         // Aegis. Encrypted vaults keep `header.slots` populated and store `db`
         // as a base64 string instead of an object.
         if v.get("db").is_some() && v.get("header").is_some() {
@@ -1206,6 +1217,14 @@ mod tests {
         let bw = r#"{"encrypted":true,"items":[]}"#;
         let err = detect(bw).expect_err("encrypted Bitwarden must be refused");
         assert!(err.contains("Bitwarden"), "{err}");
+
+        // Ente's encrypted envelope used to fall through to a generic JSON
+        // error. Someone with the normal Ente backup then had no safe next
+        // step, even though Ente documents a CLI decryption route.
+        let ente = r#"{"version":1,"kdfParams":{"memLimit":4096,"opsLimit":3,"salt":"x"},"encryptedData":"x","encryptionNonce":"x"}"#;
+        let err = detect(ente).expect_err("encrypted Ente Auth must be refused");
+        assert!(err.contains("Ente Auth"), "{err}");
+        assert!(err.contains("Ente CLI"), "{err}");
     }
 
     #[test]

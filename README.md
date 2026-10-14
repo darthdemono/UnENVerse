@@ -308,7 +308,7 @@ A seed that a third party issued is a field on any entry, not a type of its own:
 - **Three kinds.** `totp`, `hotp` (a counter you advance by hand: reading a code never moves it) and `steam` (Steam Guard's five-character alphabet, with its shape forced rather than validated).
 - **The next code** is opt-in everywhere, because a second working credential with a longer life than the one on screen makes every screenshot good for two periods instead of one.
 - **A fifth activity-bar panel**, Authenticator, lists every seed with search, a kind filter, per-card Advance and Import and Export buttons. `unv totp code|ls|add|advance|uri|rm|import|export` is the CLI side, and `unv codes` handles single-use recovery codes (reading one never spends it).
-- **Import** from Ente Auth, Aegis, 2FAS, andOTP, Bitwarden, Google Authenticator and plain `otpauth://` lists; **export** to `otpauth://` lists, Aegis and 2FAS. Encrypted exports from those apps are refused by name rather than decrypted, an import never replaces an existing seed with a different one without `--force`, and an HOTP entry is counted in the report instead of dropped.
+- **Import** from Ente Auth, Aegis, 2FAS, andOTP, Bitwarden, Google Authenticator and plain `otpauth://` lists; **export** to `otpauth://` lists, Aegis and 2FAS. Encrypted exports from those apps are refused by name rather than decrypted, an import never replaces an existing seed with a different one without `--force`, and an HOTP entry keeps its counter through import and export.
 - **The seed is a secret, the code is not.** The seed redacts like any other secret, and `unv totp ls` lists names and parameters, never codes. This works against remote vaults exactly as against local ones.
 
 ## Copy profiles and generated names
