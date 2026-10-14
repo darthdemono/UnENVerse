@@ -1,0 +1,17 @@
+{
+  "wireguard": {
+    "text": "[Interface]\nPrivateKey = placeholder-private-key\nAddress = 10.0.0.1/24\n\n[Peer]\nPublicKey = placeholder-public-key\nAllowedIPs = 10.0.0.2/32\n",
+    "rust_fields": ["interface.PrivateKey", "interface.Address", "peer.PublicKey", "peer.AllowedIPs"],
+    "ts_chunks": ["wg_interface", "wg_peer"]
+  },
+  "compose": {
+    "text": "services:\n  app:\n    environment:\n      TOKEN: placeholder-token\n      MODE=production\n",
+    "rust_fields": ["app.TOKEN", "app.MODE"],
+    "ts_chunks": ["docker_service"]
+  },
+  "nginx": {
+    "text": "server {\n  listen 443 ssl;\n  server_name example.test;\n}\n",
+    "rust_fields": ["listen", "server_name"],
+    "ts_chunks": ["nginx_server"]
+  }
+}
