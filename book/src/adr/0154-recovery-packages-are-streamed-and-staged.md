@@ -14,4 +14,4 @@ A destination must contain an UnENVerse marker. Writing uses a unique `.unvpkg.p
 
 ## Consequences
 
-`recover inspect` exposes package metadata but not vault contents. A lost private recovery identity cannot be reconstructed from the vault: only its public recipient is stored. A bad identity, tampered package, missing marker or failed write leaves no accepted recovery package or partially populated target.
+`recover inspect` exposes package metadata but not vault contents. R06 supersedes the identity-storage detail for an unlocked restore drill in ADR-0155: the external private recovery identity remains necessary for recovery on a new machine, while an encrypted internal copy is never output. A bad identity, tampered package, missing marker or failed write leaves no accepted recovery package or partially populated target.
