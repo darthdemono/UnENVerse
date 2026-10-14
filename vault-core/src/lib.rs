@@ -51,7 +51,9 @@ pub mod bundle_import;
 pub mod bundle_scope;
 pub mod catalogue;
 pub mod config_check;
+pub mod lifecycle;
 pub mod migrate_schema;
+pub mod migration;
 pub mod oauth;
 pub mod ops;
 pub mod pgp;
@@ -368,9 +370,7 @@ pub fn check_schema_version(conn: &Connection) -> Result<(), String> {
 /// Refuses a vault stamped with a schema this build does not understand, rather
 /// than handing back a document it would silently truncate on the next save.
 pub fn load_vault(conn: &Connection) -> Result<Option<serde_json::Value>, String> {
-    check_schema_version(conn)?;
-    // A v1 vault is converted the first time anything opens it.
-    storage::migrate_if_needed(conn, &iso_now())?;
+    ensure_current_schema(conn)?;
     storage::load(conn)
 }
 
@@ -385,15 +385,27 @@ pub const MERGED_SUFFIX: &str = "+merged";
 /// first, or it pairs a v1 hash with a v2 document and its first save conflicts.
 pub fn ensure_current_schema(conn: &Connection) -> Result<(), String> {
     check_schema_version(conn)?;
-    storage::migrate_if_needed(conn, &iso_now())
+    // `snapshot_vault` calls us before it opens a read snapshot. Inside that
+    // snapshot, an outer writer/read transaction already owns the boundary and
+    // SQLite correctly refuses a nested BEGIN IMMEDIATE.
+    if conn.is_autocommit() {
+        // `load_vault` is public and a restored archive can reach it directly,
+        // without going through Access::local_key. Apply recorded additive
+        // migrations before lifecycle seeding queries their new tables.
+        migrate_schema::migrate_schema(conn)?;
+        storage::migrate_if_needed(conn, &iso_now())?;
+    }
+    if let Some(document) = storage::load(conn)? {
+        lifecycle::seed_existing(conn, &document)?;
+    }
+    Ok(())
 }
 
 /// The vault document without any entry's `version_history`: what a selective
 /// read needs, without the 50-revision secret trail per entry that a full read
 /// carries (Phase 30).
 pub fn load_vault_lite(conn: &Connection) -> Result<Option<serde_json::Value>, String> {
-    check_schema_version(conn)?;
-    storage::migrate_if_needed(conn, &iso_now())?;
+    ensure_current_schema(conn)?;
     storage::load_lite(conn)
 }
 
@@ -475,7 +487,10 @@ fn historied_extra_vars(entry: &serde_json::Value) -> Vec<(String, String)> {
 pub fn snapshot_vault(
     conn: &Connection,
 ) -> Result<(Option<String>, Option<serde_json::Value>), String> {
-    storage::in_snapshot(conn, || Ok((vault_version(conn)?, load_vault(conn)?)))
+    // Migration has to happen before the read transaction. A snapshot can then
+    // call the row loader directly without attempting a nested transaction.
+    ensure_current_schema(conn)?;
+    storage::in_snapshot(conn, || Ok((vault_version(conn)?, storage::load(conn)?)))
 }
 
 /// The base version and the current document a row patch is applied to.
@@ -633,6 +648,34 @@ pub fn save_vault(
     }
 }
 
+/// Saves the document and a migration manifest as one SQLCipher transaction.
+///
+/// The manifest contains source identities and encrypted archive payloads. A
+/// failed vault save therefore cannot leave an import marked applied, and a
+/// failed archive write cannot leave imported entries without their provenance.
+pub fn save_vault_with_migration(
+    conn: &Connection,
+    data: serde_json::Value,
+    ctx: SaveCtx<'_>,
+    migration: &migration::MigrationRecord,
+) -> Result<String, String> {
+    conn.execute_batch("BEGIN IMMEDIATE")
+        .map_err(|e| e.to_string())?;
+    match save_vault_txn(conn, data, ctx).and_then(|hash| {
+        migration::record_txn(conn, migration)?;
+        Ok(hash)
+    }) {
+        Ok(hash) => {
+            commit(conn)?;
+            Ok(hash)
+        }
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            Err(e)
+        }
+    }
+}
+
 /// Body of [`save_vault`]. Must only be called inside a write transaction.
 ///
 /// Phase 30: the document is split into rows, a stale writer is merged with what
@@ -651,6 +694,12 @@ fn save_vault_txn(
     check_schema_version(conn)?;
     // A v1 blob still waiting is converted inside this same transaction.
     storage::migrate_in_txn(conn, &now_str)?;
+    // Existing entries receive generation one before a new save can compare
+    // values. This is safe inside the save transaction and handles callers that
+    // create a new connection and save without loading first.
+    if let Some(document) = storage::load(conn)? {
+        lifecycle::seed_existing(conn, &document)?;
+    }
 
     // Compare-and-swap, now per row: inside the transaction, so no writer can slip
     // between this check and the write below. An absent version means an empty
@@ -666,6 +715,16 @@ fn save_vault_txn(
         .filter(|((kind, _), _)| kind == "entry")
         .map(|((_, key), (rev, _))| (key.as_str(), rev.as_str()))
         .collect();
+    let mut lifecycle_old = std::collections::BTreeMap::new();
+    for ent in ents.iter().filter(|ent| ent.kind == "entry") {
+        if stored.contains_key(ent.key.as_str()) {
+            if let Some(old) = storage::load_ent(conn, "entry", &ent.key)? {
+                if let Some(id) = old.full().get("id").and_then(|v| v.as_str()) {
+                    lifecycle_old.insert(id.to_string(), old.full());
+                }
+            }
+        }
+    }
     let kept: std::collections::HashSet<&str> = ents
         .iter()
         .filter(|e| e.kind == "entry")
@@ -815,6 +874,13 @@ fn save_vault_txn(
             }
         }
     }
+
+    let lifecycle_next: Vec<serde_json::Value> = ents
+        .iter()
+        .filter(|ent| ent.kind == "entry")
+        .map(storage::Ent::full)
+        .collect();
+    lifecycle::record_save(conn, &lifecycle_old, &lifecycle_next, &now_str)?;
 
     // Data and token move together, so the integrity check never sees a mismatch.
     let token = storage::write(conn, &snap, &ents, &now_str)?;
