@@ -622,6 +622,29 @@ describe('fillForm → formToEntry round trip', () => {
     });
   });
 
+  it('preserves R07 lifecycle metadata through an older form that does not edit it', () => {
+    const original = makeEntry({
+      authority: { kind: 'team', owner: 'platform', source_id: 'private-account' },
+      provenance: { source_kind: 'import', source_id: 'private-source' },
+      issued_at: '2026-01-01',
+      issued_at_precision: 'date',
+      attachments: [{ name: 'credential.json', media_type: 'application/json', size: 42 }],
+      plugin_data: { opaque: 'adapter-owned' },
+    });
+    fillForm(original);
+    const out = formToEntry(original);
+    // Regression: adding a field to VaultEntry must not make an older edit form
+    // erase it on Save merely because the form has no control for it yet.
+    expect(out).toMatchObject({
+      authority: original.authority,
+      provenance: original.provenance,
+      issued_at: '2026-01-01',
+      issued_at_precision: 'date',
+      attachments: original.attachments,
+      plugin_data: original.plugin_data,
+    });
+  });
+
   it('clears fields left over from the previously edited entry', () => {
     fillForm(makeEntry({ provider: 'First', api_key: 'k1', key_id: 'leftover' }));
     fillForm(makeEntry({ provider: 'Second', api_key: 'k2' }));
