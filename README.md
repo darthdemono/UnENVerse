@@ -267,13 +267,16 @@ Four importers, all of them preview-first (the vendor ones are also in the app, 
 | Command                        | Reads                                                     |
 | ------------------------------ | --------------------------------------------------------- |
 | `unv import FILE`              | A `.env` file, or a full-vault JSON export with `--json`  |
-| `unv import-vault bitwarden`   | A Bitwarden JSON export                                   |
-| `unv import-vault onepassword` | A 1Password export, either `op item list` JSON or `.1pux` |
+| `unv import-vault bitwarden`   | A Bitwarden plaintext JSON or ZIP-with-attachments export |
+| `unv import-vault onepassword` | A 1Password JSON or `.1pux` export                        |
+| `unv import-vault keepass`     | A KeePassXC or KeePass KDBX3/KDBX4 database               |
 | `unv import-vault proton`      | A Proton Pass JSON export                                 |
 
-The vendor importers share three rules. They upsert by identity rather than appending, so running the same import twice creates nothing and changes nothing. They print fingerprints rather than values, because that output goes to stdout like everything else. And they count what they skipped, because a Bitwarden export full of credit cards should not silently report that it imported everything.
+Bitwarden, 1Password and KeePass are durable source migrations. The CLI plans first, then, with `--apply`, writes entry rows, source identities and encrypted source archives in one transaction. Re-importing an unchanged source is a no-op; a changed source and a separately changed vault entry produce a named conflict. Attachments, documents, unsupported records and the original source stay encrypted in the vault archive, so an import never claims that it silently dropped them.
 
-Two of them have a trap worth naming. A Bitwarden secure note keeps the secret in the `notes` field, so the importer moves it into the value and clears the note, since nothing redacts a notes field. And a Proton Pass export can be encrypted, in which case it is perfectly valid JSON with no readable items in it. A naive reader reports "0 credentials found" for a file that is full of them. This one refuses and tells you which checkbox to untick.
+The readers preserve Bitwarden cipher types 1 through 8, password history, every login URL, TOTP seeds and ZIP attachments; 1Password fields, OTPs and `.1pux` documents; and KeePass group metadata, history, protected custom fields, TOTP and KDBX attachments. Bitwarden encrypted or password-protected exports are refused by name under ADR-0093. KeePass prompts for its database password in memory; use `--key-file` for a key component and `--no-password --key-file <path>` for a key-file-only database.
+
+These three readers are implemented from their published formats and are not yet verified against sanitized current-product exports. The desktop Tools pane names that limitation and directs to the CLI because its former quick import could not atomically retain source identities and binary archives. Bitwarden individual exports omit organization-owned and trashed items; 1Password `.1pux` exports do not represent passkeys. Both are named as missing at source in the report.
 
 `unv watch FILE` keeps a `.env` in sync with the vault as you edit it. It upserts by provider, because the first version appended unconditionally and added a full copy of the file to the vault on every save.
 

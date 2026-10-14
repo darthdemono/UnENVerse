@@ -6,6 +6,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
+- R09 full-fidelity password-manager source migration: `unv import-vault bitwarden|onepassword|keepass` now plans and atomically records source identities, encrypted source archives and attachments alongside vault entries. Bitwarden JSON and ZIP attachments, 1Password JSON and `.1pux`, and KeePass KDBX3/KDBX4 password/key-file sources retain histories, TOTP where present, and report unsupported or missing-at-source material. The readers are format-derived and await sanitized real-export verification.
 - R08 lossless config migration core: encrypted migration manifests, source archives and template bindings; Rust `.env`, Compose, WireGuard and nginx readers; `unv migrate plan|apply|verify|report|archive`; a desktop Rust-backed preview; and parser fuzz targets.
 - R07 metadata and lifecycle core: ordered credential-generation, pending, lifecycle-event and deployment-state tables; vault-scoped HMAC generation fingerprints; stable-id project bindings; incremental config-history rerendering; and a secret-free entry timeline in the app and `unv entry timeline`.
 - R05 recovery packages: age X25519 `.unvpkg` streams with online SQLCipher snapshots, manifest and hash validation, marked local/NAS destinations, staged restore and local verification. `unv backup package|dest|recovery-key|schedule`, `unv recover`, and `unv ops` share the same core with the desktop Recovery settings.

@@ -12,4 +12,5 @@ An **encrypted** export from another app is refused by name, never decrypted
 
 ## Evidence
 
-`vault-core/src/totp_import.rs`
+`vault-core/src/totp_import.rs`; `unv-app/src/password_sources.rs` refuses a
+Bitwarden encrypted or password-protected export before parsing its items.
