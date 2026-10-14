@@ -1716,6 +1716,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
         >
           ▾
         </button>${entry.secretType === 'cookie' ? html`<button class="icon-btn sm" data-action="verify" data-idx="${idx}" title="${entry.last_verified_at ? 'Last verified ' + entry.last_verified_at : 'Never verified — open the site and confirm you are still signed in'}" aria-label="${'Mark ' + entry.provider + ' as still signed in'}" style="font-size:11px;gap:3px;">✓</button>` : html`<button class="icon-btn sm" data-action="rotate" data-idx="${idx}" title="Mark as rotated" aria-label="${'Mark ' + entry.provider + ' as rotated'}" style="font-size:11px;gap:3px;">↺</button>`}
+        <button class="icon-btn sm" data-action="timeline" data-idx="${idx}" title="Lifecycle timeline" aria-label="${'Show lifecycle timeline for ' + entry.provider}">◷</button>
         <button
           class="icon-btn sm${entry.pinned ? ' pin-btn active' : ' pin-btn'}"
           data-action="pin"
