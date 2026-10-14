@@ -36,8 +36,10 @@ time         = { version = "0.3.55", features = ["parsing"] }
 aho-corasick = "1"
 walkdir      = "2"
 jiff         = "0.2"
-tokio        = { version = "1", features = ["sync"] }
+tokio        = { version = "1", features = ["sync", "rt-multi-thread", "net", "io-util", "fs", "time"] }
 rusqlite     = { version = "=0.40.2", features = ["sqlcipher"] }
+russh        = "0.64.1"
+russh-sftp   = "3.0.1"
 
 [lints]
 workspace = true
