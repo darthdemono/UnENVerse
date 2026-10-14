@@ -13,6 +13,11 @@ use std::path::{Path, PathBuf};
 const MAGIC: &[u8] = b"UNVPKG1\n";
 const MAX_HEADER_BYTES: usize = 1024 * 1024;
 pub const RECIPIENT_META_KEY: &str = "recovery_recipient_v1";
+/// The age identity used only by an unlocked local executor to exercise a
+/// restore drill.  `vault_meta` is SQLCipher-encrypted and this value is never
+/// exposed through an output command; the user-held recovery-key copy remains
+/// the recovery path for a new machine.
+pub const DRILL_IDENTITY_META_KEY: &str = "recovery_drill_identity_v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PackageFile {
@@ -136,11 +141,37 @@ pub fn set_recipient(conn: &Connection, recipient: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Stores the recovery identity inside the encrypted vault for unattended
+/// restore drills.  Callers must never print this value after creation.
+pub fn set_drill_identity(conn: &Connection, identity: &str) -> Result<(), String> {
+    identity
+        .trim()
+        .parse::<age::x25519::Identity>()
+        .map_err(|_| "Recovery identity is not a valid age X25519 identity".to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO vault_meta (key, value) VALUES (?1, ?2)",
+        (DRILL_IDENTITY_META_KEY, identity),
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn recipient(conn: &Connection) -> Result<Option<String>, String> {
     use rusqlite::OptionalExtension;
     conn.query_row(
         "SELECT value FROM vault_meta WHERE key = ?1",
         [RECIPIENT_META_KEY],
+        |row| row.get(0),
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+pub fn drill_identity(conn: &Connection) -> Result<Option<String>, String> {
+    use rusqlite::OptionalExtension;
+    conn.query_row(
+        "SELECT value FROM vault_meta WHERE key = ?1",
+        [DRILL_IDENTITY_META_KEY],
         |row| row.get(0),
     )
     .optional()
@@ -310,6 +341,19 @@ pub fn restore_package(
     target: &Path,
     identity_file: &Path,
 ) -> Result<Manifest, String> {
+    let identity_text =
+        fs::read_to_string(identity_file).map_err(|e| err("read recovery identity", e))?;
+    restore_package_with_identity(package, target, &identity_text)
+}
+
+/// Decrypts a package with in-memory identity text.  This is used by the
+/// unlocked monthly drill so it never materializes the identity in a temporary
+/// file.  Human recovery still uses [`restore_package`] and a user-held key.
+pub fn restore_package_with_identity(
+    package: &Path,
+    target: &Path,
+    identity_text: &str,
+) -> Result<Manifest, String> {
     if target.exists()
         && fs::read_dir(target)
             .map_err(|e| err("read restore target", e))?
@@ -318,8 +362,6 @@ pub fn restore_package(
     {
         return Err("Restore target must be an empty directory".to_string());
     }
-    let identity_text =
-        fs::read_to_string(identity_file).map_err(|e| err("read recovery identity", e))?;
     let identity = identity_text
         .trim()
         .parse::<age::x25519::Identity>()
@@ -417,6 +459,15 @@ pub fn restore_package(
 
 /// Validates every local invariant of a restored package directory.
 pub fn verify_restored(target: &Path, password: &str) -> Result<Manifest, String> {
+    let salt = fs::read(target.join("vault.salt")).map_err(|e| err("read restored salt", e))?;
+    let key = crate::derive_key(password, &salt)?;
+    verify_restored_with_key(target, &key)
+}
+
+/// Equivalent to [`verify_restored`], but reuses an already-derived key held by
+/// the unlocked executor.  Restore drills therefore do not prompt for, retain
+/// or re-derive the vault password.
+pub fn verify_restored_with_key(target: &Path, key: &crate::VaultKey) -> Result<Manifest, String> {
     let manifest: Manifest = serde_json::from_slice(
         &fs::read(target.join("manifest.json")).map_err(|e| err("read restored manifest", e))?,
     )
@@ -427,9 +478,7 @@ pub fn verify_restored(target: &Path, password: &str) -> Result<Manifest, String
             return Err(format!("Restored file `{}` failed verification", spec.name));
         }
     }
-    let salt = fs::read(target.join("vault.salt")).map_err(|e| err("read restored salt", e))?;
-    let key = crate::derive_key(password, &salt)?;
-    let conn = crate::open_db(&target.join("vault.db"), &key)?;
+    let conn = crate::open_db(&target.join("vault.db"), key)?;
     let integrity: String = conn
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
         .map_err(|e| e.to_string())?;
