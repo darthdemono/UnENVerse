@@ -19,8 +19,8 @@ use unv_app::error::{CliError, CliResult};
 use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
     emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
-    node_cmd, oauth_cmd, out, pool, projects, recovery_ops, render, scan, session, session_cmd,
-    shield, uid_cmd, users_cmd,
+    migrate, node_cmd, oauth_cmd, out, pool, projects, recovery_ops, render, scan, session,
+    session_cmd, shield, uid_cmd, users_cmd,
 };
 use vault_core::calendar;
 
@@ -570,6 +570,11 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
+    /// Losslessly plan and import a local configuration file.
+    Migrate {
+        #[command(subcommand)]
+        cmd: MigrateCmd,
+    },
     /// Pin a project and environment to this directory (writes `.unv.json`).
     ///
     /// Later commands run here inherit them, so `--project` stops being typed
@@ -722,6 +727,48 @@ enum Commands {
 }
 
 /// File-shaped credentials — the ones where the variable names a path (E17).
+#[derive(Subcommand)]
+enum MigrateCmd {
+    /// Inspect a source without changing the vault.
+    Plan {
+        #[arg(value_parser = ["env", "compose", "wireguard", "nginx"])]
+        format: String,
+        file: PathBuf,
+        /// Preserve source bytes as a ${…} template with stable entry bindings.
+        #[arg(long)]
+        template: bool,
+    },
+    /// Save imported entries, source identity and encrypted archives together.
+    Apply {
+        #[arg(value_parser = ["env", "compose", "wireguard", "nginx"])]
+        format: String,
+        file: PathBuf,
+        /// Preserve source bytes as a ${…} template with stable entry bindings.
+        #[arg(long)]
+        template: bool,
+    },
+    /// Re-render a template migration and compare its SHA-256 with its source.
+    Verify { migration: String },
+    /// List migration summaries without source values or file contents.
+    Report,
+    /// List or export encrypted, preserved source material.
+    Archive {
+        #[command(subcommand)]
+        cmd: MigrateArchiveCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum MigrateArchiveCmd {
+    Ls,
+    /// Write one encrypted archive record to a user-selected private file.
+    Export {
+        id: String,
+        #[arg(long)]
+        out: PathBuf,
+    },
+}
+
 #[derive(Subcommand)]
 enum FileCmd {
     /// Write the credential to disk and print the `.env` line that names it.
@@ -1328,6 +1375,8 @@ enum EntryCmd {
     },
     /// Show previous values of an entry's secret.
     History { provider: String },
+    /// Show secret-free lifecycle events and credential generations.
+    Timeline { provider: String },
     /// Restore a previous value by its position in `entry history`.
     Restore { provider: String, version: usize },
 }
@@ -1781,13 +1830,19 @@ enum BackupCmd {
         #[arg(long)]
         dest: String,
     },
-    /// Create, list or remove a local/NAS recovery destination.
+    /// Create, list or remove a local/NAS/SFTP recovery destination.
     Dest {
         #[command(subcommand)]
         cmd: BackupDestCmd,
     },
-    /// Create and print a recovery identity exactly once; only its public recipient is stored.
+    /// Create and print a recovery identity exactly once. An encrypted internal
+    /// copy is retained only while the vault is unlocked to run restore drills.
     RecoveryKey,
+    /// Download, restore and verify the latest completed package without activating it.
+    Drill {
+        #[arg(long)]
+        dest: String,
+    },
     /// Schedule automatic recovery packaging while an unlocked executor is running.
     Schedule {
         #[command(subcommand)]
@@ -1797,9 +1852,39 @@ enum BackupCmd {
 
 #[derive(Subcommand)]
 enum BackupDestCmd {
-    Add { id: String, path: PathBuf },
+    Add {
+        #[command(subcommand)]
+        cmd: BackupDestAddCmd,
+    },
     Ls,
-    Rm { id: String },
+    Rm {
+        id: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum BackupDestAddCmd {
+    /// A local path or mounted NAS share. The mount must already be available.
+    Local { id: String, path: PathBuf },
+    /// A pin-verified SFTP directory. The credential is read from the entry's api_key field.
+    Sftp {
+        id: String,
+        #[arg(long)]
+        host: String,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+        #[arg(long)]
+        user: String,
+        #[arg(long)]
+        path: String,
+        #[arg(long)]
+        credential: String,
+        #[arg(long, default_value = "password", value_parser = ["password", "private-key"])]
+        auth: String,
+        /// SHA256 fingerprint shown by a prior connection attempt. Required to pin explicitly.
+        #[arg(long)]
+        host_key: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1817,6 +1902,19 @@ enum BackupScheduleCmd {
         #[arg(long, default_value = "UTC")]
         time_zone: String,
         /// Skip a run delayed longer than this many seconds.
+        #[arg(long)]
+        max_lateness: Option<i64>,
+    },
+    /// Schedule a monthly restore drill. Defaults to 03:00 UTC on the first day.
+    Drill {
+        #[arg(long)]
+        dest: String,
+        #[arg(long, default_value_t = 1)]
+        day: u8,
+        #[arg(long, default_value = "03:00")]
+        at: String,
+        #[arg(long, default_value = "UTC")]
+        time_zone: String,
         #[arg(long)]
         max_lateness: Option<i64>,
     },
@@ -3483,6 +3581,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 generate,
             } => entries::cmd_rotate(a, provider, key.as_deref(), *stdin, *generate),
             EntryCmd::History { provider } => entries::cmd_history(a, provider),
+            EntryCmd::Timeline { provider } => entries::cmd_timeline(a, provider),
             EntryCmd::Restore { provider, version } => {
                 entries::cmd_restore(a, provider, *version, yes)
             }
@@ -3669,9 +3768,40 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 out::ok("backup.package", serde_json::json!({ "receipt": receipt }), || println!("Wrote recovery package {}", receipt.package.display()));
             }),
             BackupCmd::Dest { cmd } => match cmd {
-                BackupDestCmd::Add { id, path } => recovery_ops::add_destination_access(a, id, path).map(|destination| {
-                    out::ok("backup.dest.add", serde_json::json!({ "destination": destination }), || println!("Added destination {} at {}", destination.id, destination.path.display()));
-                }),
+                BackupDestCmd::Add { cmd } => match cmd {
+                    BackupDestAddCmd::Local { id, path } => recovery_ops::add_destination_access(a, id, path).map(|destination| {
+                        out::ok("backup.dest.add.local", serde_json::json!({ "destination": destination }), || println!("Added destination {} at {}", destination.id, destination.path.display()));
+                    }),
+                    BackupDestAddCmd::Sftp { id, host, port, user, path, credential, auth, host_key } => {
+                        let observed = unv_app::destinations::probe_sftp_host_key(host, *port).map_err(CliError::from)?;
+                        let Some(host_key) = host_key else {
+                            return Err(CliError::invalid(format!(
+                                "SFTP server presented `{observed}`. Review it, then re-run with --host-key '{observed}' to pin it."
+                            )));
+                        };
+                        if host_key != &observed {
+                            return Err(CliError::invalid(format!(
+                                "SFTP host key changed or was not confirmed: expected `{host_key}`, presented `{observed}`"
+                            )));
+                        }
+                        let auth = match auth.as_str() {
+                            "password" => unv_app::destinations::SftpAuthMethod::Password,
+                            "private-key" => unv_app::destinations::SftpAuthMethod::PrivateKey,
+                            _ => return Err(CliError::invalid("SFTP auth must be password or private-key")),
+                        };
+                        recovery_ops::add_sftp_destination_access(a, id, unv_app::destinations::SftpConfig {
+                            host: host.clone(),
+                            port: *port,
+                            username: user.clone(),
+                            remote_path: path.clone(),
+                            credential_entry: credential.clone(),
+                            auth,
+                            host_key_fingerprint: observed,
+                        }).map(|destination| {
+                            out::ok("backup.dest.add.sftp", serde_json::json!({ "destination": destination }), || println!("Added pinned SFTP destination {}", destination.id));
+                        })
+                    }
+                },
                 BackupDestCmd::Ls => recovery_ops::list_destinations_access(a).map(|destinations| {
                     out::ok("backup.dest.ls", serde_json::json!({ "destinations": destinations }), || {
                         for destination in destinations { println!("{}\t{}", destination.id, destination.path.display()); }
@@ -3682,9 +3812,14 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 }),
             },
             BackupCmd::RecoveryKey => recovery_ops::create_recovery_identity(a).map(|(recipient, identity)| {
-                // Identity is never retained in the vault, audit, or JSON receipt.
-                if out::is_json() { println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "ok": true, "command": "backup.recovery-key", "data": { "recipient": recipient, "identity": identity, "warning": "Save this identity now; it will not be shown again." } })).unwrap_or_default()); }
-                else { println!("Recipient: {recipient}\n\nSave this recovery identity now; it will not be shown again:\n{identity}"); }
+                // The external recovery copy is shown once. The vault also has a
+                // SQLCipher-encrypted copy strictly for an unlocked drill; no
+                // later command can print or export it.
+                if out::is_json() { println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "ok": true, "command": "backup.recovery-key", "data": { "recipient": recipient, "identity": identity, "warning": "Save this identity now; it will not be shown again. An encrypted vault copy is used only for unlocked restore drills." } })).unwrap_or_default()); }
+                else { println!("Recipient: {recipient}\n\nSave this recovery identity now; it will not be shown again:\n{identity}\n\nAn encrypted vault copy is used only for unlocked restore drills."); }
+            }),
+            BackupCmd::Drill { dest } => recovery_ops::run_drill_now(a, dest).map(|run| {
+                out::ok("backup.drill", serde_json::json!({ "run": run }), || println!("Restore drill {}: {}", run.id, run.state.as_str()));
             }),
             BackupCmd::Schedule { cmd } => match cmd {
                 BackupScheduleCmd::Add { dest, interval, daily, time_zone, max_lateness } => {
@@ -3695,6 +3830,11 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     };
                     recovery_ops::add_schedule(a, dest, rule, *max_lateness).map(|schedule| {
                         out::ok("backup.schedule.add", serde_json::json!({ "schedule": schedule }), || println!("Scheduled backup {}", schedule.id));
+                    })
+                }
+                BackupScheduleCmd::Drill { dest, day, at, time_zone, max_lateness } => {
+                    recovery_ops::add_monthly_drill_schedule(a, dest, *day, at, time_zone, *max_lateness).map(|schedule| {
+                        out::ok("backup.schedule.drill", serde_json::json!({ "schedule": schedule }), || println!("Scheduled monthly restore drill {}", schedule.id));
                     })
                 }
                 BackupScheduleCmd::Ls => a.conn().and_then(|conn| vault_core::ops::list_schedules(&conn).map_err(CliError::from)).map(|schedules| {
@@ -3783,6 +3923,98 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 },
             )
         }
+        Commands::Migrate { cmd } => match cmd {
+            MigrateCmd::Plan {
+                format,
+                file,
+                template,
+            } => {
+                let kind = migrate::SourceKind::parse(format).map_err(CliError::invalid)?;
+                let plan = migrate::plan_file(a, kind, file, *template)?;
+                let preview = plan.preview;
+                out::ok("migrate.plan", serde_json::json!(preview), || {
+                    println!(
+                        "{} read: {} import, {} archive, {} skipped, {} missing at source.",
+                        preview.format,
+                        preview.counts.imported,
+                        preview.counts.archived,
+                        preview.counts.skipped,
+                        preview.counts.missing_at_source,
+                    );
+                    for item in &preview.items {
+                        println!("  {:<28} {}", item.name, item.status);
+                    }
+                    if preview.counts.conflicts > 0 {
+                        println!("{} conflict(s); apply will refuse without changing the vault.", preview.counts.conflicts);
+                    }
+                });
+                Ok(())
+            }
+            MigrateCmd::Apply {
+                format,
+                file,
+                template,
+            } => {
+                let kind = migrate::SourceKind::parse(format).map_err(CliError::invalid)?;
+                let plan = migrate::plan_file(a, kind, file, *template)?;
+                let preview = migrate::apply(a, plan)?;
+                out::ok("migrate.apply", serde_json::json!(preview), || {
+                    println!(
+                        "Applied: {} imported, {} archived, {} skipped.",
+                        preview.counts.imported, preview.counts.archived, preview.counts.skipped
+                    );
+                });
+                Ok(())
+            }
+            MigrateCmd::Verify { migration } => {
+                let result = migrate::verify(a, migration)?;
+                if !result.get("verified").and_then(serde_json::Value::as_bool).unwrap_or(false) {
+                    return Err(CliError::conflict("template rendering does not match the imported source"));
+                }
+                out::ok("migrate.verify", result, || println!("Template verified."));
+                Ok(())
+            }
+            MigrateCmd::Report => {
+                let records = migrate::reports(a)?;
+                let safe = records
+                    .iter()
+                    .map(|record| serde_json::json!({
+                        "id": record.id,
+                        "source_kind": record.source_kind,
+                        "created_at": record.created_at,
+                        "status": record.status,
+                        "counts": record.manifest.get("counts").cloned().unwrap_or(serde_json::Value::Null),
+                        "template": record.manifest.get("template").cloned().unwrap_or(serde_json::Value::Bool(false)),
+                    }))
+                    .collect::<Vec<_>>();
+                out::ok("migrate.report", serde_json::json!({"migrations": safe}), || {
+                    for record in &records {
+                        println!("{} {:<10} {}", record.id, record.source_kind, record.status);
+                    }
+                });
+                Ok(())
+            }
+            MigrateCmd::Archive { cmd } => match cmd {
+                MigrateArchiveCmd::Ls => {
+                    let archives = migrate::archives(a)?;
+                    out::ok("migrate.archive.ls", serde_json::json!({"archives": archives}), || {
+                        for archive in &archives {
+                            println!("{} {:<10} {}", archive.id, archive.source_kind, archive.reason);
+                        }
+                    });
+                    Ok(())
+                }
+                MigrateArchiveCmd::Export { id, out: path } => {
+                    migrate::export_archive(a, id, path)?;
+                    out::ok(
+                        "migrate.archive.export",
+                        serde_json::json!({"id": id, "out": path}),
+                        || println!("Archive written to {}", path.display()),
+                    );
+                    Ok(())
+                }
+            },
+        },
         Commands::Use {
             project,
             env,
