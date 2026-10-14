@@ -346,6 +346,56 @@ mod commands {
         })
     }
 
+    /// Builds the same redacted plan as `unv migrate plan`; copied values never
+    /// return through IPC.
+    #[tauri::command]
+    pub fn migrate_plan(
+        app: AppHandle,
+        state: State<VaultState>,
+        format: String,
+        source_label: String,
+        text: String,
+        template: bool,
+    ) -> Result<unv_app::migrate::Preview, String> {
+        let key = *state
+            .0
+            .lock()
+            .map_err(|_| "State lock poisoned")?
+            .as_ref()
+            .ok_or("Vault is locked")?;
+        unv_app::access::set_paths(Some(db_path(&app)?), Some(salt_path(&app)?));
+        let access = unv_app::access::Access::Local(key);
+        let kind = unv_app::migrate::SourceKind::parse(&format)?;
+        unv_app::migrate::plan(&access, kind, &source_label, &text, template)
+            .map(|plan| plan.preview)
+            .map_err(|error| error.message)
+    }
+
+    /// Re-plans immediately before applying, so a reviewed preview cannot
+    /// overwrite a vault change that landed after the preview.
+    #[tauri::command]
+    pub fn migrate_apply(
+        app: AppHandle,
+        state: State<VaultState>,
+        format: String,
+        source_label: String,
+        text: String,
+        template: bool,
+    ) -> Result<unv_app::migrate::Preview, String> {
+        let key = *state
+            .0
+            .lock()
+            .map_err(|_| "State lock poisoned")?
+            .as_ref()
+            .ok_or("Vault is locked")?;
+        unv_app::access::set_paths(Some(db_path(&app)?), Some(salt_path(&app)?));
+        let access = unv_app::access::Access::Local(key);
+        let kind = unv_app::migrate::SourceKind::parse(&format)?;
+        let plan = unv_app::migrate::plan(&access, kind, &source_label, &text, template)
+            .map_err(|error| error.message)?;
+        unv_app::migrate::apply(&access, plan).map_err(|error| error.message)
+    }
+
     /// Phase 36: the app's clipboard writes, for the materialisation log that
     /// `unv blast-radius --host local` reads. The renderer sends the text it just
     /// copied and the vault it holds; Rust records which vault secrets that text
@@ -421,6 +471,19 @@ mod commands {
         let conn = vault_core::open_db(&db_path(&app)?, key)?;
         let actor = vault_core::ensure_owner_user(&conn).ok();
         unv_app::history::call(&conn, &op, &args, actor.as_deref())
+    }
+
+    /// Secret-free lifecycle events for an entry detail view.
+    #[tauri::command]
+    pub fn entry_timeline(
+        app: AppHandle,
+        state: State<VaultState>,
+        entry_id: String,
+    ) -> Result<Vec<vault_core::lifecycle::TimelineEvent>, String> {
+        let g = state.0.lock().map_err(|_| "State lock poisoned")?;
+        let key = g.as_ref().ok_or("Vault is locked")?;
+        let conn = vault_core::open_db(&db_path(&app)?, key)?;
+        vault_core::lifecycle::timeline(&conn, &entry_id)
     }
 
     /// The version marker of what is on disk right now.
@@ -935,7 +998,7 @@ mod commands {
         Ok((key, conn))
     }
 
-    // ── Recovery packages and durable operations (R05) ─────────────────────
+    // ── Recovery packages and durable operations (R05/R06) ─────────────────
 
     #[tauri::command]
     pub fn backup_recovery_key(
@@ -945,6 +1008,7 @@ mod commands {
         let (_, conn) = recovery_connection(&app, &state)?;
         let (recipient, identity) = vault_core::recovery::generate_identity();
         vault_core::recovery::set_recipient(&conn, &recipient)?;
+        vault_core::recovery::set_drill_identity(&conn, &identity)?;
         Ok((recipient, identity))
     }
 
@@ -957,6 +1021,57 @@ mod commands {
     ) -> Result<unv_app::recovery_ops::Destination, String> {
         let (_, conn) = recovery_connection(&app, &state)?;
         unv_app::recovery_ops::add_destination(&conn, &id, Path::new(&path))
+    }
+
+    /// Reads a presented key only.  The frontend displays it and must pass the
+    /// exact fingerprint back to `backup_destination_add_sftp` after explicit
+    /// confirmation; this command never creates or repins a destination.
+    #[tauri::command]
+    pub fn backup_sftp_host_key(host: String, port: u16) -> Result<String, String> {
+        unv_app::destinations::probe_sftp_host_key(&host, port)
+    }
+
+    #[tauri::command]
+    pub fn backup_destination_add_sftp(
+        app: AppHandle,
+        state: State<VaultState>,
+        id: String,
+        host: String,
+        port: u16,
+        user: String,
+        path: String,
+        credential: String,
+        auth: String,
+        host_key: String,
+    ) -> Result<unv_app::recovery_ops::Destination, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        let auth = match auth.as_str() {
+            "password" => unv_app::destinations::SftpAuthMethod::Password,
+            "private-key" => unv_app::destinations::SftpAuthMethod::PrivateKey,
+            _ => return Err("SFTP authentication must be password or private-key".to_string()),
+        };
+        // Probe again immediately before persisting.  The add helper makes a
+        // pinned authenticated connection too, but this produces a clear error
+        // when a server changed between the confirmation dialog and submit.
+        let actual = unv_app::destinations::probe_sftp_host_key(&host, port)?;
+        if actual != host_key {
+            return Err(format!(
+                "SFTP host key changed; confirmed {host_key}, presented {actual}"
+            ));
+        }
+        unv_app::recovery_ops::add_sftp_destination(
+            &conn,
+            &id,
+            unv_app::destinations::SftpConfig {
+                host,
+                port,
+                username: user,
+                remote_path: path,
+                credential_entry: credential,
+                auth,
+                host_key_fingerprint: host_key,
+            },
+        )
     }
 
     #[tauri::command]
@@ -989,6 +1104,16 @@ mod commands {
     }
 
     #[tauri::command]
+    pub fn backup_drill(
+        app: AppHandle,
+        state: State<VaultState>,
+        dest: String,
+    ) -> Result<vault_core::ops::Run, String> {
+        let (key, conn) = recovery_connection(&app, &state)?;
+        unv_app::recovery_ops::run_drill_for_paths(&conn, &key, &recovery_paths(&app)?, &dest)
+    }
+
+    #[tauri::command]
     pub fn backup_schedule_add(
         app: AppHandle,
         state: State<VaultState>,
@@ -1008,6 +1133,27 @@ mod commands {
             _ => return Err("Specify exactly one of interval or daily".to_string()),
         };
         unv_app::recovery_ops::add_schedule_for_conn(&conn, &dest, rule, max_lateness)
+    }
+
+    #[tauri::command]
+    pub fn backup_schedule_drill(
+        app: AppHandle,
+        state: State<VaultState>,
+        dest: String,
+        day: Option<u8>,
+        at: Option<String>,
+        time_zone: Option<String>,
+        max_lateness: Option<i64>,
+    ) -> Result<vault_core::ops::Schedule, String> {
+        let (_, conn) = recovery_connection(&app, &state)?;
+        unv_app::recovery_ops::add_monthly_drill_schedule_for_conn(
+            &conn,
+            &dest,
+            day.unwrap_or(1),
+            at.as_deref().unwrap_or("03:00"),
+            time_zone.as_deref().unwrap_or("UTC"),
+            max_lateness,
+        )
     }
 
     #[tauri::command]
@@ -2129,9 +2275,12 @@ pub fn run() {
             commands::approver_public,
             commands::matlog_note,
             commands::env_import_plan,
+            commands::migrate_plan,
+            commands::migrate_apply,
             commands::pgp_inspect,
             commands::approver_sign,
             commands::history_call,
+            commands::entry_timeline,
             commands::get_vault_path,
             commands::pool_state,
             commands::pool_next,
@@ -2167,10 +2316,14 @@ pub fn run() {
             commands::backup_archive_restore,
             commands::backup_recovery_key,
             commands::backup_destination_add,
+            commands::backup_sftp_host_key,
+            commands::backup_destination_add_sftp,
             commands::backup_destination_list,
             commands::backup_destination_remove,
             commands::backup_package,
+            commands::backup_drill,
             commands::backup_schedule_add,
+            commands::backup_schedule_drill,
             commands::backup_schedule_list,
             commands::ops_list,
             commands::ops_show,
