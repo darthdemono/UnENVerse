@@ -1777,6 +1777,31 @@ async fn entry_history_handler(
     }
 }
 
+/// Secret-free lifecycle events for one entry. Owner-only for the same reason
+/// as entry history: timing and provenance still disclose activity that a
+/// filtered sub-user view must not infer.
+async fn entry_timeline_handler(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let (_, session) = match extract_session(&headers, &state) {
+        Ok(s) => s,
+        Err(e) => return e.into_response(),
+    };
+    if let Err(e) = require_owner(&session) {
+        return e.into_response();
+    }
+    let conn = match open_db(&state.db_path, &session.vault_key) {
+        Ok(c) => c,
+        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
+    };
+    match vault_core::lifecycle::timeline(&conn, &id) {
+        Ok(events) => Json(events).into_response(),
+        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
+    }
+}
+
 /// Phase 30.1: save only what changed. `{ put, delete, projects_put,
 /// projects_delete, categories }` (see `vault_core::apply_row_patch`) is applied to the stored document and saved through
 /// the same compare-and-swap as `PUT`, so `If-Match` and the per-row merge
@@ -3612,6 +3637,7 @@ pub fn build_router(state: AppState, port: u16) -> Router {
         .route("/api/vault/entries", get(get_entries))
         .route("/api/vault/expiring", get(expiring))
         .route("/api/vault/entries/{id}/history", get(entry_history_handler))
+        .route("/api/vault/entries/{id}/timeline", get(entry_timeline_handler))
         .route("/api/audit", get(audit))
         .route(
             "/api/users",
