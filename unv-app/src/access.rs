@@ -529,6 +529,46 @@ impl Access {
         }
     }
 
+    /// The migration equivalent of [`Self::save`]. A local migration needs the
+    /// source manifest and encrypted archive to commit with the document; a
+    /// remote vault cannot safely read the local source file and is refused.
+    pub fn save_migration(
+        &self,
+        data: &serde_json::Value,
+        migration: &vault_core::migration::MigrationRecord,
+    ) -> CliResult {
+        if crate::out::dry_run() {
+            return Ok(());
+        }
+        let Access::Local(key) = self else {
+            return Err(CliError::invalid(
+                "Config migration needs direct local vault access and cannot run in remote mode",
+            ));
+        };
+        let conn = open_db(&default_db_path(), key)?;
+        let actor = vault_core::ensure_owner_user(&conn).ok();
+        let base = LOCAL_BASE.with(|b| b.borrow().clone());
+        let saved = vault_core::save_vault_with_migration(
+            &conn,
+            data.clone(),
+            vault_core::SaveCtx {
+                actor: actor.as_deref(),
+                expect_version: base.as_deref(),
+            },
+            migration,
+        )
+        .map_err(CliError::from)?;
+        crate::history::after_save(&conn, data, actor.as_deref());
+        LOCAL_BASE.with(|b| {
+            *b.borrow_mut() = Some(if saved.ends_with(vault_core::MERGED_SUFFIX) {
+                "stale-copy".to_string()
+            } else {
+                saved
+            })
+        });
+        Ok(())
+    }
+
     /// An open connection to the local vault, or `None` for a remote one. The
     /// history commands use it to call the shared dispatcher directly.
     pub fn local_conn(&self) -> CliResult<Option<vault_core::SqlConnection>> {
