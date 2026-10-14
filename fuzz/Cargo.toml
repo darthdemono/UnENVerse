@@ -36,3 +36,9 @@ name = "migrate_nginx"
 path = "fuzz_targets/migrate_nginx.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "password_source_json_zip"
+path = "fuzz_targets/password_source_json_zip.rs"
+test = false
+doc = false
