@@ -73,6 +73,9 @@ GEMINI*.md
 vscode-extension/out/
 vscode-extension/*.vsix
 shots/
+.*/
+.agents/
+.serena/
 
 # Local research bundle staging and archive (never committed)
 /New/
