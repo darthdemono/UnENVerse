@@ -209,6 +209,42 @@ pub fn read_or_create_salt(salt_path: &Path) -> Result<[u8; SALT_LEN], String> {
 
 // ── Database ───────────────────────────────────────────────────────────────────
 
+/// Upgrades a SQLCipher 3 vault to the current format in place, keeping the
+/// original as `<db>.sqlcipher3.bak`.
+fn migrate_sqlcipher3(db_path: &Path, key: &VaultKey) -> bool {
+    // `cipher_migrate` needs CREATE because it attaches a temporary database.
+    let Ok(conn) = Connection::open_with_flags(
+        db_path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
+    ) else {
+        return false;
+    };
+    if conn
+        .execute_batch(&format!("PRAGMA key = \"x'{}'\";", hex::encode(key)))
+        .is_err()
+    {
+        return false;
+    }
+    // The migration rewrites the file in place; keep the original beside it. A
+    // wrong password also lands here, so the copy goes again unless it worked.
+    let mut bak = db_path.as_os_str().to_owned();
+    bak.push(".sqlcipher3.bak");
+    let bak = std::path::PathBuf::from(bak);
+    // Never replace a backup that is already there: a later wrong password
+    // would otherwise overwrite and then delete the real one.
+    if bak.exists() || fs::copy(db_path, &bak).is_err() {
+        return false;
+    }
+    let _ = restrict_to_owner(&bak);
+    let ok = conn
+        .query_row("PRAGMA cipher_migrate;", [], |r| r.get::<_, String>(0))
+        .is_ok_and(|rc| rc == "0");
+    if !ok {
+        let _ = fs::remove_file(&bak);
+    }
+    ok
+}
+
 /// Opens (or creates) the SQLCipher database at `db_path` using the 32-byte `key`.
 ///
 /// Executes a verification query; returns `Err("Wrong master password")` on
@@ -224,8 +260,20 @@ pub fn open_db(db_path: &Path, key: &VaultKey) -> Result<Connection, String> {
     .map_err(|e| e.to_string())?;
     conn.execute_batch(&format!("PRAGMA key = \"x'{}'\";", hex::encode(key)))
         .map_err(|e| e.to_string())?;
-    conn.execute_batch("SELECT count(*) FROM sqlite_master;")
-        .map_err(|_| "Wrong master password".to_string())?;
+    if conn
+        .execute_batch("SELECT count(*) FROM sqlite_master;")
+        .is_err()
+    {
+        // A vault written by SQLCipher 3 (Debian's libsqlcipher0 in the old
+        // server image) fails the HMAC check under SQLCipher 4 defaults, which
+        // reads exactly like a wrong password. `cipher_migrate` only succeeds with the
+        // right key, so a real wrong password leaves the file as it was.
+        drop(conn);
+        if !migrate_sqlcipher3(db_path, key) {
+            return Err("Wrong master password".to_string());
+        }
+        return open_db(db_path, key);
+    }
     // WAL mode: allows concurrent reads + one writer, avoids full locks (item 17)
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")
         .map_err(|e| e.to_string())?;
