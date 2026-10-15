@@ -214,6 +214,33 @@ fn open_db_sets_busy_timeout_and_journal_limit() {
     let _ = std::fs::remove_dir_all(tmp);
 }
 
+/// Bug: the server image's SQLCipher 3 vault failed to unlock after the move to
+/// bundled SQLCipher 4, reporting "Wrong master password" for the correct password.
+#[test]
+fn sqlcipher3_vault_is_migrated() {
+    let tmp = std::env::temp_dir().join(format!("unv-golden-sc3-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let db = tmp.join("vault.db");
+    std::fs::copy(
+        fixture_dir().parent().unwrap().join("sqlcipher3/vault.db"),
+        &db,
+    )
+    .unwrap();
+    let key = derive_key(PW, &SALT).unwrap();
+    let conn = open_db(&db, &key).unwrap();
+    let x: i64 = conn.query_row("SELECT x FROM t", [], |r| r.get(0)).unwrap();
+    assert_eq!(x, 7);
+    drop(conn);
+    assert!(tmp.join("vault.db.sqlcipher3.bak").exists());
+    // A wrong password remains an authentication failure after migration.
+    let bad = derive_key("not-the-password", &SALT).unwrap();
+    assert_eq!(open_db(&db, &bad).unwrap_err(), "Wrong master password");
+    // ...and must not cost us the backup.
+    assert!(tmp.join("vault.db.sqlcipher3.bak").exists());
+    let _ = std::fs::remove_dir_all(tmp);
+}
+
 // Controls: the checks above must be able to fail.
 
 #[test]
