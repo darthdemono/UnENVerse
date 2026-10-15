@@ -1341,6 +1341,12 @@ mod tests {
         path
     }
 
+    fn cleanup(conn: rusqlite::Connection, dir: PathBuf) {
+        // Regression: Unix unlinks an open SQLite vault, but Windows keeps it locked.
+        drop(conn);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn a_fake_three_day_clock_coalesces_missed_intervals_into_one_run() {
         let dir = scratch("catchup");
@@ -1389,7 +1395,7 @@ mod tests {
                 .next_due_at,
             schedule.next_due_at
         );
-        fs::remove_dir_all(dir).unwrap();
+        cleanup(conn, dir);
     }
 
     #[test]
@@ -1432,7 +1438,7 @@ mod tests {
             1,
             "only marker remains"
         );
-        fs::remove_dir_all(dir).unwrap();
+        cleanup(conn, dir);
     }
 
     #[test]
@@ -1444,7 +1450,7 @@ mod tests {
         let destination = add_destination(&conn, "test", &dir.join("destination")).unwrap();
         fs::remove_file(destination.path.join(DESTINATION_MARKER)).unwrap();
         assert!(open_destination(&conn, &destination).is_err());
-        fs::remove_dir_all(dir).unwrap();
+        cleanup(conn, dir);
     }
 
     #[test]
@@ -1551,7 +1557,7 @@ mod tests {
             .exists());
         assert!(destination.path.join(&foreign.package).exists());
         assert!(destination.path.join(&foreign.completion).exists());
-        fs::remove_dir_all(dir).unwrap();
+        cleanup(conn, dir);
     }
 
     #[test]
@@ -1606,7 +1612,7 @@ mod tests {
         .unwrap();
         assert_eq!(failed.state, RunState::Failed);
         assert_eq!(failed.error_code.as_deref(), Some("drill_failed"));
-        fs::remove_dir_all(dir).unwrap();
+        cleanup(conn, dir);
     }
 
     #[test]
@@ -1650,6 +1656,6 @@ mod tests {
         assert!(!names.iter().any(|name| name.ends_with(".complete.json")));
         let mut retry = LocalDestination::new(&remote);
         assert_eq!(cleanup_stale_parts(&mut retry).unwrap(), 1);
-        fs::remove_dir_all(dir).unwrap();
+        cleanup(conn, dir);
     }
 }
