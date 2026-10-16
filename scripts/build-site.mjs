@@ -95,13 +95,21 @@ export function jsonLd(version) {
   return JSON.stringify(doc).replace(/</g, '\\u003c');
 }
 
-const NAV = ['download', 'quickstart', 'guides', 'security'];
+const NAV = ['home', 'download', 'quickstart', 'guides', 'security', 'importing', 'cli', 'nodes'];
+/** Sections that also have an icon in the activity rail. */
+const RAIL = ['home', 'download', 'guides', 'security'];
 
-/** Fills one page. `page` is the nav key ("download") or "" for pages with none. */
-export function fill(html, vars, partials, page) {
+/**
+ * Fills one page. `page` is the section key ("download", "home" for the front
+ * page); `sub` is the child page inside it ("cli"), which then owns the sidebar
+ * highlight while the section keeps its rail icon.
+ */
+export function fill(html, vars, partials, page, sub = '') {
   let out = html.replace('{{HEADER}}', partials.header).replace('{{FOOTER}}', partials.footer);
-  for (const n of NAV)
-    out = out.replaceAll(`{{CUR_${n}}}`, n === page ? ' aria-current="page"' : '');
+  const cur = (n) => (sub ? n === sub : n === page);
+  for (const n of NAV) out = out.replaceAll(`{{CUR_${n}}}`, cur(n) ? ' aria-current="page"' : '');
+  for (const n of RAIL)
+    out = out.replaceAll(`{{RAIL_${n}}}`, n === page ? ' aria-current="page"' : '');
   for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{{${k}}}`, v);
   const left = out.match(/\{\{[A-Za-z_-]+\}\}/g);
   if (left) throw new Error(`unfilled placeholders: ${[...new Set(left)].join(', ')}`);
@@ -152,8 +160,10 @@ export function build({ src, out, release, sums, today = new Date().toISOString(
     const dest = path.join(out, rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (rel.endsWith('.html')) {
-      const page = rel === 'index.html' ? '' : rel.split(path.sep)[0];
-      const html = fill(fs.readFileSync(file, 'utf8'), vars, partials, page);
+      const parts = rel.split(path.sep);
+      const page = rel === 'index.html' ? 'home' : parts[0];
+      const sub = parts.length > 2 ? parts[1] : '';
+      const html = fill(fs.readFileSync(file, 'utf8'), vars, partials, page, sub);
       fs.writeFileSync(dest, html);
       // Redirect stubs say noindex; they are not pages to list.
       if (!/name="robots" content="noindex"/.test(html)) {

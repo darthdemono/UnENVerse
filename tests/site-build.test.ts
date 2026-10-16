@@ -108,7 +108,8 @@ describe('assembling the site', () => {
     expect(r.version).toBe('9.9.9');
     const dl = fs.readFileSync(path.join(out, 'download/index.html'), 'utf8');
     expect(dl).toContain('Download UnENVerse 9.9.9');
-    expect(dl).toContain('<a href="/download/" aria-current="page">');
+    expect(dl).toContain('<a class="side-i" href="/download/" aria-current="page">');
+    expect(dl).toContain('aria-label="Download" aria-current="page"');
     expect(dl).not.toMatch(/\{\{/);
     const map = fs.readFileSync(path.join(out, 'sitemap.xml'), 'utf8');
     expect(map).toContain('/quickstart/');

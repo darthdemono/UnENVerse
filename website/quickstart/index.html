@@ -26,21 +26,21 @@
 
       <ol class="steps">
         <li>
-          <h2>1. Install</h2>
+          <h2>Install</h2>
           <p>Download the CLI archive from the <a href="/download/">download page</a>, verify it, and unpack it.</p>
 <pre><code>tar xzf unv-{{VERSION}}-linux-x86_64.tar.gz
 ./unv --version</code></pre>
           <p>On Windows, unzip <code>unv-{{VERSION}}-windows-x86_64.zip</code> and run <code>unv.exe</code>. Or install the desktop app, which creates the same vault.</p>
         </li>
         <li>
-          <h2>2. Create a vault</h2>
+          <h2>Create a vault</h2>
           <p>Your master password goes through Argon2id to make the key. There is no reset: a forgotten master password cannot be recovered. The vault is two files, <code>vault.db</code> and <code>vault.salt</code>. Keep them together; a database without its salt cannot be opened by anyone.</p>
 <pre><code>export UNV_PASSWORD='choose-a-long-passphrase'
 ./unv --db-path ./demo/vault.db --init status</code></pre>
           <p class="small">Without <code>--db-path</code> the CLI uses the desktop app's vault, so the app and the CLI share one vault.</p>
         </li>
         <li>
-          <h2>3. Import a .env file</h2>
+          <h2>Import a .env file</h2>
 <pre><code>printf 'DB_PASSWORD=made-up-value\nAPI_TOKEN=tok_made_up_0123456789\n' &gt; .env
 ./unv --db-path ./demo/vault.db project add demo
 ./unv --db-path ./demo/vault.db import .env --project demo
@@ -48,7 +48,7 @@
           <p>The list shows names and types, never values. Values are redacted by default everywhere in the CLI.</p>
         </li>
         <li>
-          <h2>4. Render the file back and compare</h2>
+          <h2>Render the file back and compare</h2>
           <p>A project holds config chunks. An <code>env_file</code> chunk refers to your entries with <code>${ref}</code>, so the value lives in one place.</p>
 <pre><code>./unv --db-path ./demo/vault.db project chunk add demo app.env --type env_file
 ./unv --db-path ./demo/vault.db project chunk set demo app.env 'DB_PASSWORD=${DB_PASSWORD}' 'API_TOKEN=${API_TOKEN}'
@@ -58,7 +58,7 @@ diff &lt;(sort .env) &lt;(grep -v '^#' rendered.env | sort) &amp;&amp; echo SAME
           <p>Only a file you ask for with <code>--out</code> receives the real values. The last line prints <code>SAME</code>: the rendered file holds what you imported.</p>
         </li>
         <li>
-          <h2>5. Back up and restore</h2>
+          <h2>Back up and restore</h2>
           <p>A <code>.vaultbak</code> is an encrypted copy under a separate backup password (at least 12 characters), readable by the app and the CLI. Restore it into a different, empty vault to prove it works.</p>
 <pre><code>./unv --db-path ./demo/vault.db backup export demo.vaultbak --backup-password 'a-long-backup-passphrase'
 mkdir restored

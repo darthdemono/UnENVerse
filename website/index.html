@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UnENVerse: the vault that knows what your secrets are for</title>
-  <meta name="description" content="A free, local-first vault for secrets, 2FA codes and the config files built from them. Agents and scripts use a credential without seeing it, rotations reach every config, and every change is remembered.">
+  <title>UnENVerse: self-hosted secrets manager for teams and AI agents</title>
+  <meta name="description" content="Free, self-hosted secrets manager that replaces .env files. Your team and your AI agents use credentials without seeing them, and rotations reach every config.">
   <link rel="canonical" href="{{SITE_URL}}/">
   <link rel="icon" href="/assets/app-icon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
   <meta property="og:type" content="website">
   <meta property="og:title" content="UnENVerse">
-  <meta property="og:description" content="Secrets, 2FA and the configs built from them in one encrypted vault. Used by people, scripts and AI agents without ever being shown.">
+  <meta property="og:description" content="Ditch the .env files. Let your team and your AI agents use secrets they never get to see.">
   <meta property="og:url" content="{{SITE_URL}}/">
   <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -19,40 +19,85 @@
 <body>
 {{HEADER}}
 <main id="main">
-  <section>
+  <section class="hero">
     <div class="wrap">
-      <h1>The vault that knows what your secrets are for.</h1>
-      <p class="lead">Passwords, API keys, 2FA seeds, certificates and the config files built from them, in one encrypted vault on your own machine. People, scripts and AI agents can use a credential without ever seeing it. Rotate a key once and every <code>.env</code>, WireGuard, Compose and nginx file follows. Every change is remembered, every deploy can need your approval, and it is free.</p>
-      <ul class="pills" aria-label="At a glance">
-        <li>Encrypted on your disk</li>
-        <li>Agent-safe by default</li>
-        <li>Live 2FA codes</li>
-        <li>Generates 11 config types</li>
-        <li>Config time machine</li>
-        <li>Approved deploys to your nodes</li>
-        <li>Tamper-evident audit log</li>
-        <li>Multi-user, with permissions</li>
-        <li>Apache-2.0, no account</li>
-      </ul>
-      <div class="actions">
-        <a class="btn primary" href="/download/">Download {{VERSION}}</a>
-        <a class="btn secondary" href="/quickstart/">Read the quickstart</a>
+      <div class="hero-grid">
+        <div>
+          <h1>Ditch the .env files. Let your team and your AI agents use secrets they never get to see.</h1>
+          <p class="lead">Want a self-hosted, open-source secrets manager that hands credentials to people, scripts and AI agents without showing them? You have come to the right place. For $0.00, you too can use it.</p>
+          <div class="actions">
+            <a class="btn primary" href="/download/">Download {{VERSION}}</a>
+            <a class="btn secondary" href="/quickstart/">Read the quickstart</a>
+          </div>
+          <p class="small">Linux and Windows builds today. macOS builds are not published yet.</p>
+        </div>
+        <div class="term" role="img" aria-label="Terminal session: unv get prints a fingerprint instead of the secret, unv exec runs a script with the secrets in its environment, unv render writes a config file.">
+<pre><code><span class="dim">$</span> unv get Stripe
+{ "redacted": true,
+  "fingerprint": "sha256:d4291adb444f",
+  "length": 40 }
+
+<span class="dim">$</span> unv exec -- ./deploy.sh
+<span class="dim"># runs with the secrets in its environment, prints none</span>
+
+<span class="dim">$</span> unv render nginx.conf.tpl --out /etc/nginx/nginx.conf
+<span class="dim"># the real values go into the file, not into your terminal</span></code></pre>
+        </div>
       </div>
-      <p class="small">Linux and Windows builds today. macOS builds are not published yet. Apache-2.0.</p>
-      <figure>
+      <p class="what"><strong>UnENVerse</strong> is an encrypted vault on a machine you control, with a desktop app, a command-line tool (<code>unv</code>) and an optional server for your team. It stores the secrets and also builds the config files that use them, so a rotation reaches every file by itself.</p>
+      <figure class="frame">
         <img src="/assets/screens/main.webp" width="{{W_main}}" height="{{H_main}}" alt="The UnENVerse main window showing a grid of secret cards for a demo vault: API keys, passwords, certificates and authenticator codes.">
         <figcaption>The desktop app with a synthetic demo vault. Every value shown is made up.</figcaption>
       </figure>
     </div>
   </section>
 
+  <section aria-labelledby="for">
+    <div class="wrap">
+      <h2 id="for">Built for three jobs</h2>
+      <div class="feature">
+        <div class="feature-text">
+          <h3>Self-hosted, with nothing of yours on our side</h3>
+          <p>The vault is one encrypted database on your own disk, locked with a key derived from your master password. There is no UnENVerse server and no account. Run it on a laptop, or put <code>unv-server</code> on a machine you control and point the desktop app and the CLI at it. An official Docker image is published.</p>
+          <ul><li>Self-signed certificates are pinned, never silently trusted.</li><li>Encrypted backups and recovery packages go to a disk, a NAS or SFTP.</li></ul>
+        </div>
+        <figure class="frame">
+          <img src="/assets/screens/selfhost.webp" width="{{W_selfhost}}" height="{{H_selfhost}}" loading="lazy" alt="The Connect to Remote Vault dialog asking for a server address, a username and a password.">
+          <figcaption>Connecting the desktop app to your own server. Leave the username blank to sign in as the owner.</figcaption>
+        </figure>
+      </div>
+      <div class="feature flip">
+        <div class="feature-text">
+          <h3>AI agents and scripts use secrets, never read them</h3>
+          <p>The <code>unv</code> CLI prints every stored value as a fingerprint. To use a secret, <code>unv exec</code> starts a program with it in its environment and <code>unv render</code> writes it into a file, so the agent running the show never reads it. Equal fingerprints mean equal secrets, so it can still spot drift and duplicates.</p>
+          <ul><li>Stable exit codes, and <code>unv describe</code> returns the whole command set as JSON.</li><li>A vault-wide export to the terminal is refused, not masked.</li></ul>
+        </div>
+        <figure class="frame">
+          <img src="/assets/screens/card-crop.webp" width="{{W_card-crop}}" height="{{H_card-crop}}" loading="lazy" alt="One expanded entry card showing a masked API key, a masked secret and a live six-digit two-factor code with its countdown.">
+          <figcaption>Values stay masked in the app too, until you reveal them. The two-factor code sits beside its login.</figcaption>
+        </figure>
+      </div>
+      <div class="feature">
+        <div class="feature-text">
+          <h3>Teams, with their own logins and limits</h3>
+          <p>Run <code>unv-server</code> and give each person a named user, their own API tokens and an optional second factor. Roles are classes, and permissions are rules such as <code>tag:llm OR tag:ci</code>, with a live count of the entries a rule matches. Simultaneous edits merge per entry.</p>
+          <ul><li>Every add, update, delete and read goes into a hash-chained audit log.</li><li>Nodes on your servers can require an approval before a config changes.</li></ul>
+        </div>
+        <figure class="frame">
+          <img src="/assets/screens/teams.webp" width="{{W_teams}}" height="{{H_teams}}" loading="lazy" alt="The Users panel for the user alice: assigned class Developers, access tokens, two-factor setting and a read rule of tag:llm OR tag:ci that matches 5 of 34 entries.">
+          <figcaption>Alice can read only entries tagged llm or ci. The editor says so before you save: matches 5 of 34 entries.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
   <section aria-labelledby="benefits">
     <div class="wrap">
-      <h2 id="benefits">What no other vault does at once</h2>
+      <h2 id="benefits">What sets it apart</h2>
       <div class="grid three">
         <div class="card">
           <h3>It knows what each secret is for</h3>
-          <p>A config points at a vault entry (<code>${GitHub/token}</code>). The value lives in one place, so a rotation reaches every <code>wg0.conf</code>, Compose file and <code>.env</code> built from it. Other vaults store a password and hand it back.</p>
+          <p>A config points at a vault entry (<code>${GitHub/token}</code>). The value lives in one place, so a rotation reaches every <code>wg0.conf</code>, Compose file and <code>.env</code> built from it. Most vaults store a password and hand it back.</p>
         </div>
         <div class="card">
           <h3>Agents use secrets, never read them</h3>
@@ -68,7 +113,7 @@
         </div>
         <div class="card">
           <h3>Proof, not promises</h3>
-          <p>The audit log is hash-chained, so tampering breaks it. <code>unv doctor</code> checks the vault without changing it. Releases are signed with Sigstore. There is no server of ours, so there is nothing to breach.</p>
+          <p>The audit log is hash-chained, so tampering breaks it. <code>unv doctor</code> checks the vault without changing it. Releases are signed with Sigstore. There is no UnENVerse server, so nothing of yours sits with us.</p>
         </div>
         <div class="card">
           <h3>One app and one CLI, identical</h3>
@@ -115,24 +160,20 @@
       <h2 id="proof">See it working</h2>
       <p class="lead">A synthetic demo vault. Every value shown is made up.</p>
       <div class="grid two">
-        <figure>
-          <img src="/assets/screens/card-expanded.webp" width="{{W_card-expanded}}" height="{{H_card-expanded}}" loading="lazy" alt="One expanded entry card showing a masked API key, a masked secret and a live six-digit two-factor code with its countdown.">
-          <figcaption><strong>Secrets.</strong> Values stay masked until you reveal them, and the live two-factor code sits beside the login it protects.</figcaption>
-        </figure>
-        <figure>
-          <img src="/assets/screens/project-compose.webp" width="{{W_project-compose}}" height="{{H_project-compose}}" loading="lazy" alt="The Media Stack Docker Compose project: services with image, environment, volumes and networks on the left, and an env file whose passwords point at vault entries on the right.">
+        <figure class="wide">
+          <img src="/assets/screens/compose-crop.webp" width="{{W_compose-crop}}" height="{{H_compose-crop}}" loading="lazy" alt="The Media Stack Docker Compose project: services with image, environment, volumes and networks on the left, and an env file whose passwords point at vault entries on the right.">
           <figcaption><strong>Projects.</strong> A Compose stack built from parts. Each password is a link to a vault entry (the green &ldquo;vault&rdquo; tags), so rotating the entry updates the file.</figcaption>
         </figure>
-        <figure>
-          <img src="/assets/screens/project-wireguard.webp" width="{{W_project-wireguard}}" height="{{H_project-wireguard}}" loading="lazy" alt="The Home VPN WireGuard project showing the interface with its private key linked to the vault, and five peers with public keys, allowed IP ranges and endpoints.">
+        <figure class="wide">
+          <img src="/assets/screens/wg-crop.webp" width="{{W_wg-crop}}" height="{{H_wg-crop}}" loading="lazy" alt="The Home VPN WireGuard project showing the interface with its private key linked to the vault, and five peers with public keys, allowed IP ranges and endpoints.">
           <figcaption><strong>WireGuard.</strong> The interface key and every preshared key come from the vault. Peers, allowed IPs and endpoints are checked against each other before export.</figcaption>
         </figure>
-        <figure>
-          <img src="/assets/screens/audit-log.webp" width="{{W_audit-log}}" height="{{H_audit-log}}" loading="lazy" alt="The audit log tool: a full-width table of 35 hash-chained rows with action, target, user, timestamp, details and a truncated hash.">
+        <figure class="wide">
+          <img src="/assets/screens/audit-crop.webp" width="{{W_audit-crop}}" height="{{H_audit-crop}}" loading="lazy" alt="The audit log tool: a full-width table of 35 hash-chained rows with action, target, user, timestamp, details and a truncated hash.">
           <figcaption><strong>Audit log.</strong> Every add, update, delete and read is a row chained to the one before it. Verify chain recomputes every hash, so an edit made behind the app shows up.</figcaption>
         </figure>
         <figure class="wide">
-          <img src="/assets/screens/config-history.webp" width="{{W_config-history}}" height="{{H_config-history}}" loading="lazy" alt="The config history tool showing the unified diff between the two newest snapshots of a rendered Compose file, with the database URL shown as a changed fingerprint.">
+          <img src="/assets/screens/history-crop.webp" width="{{W_history-crop}}" height="{{H_history-crop}}" loading="lazy" alt="The config history tool showing the unified diff between the two newest snapshots of a rendered Compose file, with the database URL shown as a changed fingerprint.">
           <figcaption><strong>Config history.</strong> A rotated secret shows as a changed fingerprint, never as the value.</figcaption>
         </figure>
       </div>
@@ -170,7 +211,7 @@
     <div class="wrap">
       <h2 id="trust">Why you can check it</h2>
       <ul>
-        <li>Apache-2.0, <a href="https://github.com/darthdemono/UnENVerse">source on GitHub</a>.</li>
+        <li>Open source: <a href="https://github.com/darthdemono/UnENVerse">read every line</a>, build it yourself.</li>
         <li>Every release asset carries a keyless <a href="/download/#verify">Sigstore signature</a> and a checksum.</li>
         <li>A <a href="/security/">security page</a> that says what is protected and what is not, and a <a href="/security/#report">reporting route</a>.</li>
         <li>No account and no analytics in the app.</li>
