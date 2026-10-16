@@ -810,7 +810,12 @@ function buildBundleCard(
   scopeMembers: VaultEntry[],
 ): HTMLElement {
   const id = entryId(bundle);
-  const expanded = forceExpanded || st.expandedBundles.has(id);
+  // A filter that matches only some members opens the bundle so the match is
+  // visible, but an explicit collapse wins: forcing it open made the toggle a
+  // no-op for as long as a filter was applied.
+  const expanded = st.collapsedBundles.has(id)
+    ? false
+    : forceExpanded || st.expandedBundles.has(id);
   const wrap = document.createElement('div');
   wrap.className = `pool-card-wrap bundle-card-wrap${expanded ? ' expanded' : ''}`;
   wrap.dataset.bundle = id;
@@ -832,63 +837,43 @@ function buildBundleCard(
           >${label}: ${values.slice(0, 3).join(', ')}${values.length > 3 ? ` +${values.length - 3}` : ''}</span
         >`
       : '';
+  const collisionTitle = collisions
+    .map(
+      (collision) =>
+        `${collision.name}: ${collision.sources.map((source) => `${source.entry.provider}/${source.role || 'value'}`).join(', ')}`,
+    )
+    .join('\n');
+  // One primary action and one overflow menu: the header used to carry seven
+  // equal-weight buttons, which read as a toolbar rather than a card.
   setHtml(
     summary,
     html`
-      <button
-        type="button"
-        class="pool-card-expand"
-        data-action="bundle-toggle"
-        data-bundle="${id}"
-        aria-expanded="${String(expanded)}"
-        title="${expanded ? 'Collapse' : 'Expand'} bundle"
-      >
-        <span class="pool-card-chevron" aria-hidden="true">▸</span>
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm bundle-bulk-select"
-        data-action="bundle-bulk-toggle"
-        data-bundle="${id}"
-      >
-        Select visible members
-      </button>
-      <span class="pool-card-icon" aria-hidden="true">▣</span>
-      <span class="pool-card-name">${bundle.provider}</span>
-      <span class="pool-card-badge">bundle: ${members.length}</span>${collisions.length ? html`<span class="badge badge-warning bundle-collision" title="${collisions.map((collision) => `${collision.name}: ${collision.sources.map((source) => `${source.entry.provider}/${source.role || 'value'}`).join(', ')}`).join('\n')}">${collisions.length} name collision${collisions.length === 1 ? '' : 's'}</span>` : ''}
-      ${unionChip('Projects', projectNames)}${unionChip('Categories', categories)}${unionChip('Tags', tags)}
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        data-action="edit"
-        data-idx="${idxOf(bundle)}"
-      >
-        Edit
-      </button>${primary ? html`<button type="button" class="btn btn-ghost btn-sm" data-action="copy-field" data-value="${primary.api_key || primary.api_secret || ''}">Copy ${primary.bundle_slot || primary.provider}</button>` : ''}
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        data-action="bundle-export"
-        data-bundle="${id}"
-      >
-        Export all…
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        data-action="bundle-dissolve"
-        data-bundle="${id}"
-      >
-        Dissolve
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        data-action="bundle-delete-all"
-        data-bundle="${id}"
-      >
-        Delete bundle and members
-      </button>
+      <div class="bundle-head">
+        <button
+          type="button"
+          class="pool-card-expand"
+          data-action="bundle-toggle"
+          data-bundle="${id}"
+          aria-expanded="${String(expanded)}"
+          title="${expanded ? 'Collapse' : 'Expand'} bundle"
+        >
+          <span class="pool-card-chevron" aria-hidden="true">▸</span>
+        </button>
+        <span class="pool-card-icon" aria-hidden="true">▣</span>
+        <span class="pool-card-name">${bundle.provider}</span>
+        <span class="pool-card-badge">bundle: ${members.length}</span>${collisions.length ? html`<span class="badge badge-warning bundle-collision" title="${collisionTitle}">${collisions.length} name collision${collisions.length === 1 ? '' : 's'}</span>` : ''}
+        <span class="bundle-actions-inline">${primary ? html`<button type="button" class="btn btn-accent btn-sm" data-action="copy-field" data-value="${primary.api_key || primary.api_secret || ''}">Copy ${primary.bundle_slot || primary.provider}</button>` : ''}
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            data-action="edit"
+            data-idx="${idxOf(bundle)}"
+          >
+            Edit
+          </button>
+        </span>
+      </div>
+      ${projectNames.length || categories.length || tags.length ? html`<div class="bundle-chips">${unionChip('Projects', projectNames)}${unionChip('Categories', categories)}${unionChip('Tags', tags)}</div>` : ''}
     `,
   );
   wrap.appendChild(summary);
@@ -1101,6 +1086,18 @@ function buildBundleCard(
       </button>`,
   );
   body.appendChild(controls);
+  // Rare and destructive actions live with the open bundle, not in the header
+  // where one stray click away from Copy sat "Delete bundle and members".
+  const manage = document.createElement('div');
+  manage.className = 'bundle-manage';
+  setHtml(
+    manage,
+    html`<button type="button" class="btn btn-ghost btn-sm bundle-bulk-select" data-action="bundle-bulk-toggle" data-bundle="${id}">Select visible members</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="bundle-export" data-bundle="${id}">Export all…</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="bundle-dissolve" data-bundle="${id}">Dissolve</button>
+      <button type="button" class="btn btn-ghost btn-sm bundle-danger" data-action="bundle-delete-all" data-bundle="${id}">Delete bundle and members</button>`,
+  );
+  body.appendChild(manage);
   wrap.appendChild(body);
   return wrap;
 }

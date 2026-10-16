@@ -2254,6 +2254,20 @@ mark.search-hl {
   color: var(--text3);
 }
 
+/* The log is a seven-column table; the 600px reading width every other tool
+   uses squeezed it into a third of the window with the details clipped. */
+#tool-audit .tool-body {
+  max-width: min(100%, 1180px);
+}
+#tool-audit .audit-table {
+  font-size: 12px;
+}
+#tool-audit .audit-table td {
+  padding: 7px 10px;
+}
+#tool-audit .audit-details {
+  min-width: 14em;
+}
 /* Wide table must scroll inside its own box, never the page. */
 #audit-results {
   overflow-x: auto;

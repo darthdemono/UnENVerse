@@ -950,16 +950,68 @@
    The bundle reuses the pool card's wrapper, but its header carries a dozen
    controls and its members carry their own control rows; none of these classes
    had a rule, so everything sat on one non-wrapping line and clipped. */
+.bundle-card-wrap {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(180deg, var(--bg2), var(--bg1, var(--bg2)));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
 .bundle-card-wrap .pool-card-summary {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 16px;
+}
+.bundle-head {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  row-gap: 6px;
+  gap: 8px;
+}
+.bundle-card-wrap .pool-card-icon {
+  font-size: 18px;
 }
 .bundle-card-wrap .pool-card-name {
   flex: 1 1 8em;
   min-width: 0;
+  font-size: 15px;
 }
 .bundle-card-wrap .pool-card-badge {
   margin-left: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.bundle-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.bundle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 30px;
+}
+.bundle-union {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg3, rgba(255, 255, 255, 0.05));
+  color: var(--text2);
+  font-size: 11.5px;
+}
+.bundle-manage {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.bundle-manage .bundle-danger {
+  margin-left: auto;
+  color: var(--danger, #ff6b6b);
 }
 .bundle-card-wrap .pool-card-members {
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));

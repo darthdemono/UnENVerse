@@ -242,6 +242,23 @@ describe('renderGrid', () => {
     expect(grid().querySelector('.bundle-local-vars')?.textContent).toContain('public-app-id');
   });
 
+  it('lets the user collapse a bundle that a filter opened', () => {
+    // Bug: a search matching only some members forced the bundle open with no
+    // way back, so the chevron did nothing for as long as a filter was applied.
+    const bundle = makeEntry({ id: 'bundle-f', provider: 'Workspace', secretType: 'bundle' });
+    const a = makeEntry({ id: 'm-a', provider: 'Discord bot', bundle_id: 'bundle-f' });
+    const b = makeEntry({ id: 'm-b', provider: 'Other', bundle_id: 'bundle-f', bundle_slot: 'o' });
+    st.vault.api_keys = [bundle, a, b];
+    st.searchQ = 'Discord';
+
+    renderGrid();
+    expect(grid().querySelector('.bundle-card-wrap')?.classList.contains('expanded')).toBe(true);
+
+    st.collapsedBundles.add('bundle-f');
+    renderGrid();
+    expect(grid().querySelector('.bundle-card-wrap')?.classList.contains('expanded')).toBe(false);
+  });
+
   it('renders a composite over sibling bundle values with URL-zone encoding', () => {
     const bundle = makeEntry({ id: 'bundle-composite', provider: 'Discord', secretType: 'bundle' });
     const sibling = makeEntry({

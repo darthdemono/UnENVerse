@@ -1164,8 +1164,15 @@ async function init() {
         break;
       case 'bundle-toggle': {
         const bundleId = el.dataset.bundle ?? '';
-        if (st.expandedBundles.has(bundleId)) st.expandedBundles.delete(bundleId);
-        else st.expandedBundles.add(bundleId);
+        // Toggle what is on screen, not what is stored: a filter can show a
+        // bundle open that the stored set says is closed.
+        if (el.getAttribute('aria-expanded') === 'true') {
+          st.expandedBundles.delete(bundleId);
+          st.collapsedBundles.add(bundleId);
+        } else {
+          st.collapsedBundles.delete(bundleId);
+          st.expandedBundles.add(bundleId);
+        }
         saveViewState();
         render();
         break;

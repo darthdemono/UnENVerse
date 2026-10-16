@@ -56,3 +56,38 @@ for (const vp of VIEWPORTS) {
     await ctx.close();
   });
 }
+
+test('a filtered bundle can still be collapsed and expanded', async ({ browser }) => {
+  // Bug: a filter matching only some members forced the bundle open, so the
+  // chevron did nothing for as long as the filter was applied.
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(
+    ({ vault }) => {
+      sessionStorage.setItem('unenverse', JSON.stringify(vault));
+      localStorage.setItem(
+        'unenverse-settings',
+        JSON.stringify({ onboardingCompleted: true, groupBundles: true }),
+      );
+    },
+    // One member alone carries the word, so the search matches part of the bundle.
+    {
+      vault: {
+        ...BUNDLE_VAULT,
+        api_keys: BUNDLE_VAULT.api_keys.map((e) =>
+          e.id === 'bundle-tmdb-0' ? { ...e, description: 'zebra' } : e,
+        ),
+      },
+    },
+  );
+  await page.goto('/');
+  await page.locator('#search').fill('zebra');
+  const bundle = page.locator('.bundle-card-wrap[data-bundle="bundle-tmdb"]');
+  const toggle = bundle.locator('[data-action="bundle-toggle"]');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await ctx.close();
+});

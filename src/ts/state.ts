@@ -750,6 +750,8 @@ export const st = {
   expandedPools: new Set<string>(),
   /** Bundle cards expanded in the current view; never persisted. */
   expandedBundles: new Set<string>(),
+  /** Bundles the user collapsed while a filter would have forced them open; never persisted. */
+  collapsedBundles: new Set<string>(),
   /** Selected member slot for each bundle card. */
   bundleSlotTabs: {} as Record<string, string>,
   /** True while the embedded "Open to LAN" server is serving this vault (Pass 3). */
@@ -792,6 +794,7 @@ export function resetViewState(): void {
   st.activeTypeChips.clear();
   st.expandedPools.clear();
   st.expandedBundles.clear();
+  st.collapsedBundles.clear();
   st.bundleSlotTabs = {};
   st.expanded.clear();
   st.allExpanded = false;

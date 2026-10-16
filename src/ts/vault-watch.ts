@@ -46,8 +46,11 @@ import { st, inTauri } from './state';
 import { showToast } from './utils';
 import { invokeTauri } from './tauri';
 
-/** How often to ask. Long enough to be free, short enough to feel live. */
-const POLL_MS = 3000;
+/**
+ * How often to ask. One indexed SELECT, so cheap enough for a change made in a
+ * terminal to show up in the window within a blink; 3 s read as "slow".
+ */
+const POLL_MS = 750;
 
 let timer: ReturnType<typeof setInterval> | null = null;
 /** Set while a reload is in flight, so a slow load cannot overlap the next tick. */
@@ -98,8 +101,16 @@ export async function checkVaultVersion(): Promise<boolean> {
 export function startVaultWatch(): void {
   if (timer !== null || !inTauri) return;
   timer = setInterval(() => {
-    void checkVaultVersion();
+    // A hidden window cannot show the change; the focus hook below catches up.
+    if (!document.hidden) void checkVaultVersion();
   }, POLL_MS);
+  // Coming back from the terminal that made the change: look at once rather
+  // than waiting for the next tick.
+  window.addEventListener('focus', onFocus);
+}
+
+function onFocus(): void {
+  void checkVaultVersion();
 }
 
 /** Stop watching. Called on lock: a locked vault has nothing to reload into. */
@@ -107,5 +118,6 @@ export function stopVaultWatch(): void {
   if (timer !== null) {
     clearInterval(timer);
     timer = null;
+    window.removeEventListener('focus', onFocus);
   }
 }
