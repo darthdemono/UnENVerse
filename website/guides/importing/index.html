@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Importing from another password manager</title>
+  <meta name="description" content="Import Bitwarden, 1Password, KeePass, Proton Pass, authenticator exports and config files into UnENVerse, with a preview first and a report of everything skipped.">
+  <link rel="canonical" href="{{SITE_URL}}/guides/importing/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Importing from another password manager">
+  <meta property="og:description" content="Import Bitwarden, 1Password, KeePass, Proton Pass, authenticator exports and config files into UnENVerse, with a preview first and a report of everything skipped.">
+  <meta property="og:url" content="{{SITE_URL}}/guides/importing/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <p class="small"><a href="/guides/">Guides</a> / Importing</p>
+      <h1>Importing from another password manager</h1>
+      <p class="lead">Bring what you already have. Every importer shows a preview first, and the report names each item it could not carry over.</p>
+
+      <h2 id="sources">What it reads</h2>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col">Command</th><th scope="col">Reads</th></tr></thead>
+        <tbody>
+          <tr><td><code>unv import FILE</code></td><td>A <code>.env</code> file, or a full-vault JSON export with <code>--json</code></td></tr>
+          <tr><td><code>unv import-vault bitwarden</code></td><td>A Bitwarden plaintext JSON, or a ZIP with attachments</td></tr>
+          <tr><td><code>unv import-vault onepassword</code></td><td>A 1Password JSON or <code>.1pux</code> export</td></tr>
+          <tr><td><code>unv import-vault keepass</code></td><td>A KeePassXC or KeePass KDBX3 / KDBX4 database</td></tr>
+          <tr><td><code>unv import-vault proton</code></td><td>A Proton Pass JSON export</td></tr>
+        </tbody>
+      </table></div>
+      <p>The same vendor importers live in the desktop app under Tools, Import, with the same rules. Authenticator apps (Ente Auth, Aegis, 2FAS, andOTP, Google Authenticator) are read from their plain-text exports, and a Nextcloud <code>config.php</code> can be imported too.</p>
+
+      <h2 id="durable">Durable migrations</h2>
+      <p>Bitwarden, 1Password and KeePass are <strong>durable source migrations</strong>. The CLI plans first. With <code>--apply</code> it writes the entry rows, the source identities and an encrypted archive of the source in one transaction.</p>
+      <ul>
+        <li>Re-importing an unchanged source is a no-op.</li>
+        <li>If the source and the vault entry both changed, the import stops with a named conflict instead of choosing a side.</li>
+        <li>Attachments, documents, unsupported records and the original source stay encrypted in the vault archive, so an import never claims to have silently dropped them.</li>
+      </ul>
+      <p>The readers keep Bitwarden cipher types 1 to 8, password history, every login URL, TOTP seeds and ZIP attachments; 1Password fields, one-time passwords and <code>.1pux</code> documents; and KeePass group metadata, history, protected custom fields, TOTP and attachments.</p>
+
+      <h2 id="refused">What is refused, and why</h2>
+      <ul>
+        <li>Bitwarden encrypted or password-protected exports are refused by name. Export a plaintext copy, import it, then delete the copy.</li>
+        <li>KeePass asks for its database password in memory. Use <code>--key-file</code> for a key component, or <code>--no-password --key-file &lt;path&gt;</code> for a key-file-only database.</li>
+        <li>Bitwarden individual exports omit organisation-owned and trashed items, and 1Password <code>.1pux</code> exports do not carry passkeys. Both are named as missing at source in the report.</li>
+      </ul>
+      <p class="small">The three vendor readers are built from the published formats and have not yet been verified against sanitised exports from the current products. The desktop pane says so and points to the CLI.</p>
+
+      <h2 id="watch">Keeping a .env in sync</h2>
+      <p><code>unv watch FILE</code> keeps a <code>.env</code> in step with the vault while you edit it. It updates by provider, so saving the file twice never adds a second copy.</p>
+
+      <h2 id="migrate">Lossless config migration</h2>
+      <p><code>unv migrate</code> imports a configuration file with a durable source identity. It reads <code>.env</code>, Docker Compose, WireGuard and nginx files locally, plans first and never touches the source.</p>
+<pre><code>unv migrate plan env ./app.env --template
+unv migrate apply env ./app.env --template
+unv migrate report
+unv migrate verify &lt;migration-id&gt;</code></pre>
+      <p>Template mode stores a byte-preserving template in the encrypted vault. Imported values become <code>${UNV_MIG_...}</code> references, and <code>$${</code> keeps a literal <code>${</code>. Verification renders the template and compares its SHA-256 with the imported bytes. Without template mode, comments and constructs a reader cannot operate are kept in an encrypted archive and named in the report (<code>unv migrate archive ls</code>, <code>unv migrate archive export &lt;id&gt; --out &lt;path&gt;</code>). Migration needs direct access to the local vault.</p>
+
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

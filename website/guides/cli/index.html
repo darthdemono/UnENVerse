@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The unv command line</title>
+  <meta name="description" content="How unv keeps secret values out of output: redaction, fingerprints, exit codes, certificate pinning and the machine-readable unv describe contract.">
+  <link rel="canonical" href="{{SITE_URL}}/guides/cli/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="The unv command line">
+  <meta property="og:description" content="How unv keeps secret values out of output: redaction, fingerprints, exit codes, certificate pinning and the machine-readable unv describe contract.">
+  <meta property="og:url" content="{{SITE_URL}}/guides/cli/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <p class="small"><a href="/guides/">Guides</a> / The command line</p>
+      <h1>The command line</h1>
+      <p class="lead"><code>unv</code> exists so that a script, a CI job or an AI agent can drive the whole vault without a secret value ever entering its output.</p>
+      <blockquote>The orchestrator decides <em>what happens</em>. Values move from the vault to the target without passing through the orchestrator's context.</blockquote>
+
+      <h2 id="redaction">1. Redaction is the default</h2>
+      <p>Every stdout path masks stored values as <code>sha256:</code> plus twelve hex characters. In JSON:</p>
+<pre><code>{ "redacted": true, "fingerprint": "sha256:d4291adb444f", "length": 40 }</code></pre>
+      <p><code>--reveal</code> opts back in. Fingerprints are stable per value, so equal fingerprints mean equal secrets: a caller can detect drift and duplication without reading anything. An empty value fingerprints as <code>empty</code>, never as a hash, so "unset" and "set to something" cannot look alike.</p>
+      <ul>
+        <li>A whole <code>env_file</code> chunk is masked and its per-field flags are ignored, because the first unflagged password would otherwise be the one that leaks.</li>
+        <li>A <code>${ref}</code> is never masked. It is a pointer, and leaving it readable is what lets an agent wire configs together blind.</li>
+      </ul>
+
+      <h2 id="out">2. Three ways to get the real value out</h2>
+      <p>None of them touch stdout.</p>
+<pre><code>unv get GitHub --out token.txt          # straight to a file
+unv exec -- ./deploy.sh                 # into the child's environment
+unv render nginx.conf.tpl --out /etc/nginx/nginx.conf</code></pre>
+      <p>This is enforced by construction: an exporter cannot obtain a real value unless it is handed the materialising resolver. A vault-wide <code>export</code> to stdout is refused outright with exit code 9, because a masked <code>.env</code> looks deployable and is not.</p>
+
+      <h2 id="unseen">3. Secrets that are never seen at all</h2>
+<pre><code>unv entry add Stripe --generate
+unv entry rotate Stripe --generate
+unv user token new deploy --out token.txt</code></pre>
+      <p>The value is created inside the process that stores it, and the caller gets a fingerprint back. <code>user token new</code> checks the output policy before minting, so it never leaves a live token nobody can read.</p>
+
+      <h2 id="envelope">4. A machine-readable envelope</h2>
+<pre><code>{ "ok": true,  "command": "entry.add", "data": { ... } }
+{ "ok": false, "error": { "code": "not_found", "message": "...", "details": {} } }</code></pre>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col">Code</th><th scope="col">Exit</th><th scope="col">Means</th></tr></thead>
+        <tbody>
+          <tr><td><code>error</code></td><td>1</td><td>Unclassified</td></tr>
+          <tr><td></td><td>2</td><td>Usage error</td></tr>
+          <tr><td><code>not_found</code></td><td>3</td><td>No such entry, project, chunk, user or class</td></tr>
+          <tr><td><code>ambiguous</code></td><td>4</td><td>Matched several; <code>details.candidates</code> lists them</td></tr>
+          <tr><td><code>denied</code></td><td>5</td><td>Authentication failed, or the permission is missing</td></tr>
+          <tr><td><code>conflict</code></td><td>6</td><td>Already exists, or a concurrent write won</td></tr>
+          <tr><td><code>unavailable</code></td><td>7</td><td>Vault or server unreachable, or locked</td></tr>
+          <tr><td><code>needs_confirmation</code></td><td>8</td><td>Destructive command, no <code>--yes</code>, no terminal</td></tr>
+          <tr><td><code>redacted</code></td><td>9</td><td>The output would contain secrets</td></tr>
+          <tr><td><code>invalid</code></td><td>10</td><td>Well-formed request, invalid input</td></tr>
+        </tbody>
+      </table></div>
+      <p>The difference between 5 and 7 matters: a caller retries a 7. A certificate that fails its pin must not look like "cannot reach server", or an agent would loop against a machine in the middle. <code>--dry-run</code> is enforced at the single write point, so a command that forgets to check the flag still cannot write.</p>
+
+      <h2 id="describe">5. unv describe</h2>
+      <p>The whole command tree, every flag, the exit codes, the envelope and the redaction rules, as one JSON document generated from the same definition the binary runs on. It cannot describe a flag that does not exist, which is why an agent should read it instead of guessing from error messages.</p>
+<pre><code>unv describe | jq '.commands[] | select(.name == "entry")'</code></pre>
+
+      <h2 id="pinning">Certificate pinning</h2>
+      <p>The CLI and the desktop app share one certificate verifier, so a self-signed <code>unv-server</code> is trusted or refused the same way by both.</p>
+<pre><code>unv --fingerprint &lt;sha256&gt; --server https://vault.lan:8743 list
+unv --ca-cert /etc/ssl/private-ca.pem --server https://vault.lan:8743 list
+unv login --server https://vault.lan:8743 --tofu</code></pre>
+      <p><code>--tofu</code> is trust on first use: it performs the handshake, prints the fingerprint, sends no credentials and stores the pin beside the session token. It refuses to run again against a server that already has a pin, because a certificate that changed underneath you is exactly what pinning exists to notice. There is no <code>--insecure</code> flag.</p>
+
+      <h2 id="password">Getting the password in without putting it in argv</h2>
+<pre><code>unv --password-command 'pass show unv' list
+unv --password-file /run/secrets/vault-pw list
+unv --env-file /srv/unv/.env enrich --online --apply
+UNV_PASSWORD=... unv list</code></pre>
+
+      <h2 id="users">Signing in as a named user</h2>
+<pre><code>unv login --server https://vault.lan:8743 --user alice
+unv whoami
+unv sessions
+unv logout --all</code></pre>
+      <p>Sessions are cached in <code>sessions.json</code> with owner-only permissions, filed by subject. A rejected session is cleared and the error tells you to log in again. On Windows the file inherits the directory ACL; that gap is documented rather than hidden.</p>
+
+      <h2 id="idempotent">Idempotent provisioning</h2>
+<pre><code>unv entry add Stripe --if-missing
+unv entry set Stripe --create
+unv project add Web --if-missing</code></pre>
+      <p>Re-running a provisioning script is not an error, and it never overwrites a secret. Lookups refuse ambiguity: <code>unv entry rm git</code> with both GitHub and GitLab present lists both and exits 4. A confirmation prompt on a non-terminal refuses rather than assuming yes.</p>
+
+      <h2 id="doctor">unv doctor</h2>
+      <p>Everything that can be checked about a vault without changing it: database integrity, the salt file, file permissions, schema, pool state and the audit hash chain. It exits 0 when all pass and 10 when something is actually broken, and it runs even when the vault will not open, which is the case it exists for. There is no <code>--repair</code> for a missing salt, because nothing can reconstruct sixteen bytes of random output.</p>
+
+      <h2 id="commands">Command groups</h2>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col">Group</th><th scope="col">What it covers</th></tr></thead>
+        <tbody>
+          <tr><td><code>list get export diff</code></td><td>Reading and comparing</td></tr>
+          <tr><td><code>entry</code></td><td>Add, set, remove, tag, pin, compromise, rotate, history</td></tr>
+          <tr><td><code>project category tags</code></td><td>Structure</td></tr>
+          <tr><td><code>env render exec emit curl cookie</code></td><td>Materialising values without printing them</td></tr>
+          <tr><td><code>gen</code></td><td>Secrets, passwords, certificates, SSH keys, entropy sources</td></tr>
+          <tr><td><code>import import-vault watch migrate</code></td><td>Getting existing secrets and configs in</td></tr>
+          <tr><td><code>backup recover ops</code></td><td>Backups, streamed recovery packages, durable operations</td></tr>
+          <tr><td><code>scan status doctor audit</code></td><td>Checking</td></tr>
+          <tr><td><code>pool</code></td><td>Key pools</td></tr>
+          <tr><td><code>user class perm login whoami</code></td><td>Users, tokens, classes, permissions, sessions</td></tr>
+          <tr><td><code>totp codes oauth</code></td><td>Authenticator codes, recovery codes, OAuth refresh</td></tr>
+          <tr><td><code>node history blast-radius</code></td><td>Nodes, the config time machine, compromise scoping</td></tr>
+          <tr><td><code>check shield</code></td><td>Cross-chunk config checks, output-stream filtering</td></tr>
+          <tr><td><code>describe completions</code></td><td>The contract, and shell completion</td></tr>
+        </tbody>
+      </table></div>
+      <p>Anything the desktop app can do, the CLI can do, and the reverse; the exceptions are written down in one file and tested.</p>
+
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

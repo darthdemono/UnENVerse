@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UnENVerse: private secrets for AI agents, scripts and homelabs</title>
-  <meta name="description" content="A local desktop vault for AI agents, scripts and homelabs. The CLI gives a process the credential it needs without putting it in output.">
+  <title>UnENVerse: the vault that knows what your secrets are for</title>
+  <meta name="description" content="A free, local-first vault for secrets, 2FA codes and the config files built from them. Agents and scripts use a credential without seeing it, rotations reach every config, and every change is remembered.">
   <link rel="canonical" href="{{SITE_URL}}/">
   <link rel="icon" href="/assets/app-icon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
   <meta property="og:type" content="website">
   <meta property="og:title" content="UnENVerse">
-  <meta property="og:description" content="Your AI agents need credentials. They do not need your vault.">
+  <meta property="og:description" content="Secrets, 2FA and the configs built from them in one encrypted vault. Used by people, scripts and AI agents without ever being shown.">
   <meta property="og:url" content="{{SITE_URL}}/">
   <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,8 +21,19 @@
 <main id="main">
   <section>
     <div class="wrap">
-      <h1>Your AI agents need credentials. They do not need your vault.</h1>
-      <p class="lead">UnENVerse holds the credentials, 2FA seeds, configurations and recovery material for the services, scripts and coding agents you run. A process can receive one secret through <code>unv</code> without putting it in its output. Projects turn those records into the configuration your stack expects. Your nodes receive a file when you approve it.</p>
+      <h1>The vault that knows what your secrets are for.</h1>
+      <p class="lead">Passwords, API keys, 2FA seeds, certificates and the config files built from them, in one encrypted vault on your own machine. People, scripts and AI agents can use a credential without ever seeing it. Rotate a key once and every <code>.env</code>, WireGuard, Compose and nginx file follows. Every change is remembered, every deploy can need your approval, and it is free.</p>
+      <ul class="pills" aria-label="At a glance">
+        <li>Encrypted on your disk</li>
+        <li>Agent-safe by default</li>
+        <li>Live 2FA codes</li>
+        <li>Generates 11 config types</li>
+        <li>Config time machine</li>
+        <li>Approved deploys to your nodes</li>
+        <li>Tamper-evident audit log</li>
+        <li>Multi-user, with permissions</li>
+        <li>Apache-2.0, no account</li>
+      </ul>
       <div class="actions">
         <a class="btn primary" href="/download/">Download {{VERSION}}</a>
         <a class="btn secondary" href="/quickstart/">Read the quickstart</a>
@@ -37,19 +48,63 @@
 
   <section aria-labelledby="benefits">
     <div class="wrap">
-      <h2 id="benefits">One vault, many jobs</h2>
+      <h2 id="benefits">What no other vault does at once</h2>
       <div class="grid three">
         <div class="card">
-          <h3>Give agents a boundary</h3>
-          <p>An AI agent can use one credential through <code>unv exec</code>. The value goes into its child process. Routine output stays redacted.</p>
+          <h3>It knows what each secret is for</h3>
+          <p>A config points at a vault entry (<code>${GitHub/token}</code>). The value lives in one place, so a rotation reaches every <code>wg0.conf</code>, Compose file and <code>.env</code> built from it. Other vaults store a password and hand it back.</p>
         </div>
         <div class="card">
-          <h3>Keep the old mess useful</h3>
-          <p>Import <code>.env</code> files, Bitwarden, 1Password and Proton Pass exports, a Nextcloud <code>config.php</code>, and plain-text Ente Auth, Aegis, 2FAS, andOTP or Google Authenticator exports. The report names every item that did not make it. Encrypted exports are refused by product name.</p>
+          <h3>Agents use secrets, never read them</h3>
+          <p>Every value prints as a fingerprint by default. <code>unv exec</code> and <code>unv render</code> put the real one into a process or a file and nowhere else. Exit codes and <code>unv describe</code> give an agent the whole contract as JSON.</p>
         </div>
         <div class="card">
-          <h3>Generate what the stack expects</h3>
-          <p>WireGuard, Docker Compose, nginx, Kubernetes, Traefik and HAProxy use the same vault records. A config checker finds mistakes before a node gets a file.</p>
+          <h3>A time machine for config</h3>
+          <p>Every save snapshots each rendered config with secrets masked. A rotation shows as a changed fingerprint. After a compromise, blast radius names the exact credentials a machine saw and the one command to rotate them.</p>
+        </div>
+        <div class="card">
+          <h3>Deploys that need your yes</h3>
+          <p>Node agents on your servers watch a file and, only where you allow it, receive the new one transactionally. Production can require an approval signed on your own machine, bound to the exact bytes.</p>
+        </div>
+        <div class="card">
+          <h3>Proof, not promises</h3>
+          <p>The audit log is hash-chained, so tampering breaks it. <code>unv doctor</code> checks the vault without changing it. Releases are signed with Sigstore. There is no server of ours, so there is nothing to breach.</p>
+        </div>
+        <div class="card">
+          <h3>One app and one CLI, identical</h3>
+          <p>Whatever the desktop app can do, <code>unv</code> can do, and the reverse. Start alone on a laptop, then add <code>unv-server</code> with named users, classes and a permission language when a team needs it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="everything">
+    <div class="wrap">
+      <h2 id="everything">Everything in the box</h2>
+      <div class="grid three">
+        <div class="card">
+          <h3>26 kinds of secret</h3>
+          <p>API keys, passwords, certificates, SSH and GPG keys, database connections, OAuth clients, web sessions, recovery codes, licence keys, Wi-Fi networks and more, with tags, expiry, rotation reminders and a version history per entry.</p>
+        </div>
+        <div class="card">
+          <h3>2FA that lives with the login</h3>
+          <p>TOTP, HOTP and Steam Guard seeds sit on the entry they protect and show live codes with a countdown. Import from Aegis, 2FAS, andOTP, Ente and Google Authenticator.</p>
+        </div>
+        <div class="card">
+          <h3>Eleven project types</h3>
+          <p>WireGuard, Docker Compose, nginx, Kubernetes, Traefik, Apache, HAProxy, Ansible, Postgres, SSH config and <code>.env</code>. A config checker finds mistakes across files before a host gets one.</p>
+        </div>
+        <div class="card">
+          <h3>Bundles, pools and composites</h3>
+          <p>Group a service's keys into one card, rotate through interchangeable keys with a pool, and build a connection string whose password is encoded for the URL part it sits in.</p>
+        </div>
+        <div class="card">
+          <h3>Health and recovery</h3>
+          <p>A scan for weak, expiring, duplicated and leaked secrets. Encrypted backups, streamed recovery packages to a disk, NAS or SFTP, and a restore drill that proves the backup works.</p>
+        </div>
+        <div class="card">
+          <h3>Bring your old mess</h3>
+          <p>Import <code>.env</code> files, Bitwarden, 1Password, KeePass, Proton Pass and authenticator exports, with a preview first and a report of anything skipped. <a href="/guides/importing/">How importing works</a>.</p>
         </div>
       </div>
     </div>
@@ -58,14 +113,27 @@
   <section aria-labelledby="proof">
     <div class="wrap">
       <h2 id="proof">See it working</h2>
+      <p class="lead">A synthetic demo vault. Every value shown is made up.</p>
       <div class="grid two">
         <figure>
           <img src="/assets/screens/card-expanded.webp" width="{{W_card-expanded}}" height="{{H_card-expanded}}" loading="lazy" alt="One expanded entry card showing a masked API key, a masked secret and a live six-digit two-factor code with its countdown.">
-          <figcaption>An expanded card: values masked until you reveal them, and the live two-factor code beside them.</figcaption>
+          <figcaption><strong>Secrets.</strong> Values stay masked until you reveal them, and the live two-factor code sits beside the login it protects.</figcaption>
         </figure>
         <figure>
+          <img src="/assets/screens/project-compose.webp" width="{{W_project-compose}}" height="{{H_project-compose}}" loading="lazy" alt="The Media Stack Docker Compose project: services with image, environment, volumes and networks on the left, and an env file whose passwords point at vault entries on the right.">
+          <figcaption><strong>Projects.</strong> A Compose stack built from parts. Each password is a link to a vault entry (the green &ldquo;vault&rdquo; tags), so rotating the entry updates the file.</figcaption>
+        </figure>
+        <figure>
+          <img src="/assets/screens/project-wireguard.webp" width="{{W_project-wireguard}}" height="{{H_project-wireguard}}" loading="lazy" alt="The Home VPN WireGuard project showing the interface with its private key linked to the vault, and five peers with public keys, allowed IP ranges and endpoints.">
+          <figcaption><strong>WireGuard.</strong> The interface key and every preshared key come from the vault. Peers, allowed IPs and endpoints are checked against each other before export.</figcaption>
+        </figure>
+        <figure>
+          <img src="/assets/screens/audit-log.webp" width="{{W_audit-log}}" height="{{H_audit-log}}" loading="lazy" alt="The audit log tool: a full-width table of 35 hash-chained rows with action, target, user, timestamp, details and a truncated hash.">
+          <figcaption><strong>Audit log.</strong> Every add, update, delete and read is a row chained to the one before it. Verify chain recomputes every hash, so an edit made behind the app shows up.</figcaption>
+        </figure>
+        <figure class="wide">
           <img src="/assets/screens/config-history.webp" width="{{W_config-history}}" height="{{H_config-history}}" loading="lazy" alt="The config history tool showing the unified diff between the two newest snapshots of a rendered Compose file, with the database URL shown as a changed fingerprint.">
-          <figcaption>Config history: a rotated secret shows as a changed fingerprint, never as the value.</figcaption>
+          <figcaption><strong>Config history.</strong> A rotated secret shows as a changed fingerprint, never as the value.</figcaption>
         </figure>
       </div>
     </div>
@@ -104,7 +172,7 @@
       <ul>
         <li>Apache-2.0, <a href="https://github.com/darthdemono/UnENVerse">source on GitHub</a>.</li>
         <li>Every release asset carries a keyless <a href="/download/#verify">Sigstore signature</a> and a checksum.</li>
-        <li>A <a href="/security/">security page</a> that says what is protected and what is not, and a <a href="https://github.com/darthdemono/UnENVerse/blob/main/SECURITY.md">reporting route</a>.</li>
+        <li>A <a href="/security/">security page</a> that says what is protected and what is not, and a <a href="/security/#report">reporting route</a>.</li>
         <li>No account and no analytics in the app.</li>
       </ul>
     </div>

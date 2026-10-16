@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nodes: deploy to your machines</title>
+  <meta name="description" content="Enrol an agent on a host, observe a config file, apply a new one transactionally and require a signed approval for production.">
+  <link rel="canonical" href="{{SITE_URL}}/guides/nodes/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Nodes: deploy to your machines">
+  <meta property="og:description" content="Enrol an agent on a host, observe a config file, apply a new one transactionally and require a signed approval for production.">
+  <meta property="og:url" content="{{SITE_URL}}/guides/nodes/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <p class="small"><a href="/guides/">Guides</a> / Nodes</p>
+      <h1>Nodes: deploy to your machines</h1>
+      <p class="lead">A node is a small agent on another machine. It watches config files and, only where its own config says so, writes what your vault renders: the nginx config for a live site, <code>wg0.conf</code> on a laptop.</p>
+      <p>The server that holds the vault is the <strong>hub</strong>. Nodes are opt-in: run <code>unv-server --nodes</code>. Without the flag every <code>/api/nodes/*</code> route answers 404.</p>
+
+      <h2 id="setup">Setting it up</h2>
+<pre><code># on your machine: mint a single-use token
+unv --server https://hub:8743 node token new vps-01 --project edge --out token.txt
+
+# on the managed host
+unv node enroll --hub https://hub:8743 --hub-fingerprint &lt;sha256&gt; --token-file token.txt
+unv node check --config /etc/unv-node/node.toml
+unv node run   --config /etc/unv-node/node.toml</code></pre>
+      <p>Or, as root on the managed host, install the agent as a hardened systemd service in one command (add <code>--plan</code> to print every step without running any):</p>
+<pre><code>unv node install --hub http://10.10.0.2:8743 --relay 10.10.0.2:8743 --token-file token \
+  --target "id=wg0,path=/etc/wireguard/wg0.conf,project=wg/vps,exporter=wireguard,apply=true,reload=wg-quick@wg0,require_approval=true"</code></pre>
+      <p>A reload runs through a small root-owned systemd path unit that reloads that one service when that one file changes, so the agent never gains the right to reload anything else.</p>
+
+      <h2 id="config">Everything executable is on the host</h2>
+<pre><code># /etc/unv-node/node.toml
+[[target]]
+id       = "edge-nginx"
+path     = "/etc/nginx/sites-enabled/edge.conf"
+project  = "edge"
+exporter = "nginx"
+mode     = "push"          # push: vault to file. pull: file to vault.
+apply    = false           # observe until you flip it
+validate = "nginx -t"      # must pass before reload
+reload   = "systemctl reload nginx"</code></pre>
+      <p>The hub cannot add a command, a path or an <code>apply</code>. A target without <code>apply=true</code> only observes.</p>
+
+      <h2 id="guarantees">What it guarantees</h2>
+      <ul>
+        <li><strong>A node never holds a vault key.</strong> Its identity is an Ed25519 key it generated. Every request is signed (method, path, timestamp, body hash), replayed or stale requests are refused, and revoking a node takes effect on its next beat. The node pins the hub's certificate and offers TLS 1.3 only.</li>
+        <li><strong>A node is sent only what its token named</strong>, and only for files whose <code>apply</code> it switched on. The hub runs the config checker first and withholds a project with an error finding.</li>
+        <li><strong>An apply is transactional.</strong> The bytes must match the hash the hub announced, the previous file is kept (the last three), the new one is written beside the target and renamed, <code>validate</code> runs against it, and a failure restores the old file without reloading.</li>
+        <li><strong>The hub never stores rendered content.</strong> It keeps hashes and status. A pulled file passes through memory for two minutes at most and goes to the owner once.</li>
+        <li><strong>Everything that matters is audited.</strong> Tokens, enrolments, revocations, pulls and every apply go into the hash-chained audit log, attributed to the node. A locked hub observes but pushes nothing.</li>
+      </ul>
+
+      <h2 id="approval">Production can require a human</h2>
+<pre><code>unv node policy prod-1 --approval required
+unv node approvals
+unv node approve ID</code></pre>
+      <p>The hub holds every push to that node: it records the proposed file in the config history and opens a request for those exact bytes. <code>approve</code> shows the diff against what the node has (secrets as fingerprints) and the file's hash before it asks. The approval lapses in an hour. The push carries a signed approval naming the node, target and hash, and a target with <code>require_approval = true</code> refuses anything else: wrong key, other bytes, another target, expired or replayed. If the vault changes while a request waits, the old yes does not cover the new bytes.</p>
+      <p><strong>Approval can be signed on your own machine</strong>, so a taken-over hub cannot approve itself: <code>unv node approver register --label laptop</code>, put the key in the node's config as <code>approver = "..."</code>, and set <code>--approval device</code>.</p>
+
+      <h2 id="listen">Nodes with a public address</h2>
+      <p>Enrol with <code>--listen 0.0.0.0:9443 --advertise https://node.example:9443</code>. The node generates its own TLS certificate, the hub pins it at enrolment and polls every 30 seconds. The node refuses anything older than a minute, anything it has seen before and anything for another path.</p>
+
+      <h2 id="pull">Reading a file back</h2>
+      <p><code>unv node pull NODE TARGET --into-chunk NAME</code> previews what would change (names only) and <code>--apply</code> writes it. A field holding a <code>${reference}</code> is never overwritten with the secret it points at. <code>unv history diff-file FILE PROJECT</code> compares the newest snapshot with a file you fetched; values stay hidden unless you pass <code>--reveal</code>.</p>
+
+      <h2 id="after">When something goes wrong</h2>
+      <p>The config <strong>time machine</strong> keeps a snapshot of every project's rendered config whenever a save changes it, and <code>unv blast-radius --host vps-01 --since 2026-10-01</code> lists exactly which credentials were on that machine and the one command that rotates them. Both read records the vault already keeps.</p>
+      <p class="small">A container can observe but should not apply. Node agents are documented for Linux with systemd.</p>
+
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

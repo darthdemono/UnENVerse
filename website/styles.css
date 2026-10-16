@@ -124,3 +124,13 @@ footer.site a { color: var(--ink); }
 @media (prefers-reduced-motion: no-preference) {
   .btn, nav.main a { transition: filter 150ms, border-color 150ms; }
 }
+
+/* Long-form guide pages. */
+.prose h2 { margin-top: 40px; font-size: clamp(1.3rem, 2.5vw, 1.7rem); }
+.prose ul { max-width: 68ch; padding-left: 1.2em; }
+.prose li { margin-bottom: 8px; }
+blockquote { margin: 0 0 24px; padding: 8px 0 8px 20px; border-left: 4px solid var(--accent); font-size: 1.1rem; max-width: 60ch; }
+
+ul.pills { list-style: none; padding: 0; margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 8px; max-width: 60rem; }
+ul.pills li { font: 500 0.85rem var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; background: var(--surface); }
+figure.wide { grid-column: 1 / -1; }
