@@ -832,6 +832,10 @@ mod tests {
                 let path = path.clone();
                 std::thread::spawn(move || {
                     let c = Connection::open(&path).unwrap();
+                    // Windows file locking serialises these writers for longer than
+                    // rusqlite's default 5 s wait ("database is locked" in CI). The
+                    // test is about the chain, not about how long a writer queues.
+                    c.busy_timeout(std::time::Duration::from_secs(120)).unwrap();
                     for i in 0..25 {
                         let body = format!("thread {t} version {i}");
                         record(&c, &S, &body, &masked_of(&body), "[]", "save", None).unwrap();
