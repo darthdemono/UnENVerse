@@ -2502,3 +2502,60 @@ mark.search-hl {
   color: var(--text3);
   text-decoration: line-through;
 }
+
+/* ── Config history snapshot list ────────────────────────────────────────────── */
+#tool-history .tool-body {
+  max-width: min(100%, 1180px);
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 10px;
+}
+.history-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.history-table tr:hover {
+  background: var(--surface2);
+}
+.history-table td:first-child {
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+.history-table td:nth-child(3) {
+  color: var(--text1);
+  font-weight: 500;
+}
+.history-table td:last-child {
+  text-align: right;
+  white-space: normal;
+}
+.history-table .mono {
+  font-family: var(--font-mono);
+}
+#tool-history .tool-row {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+#tool-history .tool-row + .tool-row {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+#tool-history .tool-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+#tool-history input[type="number"] {
+  flex: none;
+  width: 84px;
+}
+#tool-history .tool-output {
+  margin-top: 12px;
+}
