@@ -751,7 +751,9 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            # UnENVerse ${{ needs.meta.outputs.version }}
+            ## What changed
+
+            ${{ steps.changelog.outputs.commits }}
 
             ## Desktop
 
@@ -787,7 +789,3 @@ jobs:
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               <asset>
             ```
-
-            ## Changes
-
-            ${{ steps.changelog.outputs.commits }}
