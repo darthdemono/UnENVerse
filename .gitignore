@@ -73,7 +73,6 @@ GEMINI*.md
 vscode-extension/out/
 vscode-extension/*.vsix
 shots/
-.*/
 .agents/
 .serena/
 
