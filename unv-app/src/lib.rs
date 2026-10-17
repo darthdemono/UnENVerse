@@ -61,4 +61,5 @@ pub mod template_cmd;
 pub mod tls;
 pub mod totp_cmd;
 pub mod uid_cmd;
+pub mod update_cmd;
 pub mod users_cmd;

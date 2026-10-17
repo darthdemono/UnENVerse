@@ -64,6 +64,7 @@ pub mod storage;
 pub mod templates;
 pub mod toml_import;
 pub mod type_emit;
+pub mod update;
 
 pub mod permex;
 pub mod pool;

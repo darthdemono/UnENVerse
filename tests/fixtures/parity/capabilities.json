@@ -856,6 +856,29 @@
       "cli_flags": []
     },
     {
+      "id": "cli-self-update",
+      "status": "exempt",
+      "cli": [
+        "unv update check",
+        "unv update install"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Each artifact updates itself from its own signed feed: the CLI replaces only a standalone unv, and the desktop app uses the Tauri updater (Phase 54).",
+      "cli_flags": []
+    },
+    {
+      "id": "update-publisher",
+      "status": "exempt",
+      "cli": [
+        "unv update sign"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Publisher tooling for the release workflow's signed CLI manifest.",
+      "cli_flags": []
+    },
+    {
       "id": "catalogue-publisher",
       "status": "exempt",
       "cli": [

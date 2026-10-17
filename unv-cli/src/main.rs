@@ -474,6 +474,14 @@ enum Commands {
         #[command(subcommand)]
         cmd: unv_app::catalogue_cmd::CatalogueCmd,
     },
+    /// Update this executable from a signed release (standalone archives only).
+    ///
+    /// Package-manager installs are never overwritten; the error names the
+    /// manager's own update command.
+    Update {
+        #[command(subcommand)]
+        cmd: unv_app::update_cmd::UpdateCmd,
+    },
     /// OAuth clients: exchange a refresh token for a new access token.
     Oauth {
         #[command(subcommand)]
@@ -2270,6 +2278,11 @@ fn real_main() {
         finish(unv_app::catalogue_cmd::run(cmd));
         return;
     }
+    // Nor does updating: it talks to the release feed, not the vault.
+    if let Commands::Update { cmd } = &cli.command {
+        finish(unv_app::update_cmd::run(cmd, cli.yes));
+        return;
+    }
     // Neither do the generators, unless they are asked to save into the vault.
     if let Commands::Gen {
         cmd: GenCmd::Sources,
@@ -3060,6 +3073,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
         | Commands::Describe
         | Commands::Recover { .. }
         | Commands::Catalogue { .. }
+        | Commands::Update { .. }
         | Commands::ResetVault
         | Commands::Template { .. }
         | Commands::Login

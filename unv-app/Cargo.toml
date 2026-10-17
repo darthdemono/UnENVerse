@@ -47,6 +47,9 @@ keepass      = { version = "0.15", features = ["save_kdbx4"] }
 # Bitwarden's attachment export and 1Password's .1pux are ZIP containers.  Keep
 # only DEFLATE enabled: accepting formats we do not need broadens the parser's
 # attack surface without helping either documented source format.
+flate2       = "1"
+ed25519-dalek = "3"
+tar          = "0.4"
 zip          = { version = "7.2", default-features = false, features = ["deflate"] }
 
 [lints]
