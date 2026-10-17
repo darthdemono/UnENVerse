@@ -23,6 +23,7 @@ import {
   showContextMenu,
   CustomSelect,
   injectIntoForm,
+  formDraft,
 } from '../src/ts/modals';
 import { st } from '../src/ts/state';
 import { loadRealIndexHtml, makeEntry, makeProject, makeVault, resetState } from './helpers';
@@ -790,26 +791,23 @@ describe('openModal / closeModal', () => {
   });
 
   it('closes and discards the in-progress draft', () => {
-    sessionStorage.setItem('unenverse-form-draft', '{"provider":"half typed"}');
+    formDraft.json = '{"provider":"half typed"}';
     closeModal();
     expect($('modal-overlay').classList.contains('open')).toBe(false);
-    expect(sessionStorage.getItem('unenverse-form-draft')).toBeNull();
+    expect(formDraft.json).toBeNull();
   });
 });
 
 describe('openAdd draft restore', () => {
   it('restores a saved draft into the form', () => {
-    sessionStorage.setItem(
-      'unenverse-form-draft',
-      JSON.stringify({ provider: 'Draft Co', api_key: 'sk-draft' }),
-    );
+    formDraft.json = JSON.stringify({ provider: 'Draft Co', api_key: 'sk-draft' });
     openAdd();
     expect(($('f-provider') as HTMLInputElement).value).toBe('Draft Co');
     expect(($('f-key') as HTMLInputElement).value).toBe('sk-draft');
   });
 
   it('opens a blank form when the stored draft is corrupt', () => {
-    sessionStorage.setItem('unenverse-form-draft', '{not json');
+    formDraft.json = '{not json';
     expect(() => openAdd()).not.toThrow();
     expect(($('f-provider') as HTMLInputElement).value).toBe('');
   });

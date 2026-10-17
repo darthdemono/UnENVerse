@@ -1865,11 +1865,13 @@ export function openModal(title: string, idx: number) {
   populateProjectSelect();
 }
 
-const DRAFT_KEY = 'unenverse-form-draft';
+// Held in memory only: a draft carries the secret values being typed, which must not
+// reach web storage in clear text. It dies with the page.
+export const formDraft: { json: string | null } = { json: null };
 
 function _saveDraft() {
   try {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(formToEntry()));
+    formDraft.json = JSON.stringify(formToEntry());
   } catch {}
 }
 let _draftBound = false;
@@ -2037,7 +2039,7 @@ export function suggestExtraVarsForType(type: SecretType): void {
 export function openAdd(e?: Event) {
   if (e) e.stopPropagation();
   // Restore draft if available (item 11)
-  const draft = sessionStorage.getItem(DRAFT_KEY);
+  const draft = formDraft.json;
   try {
     const parsed: unknown = draft ? JSON.parse(draft) : null;
     if (parsed) {
@@ -2069,7 +2071,7 @@ export function openAdd(e?: Event) {
 }
 
 function clearDraft() {
-  sessionStorage.removeItem(DRAFT_KEY);
+  formDraft.json = null;
 }
 
 export function openEdit(e: Event, idx: number) {
