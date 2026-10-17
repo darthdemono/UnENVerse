@@ -4075,10 +4075,15 @@ mod tests {
         router.clone().oneshot(req).await.unwrap()
     }
 
+    /// A stall caused by hashing inline is a whole Argon2 run (about 1.3 s here), so
+    /// 750 ms still fails it, while a loaded Windows runner (244 ms seen against the
+    /// old 200 ms bound, 10-20 ms locally) no longer fails a correct build.
+    const HEALTH_STALL_LIMIT: Duration = Duration::from_millis(750);
+
     /// Argon2 runs off the async runtime (roadmap R01). Ten concurrent wrong-password
     /// logins on a two-worker runtime must not stall `/api/health`: inline, each
     /// login pins a worker for the whole derivation and the probe waits behind them.
-    /// Prints the measured latencies; the bound is the plan's 200 ms.
+    /// Prints the measured latencies; the bound is `HEALTH_STALL_LIMIT`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn wrong_password_logins_do_not_stall_health() {
         use tower::ServiceExt;
@@ -4140,7 +4145,7 @@ mod tests {
                 worst
             );
             assert!(
-                worst < Duration::from_millis(200),
+                worst < HEALTH_STALL_LIMIT,
                 "{label}: /api/health stalled for {worst:?} behind password hashing"
             );
         }
@@ -4148,7 +4153,7 @@ mod tests {
 
     /// Creating a user hashes the new password with Argon2. Like login it must not
     /// pin a worker: ten concurrent creations on two workers keep `/api/health`
-    /// under 200 ms (inline, the probe waits behind them).
+    /// under `HEALTH_STALL_LIMIT` (inline, the probe waits behind them).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn creating_users_does_not_stall_health() {
         use tower::ServiceExt;
@@ -4191,10 +4196,7 @@ mod tests {
             assert_eq!(j.await.unwrap(), StatusCode::CREATED);
         }
         eprintln!("10 user creations; worst /api/health {worst:?}");
-        assert!(
-            worst < Duration::from_millis(200),
-            "health stalled for {worst:?}"
-        );
+        assert!(worst < HEALTH_STALL_LIMIT, "health stalled for {worst:?}");
     }
 
     async fn json_of(resp: axum::response::Response) -> serde_json::Value {
