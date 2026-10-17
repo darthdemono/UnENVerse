@@ -13,6 +13,11 @@ fn key() -> [u8; 32] {
     SigningKey::from_bytes(&SEED).verifying_key().to_bytes()
 }
 
+/// The executable's file name inside a release archive on this platform.
+fn bin() -> String {
+    if cfg!(windows) { "unv.exe" } else { "unv" }.into()
+}
+
 fn tmp(tag: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("unv-update-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
@@ -66,7 +71,7 @@ fn ok_probe(_: &Path) -> Result<(), String> {
 fn installs_a_matching_archive_and_keeps_no_rollback() {
     let d = tmp("ok");
     let exe = old_exe(&d);
-    let a = targz("./unv", &script("0.2.0"));
+    let a = targz(&format!("./{}", bin()), &script("0.2.0"));
     install(
         &manifest_for(&a, "0.2.0"),
         &upd::current_target(),
@@ -83,7 +88,7 @@ fn installs_a_matching_archive_and_keeps_no_rollback() {
 fn wrong_checksum_and_truncated_archive_leave_the_old_executable() {
     let d = tmp("bad");
     let exe = old_exe(&d);
-    let a = targz("unv", &script("0.2.0"));
+    let a = targz(&bin(), &script("0.2.0"));
     let mut m = manifest_for(&a, "0.2.0");
     m.assets[0].sha256 = upd::sha256_hex(b"other");
     let e = install(&m, &upd::current_target(), &a, &exe, ok_probe).unwrap_err();
@@ -105,7 +110,7 @@ fn wrong_checksum_and_truncated_archive_leave_the_old_executable() {
 fn a_failed_probe_restores_the_previous_executable() {
     let d = tmp("probe");
     let exe = old_exe(&d);
-    let a = targz("unv", &script("0.2.0"));
+    let a = targz(&bin(), &script("0.2.0"));
     let e = install(
         &manifest_for(&a, "0.2.0"),
         &upd::current_target(),
@@ -140,7 +145,7 @@ fn extraction_takes_only_the_exact_name() {
 fn a_missing_platform_is_refused() {
     let d = tmp("plat");
     let exe = old_exe(&d);
-    let a = targz("unv", b"x");
+    let a = targz(&bin(), b"x");
     let e = install(&manifest_for(&a, "0.2.0"), "plan9-mips", &a, &exe, ok_probe).unwrap_err();
     assert!(e.contains("no build"), "{e}");
 }
@@ -155,7 +160,7 @@ fn write_manifest(d: &Path, m: &Manifest) -> PathBuf {
 fn managed_unknown_and_unkeyed_installs_decline() {
     let d = tmp("origin");
     let exe = old_exe(&d);
-    let a = targz("unv", b"x");
+    let a = targz(&bin(), b"x");
     let mf = write_manifest(&d, &manifest_for(&a, "0.2.0"));
     let cmd = UpdateCmd::Install {
         url: upd::DEFAULT_URL.into(),
@@ -179,7 +184,7 @@ fn a_bad_manifest_signature_installs_nothing() {
     let d = tmp("sig");
     let exe = old_exe(&d);
     std::fs::write(d.join(upd::STANDALONE_MARKER), "").unwrap();
-    let a = targz("unv", &script("0.2.0"));
+    let a = targz(&bin(), &script("0.2.0"));
     let mf = write_manifest(&d, &manifest_for(&a, "0.2.0"));
     let raw = std::fs::read_to_string(&mf)
         .unwrap()
@@ -200,7 +205,7 @@ fn end_to_end_from_files_with_the_real_version_probe() {
     let d = tmp("e2e");
     let exe = old_exe(&d);
     std::fs::write(d.join(upd::STANDALONE_MARKER), "").unwrap();
-    let a = targz("./unv", &script("0.2.0"));
+    let a = targz(&format!("./{}", bin()), &script("0.2.0"));
     let ap = d.join("unv.tar.gz");
     std::fs::write(&ap, &a).unwrap();
     let mf = write_manifest(&d, &manifest_for(&a, "0.2.0"));
@@ -218,7 +223,7 @@ fn end_to_end_from_files_with_the_real_version_probe() {
 #[test]
 fn the_publisher_command_signs_what_the_checker_verifies() {
     let d = tmp("sign");
-    let a = targz("unv", &script("0.3.0"));
+    let a = targz(&bin(), &script("0.3.0"));
     let ap = d.join("unv-0.3.0-test.tar.gz");
     std::fs::write(&ap, &a).unwrap();
     let kf = d.join("seed.hex");
