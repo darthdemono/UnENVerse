@@ -131,6 +131,10 @@ jobs:
   frontend:
     name: Frontend (typecheck + test + build)
     runs-on: ubuntu-latest
+    env:
+      # Job level so the Codecov step's `if` can see it (a step's own env is not
+      # visible to its own condition).
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -180,6 +184,18 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
           retention-days: 14
+
+      # Feeds the Codecov badge. Skipped where the token is absent (forks, and
+      # the release gate unless the caller passes secrets), so it can never turn a
+      # green run red: the coverage floor above is the real gate.
+      - name: Send coverage to Codecov
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          flags: typescript
+          fail_ci_if_error: false
 
       - name: Build
         run: npx vite build
