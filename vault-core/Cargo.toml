@@ -59,7 +59,7 @@ toml       = "1"
 # %LOCALAPPDATA% on Windows). The CLI already depended on this; the path lives
 # here now because the desktop app reads the same file.
 dirs       = "7"
-age        = "0.11"
+age        = "0.12"
 tar        = "0.4"
 
 # TLS client policy, feature-gated behind `tls`. Versions match src-tauri's, which
