@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/darthdemono/UnENVerse/badge)](https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse)
 [![Latest release](https://img.shields.io/github/v/release/darthdemono/UnENVerse?sort=semver)](https://github.com/darthdemono/UnENVerse/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/darthdemono/UnENVerse/total)](https://github.com/darthdemono/UnENVerse/releases)
 [![License: Apache-2.0](https://img.shields.io/github/license/darthdemono/UnENVerse)](LICENSE)

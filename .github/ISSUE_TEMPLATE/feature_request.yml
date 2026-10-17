@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem first, then your idea for solving it.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where would it live
+      options: [Desktop app, unv CLI, unv-server, Importer or exporter, Website, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
