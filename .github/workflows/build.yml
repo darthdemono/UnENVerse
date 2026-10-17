@@ -483,12 +483,16 @@ jobs:
           if [ "${RUNNER_OS}" = "Windows" ]; then EXE=".exe"; fi
           cp "target/release/unv${EXE}" "target/release/unv-server${EXE}" staging/
           cp README.md staging/
-          ls -lh staging/
+          # Marks an unpacked release archive: `unv update` replaces only an
+          # executable that sits beside this file (Phase 54).
+          : > staging/.unv-standalone
+          ls -lha staging/
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: headless-${{ matrix.label }}
           path: staging/
+          include-hidden-files: true
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
@@ -658,6 +662,8 @@ jobs:
       - name: Assemble release assets
         id: assets
         shell: bash
+        env:
+          UNV_UPDATE_KEY: ${{ secrets.UNV_UPDATE_KEY }}
         run: |
           set -euo pipefail
           VERSION="${{ needs.meta.outputs.version }}"
@@ -675,6 +681,33 @@ jobs:
             && tar czf "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-linux-x86_64.tar.gz" . )
           ( cd artifacts/headless-windows-x86_64 \
             && zip -qr "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-windows-x86_64.zip" . )
+
+          # The signed CLI update feed (Phase 54). It exists only when the
+          # maintainer has set the UNV_UPDATE_KEY secret and pinned the matching
+          # public key in vault-core/src/update.rs; until then releases carry no
+          # feed and `unv update` refuses (no key pinned).
+          if [ -n "${UNV_UPDATE_KEY:-}" ]; then
+            umask 077
+            printf '%s' "$UNV_UPDATE_KEY" > "$RUNNER_TEMP/update.key"
+            echo "See the release page for v${VERSION}." > "$RUNNER_TEMP/notes.md"
+            chmod +x artifacts/headless-linux-x86_64/unv
+            artifacts/headless-linux-x86_64/unv update sign \
+              --version "$VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+              --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}" \
+              --asset "linux-x86_64=release-assets/unv-${VERSION}-linux-x86_64.tar.gz" \
+              --asset "windows-x86_64=release-assets/unv-${VERSION}-windows-x86_64.zip" \
+              --key-file "$RUNNER_TEMP/update.key" -o release-assets/unv-update.json
+            rm -f "$RUNNER_TEMP/update.key"
+            scripts/check-update-manifest.sh release-assets/unv-update.json "$VERSION"
+            # Negative control: a manifest missing one platform must fail the guard.
+            jq '.payload |= (fromjson | .assets |= map(select(.target != "windows-x86_64")) | tojson)' \
+              release-assets/unv-update.json > "$RUNNER_TEMP/broken.json"
+            if scripts/check-update-manifest.sh "$RUNNER_TEMP/broken.json" "$VERSION"; then
+              echo "::error::the manifest guard accepted a manifest with a missing platform"; exit 1
+            fi
+          else
+            echo "::notice::UNV_UPDATE_KEY is not set; publishing without a CLI update feed"
+          fi
 
           # `--` so an asset whose name begins with a dash is read as a file
           # rather than an option, and the sums file keeps plain names.
