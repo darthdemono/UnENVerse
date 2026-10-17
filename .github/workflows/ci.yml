@@ -167,8 +167,19 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: UI tests
-        run: npm test
+      # Same suite as `npm test`, with V8 coverage and the floor from
+      # vitest.config.ts: a drop below it fails here.
+      - name: UI tests (with coverage)
+        run: npm run test:coverage
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build
         run: npx vite build
