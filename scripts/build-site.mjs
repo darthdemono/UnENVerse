@@ -90,9 +90,103 @@ export function jsonLd(version) {
     softwareVersion: version,
     license: 'https://www.apache.org/licenses/LICENSE-2.0',
     downloadUrl: `${SITE_URL}/download/`,
+    url: `${SITE_URL}/`,
+    image: `${SITE_URL}/assets/og.png`,
+    description:
+      'Self-hosted secrets manager: a desktop app, a command-line tool and an optional server over one encrypted vault. People, scripts and AI agents use credentials without seeing them.',
+    featureList: [
+      'Encrypted local vault (SQLCipher, Argon2id)',
+      'Secrets used by scripts and AI agents without being printed',
+      'Config files that follow a rotated secret',
+      'Optional team server with per-user permissions',
+    ],
+    author: AUTHOR,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   };
   return JSON.stringify(doc).replace(/</g, '\\u003c');
+}
+
+/** The maintainer, as search engines should link the site to them. */
+export const AUTHOR = {
+  '@type': 'Person',
+  name: 'Jubair Hasan',
+  alternateName: 'DarthDemono',
+  url: 'https://darthdemono.com/',
+  sameAs: [
+    'https://github.com/darthdemono',
+    'https://www.linkedin.com/in/darthdemono/',
+    'https://darthdemono.com/',
+  ],
+};
+
+const attr = (html, re) => re.exec(html)?.[1];
+const escAttr = (v) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+
+/**
+ * Adds the head tags every page should carry but the hand-written pages do not
+ * repeat: robots, author and `rel=me` identity links, Open Graph site/locale/image
+ * size and alt, Twitter title/description/image (derived from the page's own
+ * title, description and og:image), the llms.txt pointer, and a BreadcrumbList.
+ * Idempotent: a tag a page already declares is never doubled. Redirect stubs
+ * (noindex) are left alone.
+ */
+export function seo(html, urlPath) {
+  if (/name="robots" content="noindex"/.test(html)) return html;
+  const title = attr(html, /<title>([^<]*)<\/title>/);
+  const desc = attr(html, /<meta name="description" content="([^"]*)"/);
+  const image = attr(html, /<meta property="og:image" content="([^"]*)"/);
+  const add = [];
+  const has = (needle) => html.includes(needle);
+  if (!has('name="robots"'))
+    add.push(
+      '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">',
+    );
+  if (!has('name="author"')) add.push('<meta name="author" content="Jubair Hasan (DarthDemono)">');
+  if (!has('rel="me"'))
+    for (const href of AUTHOR.sameAs) add.push(`<link rel="me" href="${href}">`);
+  if (!has('og:site_name')) add.push('<meta property="og:site_name" content="UnENVerse">');
+  if (!has('og:locale')) add.push('<meta property="og:locale" content="en_US">');
+  if (image && !has('og:image:width'))
+    add.push(
+      '<meta property="og:image:width" content="1200">',
+      '<meta property="og:image:height" content="630">',
+      `<meta property="og:image:alt" content="${escAttr(title ?? 'UnENVerse')}">`,
+    );
+  if (title && !has('twitter:title')) add.push(`<meta name="twitter:title" content="${title}">`);
+  if (desc && !has('twitter:description'))
+    add.push(`<meta name="twitter:description" content="${desc}">`);
+  if (image && !has('twitter:image')) add.push(`<meta name="twitter:image" content="${image}">`);
+  if (!has('/llms.txt'))
+    add.push(
+      '<link rel="alternate" type="text/plain" href="/llms.txt" title="UnENVerse for language models">',
+    );
+  if (urlPath !== '/' && title && !has('BreadcrumbList')) {
+    const trail = [['Home', '/']];
+    let acc = '';
+    for (const seg of urlPath.split('/').filter(Boolean)) {
+      acc += `/${seg}`;
+      trail.push([
+        seg === urlPath.split('/').filter(Boolean).at(-1)
+          ? title.split(':')[0]
+          : seg.charAt(0).toUpperCase() + seg.slice(1),
+        `${acc}/`,
+      ]);
+    }
+    const doc = {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: trail.map(([name, p], i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name,
+        item: `${SITE_URL}${p}`,
+      })),
+    };
+    add.push(
+      `<script type="application/ld+json">${JSON.stringify(doc).replace(/</g, '\\u003c')}</script>`,
+    );
+  }
+  return add.length ? html.replace('</head>', `  ${add.join('\n  ')}\n</head>`) : html;
 }
 
 const NAV = ['home', 'download', 'quickstart', 'guides', 'security', 'importing', 'cli', 'nodes'];
@@ -163,7 +257,8 @@ export function build({ src, out, release, sums, today = new Date().toISOString(
       const parts = rel.split(path.sep);
       const page = rel === 'index.html' ? 'home' : parts[0];
       const sub = parts.length > 2 ? parts[1] : '';
-      const html = fill(fs.readFileSync(file, 'utf8'), vars, partials, page, sub);
+      const url = rel === 'index.html' ? '/' : `/${path.dirname(rel).split(path.sep).join('/')}/`;
+      const html = seo(fill(fs.readFileSync(file, 'utf8'), vars, partials, page, sub), url);
       fs.writeFileSync(dest, html);
       // Redirect stubs say noindex; they are not pages to list.
       if (!/name="robots" content="noindex"/.test(html)) {

@@ -1,0 +1,24 @@
+# agents.txt for unenverse.darthdemono.com
+# There is no settled standard for this file; it states in plain text what an
+# automated agent may do here and where the machine-readable material is.
+
+Project: UnENVerse, a self-hosted secrets manager (https://unenverse.darthdemono.com/)
+Maintainer: Jubair Hasan (DarthDemono), https://darthdemono.com/
+Licence: Apache-2.0
+
+Site: static, public, read-only. Crawling and summarising any page is welcome.
+There is nothing to log in to and no form that takes secrets; never send one.
+Summary for models: /llms.txt
+Sitemap: /sitemap.xml
+Source: https://github.com/darthdemono/UnENVerse
+
+Using the product from an agent:
+- The `unv` CLI is the interface. `unv describe` prints its command contract as JSON.
+- Output is redacted by default. Prefer `unv exec -- <command>` and `unv render`,
+  which hand a secret to a program or a file without printing it.
+- `--reveal` and `--out` materialise real values; an agent should not use them
+  unless its operator explicitly asked.
+- Output is a JSON envelope with stable exit codes; read the code, not the prose.
+
+Reporting a vulnerability: https://github.com/darthdemono/UnENVerse/security
+(do not open a public issue for one). Details: /security/

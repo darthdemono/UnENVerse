@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs without types
 import * as site from '../scripts/build-site.mjs';
 
-const { GENERATED_SITE_ASSETS, build, classify, fmtSize, jsonLd, parseSums, sitemap, table } = site;
+const { GENERATED_SITE_ASSETS, build, classify, fmtSize, jsonLd, parseSums, seo, sitemap, table } =
+  site;
 
 const root = path.resolve(__dirname, '..');
 
@@ -250,5 +251,28 @@ describe('the site source is complete', () => {
       expect(d.width).toBeGreaterThan(0);
       expect(d.height).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('seo', () => {
+  const page =
+    '<head><title>Guides: all of them</title><meta name="description" content="About guides.">' +
+    '<meta property="og:image" content="https://x.test/og.png"></head>';
+
+  it('derives Twitter and Open Graph tags and a breadcrumb from the page itself', () => {
+    const out = seo(page, '/guides/cli/');
+    expect(out).toContain('name="twitter:title" content="Guides: all of them"');
+    expect(out).toContain('name="twitter:image" content="https://x.test/og.png"');
+    expect(out).toContain('og:image:width');
+    expect(out).toContain('href="/llms.txt"');
+    expect(out).toContain('"name":"Guides"');
+    expect(out).toContain('rel="me" href="https://www.linkedin.com/in/darthdemono/"');
+  });
+
+  it('is idempotent and leaves a noindex stub alone', () => {
+    const once = seo(page, '/guides/');
+    expect(seo(once, '/guides/')).toBe(once);
+    const stub = '<head><meta name="robots" content="noindex"><title>Moved</title></head>';
+    expect(seo(stub, '/ts/')).toBe(stub);
   });
 });

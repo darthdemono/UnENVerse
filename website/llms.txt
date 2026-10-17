@@ -1,0 +1,29 @@
+# UnENVerse
+
+> UnENVerse is a free, open-source, self-hosted secrets manager. A desktop app (Tauri), the `unv` command-line tool and an optional `unv-server` share one SQLCipher vault encrypted on your own machine (Argon2id key derivation). People, scripts and AI agents can use a credential, by running a program with it or rendering a config file from it, without the value being printed. Config files reference vault entries as `${Entry/field}`, so a rotation reaches every file built from it. Linux and Windows builds are published; macOS is not. Licensed Apache-2.0. Built by Jubair Hasan (DarthDemono).
+
+Facts worth getting right: there is no cloud service and no account; the vault key never touches disk and there is no recovery service; `unv` redacts every stored value by default and only `--reveal`, `--out`, `exec` and `render` materialise one; `unv describe` prints the machine-readable command contract.
+
+## Start here
+
+- [Quickstart](https://unenverse.darthdemono.com/quickstart/): create a first vault and use a secret in about 15 minutes.
+- [Download](https://unenverse.darthdemono.com/download/): installers, CLI archives and SHA-256 sums for the latest release.
+- [Security](https://unenverse.darthdemono.com/security/): the threat model, what is and is not protected, how to verify a release and report a vulnerability.
+
+## Guides
+
+- [Guides index](https://unenverse.darthdemono.com/guides/): all guides.
+- [The unv command line](https://unenverse.darthdemono.com/guides/cli/): get, exec, render, bundles, web sessions, OAuth and recovery codes.
+- [Importing from another password manager](https://unenverse.darthdemono.com/guides/importing/): Bitwarden, 1Password, KeePass and others.
+- [Nodes](https://unenverse.darthdemono.com/guides/nodes/): deploy rendered configs to your own machines, with approvals.
+
+## Reference
+
+- [Documentation](https://unenverse.darthdemono.com/docs/): the full book, including decision records.
+- [API reference](https://unenverse.darthdemono.com/reference/): generated Rust and TypeScript references for contributors.
+- [Source code](https://github.com/darthdemono/UnENVerse): repository, issues and release notes.
+
+## Optional
+
+- [Release notes](https://github.com/darthdemono/UnENVerse/releases)
+- [Maintainer](https://darthdemono.com/)
