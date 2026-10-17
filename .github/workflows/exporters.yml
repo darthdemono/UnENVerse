@@ -537,8 +537,10 @@ jobs:
           IMG=grafana/grafana-oss@sha256:5dad0df181cb644a14e13617b913b261a54f7d4fd4510721dba420929f35bea2
           docker run -d --name gf -p 13000:3000 -e GF_SECURITY_ADMIN_PASSWORD=pw123 "$IMG"
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:13000/api/health >/dev/null 2>&1 && break; sleep 2; done
-          ID=$(curl -fs -u admin:pw123 -H 'Content-Type: application/json' -d '{"name":"ci","role":"Editor"}' http://127.0.0.1:13000/api/serviceaccounts | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
-          TOK=$(curl -fs -u admin:pw123 -H 'Content-Type: application/json' -d '{"name":"t"}' "http://127.0.0.1:13000/api/serviceaccounts/$ID/tokens" | python3 -c 'import sys,json;print(json.load(sys.stdin)["key"])')
+          curl -fs -u admin:pw123 -H 'Content-Type: application/json' -d '{"name":"ci","role":"Editor"}' http://127.0.0.1:13000/api/serviceaccounts -o "$RUNNER_TEMP/sa.json"
+          ID=$(jq -r .id "$RUNNER_TEMP/sa.json")
+          curl -fs -u admin:pw123 -H 'Content-Type: application/json' -d '{"name":"t"}' "http://127.0.0.1:13000/api/serviceaccounts/$ID/tokens" -o "$RUNNER_TEMP/tok.json"
+          TOK=$(jq -r .key "$RUNNER_TEMP/tok.json")
           export UNV_PASSWORD=correct-horse-battery
           E="./target/debug/unv --db-path /tmp/gf/vault.db --init --yes"
           mkdir -p /tmp/gf

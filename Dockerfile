@@ -1,6 +1,6 @@
 # ── Build stage ───────────────────────────────────────────────────────────────
 # 1.85 stopped building once the lockfile moved to crates needing rustc 1.88 (found by actually building the image, 2026-10-09).
-FROM rust:1.90-bookworm AS builder
+FROM rust:1.90-bookworm@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f AS builder
 
 # mold: faster linking (matches .cargo/config.toml)
 # SQLCipher is compiled in (`vault-core/bundled`), the same engine the releases
@@ -54,7 +54,7 @@ RUN touch vault-core/src/lib.rs unv-app/src/lib.rs unv-server/src/lib.rs unv-ser
     cargo build --release -p unv-server --features vault-core/bundled
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \

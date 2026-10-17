@@ -87,7 +87,9 @@ updates:
       actions:
         update-types: [minor, patch]
   - package-ecosystem: docker
-    directory: /
+    # The digest pins in these Dockerfiles only stay current if Dependabot
+    # watches them: it rewrites tag and digest together.
+    directories: ["/", "/tools/viewer"]
     schedule: { interval: weekly }
     groups:
       base-images:

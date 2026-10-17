@@ -79,3 +79,10 @@ shots/
 # Local research bundle staging and archive (never committed)
 /New/
 /research/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Generated SBOMs (release workflow only)
+*.cdx.json
