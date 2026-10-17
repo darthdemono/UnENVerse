@@ -165,3 +165,4 @@
   - [0155: SFTP host keys are pinned and drills use an encrypted identity](adr/0155-sftp-host-keys-are-pinned-and-drills-use-an-encrypted-identity.md)
   - [0156: Credential generations use vault-scoped fingerprints and bindings use entry ids](adr/0156-credential-generations-use-vault-scoped-fingerprints-and-bindings-use-entry-ids.md)
   - [0157: Config migration binds source identity and archives unsupported bytes](adr/0157-config-migration-binds-source-identity-and-archives-unsupported-bytes.md)
+  - [0158: The CLI updates itself only from a separately signed manifest](adr/0158-the-cli-updates-itself-only-from-a-separately-signed-manifest.md)

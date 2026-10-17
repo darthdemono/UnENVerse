@@ -82,3 +82,28 @@ unv codes use GitHub-codes             # mark the next one used
 
 `oauth refresh` stores a rotated refresh token in the vault before it reports
 anything, because the issuer has already invalidated the old one.
+
+## Updating a standalone `unv`
+
+```text
+unv update check                       # ONLINE: reads the signed release manifest, installs nothing
+unv update install                     # asks first; --yes skips the question
+unv update install --manifest unv-update.json --archive unv-1.2.3-linux-x86_64.tar.gz   # offline
+```
+
+Only a `unv` unpacked from a release archive (it sits beside `.unv-standalone`)
+replaces itself. A package-manager install (`.deb`, `.rpm`, Scoop, winget,
+Homebrew, Nix, `cargo install`) is refused and the error names the manager's own
+update command; so is anything not recognisably either. The manifest is checked
+against a pinned update key that is separate from the provider catalogue's, the
+version must be strictly newer (no downgrade), and the archive's size and SHA-256
+must match the signed manifest before anything is extracted. The old executable is
+kept as `unv.rollback` until the new one reports the right `--version`, and is
+restored if it does not. The running file is never edited in place.
+
+- **Manual rollback:** unpack the older release archive over `unv`.
+- **Proxy or offline:** the fetch honours the system proxy settings; on failure
+  download `unv-update.json` and the archive from the release page and use
+  `--manifest` and `--archive`.
+- **Key rotation:** needs a release that still trusts the old key and pins the
+  new one; a build that never pinned a key refuses every update.
