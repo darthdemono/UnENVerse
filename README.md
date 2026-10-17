@@ -1196,6 +1196,12 @@ One job per tool. It regenerates the golden fixtures, fails if they were stale, 
 
 Every job carries a control case. If the validator accepts deliberate nonsense, the job fails. A validator that accepts anything produces a green tick that means nothing, and a green tick that means nothing is worse than no check, because it converts "unknown" into "fine".
 
+## Project
+
+- [Report a bug or ask for a feature](https://github.com/darthdemono/UnENVerse/issues/new/choose)
+- [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md) and [Governance](GOVERNANCE.md)
+- [Security policy](SECURITY.md), [threat model](THREAT_MODEL.md) and [architecture](ARCHITECTURE.md)
+
 ## License
 
 UnENVerse is released under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution and [CHANGELOG.md](CHANGELOG.md) for the release history.

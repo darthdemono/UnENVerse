@@ -1,0 +1,152 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/darthdemono/UnENVerse/blob/main/vex.openvex.json",
+  "author": "Jubair Hasan",
+  "timestamp": "2026-10-17T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2023-0071"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "rsa: no fix exists; no RSA decryption oracle is exposed"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2024-0370"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "proc-macro-error: build-time only, via gtk/glib-macros (Tauri)"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2024-0429"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "glib 0.18 VariantStrIter unsoundness: glib is reached only through gtk (UnENVerse itself calls just gdk's Caps Lock keymap lookup) and nothing calls the affected iterator. Ends when Tauri moves to gtk-rs 0.20."
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2025-0075"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "unic-char-range: unmaintained, via tauri-utils"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2025-0080"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "unic-common: unmaintained, via tauri-utils"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2025-0081"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "unic-char-property: unmaintained, via tauri-utils"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2025-0098"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "unic-ucd-version: unmaintained, via tauri-utils"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2025-0100"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "unic-ucd-ident: unmaintained, via tauri-utils"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2026-0173"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "proc-macro-error2: build-time only through age; no safe upgrade exists"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2026-0194"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "quick-xml: build-time plist parsing of our own files (Tauri)"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2026-0195"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "quick-xml: build-time plist parsing of our own files (Tauri)"
+    }
+  ]
+}
