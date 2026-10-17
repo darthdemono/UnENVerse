@@ -1,5 +1,14 @@
 # UnENVerse
 
+[![CI](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml)
+[![Latest release](https://img.shields.io/github/v/release/darthdemono/UnENVerse?sort=semver)](https://github.com/darthdemono/UnENVerse/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/darthdemono/UnENVerse/total)](https://github.com/darthdemono/UnENVerse/releases)
+[![License: Apache-2.0](https://img.shields.io/github/license/darthdemono/UnENVerse)](LICENSE)
+![Platforms: Linux and Windows](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows-informational)
+![Built with Rust and Tauri](https://img.shields.io/badge/built%20with-Rust%20%2B%20Tauri-orange)
+[![Website](https://img.shields.io/badge/website-unenverse.darthdemono.com-5b45d6)](https://unenverse.darthdemono.com/)
+
 **A self-hosted secrets manager for people who run their own infrastructure: a desktop app, a command-line tool and an optional server that share one encrypted vault.**
 
 ![UnENVerse showing a vault of API keys, passwords, certificates and 2FA codes](Screenshots/unenverse.png)
