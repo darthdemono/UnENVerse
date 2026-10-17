@@ -69,6 +69,12 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: argon2
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # age 0.12 pulls ml-kem 0.2.1, which does not compile against the kem 0.3.0
+      # that russh requires (checked 2026-10-17). Lift this when age or ml-kem
+      # ships a release that agrees with russh; it would also clear the
+      # proc-macro-error2 advisory, which 0.12 drops.
+      - dependency-name: age
+        update-types: ["version-update:semver-minor"]
       # Exact versions below are cryptographic/storage compatibility pins.
       - dependency-name: rand
       - dependency-name: hex

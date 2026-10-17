@@ -6,11 +6,78 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
+- Coverage reports from CI are uploaded to Codecov when a token is configured.
+- `osv-scanner.toml` records why four dependency advisories do not apply to the shipped program, the same decisions as `deny.toml`.
+
+## 0.55.1 (2026-10-17)
+
+### Added
+
+- Public trust signals: an OpenSSF Scorecard workflow, build provenance attestations and CycloneDX software bills of materials for every release asset, a Vitest coverage floor enforced in CI, contributor guide, code of conduct, issue forms and a pull request template.
+- Website: `llms.txt`, `agents.txt` and a `security.txt` file, and social, author, robots and breadcrumb tags on every page.
+
+### Changed
+
+- Docker base images are pinned by digest and Dependabot watches both Dockerfiles; the CodeQL token is limited to the job that uploads results.
+- The `zip` crate is upgraded to 9 to clear its extraction advisories.
+
+## 0.55.0 (2026-10-17)
+
+### Added
+
+- `unv update` installs a newer standalone release only after the signed manifest, the archive checksum and a version probe all pass. The manifest is signed separately from the release assets, so a compromised download host cannot push an update.
+- The product website is rewritten around self-hosted use, team access and AI agents that use secrets without seeing them, and carries the importing, command line and node guides itself.
+
+### Changed
+
+- Bundle cards are redesigned: one Copy and Edit in the header, a chips row, and the rare actions inside the open card. A filtered bundle can be collapsed again.
+- The desktop app reloads within a second when the vault changes outside it.
+- The audit pane uses the full width, and the config history snapshot list is restyled.
+- Release notes now open with the list of changes before the download tables.
+
+## 0.54.1 (2026-10-16)
+
+### Fixed
+
+- Vaults written by SQLCipher 3 now open by migrating in place, with a backup kept first. A wrong password is still rejected.
+
+## 0.54.0 (2026-10-15)
+
+### Added
+
 - R09 full-fidelity password-manager source migration: `unv import-vault bitwarden|onepassword|keepass` now plans and atomically records source identities, encrypted source archives and attachments alongside vault entries. Bitwarden JSON and ZIP attachments, 1Password JSON and `.1pux`, and KeePass KDBX3/KDBX4 password/key-file sources retain histories, TOTP where present, and report unsupported or missing-at-source material. The readers are format-derived and await sanitized real-export verification.
 - R08 lossless config migration core: encrypted migration manifests, source archives and template bindings; Rust `.env`, Compose, WireGuard and nginx readers; `unv migrate plan|apply|verify|report|archive`; a desktop Rust-backed preview; and parser fuzz targets.
 - R07 metadata and lifecycle core: ordered credential-generation, pending, lifecycle-event and deployment-state tables; vault-scoped HMAC generation fingerprints; stable-id project bindings; incremental config-history rerendering; and a secret-free entry timeline in the app and `unv entry timeline`.
 - R05 recovery packages: age X25519 `.unvpkg` streams with online SQLCipher snapshots, manifest and hash validation, marked local/NAS destinations, staged restore and local verification. `unv backup package|dest|recovery-key|schedule`, `unv recover`, and `unv ops` share the same core with the desktop Recovery settings.
 - Ordered SQLCipher schema migrations and durable, fenced operation records. The unlocked desktop executor holds an advisory lock, coalesces missed schedules, skips stale work, and stops before lock-time key zeroization.
+
+## 0.44.x (2026-10-11 to 2026-10-12)
+
+### Changed
+
+- The application layer moves into a shared `unv-app` crate used by the CLI, the server and the desktop app (ADR on the application-layer boundary).
+- New backups use a hardened PBKDF2 cost and header; backups written by earlier versions still decrypt.
+- Vault salts, backup salts and IVs come straight from the OS random generator, and remote vault ids use `crypto.randomUUID`.
+
+## 0.43.0 (2026-10-11)
+
+### Changed
+
+- Dependency modernisation across crypto, backup, TOTP, node and server transport code, with a reviewed OpenAPI snapshot added to catch API drift.
+- YAML tools use typed parsing and serialization.
+
+## 0.42.7 (2026-10-11)
+
+### Fixed
+
+- Concurrency: audit appends are atomic, pool state is written under an exclusive lock, TOTP replay marks are compare-and-swap, sessions end when a user, token, password or permission changes, and stale saves answer 409.
+- Node pull acceptance is bound to the SHA-256 the reviewer saw (`unv node accept --sha256`), and a changed upload is refused with `ACCEPT_CHANGED`.
+- `unv import-vault` never replaces a differing stored secret or an ambiguous name without `--force`.
+- A failed commit rolls back, and a resent report is recorded as one audit row.
+
+### Added
+
+- Chaos tests for the server, storage, nodes and concurrent desktop clients.
 
 ## 2026-10-09 (0.42.x)
 
