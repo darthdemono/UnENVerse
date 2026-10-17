@@ -1,14 +1,21 @@
 # UnENVerse
 
-[![CI](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/darthdemono/UnENVerse/badge)](https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse)
-[![Latest release](https://img.shields.io/github/v/release/darthdemono/UnENVerse?sort=semver)](https://github.com/darthdemono/UnENVerse/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/darthdemono/UnENVerse/total)](https://github.com/darthdemono/UnENVerse/releases)
-[![License: Apache-2.0](https://img.shields.io/github/license/darthdemono/UnENVerse)](LICENSE)
-![Platforms: Linux and Windows](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows-informational)
-![Built with Rust and Tauri](https://img.shields.io/badge/built%20with-Rust%20%2B%20Tauri-orange)
-[![Website](https://img.shields.io/badge/website-unenverse.darthdemono.com-5b45d6)](https://unenverse.darthdemono.com/)
+<p align="center">
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=githubactions&label=CI" alt="CI status"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/codeql.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=CodeQL" alt="CodeQL status"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse"><img src="https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Scorecard" alt="OpenSSF Scorecard"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage" alt="Code coverage"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/releases/latest"><img src="https://img.shields.io/github/v/release/darthdemono/UnENVerse?sort=semver&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Release" alt="Latest release"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/releases"><img src="https://img.shields.io/github/downloads/darthdemono/UnENVerse/total?style=for-the-badge&labelColor=323330&logoColor=white&label=Downloads" alt="Downloads"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
+  <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
+  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
+  <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
+</p>
 
 **A self-hosted secrets manager for people who run their own infrastructure: a desktop app, a command-line tool and an optional server that share one encrypted vault.**
 

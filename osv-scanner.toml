@@ -1,0 +1,18 @@
+# Advisories that do not apply to the shipped program, each with the reason.
+# Scorecard's Vulnerabilities check reads this file. deny.toml carries the same
+# decisions for cargo-deny; keep the two in step.
+[[IgnoredVulns]]
+id = "RUSTSEC-2023-0071"
+reason = "rsa Marvin attack: needs an RSA decryption oracle; UnENVerse only signs with RSA keys (SFTP) and never decrypts with them. No patched release exists."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+reason = "proc-macro-error: build-time macro crate via Tauri's gtk/glib-macros, never linked into the shipped program."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0173"
+reason = "proc-macro-error2: build-time macro crate via age, never linked into the shipped program; no safe upgrade exists (age 0.12 does not compile against russh's kem)."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+reason = "glib 0.18 VariantStrIter unsoundness: glib is reached only through gtk (UnENVerse itself calls just gdk's Caps Lock keymap lookup) and nothing calls the affected iterator. Ends when Tauri moves to gtk-rs 0.20."
