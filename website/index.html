@@ -38,10 +38,10 @@
   "length": 40 }
 
 <span class="dim">$</span> unv exec -- ./deploy.sh
-<span class="dim"># runs with the secrets in its environment, prints none</span>
+<span class="dim"># secrets in its environment, none printed</span>
 
-<span class="dim">$</span> unv render nginx.conf.tpl --out /etc/nginx/nginx.conf
-<span class="dim"># the real values go into the file, not into your terminal</span></code></pre>
+<span class="dim">$</span> unv render nginx.tpl --out nginx.conf
+<span class="dim"># values go into the file, not the terminal</span></code></pre>
         </div>
       </div>
       <p class="what"><strong>UnENVerse</strong> is an encrypted vault on a machine you control, with a desktop app, a command-line tool (<code>unv</code>) and an optional server for your team. It stores the secrets and also builds the config files that use them, so a rotation reaches every file by itself.</p>
