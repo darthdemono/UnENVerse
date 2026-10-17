@@ -13,10 +13,20 @@ tests, docs and new importers or exporters are very welcome.
 - By contributing you agree your work is licensed under Apache-2.0, the licence of
   this repository. Be kind: see the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+## Reporting a bug
+
+Open an issue with the bug form. Say which version (`unv --version`), where it
+happens (desktop app, `unv`, `unv-server`), your operating system, the steps, and
+what you expected. Do not paste secrets, vault files or `--reveal` output. For a
+security problem do not open an issue; see [SECURITY.md](SECURITY.md).
+
 ## Build and run
 
-Rust (stable) and Node 22 are required. On Linux, Tauri needs its system
-libraries; see the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+Rust (stable) and Node 22 are required. On Linux the app also needs WebKitGTK,
+GTK 3, an appindicator library, librsvg, patchelf, SQLCipher and mold; the exact
+package names for Fedora and Debian/Ubuntu are under "Building from source" in
+the [README](README.md#building-from-source). See also the
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
 npm ci
@@ -45,9 +55,21 @@ It is slow the first time. While iterating, `npm run check` (TypeScript side) an
   under "Invariants" and "Working rules" in [AGENTS.md](AGENTS.md).
 - Keep refactors, features, schema migrations and dependency upgrades in separate
   commits.
+- A user-visible change adds a line to `CHANGELOG.md` under Unreleased, and notes the
+  security effect when there is one.
 - Test data must not look like real credentials (GitHub push protection will
   reject the push).
 - Do not run a formatter over `index.html` or `tests/fixtures/`.
+
+## Dependencies
+
+Dependencies are chosen from crates.io and npm, with caret requirements and the
+committed `Cargo.lock` and `package-lock.json` so builds are repeatable. Prefer a
+dependency that is maintained and already in the tree over a new one. Exact `=`
+pins are used only where an upgrade would change an on-disk format or a derived
+key (`rusqlite`/SQLCipher, `argon2`), each guarded by a golden test. Dependabot
+proposes updates weekly; `cargo deny` and `npm audit` run in CI. The policy for
+vulnerable dependencies is in [SECURITY.md](SECURITY.md).
 
 ## Commits and pull requests
 
