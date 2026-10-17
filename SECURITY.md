@@ -15,7 +15,7 @@ mitigation.
 The maintainer, Jubair Hasan ([@darthdemono](https://github.com/darthdemono)), is
 the only security contact. The private form above reaches the maintainer directly.
 The same contact is in the site's
-[security.txt](https://unenverse.darthdemono.com/.well-known/security.txt).
+[security.txt](https://unenverse.darthdemono.com/security.txt).
 
 ### What to expect
 
