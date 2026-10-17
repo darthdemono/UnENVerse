@@ -346,7 +346,10 @@ fn zip_entries(bytes: &[u8], needed: &str) -> Result<ZipEntries, String> {
         let mut file = zip
             .by_index(index)
             .map_err(|error| format!("Corrupt ZIP entry: {error}"))?;
-        let name = file.name().to_owned();
+        let name = file
+            .name()
+            .map(|n| n.into_owned())
+            .map_err(|error| format!("Unusable ZIP entry name: {error}"))?;
         if file.is_dir() {
             continue;
         }
