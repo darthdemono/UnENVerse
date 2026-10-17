@@ -20,6 +20,25 @@ name: Docs
 on:
   push:
     branches: [main]
+    # Policy and community files are not on the site and change nothing in the
+    # references; skip the full Doxygen, rustdoc and mdBook build for them.
+    # website/ is NOT ignored: a website change is deployed by this workflow.
+    paths-ignore:
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "CODE_OF_CONDUCT.md"
+      - "GOVERNANCE.md"
+      - "SECURITY.md"
+      - "ARCHITECTURE.md"
+      - "THREAT_MODEL.md"
+      - "LICENSE"
+      - "NOTICE"
+      - "codecov.yml"
+      - "osv-scanner.toml"
+      - "vex.openvex.json"
+      - "Screenshots/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
   # Re-stamps the signed provider catalogue (Phase 31) so a stale one is visible
   # in `generated_at`, and refreshes the site's version and download table from
   # the latest release. Weekly (it was daily, a full Doxygen + rustdoc + mdBook

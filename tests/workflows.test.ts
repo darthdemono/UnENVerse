@@ -106,6 +106,68 @@ describe('the Docker image', () => {
   });
 });
 
+describe('documentation-only changes do not run the build', () => {
+  const ci = load('ci.yml');
+  const build = load('build.yml');
+  const docs = load('docs.yml');
+  type Push = { 'paths-ignore'?: string[]; branches?: string[]; tags?: string[] };
+  const push = (w: Workflow) => w.on.push as Push;
+
+  it('skips the heavy jobs through `changes`, not through a trigger filter on ci.yml', () => {
+    const on = ci.on as { push: Push; pull_request: Record<string, unknown> | null };
+    expect(on.push['paths-ignore']).toBeUndefined();
+    expect(JSON.stringify(on.pull_request ?? {})).not.toMatch(/paths/);
+    expect(needs(ci.jobs.test)).toContain('changes');
+    expect(needs(ci.jobs.lint)).toContain('changes');
+    expect(needs(ci.jobs.frontend)).toContain('changes');
+    expect(ci.jobs.test.if).toContain('outputs.rust');
+    expect(ci.jobs.frontend.if).toContain('outputs.frontend');
+  });
+
+  it('always reports one required result that fails on a failed job and tolerates a skipped one', () => {
+    const ok = ci.jobs['ci-ok'] as Job & { name?: string };
+    expect(ok.name).toBe('CI result');
+    expect(ok.if).toContain('always()');
+    expect(needs(ok).sort()).toEqual(['changes', 'frontend', 'lint', 'test']);
+    const run = (ok.steps as Step[]).map((s) => s.run ?? '').join('\n');
+    // The control: only these two outcomes pass. A cancelled or failed job must not.
+    expect(run).toMatch(/success\|skipped\) ;;/);
+    expect(run).toMatch(/\*\) .*exit 1/);
+  });
+
+  it('runs everything for the release gate, manual runs and the weekly schedule', () => {
+    const text = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
+    expect(text).toMatch(/if \[ "\$GATE" = "true" \]; then everything/);
+    expect(Object.keys(ci.on)).toContain('schedule');
+  });
+
+  it('keeps version files and source off the release workflow ignore list', () => {
+    const ignored = push(build)['paths-ignore'] ?? [];
+    expect(ignored.length).toBeGreaterThan(5);
+    for (const must of ['README.md', 'website/**', 'CHANGELOG.md']) expect(ignored).toContain(must);
+    // A version bump must still start the run, so none of these may ever be ignored.
+    for (const p of [
+      'package.json',
+      'Cargo.toml',
+      'Cargo.lock',
+      'src-tauri/tauri.conf.json',
+      'vault-core/Cargo.toml',
+    ]) {
+      expect(
+        ignored.some((g) => g === p || (g.endsWith('/**') && p.startsWith(g.slice(0, -2)))),
+        p,
+      ).toBe(false);
+    }
+    expect(push(build).tags).toEqual(['v*']);
+  });
+
+  it('still deploys the site when website/ changes', () => {
+    const ignored = push(docs)['paths-ignore'] ?? [];
+    expect(ignored.some((g) => g.startsWith('website'))).toBe(false);
+    expect(ignored).toContain('README.md');
+  });
+});
+
 describe('Windows no longer pays for the same work twice', () => {
   const ci = load('ci.yml');
   const text = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');

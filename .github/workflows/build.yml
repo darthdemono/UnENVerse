@@ -19,8 +19,10 @@ name: Build & Release
 # nothing all resolve to "the tag exists", which is the same answer whether it
 # is asked once or ten times. Nothing here compares timestamps or diffs paths,
 # because a path filter gets this wrong in exactly the case that matters — a
-# commit that bumps the version AND edits the README would be skipped by
-# `paths-ignore: ['**.md']`.
+# commit that bumps the version AND edits the README would be skipped by a
+# path filter that ignored the version files. The `paths-ignore` below lists only
+# files that can never carry a version, and GitHub skips a push only when every
+# changed file matches it.
 #
 # Pushing a `v*` tag by hand still works and still publishes, for re-releasing
 # an older commit.
@@ -28,6 +30,30 @@ name: Build & Release
 on:
   push:
     branches: [main]
+    # A push that changes only these files cannot move the version, so it never
+    # starts this workflow (no run, no `meta` job). The rule is "ignore when
+    # EVERY changed file matches", so a commit that bumps the version and also
+    # edits the README still runs: the version files are not on this list. The
+    # release decision itself is still the tag check in `meta`; this only saves
+    # an empty run. website/ is deployed by docs.yml and is never a release.
+    paths-ignore:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "CODE_OF_CONDUCT.md"
+      - "GOVERNANCE.md"
+      - "SECURITY.md"
+      - "ARCHITECTURE.md"
+      - "THREAT_MODEL.md"
+      - "LICENSE"
+      - "NOTICE"
+      - "codecov.yml"
+      - "osv-scanner.toml"
+      - "vex.openvex.json"
+      - "Screenshots/**"
+      - "website/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -696,6 +722,7 @@ jobs:
           cp artifacts/desktop-*/* release-assets/
           cp vsix/*.vsix release-assets/
           cp sbom/*.json release-assets/
+          cp vex.openvex.json release-assets/
 
           # Headless binaries get archived per platform, with a flat layout so
           # `tar xzf … && ./unv` works with no path juggling.
@@ -864,3 +891,6 @@ jobs:
             `unenverse-desktop-rust`, `unenverse-frontend-npm`) are CycloneDX
             software bills of materials: every Rust crate and npm package inside
             the build.
+
+            `vex.openvex.json` is an OpenVEX statement of the dependency advisories
+            that do not affect UnENVerse, each with its reason.

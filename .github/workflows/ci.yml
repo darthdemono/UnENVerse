@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Advisories appear without any code change, so `cargo deny` also runs weekly.
+  schedule:
+    - cron: "41 5 * * 1"
   # R02: Build & Release calls this workflow as its first job, so a release can
   # only start from a SHA whose CI passed *in the same run*. `gate` marks that
   # call: it gets its own concurrency group and is never cancelled.
@@ -42,6 +45,64 @@ env:
 # installed below — the same thing Build & Release already does.
 
 jobs:
+  # Decides what the rest has to run. A change that only touches documentation
+  # (README, policies, licence, screenshots, issue templates) needs no build at
+  # all; a change that only touches website/ needs the frontend tests (they build
+  # the site against a fake release) but not the Rust jobs. Everything else, the
+  # release gate, manual runs and the weekly schedule run it all.
+  #
+  # Skipping is done here rather than with `paths:` on the trigger because the
+  # `CI result` job below must always report: a required check that never starts
+  # leaves a documentation-only pull request waiting forever.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.classify.outputs.rust }}
+      frontend: ${{ steps.classify.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Classify the changed files
+        id: classify
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          GATE: ${{ inputs.gate }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          everything() {
+            { echo "rust=true"; echo "frontend=true"; } >> "$GITHUB_OUTPUT"
+            echo "Running everything: $1"
+            exit 0
+          }
+          # `inputs.gate` is set by the release gate; its event name is the caller's.
+          if [ "$GATE" = "true" ]; then everything "release gate"; fi
+          case "$EVENT" in
+            pull_request) base="$PR_BASE" ;;
+            push) base="$PUSH_BEFORE" ;;
+            *) everything "event $EVENT" ;;
+          esac
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            everything "no comparable base commit"
+          fi
+          files=$(git diff --name-only "$base" "$HEAD_SHA")
+          docs='^(README|CHANGELOG|CONTRIBUTING|CODE_OF_CONDUCT|GOVERNANCE|SECURITY|ARCHITECTURE|THREAT_MODEL)\.md$|^(LICENSE|NOTICE|codecov\.yml|osv-scanner\.toml|vex\.openvex\.json)$|^Screenshots/|^\.github/ISSUE_TEMPLATE/|^\.github/pull_request_template\.md$'
+          not_docs=$(printf '%s' "$files" | grep -Ev "$docs" || true)
+          not_site=$(printf '%s' "$not_docs" | grep -Ev '^website/' || true)
+          frontend=false; rust=false
+          if [ -n "$not_docs" ]; then frontend=true; fi
+          if [ -n "$not_site" ]; then rust=true; fi
+          printf 'changed files:\n%s\n' "$files"
+          echo "frontend=${frontend} rust=${rust}"
+          { echo "rust=${rust}"; echo "frontend=${frontend}"; } >> "$GITHUB_OUTPUT"
+
   # `test` and `lint` used to be one `rust` job whose steps ran back to back, so
   # Windows paid test (18 min) + `cargo check --all-targets` (10 min) + clippy in
   # sequence: 32 min in the last green run. They are separate jobs now and run
@@ -49,6 +110,8 @@ jobs:
   # compiles the same code with the same flags and reports strictly more.
   test:
     name: Test (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       # One platform failing should still report the other, or a Windows-only
@@ -77,6 +140,8 @@ jobs:
 
   lint:
     name: Lint (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -130,6 +195,8 @@ jobs:
 
   frontend:
     name: Frontend (typecheck + test + build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     env:
       # Job level so the Codecov step's `if` can see it (a step's own env is not
@@ -205,3 +272,26 @@ jobs:
           cd vscode-extension
           npm ci
           npm run package
+
+  # The one check branch protection requires. It always runs and passes only when
+  # every job it needs either succeeded or was skipped on purpose by `changes`;
+  # a failed or cancelled job, or a failed `changes`, fails it.
+  ci-ok:
+    name: CI result
+    if: ${{ always() }}
+    needs: [changes, test, lint, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every needed job succeeded or was skipped
+        shell: bash
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "results: ${RESULTS}"
+          for r in ${RESULTS}; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::a CI job ended as '${r}'"; exit 1 ;;
+            esac
+          done
