@@ -4075,15 +4075,21 @@ mod tests {
         router.clone().oneshot(req).await.unwrap()
     }
 
-    /// A stall caused by hashing inline is a whole Argon2 run (about 1.3 s here), so
-    /// 750 ms still fails it, while a loaded Windows runner (244 ms seen against the
-    /// old 200 ms bound, 10-20 ms locally) no longer fails a correct build.
-    const HEALTH_STALL_LIMIT: Duration = Duration::from_millis(750);
+    /// Share of a run that the sequential `/api/health` probes spent waiting. Inline
+    /// hashing pins both workers for most of the run (0.82 measured with the
+    /// offload removed); offloaded hashing leaves the probes quick (0.09 to 0.13). A two-core CI runner can
+    /// still starve one probe for seconds (2.8 s of 17.7 s on Windows, 0.16), so a
+    /// worst-case bound cannot tell the two apart there and this fraction can.
+    const HEALTH_STALL_SHARE: f64 = 0.4;
+
+    fn stall_share(probes: &[Duration], run: Duration) -> f64 {
+        probes.iter().sum::<Duration>().as_secs_f64() / run.as_secs_f64().max(f64::EPSILON)
+    }
 
     /// Argon2 runs off the async runtime (roadmap R01). Ten concurrent wrong-password
     /// logins on a two-worker runtime must not stall `/api/health`: inline, each
     /// login pins a worker for the whole derivation and the probe waits behind them.
-    /// Prints the measured latencies; the bound is `HEALTH_STALL_LIMIT`.
+    /// Prints the measured latencies; the bound is `HEALTH_STALL_SHARE`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn wrong_password_logins_do_not_stall_health() {
         use tower::ServiceExt;
@@ -4123,6 +4129,7 @@ mod tests {
                 .collect();
             let started = Instant::now();
             let mut worst = Duration::ZERO;
+            let mut probes = Vec::new();
             while !logins.iter().all(|j| j.is_finished()) {
                 // Spawned: the test body itself runs on the main thread, outside
                 // the two workers, so calling the handler here would never queue
@@ -4134,26 +4141,28 @@ mod tests {
                     .unwrap();
                 assert_eq!(resp.status(), StatusCode::OK);
                 worst = worst.max(t.elapsed());
+                probes.push(t.elapsed());
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
             for j in logins {
                 assert_eq!(j.await.unwrap(), StatusCode::UNAUTHORIZED, "{label}");
             }
+            let run = started.elapsed();
+            let share = stall_share(&probes, run);
             eprintln!(
-                "{label}: 10 wrong-password logins took {:?}; worst /api/health {:?}",
-                started.elapsed(),
-                worst
+                "{label}: 10 wrong-password logins took {run:?}; worst /api/health {worst:?}, \
+                 {share:.3} of the run spent waiting"
             );
             assert!(
-                worst < HEALTH_STALL_LIMIT,
-                "{label}: /api/health stalled for {worst:?} behind password hashing"
+                share < HEALTH_STALL_SHARE,
+                "{label}: /api/health waited {share:.2} of the run (worst {worst:?}) behind password hashing"
             );
         }
     }
 
     /// Creating a user hashes the new password with Argon2. Like login it must not
     /// pin a worker: ten concurrent creations on two workers keep `/api/health`
-    /// under `HEALTH_STALL_LIMIT` (inline, the probe waits behind them).
+    /// under `HEALTH_STALL_SHARE` (inline, the probe waits behind them).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn creating_users_does_not_stall_health() {
         use tower::ServiceExt;
@@ -4181,7 +4190,9 @@ mod tests {
                 })
             })
             .collect();
+        let started = Instant::now();
         let mut worst = Duration::ZERO;
+        let mut probes = Vec::new();
         while !jobs.iter().all(|j| j.is_finished()) {
             let t = Instant::now();
             let st = s.clone();
@@ -4190,13 +4201,18 @@ mod tests {
                 .unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
             worst = worst.max(t.elapsed());
+            probes.push(t.elapsed());
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         for j in jobs {
             assert_eq!(j.await.unwrap(), StatusCode::CREATED);
         }
-        eprintln!("10 user creations; worst /api/health {worst:?}");
-        assert!(worst < HEALTH_STALL_LIMIT, "health stalled for {worst:?}");
+        let share = stall_share(&probes, started.elapsed());
+        eprintln!("10 user creations; worst /api/health {worst:?}, {share:.3} of the run waiting");
+        assert!(
+            share < HEALTH_STALL_SHARE,
+            "health waited {share:.2} of the run (worst {worst:?})"
+        );
     }
 
     async fn json_of(resp: axum::response::Response) -> serde_json::Value {
