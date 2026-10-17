@@ -603,7 +603,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the release
-      id-token: write # cosign keyless (Sigstore OIDC)
+      id-token: write # cosign keyless and build provenance (Sigstore OIDC)
+      attestations: write # store the build provenance on the repository
       actions: read # gh run download reads this run's artifacts
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -659,6 +660,26 @@ jobs:
           mkdir -p ../vsix
           cp unenverse-*.vsix ../vsix/
 
+      # CycloneDX bills of materials: what is inside the binaries (Rust crates from
+      # Cargo.lock, npm packages from package-lock.json). They are generated
+      # before the assets are assembled so they are checksummed, attested and
+      # signed with everything else.
+      - name: Generate SBOMs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install cargo-cyclonedx --locked --version 0.5.9
+          mkdir -p sbom
+          cargo cyclonedx --format json --spec-version 1.5 --quiet
+          # One BOM per workspace crate is noise; the three that ship are enough.
+          cp unv-cli/unv-cli.cdx.json sbom/unv-cli-rust.cdx.json
+          cp unv-server/unv-server.cdx.json sbom/unv-server-rust.cdx.json
+          cp src-tauri/unenverse.cdx.json sbom/unenverse-desktop-rust.cdx.json
+          npm ci --ignore-scripts
+          npm sbom --sbom-format cyclonedx --omit dev > sbom/unenverse-frontend-npm.cdx.json
+          for f in sbom/*.json; do jq -e '.bomFormat == "CycloneDX"' "$f" > /dev/null; done
+          ls -lh sbom/
+
       - name: Assemble release assets
         id: assets
         shell: bash
@@ -674,6 +695,7 @@ jobs:
           # own naming already carries version and arch.
           cp artifacts/desktop-*/* release-assets/
           cp vsix/*.vsix release-assets/
+          cp sbom/*.json release-assets/
 
           # Headless binaries get archived per platform, with a flat layout so
           # `tar xzf … && ./unv` works with no path juggling.
@@ -736,6 +758,14 @@ jobs:
             echo ""
             echo "ENDOFCHANGELOG"
           } >> "$GITHUB_OUTPUT"
+
+      # Build provenance (SLSA style): a signed statement, stored on this
+      # repository, that each of these files was built by this workflow from this
+      # commit. `gh attestation verify` reads it. It runs before cosign so the
+      # .sig and .pem files are not themselves attested.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "release-assets/*"
 
       - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
 
@@ -822,3 +852,15 @@ jobs:
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               <asset>
             ```
+
+            Every file also has a build provenance attestation (what built it,
+            from which commit). With the GitHub CLI:
+
+            ```
+            gh attestation verify <asset> --repo ${{ github.repository }}
+            ```
+
+            The `*.cdx.json` files (`unv-cli-rust`, `unv-server-rust`,
+            `unenverse-desktop-rust`, `unenverse-frontend-npm`) are CycloneDX
+            software bills of materials: every Rust crate and npm package inside
+            the build.
