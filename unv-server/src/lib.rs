@@ -953,6 +953,25 @@ fn conflict_message(e: &str) -> String {
     }
 }
 
+/// A name or id that is already taken is a conflict (409), not a malformed request
+/// (400): a caller branches on the difference (the CLI's exit 6 versus 10), and
+/// raw SQLite text should not be the message a user reads.
+pub(crate) fn rejected(e: &str) -> (StatusCode, Json<serde_json::Value>) {
+    if e.contains("UNIQUE constraint failed")
+        || e.contains("already open")
+        || e.contains("already exists")
+    {
+        let msg = if e.contains("UNIQUE constraint failed") {
+            "That name is already taken"
+        } else {
+            e
+        };
+        err_json(StatusCode::CONFLICT, msg)
+    } else {
+        err_json(StatusCode::BAD_REQUEST, e)
+    }
+}
+
 fn err_json(status: StatusCode, msg: &str) -> (StatusCode, Json<serde_json::Value>) {
     match current_request_id() {
         Some(id) => (
@@ -1976,7 +1995,7 @@ async fn create_user_handler(
             Json(serde_json::to_value(user).unwrap()),
         )
             .into_response(),
-        Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Err(e) => rejected(&e).into_response(),
     }
 }
 
@@ -2254,7 +2273,7 @@ async fn rename_user_handler(
     }
     match vault_core::rename_user(&conn, &user_id, &req.username) {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Err(e) => rejected(&e).into_response(),
     }
 }
 
@@ -2562,7 +2581,7 @@ async fn create_class_handler(
             Json(serde_json::to_value(cls).unwrap()),
         )
             .into_response(),
-        Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Err(e) => rejected(&e).into_response(),
     }
 }
 
@@ -2612,7 +2631,7 @@ async fn update_class_handler(
             bump_perm_epoch(&state);
             StatusCode::NO_CONTENT.into_response()
         }
-        Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Err(e) => rejected(&e).into_response(),
     }
 }
 
