@@ -1084,12 +1084,7 @@ async function saveClassDetails(classId: string) {
 }
 
 async function deleteClass(classId: string) {
-  if (
-    !(await showConfirm(
-      'Delete this class? It must have no members.',
-    ))
-  )
-    return;
+  if (!(await showConfirm('Delete this class? It must have no members.'))) return;
   try {
     await invoke?.('delete_user_class', { classId });
     showToast('Class deleted', 'ok');
