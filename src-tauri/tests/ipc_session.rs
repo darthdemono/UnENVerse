@@ -4,6 +4,9 @@
 //! as enabled before it is confirmed, a destination keeps its packages, and
 //! "Open to LAN" never outlives the unlock.
 
+// Windows resolves app_data_dir from the profile, not from XDG_DATA_HOME, so these tests would unlock the runner's (or a developer's) real vault. They run on Unix, where the harness isolates the data directory.
+#![cfg(unix)]
+
 mod common;
 use common::{desk, Desk};
 use serde_json::{json, Value};

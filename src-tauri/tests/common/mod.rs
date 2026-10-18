@@ -7,6 +7,13 @@ use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INV
 use tauri::webview::InvokeRequest;
 use tauri::{ipc::CallbackFn, ipc::InvokeBody, App, WebviewWindow};
 
+// The origin Tauri serves the app from; the command ACL only admits calls from it.
+// Windows serves it over http://tauri.localhost, everywhere else tauri://localhost.
+#[cfg(windows)]
+const APP_URL: &str = "http://tauri.localhost";
+#[cfg(not(windows))]
+const APP_URL: &str = "tauri://localhost";
+
 /// The commands read `XDG_DATA_HOME` through the path resolver, so tests that
 /// set it take turns.
 static ENV: Mutex<()> = Mutex::new(());
@@ -55,7 +62,7 @@ impl Desk {
                 cmd: cmd.into(),
                 callback: CallbackFn(0),
                 error: CallbackFn(1),
-                url: "tauri://localhost".parse().unwrap(),
+                url: APP_URL.parse().unwrap(),
                 body: InvokeBody::Json(body),
                 headers: Default::default(),
                 invoke_key: INVOKE_KEY.to_string(),

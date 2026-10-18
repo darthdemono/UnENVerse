@@ -32,6 +32,8 @@ fn a_locked_vault_refuses_every_read_and_write_with_one_message() {
     assert_eq!(d.ok("vault_exists", json!({})), json!(false));
 }
 
+// Windows resolves app_data_dir from the profile, not from XDG_DATA_HOME, so this test would unlock the runner's (or a developer's) real vault. It runs on Unix, where the harness isolates the data directory.
+#[cfg(unix)]
 #[test]
 fn unlock_creates_the_vault_lock_forgets_the_key_and_a_wrong_password_never_unlocks() {
     let d = desk("unlock");
@@ -67,6 +69,8 @@ fn unlock_creates_the_vault_lock_forgets_the_key_and_a_wrong_password_never_unlo
     d.ok("lock_vault", json!({}));
 }
 
+// Windows resolves app_data_dir from the profile, not from XDG_DATA_HOME, so this test would unlock the runner's (or a developer's) real vault. It runs on Unix, where the harness isolates the data directory.
+#[cfg(unix)]
 #[test]
 fn a_save_is_a_compare_and_swap_and_a_row_patch_keeps_the_other_rows() {
     let d = desk("save");
@@ -138,6 +142,8 @@ fn a_save_is_a_compare_and_swap_and_a_row_patch_keeps_the_other_rows() {
     d.ok("lock_vault", json!({}));
 }
 
+// Windows resolves app_data_dir from the profile, not from XDG_DATA_HOME, so this test would unlock the runner's (or a developer's) real vault. It runs on Unix, where the harness isolates the data directory.
+#[cfg(unix)]
 #[test]
 fn reset_removes_the_vault_and_its_salt() {
     let d = desk("reset");
