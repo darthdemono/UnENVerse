@@ -2176,7 +2176,12 @@ fn finish_run(command: &str, label: &str, run: vault_core::ops::Run) -> CliResul
 }
 
 fn is_closed_pipe_panic(message: &str) -> bool {
-    message.starts_with("failed printing to std") && message.contains("Broken pipe")
+    // Unix says "Broken pipe"; Windows says "The pipe has been ended" (os error 109)
+    // or "The pipe is being closed" (os error 232).
+    message.starts_with("failed printing to std")
+        && ["Broken pipe", "(os error 109)", "(os error 232)"]
+            .iter()
+            .any(|m| message.contains(m))
 }
 
 fn main() {

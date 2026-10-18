@@ -3,6 +3,9 @@
 //! observes gets read access and no reload unit, and `unv node check` reports
 //! what the agent would watch.
 
+// `unv node install` sets up a systemd service and refuses on other platforms.
+#![cfg(target_os = "linux")]
+
 mod common;
 use common::Vault;
 

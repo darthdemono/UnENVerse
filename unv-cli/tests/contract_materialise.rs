@@ -7,6 +7,7 @@
 
 mod common;
 use common::Vault;
+#[cfg(unix)]
 use serde_json::Value;
 
 const SECRET: &str = "materialise-secret-123456";
@@ -31,6 +32,7 @@ fn seeded(tag: &str) -> Vault {
 }
 
 /// The records of the materialisation log, oldest first.
+#[cfg(unix)]
 fn log(v: &Vault) -> Vec<Value> {
     let path = v
         .dir
@@ -195,6 +197,9 @@ fn exec_clean_hides_the_callers_environment_but_keeps_the_path() {
     assert!(stdout.contains("path-kept"), "PATH is kept: {stdout}");
 }
 
+// The materialisation log lives in the profile state directory on Windows, which
+// the harness cannot isolate; `true` is also a Unix program.
+#[cfg(unix)]
 #[test]
 fn exec_is_recorded_without_the_value() {
     let v = seeded("execlog");
@@ -302,6 +307,9 @@ fn render_to_a_file_writes_the_real_value_owner_only_and_records_it() {
     assert_eq!(rec["exposed"][0]["provider"], "GitHub", "{rec}");
 }
 
+// The materialisation log lives in the profile state directory on Windows, which
+// the harness cannot isolate.
+#[cfg(unix)]
 #[test]
 fn a_revealed_print_is_recorded_too() {
     let v = seeded("revealed");

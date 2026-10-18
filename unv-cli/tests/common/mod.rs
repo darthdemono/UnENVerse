@@ -7,9 +7,7 @@
 #![allow(dead_code)]
 
 use serde_json::Value;
-#[cfg(unix)]
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -95,6 +93,7 @@ impl Vault {
             // with this variable set must not have tests touch the real ones.
             .env("XDG_STATE_HOME", self.dir.join("state"))
             .stdin(Stdio::null());
+        pin_state_files(&mut c, &self.dir);
         c
     }
 
@@ -209,4 +208,15 @@ impl Drop for Vault {
 pub fn mode_of(path: &Path) -> u32 {
     use std::os::unix::fs::PermissionsExt;
     std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+}
+
+/// Windows resolves the state directory from the profile (`%LOCALAPPDATA%`) and
+/// ignores `XDG_STATE_HOME`, so every test would share the runner's real session
+/// and pool files. Name them explicitly, at the path the Unix default produces.
+pub fn pin_state_files(c: &mut Command, dir: &Path) {
+    if cfg!(windows) {
+        let state = dir.join("state").join("unv");
+        c.env("UNV_SESSION_FILE", state.join("sessions.json"))
+            .env("UNV_POOL_FILE", state.join("pools.json"));
+    }
 }

@@ -79,8 +79,9 @@ fn cached(v: &Vault, s: &Server, extra: &[&str], args: &[&str]) -> common::Out {
         .env("XDG_DATA_HOME", v.path("data"))
         .env("XDG_CONFIG_HOME", v.path("config"))
         .env("XDG_STATE_HOME", v.path("state"))
-        .stdin(std::process::Stdio::null())
-        .args(["--server", &s.url, "--yes", "--json"])
+        .stdin(std::process::Stdio::null());
+    common::pin_state_files(&mut c, &v.dir);
+    c.args(["--server", &s.url, "--yes", "--json"])
         .args(extra)
         .args(args);
     let o = c.output().unwrap();
