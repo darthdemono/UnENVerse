@@ -4182,14 +4182,18 @@ mod tests {
     }
 
     /// Creating a user hashes the new password with Argon2. Like login it must not
-    /// pin a worker: ten concurrent creations on two workers keep `/api/health`
-    /// under `HEALTH_STALL_SHARE` (inline, the probe waits behind them).
+    /// pin a worker: sixty concurrent creations on two workers keep `/api/health`
+    /// under `HEALTH_STALL_SHARE` (inline, the probe waits behind them). Sixty, not
+    /// ten: the dev profile now builds Argon2 optimised, so ten creations finish in
+    /// a fraction of a second and one 115 ms scheduling hiccup on a starved Windows
+    /// runner was 0.53 of the run. A longer run averages that out and the share
+    /// still tells offloaded hashing from inline.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn creating_users_does_not_stall_health() {
         use tower::ServiceExt;
         let (s, owner) = owner_with_vault();
         let router = build_router(s.clone(), 8743);
-        let jobs: Vec<_> = (0..10)
+        let jobs: Vec<_> = (0..60)
             .map(|i| {
                 let router = router.clone();
                 let auth = owner[axum::http::header::AUTHORIZATION].clone();
@@ -4229,7 +4233,7 @@ mod tests {
             assert_eq!(j.await.unwrap(), StatusCode::CREATED);
         }
         let share = stall_share(&probes, started.elapsed());
-        eprintln!("10 user creations; worst /api/health {worst:?}, {share:.3} of the run waiting");
+        eprintln!("60 user creations; worst /api/health {worst:?}, {share:.3} of the run waiting");
         assert!(
             share < HEALTH_STALL_SHARE,
             "health waited {share:.2} of the run (worst {worst:?})"
