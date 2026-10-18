@@ -274,10 +274,11 @@ export async function importEncryptedBackup(text: string, password: string) {
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, fromB64(env.ct));
     const data = backupData(JSON.parse(new TextDecoder().decode(plain)) as unknown);
     st.vault.api_keys = data.api_keys;
-    st.vault.user_categories = data.user_categories || [];
-    st.vault.projects = data.projects || [
-      { id: 'Universal', name: 'Universal', description: 'All keys belong here by default' },
-    ];
+    st.vault.user_categories = data.user_categories;
+    // A backup written without projects (or with an empty list) still needs the default one.
+    st.vault.projects = data.projects.length
+      ? data.projects
+      : [{ id: 'Universal', name: 'Universal', description: 'All keys belong here by default' }];
     void persist();
     resetViewState();
     triggerRender();
@@ -571,16 +572,17 @@ export function handleFileSelect(input: HTMLInputElement) {
 
 /** Replace the whole vault from a parsed `{ api_keys, projects?, user_categories? }` object. */
 function loadFullVault(data: VaultData) {
-  const projects = data.projects || [
-    { id: 'Universal', name: 'Universal', description: 'All keys belong here by default' },
-  ];
+  // `backupData` yields an empty list for a file without projects; the default one must exist.
+  const projects = data.projects.length
+    ? data.projects
+    : [{ id: 'Universal', name: 'Universal', description: 'All keys belong here by default' }];
   for (const key of data.api_keys) {
     if (!key.projectIds) key.projectIds = ['Universal'];
     else if (!key.projectIds.includes('Universal')) key.projectIds.push('Universal');
     if (!key.secretType) key.secretType = 'api_key';
   }
   st.vault.api_keys = data.api_keys;
-  st.vault.user_categories = data.user_categories || [];
+  st.vault.user_categories = data.user_categories;
   st.vault.projects = projects;
   void persist();
   // The whole vault was replaced — a project/tag/category selected against the
@@ -588,7 +590,7 @@ function loadFullVault(data: VaultData) {
   // into an empty grid.
   resetViewState();
   triggerRender();
-  const banner = document.getElementById('load-banner');
-  if (banner) banner.style.display = 'none';
+  const banner = document.getElementById('load-banner')!;
+  banner.style.display = 'none';
   showToast(`Loaded ${st.vault.api_keys.length} keys ✓`, 'ok');
 }
