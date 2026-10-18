@@ -1,0 +1,91 @@
+name: Rust coverage
+
+# Measures statement coverage of the whole Rust workspace on a runner, so nobody
+# has to run `cargo llvm-cov` locally. It is not part of `CI result`: it runs on
+# every push to main that touches Rust (so Codecov has a base for pull request
+# patch coverage), weekly, and on demand. The figures land in
+# the job summary, the `rust-coverage` artifact and, when CODECOV_TOKEN is set,
+# Codecov under the `rust` flag.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "vault-core/**"
+      - "unv-app/**"
+      - "unv-cli/**"
+      - "unv-server/**"
+      - "src-tauri/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/coverage-rust.yml"
+  schedule:
+    - cron: "43 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Rust coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust-setup
+        with:
+          cache-key: coverage
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27
+        with:
+          tool: cargo-llvm-cov@0.9.1
+
+      # Tests and fuzz targets are not production code; their lines would only
+      # inflate the figure. UNV_* must be unset: a set value sends `unv` to a real
+      # server.
+      - name: Measure
+        run: |
+          mkdir -p coverage-rust
+          env -u UNV_SERVER_URL -u UNV_PASSWORD cargo llvm-cov --workspace --locked \
+            --ignore-filename-regex '(^|/)(tests|fuzz)/' \
+            --json --summary-only --output-path coverage-rust/summary.json
+          env -u UNV_SERVER_URL -u UNV_PASSWORD cargo llvm-cov report \
+            --ignore-filename-regex '(^|/)(tests|fuzz)/' \
+            --lcov --output-path coverage-rust/lcov.info
+
+      - name: Summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          t = json.load(open("coverage-rust/summary.json"))["data"][0]["totals"]
+          print("## Rust coverage\n\n| | covered | total | percent |\n| --- | --- | --- | --- |")
+          for k in ("lines", "functions", "regions"):
+              print(f"| {k} | {t[k]['covered']} | {t[k]['count']} | {t[k]['percent']:.2f} |")
+          PY
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rust-coverage
+          path: coverage-rust/
+          if-no-files-found: ignore
+
+      - name: Send coverage to Codecov
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-rust/lcov.info
+          flags: rust
+          fail_ci_if_error: false

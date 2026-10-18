@@ -7,3 +7,19 @@ coverage:
     patch:
       default:
         informational: true
+
+# Each upload covers one language; carry the other forward so a Rust-only push
+# does not read as a TypeScript coverage drop (and the reverse).
+flags:
+  typescript:
+    paths:
+      - src/
+    carryforward: true
+  rust:
+    paths:
+      - vault-core/
+      - unv-app/
+      - unv-cli/
+      - unv-server/
+      - src-tauri/
+    carryforward: true
