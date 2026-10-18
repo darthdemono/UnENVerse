@@ -58,6 +58,8 @@ export async function bootDesktop(
   return state;
 }
 
-export const closeDesktop = () => {
+export const closeDesktop = async () => {
+  // The unlock starts the vault poll; left running it fires after jsdom is torn down ("document is not defined").
+  (await import('../src/ts/vault-watch')).stopVaultWatch();
   delete (window as any).__TAURI__;
 };
