@@ -227,7 +227,11 @@ jobs:
   # ---------------------------------------------------------------------------
   desktop:
     name: Desktop (${{ matrix.label }})
-    needs: [meta, ci]
+    # Packaging starts at once and runs beside the CI gate instead of after it:
+    # nothing here publishes, and `release` still needs `ci`, so a red commit
+    # cannot ship. Waiting for the gate first made a release take CI plus the
+    # slowest build back to back.
+    needs: [meta]
     # Skipped on any push that did not move the version. ci.yml already ran
     # check, clippy, the Rust tests and the frontend suite on this commit; what
     # is skipped here is only the packaging, which nothing consumes unless a
@@ -386,7 +390,7 @@ jobs:
   # ---------------------------------------------------------------------------
   headless:
     name: CLI + server (${{ matrix.label }})
-    needs: [meta, ci]
+    needs: [meta]
     if: needs.meta.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -622,8 +626,8 @@ jobs:
   # ---------------------------------------------------------------------------
   release:
     name: Publish release
-    # `ci` is listed even though desktop/headless/docker already need it: the
-    # property "no release from a red commit" should be readable in one line.
+    # `ci` is listed on its own because desktop and headless run beside the gate:
+    # the property "no release from a red commit" is this one line.
     needs: [meta, ci, desktop, headless, docker]
     if: needs.meta.outputs.publish == 'true'
     runs-on: ubuntu-latest
