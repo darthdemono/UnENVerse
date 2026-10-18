@@ -146,3 +146,115 @@ describe('config check panel', () => {
     expect(document.getElementById('other')!.classList.contains('flash')).toBe(false);
   });
 });
+
+describe('config check: names and wording', () => {
+  it('lists provider names and provider_keyid for entries that have one, skipping unnamed entries', async () => {
+    const { vaultNames } = await load([]);
+    const { st } = await import('../src/ts/state');
+    st.vault.api_keys = [
+      { id: '1', provider: 'GitHub', key_id: 'prod', api_key: 'x' },
+      { id: '2', provider: 'Plain', api_key: 'x' },
+      { id: '3', provider: '', key_id: 'ghost', api_key: 'x' },
+    ] as any;
+    expect(vaultNames()).toEqual(['GitHub_prod', 'GitHub', 'Plain']);
+  });
+
+  it('lists compose services and container names of every project, lowercased, skipping disabled ones', async () => {
+    const { elsewhereServices } = await load([]);
+    const { st } = await import('../src/ts/state');
+    st.vault.projects = [
+      {
+        id: 'a',
+        name: 'A',
+        chunks: [
+          {
+            id: '1',
+            name: 'Web App',
+            chunk_type: 'docker_service',
+            fields: [{ key: 'container_name', value: ' Web-1 ' }],
+          },
+          { id: '2', name: 'Off', chunk_type: 'docker_service', disabled: true, fields: [] },
+          { id: '3', name: 'Net', chunk_type: 'docker_network', fields: [] },
+          {
+            id: '4',
+            name: '',
+            chunk_type: 'docker_service',
+            fields: [{ key: 'container_name', value: '  ' }],
+          },
+        ],
+      },
+      { id: 'b', name: 'B' },
+    ] as any;
+    expect(elsewhereServices().sort()).toEqual(['web-1', 'web_app']);
+  });
+
+  it('says "warnings" and "errors" in the plural, and uses the chunk type when the chunk has no name', async () => {
+    const { mountConfigCheck } = await load([
+      finding({ chunk: '', chunk_type: 'wg_peer', chunk_id: 'a' }),
+      finding({ chunk_id: 'b' }),
+      finding({ severity: 'warning', chunk_id: 'c' }),
+      finding({ severity: 'warning', chunk_id: 'd' }),
+    ]);
+    const host = document.createElement('section');
+    document.body.appendChild(host);
+    await mountConfigCheck(project, host);
+    expect(host.querySelector('.config-check-head')!.textContent!.replace(/\s+/g, ' ')).toContain(
+      '2 errors, 2 warnings between chunks',
+    );
+    expect(host.querySelector('[data-check-chunk="a"]')!.textContent!.trim()).toBe('wg_peer');
+  });
+
+  it('a single warning is "warning"', async () => {
+    const { mountConfigCheck } = await load([finding({ severity: 'warning' })]);
+    const host = document.createElement('section');
+    document.body.appendChild(host);
+    await mountConfigCheck(project, host);
+    expect(host.querySelector('.config-check-head')!.textContent!.replace(/\s+/g, ' ')).toContain(
+      '1 warning between',
+    );
+  });
+
+  it('the scope box shows its saved state, and ticking it saves and re-runs the check for the whole vault', async () => {
+    const { mountConfigCheck } = await load([finding()]);
+    const { Settings } = await import('../src/ts/state');
+    Settings.set('configCheckAll', true);
+    const host = document.createElement('section');
+    document.body.appendChild(host);
+    await mountConfigCheck(project, host);
+    const box = () => host.querySelector<HTMLInputElement>('#config-check-all')!;
+    expect(box().checked).toBe(true);
+    const before = calls.length;
+    box().checked = false;
+    box().dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(Settings.get('configCheckAll')).toBe(false);
+    expect(calls.length).toBe(before + 1);
+    expect(calls[calls.length - 1].args.elsewhere).toEqual([]);
+  });
+
+  it('a finding with no matching card on screen does nothing when clicked', async () => {
+    const { mountConfigCheck } = await load([finding({ chunk_id: 'nowhere' })]);
+    const host = document.createElement('section');
+    document.body.appendChild(host);
+    await mountConfigCheck(project, host);
+    expect(() => host.querySelector<HTMLElement>('[data-check-chunk]')!.click()).not.toThrow();
+  });
+
+  it('a card with no chunk wrapper is flashed itself', async () => {
+    const { mountConfigCheck } = await load([finding({ chunk_id: 'solo' })]);
+    document.body.innerHTML = '<div id="bare" data-chunk-id="solo"></div>';
+    (Element.prototype as any).scrollIntoView = () => {};
+    const host = document.createElement('section');
+    document.body.appendChild(host);
+    await mountConfigCheck(project, host);
+    host.querySelector<HTMLElement>('[data-check-chunk]')!.click();
+    expect(document.getElementById('bare')!.classList.contains('flash')).toBe(true);
+  });
+
+  it('a check the desktop fails to run is silent', async () => {
+    vi.resetModules();
+    (window as any).__TAURI__ = { core: { invoke: () => Promise.reject(new Error('boom')) } };
+    const mod = await import('../src/ts/config-check');
+    expect(await mod.checkProject(project)).toBeNull();
+  });
+});

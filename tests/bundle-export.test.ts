@@ -140,3 +140,42 @@ describe('bundle exports', () => {
     expect(exported).toContain('BOT_COLOUR = 0x800000');
   });
 });
+
+describe('templates in a bundle export that cannot be exported', () => {
+  const mk = (extra_vars: object[]) =>
+    ({ id: 'b', provider: 'B', secretType: 'bundle', api_key: '', extra_vars }) as any;
+  const member = {
+    id: 'm',
+    provider: 'Db',
+    bundle_slot: 'db',
+    bundle_id: 'b',
+    api_key: 'pw-1',
+  } as any;
+  const run = (vars: object[], lang: 'python' | 'javascript' = 'python') =>
+    buildBundleExport(mk(vars), [member], lang);
+
+  it('names the variable and the reason instead of writing a broken file', () => {
+    expect(() => run([{ key: 'broken', kind: 'template', value: 'y-{db.api_key' }])).toThrow(
+      /^Cannot export broken: /,
+    );
+    for (const lang of ['python', 'javascript'] as const)
+      expect(() =>
+        run([{ key: 'u', kind: 'template', value: 'https://{unknown}/x' }], lang),
+      ).toThrow(/^Cannot export u: unresolved reference/);
+    expect(() =>
+      run([
+        { key: 'a', kind: 'template', value: '{b}' },
+        { key: 'b', kind: 'template', value: '{a}' },
+      ]),
+    ).toThrow(/^Cannot export a: cycle reference/);
+  });
+
+  it('a template that refers to another variable stays symbolic in the file, in both languages', () => {
+    const vars = [
+      { key: 'base', value: 'host.test' },
+      { key: 'url', kind: 'template', value: 'https://{base}/x' },
+    ];
+    expect(run(vars)).toMatch(/f"https:\/\/\{\w+\}\/x"/);
+    expect(run(vars, 'javascript')).toMatch(/`https:\/\/\$\{\w+\}\/x`/);
+  });
+});
