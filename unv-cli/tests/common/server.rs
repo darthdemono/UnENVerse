@@ -74,6 +74,10 @@ impl Server {
                 .await
                 .unwrap();
             });
+            // Drop the runtime first: it joins the workers and any blocking
+            // (Argon2) thread. Signalling before that let the process exit while
+            // they were still tearing down, which is the race `Drop` guards.
+            drop(rt);
             let _ = done_tx.send(());
         });
         let addr = rx.recv().unwrap();
