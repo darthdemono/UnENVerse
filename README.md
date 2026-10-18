@@ -23,10 +23,6 @@
   <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_3&suffix=%25%20done&label=Baseline%203&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 3 progress"></a>
 </p>
 
-<p align="center"><sub>
-Row 1: CI and CodeQL on <code>main</code>, the latest release and total downloads. Row 2: share of lines covered by tests, for everything and for each language (Codecov's method differs from the statement figures in the roadmap, so the numbers differ slightly). Row 3: <a href="https://scorecard.dev/">OpenSSF Scorecard</a> (repository security practices), the OpenSSF Best Practices badge level, Silver and Gold progress, and the three OpenSSF Baseline levels (1 basic, 2 hardened, 3 strict). A level with less than 100 percent is in progress, not earned.
-</sub></p>
-
 <p align="center">
   <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
   <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
@@ -34,6 +30,7 @@ Row 1: CI and CodeQL on <code>main</code>, the latest release and total download
   <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
   <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
 </p>
+
 **A self-hosted secrets manager for people who run their own infrastructure: a desktop app, a command-line tool and an optional server that share one encrypted vault.**
 
 ![UnENVerse showing a vault of API keys, passwords, certificates and 2FA codes](Screenshots/unenverse.png)
