@@ -482,7 +482,11 @@ fn a_class_with_members_cannot_be_deleted_from_the_local_cli_either() {
     v.ok(&["user", "class", "deploy", "Deployers"]);
     let refused = v.run(&["class", "rm", "Deployers"]);
     assert_eq!(refused.code, 6, "{}", refused.all());
-    assert!(refused.all().contains("still has 1 member"), "{}", refused.all());
+    assert!(
+        refused.all().contains("still has 1 member"),
+        "{}",
+        refused.all()
+    );
     v.ok(&["user", "class", "deploy", "--none"]);
     assert_eq!(v.run(&["class", "rm", "Deployers"]).code, 0);
 }
