@@ -252,6 +252,14 @@ pub fn export_docker_compose(project: &Value, r: &Resolver) -> Compose {
                         // The .env beside a compose file is pure secret
                         // material, so it is masked like any other value that
                         // came out of the vault.
+                        // A reference that resolves to nothing is written through raw,
+                        // as the project `.env` export does: compose then refuses the
+                        // placeholder loudly, instead of starting the container with a
+                        // silently blank secret.
+                        if crate::refs::is_ref(raw) && r.resolve(raw).value.is_none() {
+                            env_lines.push(format!("{var_name}={raw}"));
+                            continue;
+                        }
                         let resolved = r.or_literal_secret(raw, true);
                         // Quoted (E1): a resolved value is whatever the vault
                         // holds, and a compose `.env` holding an unquoted
@@ -741,10 +749,10 @@ pub fn export_k8s(project: &Value, r: &Resolver) -> String {
                 let env_block = if env_fields.is_empty() {
                     String::new()
                 } else {
-                    let mut b = String::from("\n        env:");
+                    let mut b = String::from("\n          env:");
                     for f in &env_fields {
                         b.push_str(&format!(
-                            "\n          - name: {}\n            value: {}",
+                            "\n            - name: {}\n              value: {}",
                             s(f, "key"),
                             json_str(s(f, "value"))
                         ));
@@ -940,7 +948,11 @@ pub fn export_traefik(project: &Value, r: &Resolver) -> String {
                     if s(&f, "key") == "type" || raw.is_empty() {
                         continue;
                     }
-                    lines.push(format!("        {}: {}", s(&f, "key"), xv(r, raw)));
+                    lines.push(format!(
+                        "        {}: {}",
+                        s(&f, "key"),
+                        json_str(&xv(r, raw))
+                    ));
                 }
             }
         }

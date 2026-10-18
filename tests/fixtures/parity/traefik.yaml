@@ -16,4 +16,4 @@ http:
   middlewares:
     auth:
       basicAuth:
-        users: admin:$apr1$abc$def
+        users: "admin:$apr1$abc$def"

@@ -1,0 +1,1192 @@
+{
+  "api_keys": [
+    {
+      "id": "e0000000-0000-4000-8000-000000000001",
+      "provider": "Edge",
+      "api_key": "p@ss #1 \"q\"",
+      "price_type": "free",
+      "secretType": "api_key",
+      "categories": [],
+      "projectIds": [
+        "Universal"
+      ],
+      "scopes": [],
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "user_categories": [],
+  "projects": [
+    {
+      "id": "Universal",
+      "name": "Universal"
+    },
+    {
+      "id": "vpn",
+      "name": "vpn",
+      "chunks": [
+        {
+          "id": "w1",
+          "name": "Iface",
+          "chunk_type": "wg_interface",
+          "fields": [
+            {
+              "key": "PrivateKey",
+              "value": "literal-key",
+              "field_type": "secret",
+              "secret": true
+            },
+            {
+              "key": "Address",
+              "value": "10.0.0.1/24",
+              "field_type": "var"
+            },
+            {
+              "key": "MTU",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "DNS",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "w2",
+          "name": "Off",
+          "chunk_type": "wg_peer",
+          "fields": [
+            {
+              "key": "PublicKey",
+              "value": "NEVER",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        },
+        {
+          "id": "w3",
+          "name": "Notes",
+          "chunk_type": "wg_note",
+          "fields": [
+            {
+              "key": "Anything",
+              "value": "x",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "w4",
+          "name": "Peer",
+          "chunk_type": "wg_peer",
+          "fields": [
+            {
+              "key": "PublicKey",
+              "value": "abc=",
+              "field_type": "var"
+            },
+            {
+              "key": "PresharedKey",
+              "value": "${Nope/api_key}",
+              "field_type": "secret",
+              "secret": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stack",
+      "name": "stack",
+      "chunks": [
+        {
+          "id": "d1",
+          "name": "Net One",
+          "chunk_type": "docker_network",
+          "fields": [
+            {
+              "key": "front",
+              "value": "bridge",
+              "field_type": "var"
+            },
+            {
+              "key": "",
+              "value": "skipped",
+              "field_type": "var"
+            },
+            {
+              "key": "plain",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "d2",
+          "name": "bare-net",
+          "chunk_type": "docker_network",
+          "fields": []
+        },
+        {
+          "id": "d3",
+          "name": "vol",
+          "chunk_type": "docker_volume",
+          "fields": [
+            {
+              "key": "data",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "",
+              "value": "x",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "d4",
+          "name": "bare-vol",
+          "chunk_type": "docker_volume",
+          "fields": []
+        },
+        {
+          "id": "d5",
+          "name": "My Web  APP",
+          "chunk_type": "docker_service",
+          "fields": [
+            {
+              "key": "image",
+              "value": "nginx:alpine",
+              "field_type": "var"
+            },
+            {
+              "key": "command",
+              "value": "sh -c 'echo hi # not a comment'",
+              "field_type": "var"
+            },
+            {
+              "key": "user",
+              "value": "1000:1000",
+              "field_type": "var"
+            },
+            {
+              "key": "zeta",
+              "value": "last",
+              "field_type": "var"
+            },
+            {
+              "key": "alpha",
+              "value": "first",
+              "field_type": "var"
+            },
+            {
+              "key": "",
+              "value": "dropped",
+              "field_type": "var"
+            },
+            {
+              "key": "empty",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "ports",
+              "value": "80:80,443:443\n8080:8080",
+              "field_type": "var"
+            },
+            {
+              "key": "PORT2",
+              "value": "9000:9000",
+              "field_type": "port"
+            },
+            {
+              "key": "volumes",
+              "value": "./a b:/x\n./c:/y",
+              "field_type": "var"
+            },
+            {
+              "key": "VOL2",
+              "value": "./d:/z",
+              "field_type": "volume_mount"
+            },
+            {
+              "key": "networks",
+              "value": "front, back",
+              "field_type": "var"
+            },
+            {
+              "key": "depends_on",
+              "value": "db\ncache",
+              "field_type": "var"
+            },
+            {
+              "key": "LST",
+              "value": "one,two",
+              "field_type": "list"
+            },
+            {
+              "key": "A_PLAIN",
+              "value": "1",
+              "field_type": "env_var"
+            },
+            {
+              "key": "B_ENV",
+              "value": "2",
+              "field_type": "var",
+              "description": "env"
+            },
+            {
+              "key": "DB.PASS-WORD",
+              "value": "${Edge/api_key}",
+              "field_type": "env_var"
+            },
+            {
+              "key": "WITH_NAME",
+              "value": "x",
+              "field_type": "env_var",
+              "ref_name": "Edge/api_key"
+            },
+            {
+              "key": "MISSING",
+              "value": "${Nope/api_key}",
+              "field_type": "env_var"
+            },
+            {
+              "key": "restart",
+              "value": "on-failure",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "d6",
+          "name": "Plain",
+          "chunk_type": "docker_service",
+          "fields": [
+            {
+              "key": "image",
+              "value": "redis",
+              "field_type": "var"
+            },
+            {
+              "key": "restart",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "d7",
+          "name": "Off",
+          "chunk_type": "docker_service",
+          "fields": [
+            {
+              "key": "image",
+              "value": "never",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        },
+        {
+          "id": "d8",
+          "name": "Env",
+          "chunk_type": "env_file",
+          "fields": [
+            {
+              "key": "A",
+              "value": "1",
+              "field_type": "var"
+            },
+            {
+              "key": "B",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            },
+            {
+              "key": "",
+              "value": "x",
+              "field_type": "var"
+            },
+            {
+              "key": "C",
+              "value": "${Nope/api_key}",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "edge",
+      "name": "edge",
+      "chunks": [
+        {
+          "id": "n1",
+          "name": "app upstream",
+          "chunk_type": "nginx_upstream",
+          "fields": [
+            {
+              "key": "server",
+              "value": "10.0.0.1:80, 10.0.0.2:80\n10.0.0.3:80",
+              "field_type": "var"
+            },
+            {
+              "key": "keepalive",
+              "value": "16",
+              "field_type": "var"
+            },
+            {
+              "key": "zone",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "hash",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "n2",
+          "name": "!!!",
+          "chunk_type": "nginx_upstream",
+          "fields": [
+            {
+              "key": "server",
+              "value": "x:1",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "n3",
+          "name": "main",
+          "chunk_type": "nginx_server",
+          "fields": [
+            {
+              "key": "listen",
+              "value": "443 ssl",
+              "field_type": "var"
+            },
+            {
+              "key": "server_name",
+              "value": "a.test",
+              "field_type": "var"
+            },
+            {
+              "key": "ssl_certificate_key",
+              "value": "${Edge/api_key}",
+              "field_type": "cert"
+            },
+            {
+              "key": "ignored",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "auth",
+              "value": "literal",
+              "field_type": "secret",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "id": "n4",
+          "name": "second",
+          "chunk_type": "nginx_server",
+          "fields": [
+            {
+              "key": "listen",
+              "value": "80",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "n5",
+          "name": "root",
+          "chunk_type": "nginx_location",
+          "fields": [
+            {
+              "key": "path",
+              "value": "/",
+              "field_type": "var"
+            },
+            {
+              "key": "proxy_pass",
+              "value": "http://app",
+              "field_type": "var"
+            },
+            {
+              "key": "set",
+              "value": "${Edge/api_key}",
+              "field_type": "secret",
+              "secret": true
+            },
+            {
+              "key": "empty",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "n6",
+          "name": "nopath",
+          "chunk_type": "nginx_location",
+          "fields": [
+            {
+              "key": "return",
+              "value": "204",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "n7",
+          "name": "off",
+          "chunk_type": "nginx_location",
+          "fields": [
+            {
+              "key": "path",
+              "value": "/never",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        },
+        {
+          "id": "n8",
+          "name": "key",
+          "chunk_type": "nginx_key",
+          "fields": [
+            {
+              "key": "content",
+              "value": "-----BEGIN-----\nx\n-----END-----",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "k8s",
+      "name": "k8s",
+      "chunks": [
+        {
+          "id": "k1",
+          "name": "web",
+          "chunk_type": "k8s_deployment",
+          "fields": [
+            {
+              "key": "name",
+              "value": "web",
+              "field_type": "var"
+            },
+            {
+              "key": "namespace",
+              "value": "prod",
+              "field_type": "var"
+            },
+            {
+              "key": "image",
+              "value": "img:1",
+              "field_type": "var"
+            },
+            {
+              "key": "replicas",
+              "value": "3",
+              "field_type": "var"
+            },
+            {
+              "key": "containerPort",
+              "value": "8080",
+              "field_type": "var"
+            },
+            {
+              "key": "E1",
+              "value": "v1",
+              "field_type": "env_var"
+            },
+            {
+              "key": "E2",
+              "value": "has \"quote\"",
+              "field_type": "secret"
+            },
+            {
+              "key": "other",
+              "value": "ignored",
+              "field_type": "var"
+            },
+            {
+              "key": "secretEnv",
+              "value": "creds, creds db-creds",
+              "field_type": "var"
+            },
+            {
+              "key": "secretMounts",
+              "value": "tls:/etc/tls certs:/etc/certs tls:/etc/tls2 bad nocolon: :nokey",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "name": "bare",
+          "chunk_type": "k8s_deployment",
+          "fields": [
+            {
+              "key": "replicas",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "name": "web",
+          "chunk_type": "k8s_service",
+          "fields": [
+            {
+              "key": "port",
+              "value": "8080",
+              "field_type": "var"
+            },
+            {
+              "key": "targetPort",
+              "value": "9090",
+              "field_type": "var"
+            },
+            {
+              "key": "type",
+              "value": "NodePort",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "k4",
+          "name": "plainsvc",
+          "chunk_type": "k8s_service",
+          "fields": []
+        },
+        {
+          "id": "k5",
+          "name": "cfg",
+          "chunk_type": "k8s_configmap",
+          "fields": [
+            {
+              "key": "name",
+              "value": "cfgmap",
+              "field_type": "var"
+            },
+            {
+              "key": "namespace",
+              "value": "x",
+              "field_type": "var"
+            },
+            {
+              "key": "K",
+              "value": "v",
+              "field_type": "var"
+            },
+            {
+              "key": "Q",
+              "value": "a\"b",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "name": "sec",
+          "chunk_type": "k8s_secret",
+          "fields": [
+            {
+              "key": "namespace",
+              "value": "x",
+              "field_type": "var"
+            },
+            {
+              "key": "TOKEN",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            },
+            {
+              "key": "PLAIN",
+              "value": "päss",
+              "field_type": "var"
+            },
+            {
+              "key": "MISS",
+              "value": "${Nope/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "name": "ing",
+          "chunk_type": "k8s_ingress",
+          "fields": [
+            {
+              "key": "host",
+              "value": "h.test",
+              "field_type": "var"
+            },
+            {
+              "key": "serviceName",
+              "value": "web",
+              "field_type": "var"
+            },
+            {
+              "key": "servicePort",
+              "value": "8080",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "name": "ingdef",
+          "chunk_type": "k8s_ingress",
+          "fields": []
+        },
+        {
+          "id": "k9",
+          "name": "off",
+          "chunk_type": "k8s_secret",
+          "fields": [
+            {
+              "key": "must",
+              "value": "not-appear",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        },
+        {
+          "id": "k10",
+          "name": "unknown",
+          "chunk_type": "k8s_other",
+          "fields": [
+            {
+              "key": "x",
+              "value": "y",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssh",
+      "name": "ssh",
+      "chunks": [
+        {
+          "id": "s1",
+          "name": "bastion",
+          "chunk_type": "ssh_host",
+          "fields": [
+            {
+              "key": "HostName",
+              "value": "b.test",
+              "field_type": "var"
+            },
+            {
+              "key": "IdentityFile",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            },
+            {
+              "key": "Port",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "User",
+              "value": "ops",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "s2",
+          "name": "other",
+          "chunk_type": "wg_peer",
+          "fields": [
+            {
+              "key": "x",
+              "value": "y",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "s3",
+          "name": "gone",
+          "chunk_type": "ssh_host",
+          "fields": [
+            {
+              "key": "HostName",
+              "value": "gone.example.com",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        }
+      ]
+    },
+    {
+      "id": "traefik",
+      "name": "traefik",
+      "chunks": [
+        {
+          "id": "t1",
+          "name": "web",
+          "chunk_type": "traefik_router",
+          "fields": [
+            {
+              "key": "rule",
+              "value": "Host(`a.test`)",
+              "field_type": "var"
+            },
+            {
+              "key": "entryPoints",
+              "value": "web, websecure\nadmin",
+              "field_type": "list"
+            },
+            {
+              "key": "service",
+              "value": "web",
+              "field_type": "var"
+            },
+            {
+              "key": "empty",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "tls",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "t2",
+          "name": "web",
+          "chunk_type": "traefik_service",
+          "fields": [
+            {
+              "key": "url",
+              "value": "http://10.0.0.1:80",
+              "field_type": "var"
+            },
+            {
+              "key": "passHostHeader",
+              "value": "false",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "t3",
+          "name": "nourl",
+          "chunk_type": "traefik_service",
+          "fields": []
+        },
+        {
+          "id": "t4",
+          "name": "auth",
+          "chunk_type": "traefik_middleware",
+          "fields": [
+            {
+              "key": "type",
+              "value": "basicAuth",
+              "field_type": "var"
+            },
+            {
+              "key": "users",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            },
+            {
+              "key": "removeHeader",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "t5",
+          "name": "notype",
+          "chunk_type": "traefik_middleware",
+          "fields": [
+            {
+              "key": "x",
+              "value": "y",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "traefik-none",
+      "name": "traefik-none",
+      "chunks": []
+    },
+    {
+      "id": "apache",
+      "name": "apache",
+      "chunks": [
+        {
+          "id": "a1",
+          "name": "tls",
+          "chunk_type": "apache_vhost",
+          "fields": [
+            {
+              "key": "ServerName",
+              "value": "a.test",
+              "field_type": "var"
+            },
+            {
+              "key": "SSLEngine",
+              "value": "on",
+              "field_type": "var"
+            },
+            {
+              "key": "SSLCertificateKeyFile",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            },
+            {
+              "key": "Empty",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "a2",
+          "name": "plain",
+          "chunk_type": "apache_vhost",
+          "fields": [
+            {
+              "key": "ServerName",
+              "value": "b.test",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "a3",
+          "name": "dir",
+          "chunk_type": "apache_directory",
+          "fields": [
+            {
+              "key": "path",
+              "value": "/var/www",
+              "field_type": "var"
+            },
+            {
+              "key": "Require",
+              "value": "all granted",
+              "field_type": "var"
+            },
+            {
+              "key": "Options",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "a4",
+          "name": "nodir",
+          "chunk_type": "apache_directory",
+          "fields": [
+            {
+              "key": "AllowOverride",
+              "value": "None",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "a5",
+          "name": "other",
+          "chunk_type": "apache_other",
+          "fields": [
+            {
+              "key": "x",
+              "value": "y",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "haproxy",
+      "name": "haproxy",
+      "chunks": [
+        {
+          "id": "h1",
+          "name": "g",
+          "chunk_type": "haproxy_global",
+          "fields": [
+            {
+              "key": "maxconn",
+              "value": "2000",
+              "field_type": "var"
+            },
+            {
+              "key": "log",
+              "value": "",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "h2",
+          "name": "http-in",
+          "chunk_type": "haproxy_frontend",
+          "fields": [
+            {
+              "key": "bind",
+              "value": "*:80",
+              "field_type": "var"
+            },
+            {
+              "key": "acl",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "h3",
+          "name": "app",
+          "chunk_type": "haproxy_backend",
+          "fields": [
+            {
+              "key": "server",
+              "value": "s1 10.0.0.1:80 check",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "h4",
+          "name": "ignored",
+          "chunk_type": "haproxy_other",
+          "fields": [
+            {
+              "key": "x",
+              "value": "y",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ansible-tasks",
+      "name": "ansible-tasks",
+      "chunks": [
+        {
+          "id": "an1",
+          "name": "vars",
+          "chunk_type": "ansible_vars",
+          "fields": [
+            {
+              "key": "app_user",
+              "value": "deploy",
+              "field_type": "var"
+            },
+            {
+              "key": "token",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            },
+            {
+              "key": "",
+              "value": "x",
+              "field_type": "var"
+            },
+            {
+              "key": "quote",
+              "value": "say \"hi\"",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "an2",
+          "name": "Install",
+          "chunk_type": "ansible_task",
+          "fields": [
+            {
+              "key": "name",
+              "value": "Install pkgs",
+              "field_type": "var"
+            },
+            {
+              "key": "module",
+              "value": "apt",
+              "field_type": "var"
+            },
+            {
+              "key": "pkg",
+              "value": "nginx",
+              "field_type": "var"
+            },
+            {
+              "key": "state",
+              "value": "",
+              "field_type": "var"
+            },
+            {
+              "key": "secret",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "an3",
+          "name": "Fallback name",
+          "chunk_type": "ansible_task",
+          "fields": [
+            {
+              "key": "cmd",
+              "value": "uptime",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ansible-vars",
+      "name": "ansible-vars",
+      "chunks": [
+        {
+          "id": "an4",
+          "name": "only",
+          "chunk_type": "ansible_vars",
+          "fields": [
+            {
+              "key": "a",
+              "value": "1",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ansible-none",
+      "name": "ansible-none",
+      "chunks": []
+    },
+    {
+      "id": "pg",
+      "name": "pg",
+      "chunks": [
+        {
+          "id": "p1",
+          "name": "main",
+          "chunk_type": "pg_connection",
+          "fields": [
+            {
+              "key": "host",
+              "value": "db",
+              "field_type": "var"
+            },
+            {
+              "key": "port",
+              "value": "6543",
+              "field_type": "var"
+            },
+            {
+              "key": "dbname",
+              "value": "app",
+              "field_type": "var"
+            },
+            {
+              "key": "user",
+              "value": "u",
+              "field_type": "var"
+            },
+            {
+              "key": "password",
+              "value": "${Edge/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "name": "defaults",
+          "chunk_type": "pg_connection",
+          "fields": [
+            {
+              "key": "host",
+              "value": "h2",
+              "field_type": "var"
+            },
+            {
+              "key": "dbname",
+              "value": "d",
+              "field_type": "var"
+            },
+            {
+              "key": "user",
+              "value": "u",
+              "field_type": "var"
+            },
+            {
+              "key": "password",
+              "value": "${Nope/api_key}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "name": "other",
+          "chunk_type": "pg_role",
+          "fields": [
+            {
+              "key": "x",
+              "value": "y",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "name": "old",
+          "chunk_type": "pg_connection",
+          "fields": [
+            {
+              "key": "host",
+              "value": "old.internal",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        }
+      ]
+    }
+  ]
+}

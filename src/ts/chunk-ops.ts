@@ -1785,7 +1785,14 @@ export function exportDockerCompose(project: Project): { yaml: string; envFile: 
             // reference shape wrote an empty value into the .env file and the
             // container started with a blank secret.
             const { resolved } = resolveFieldRef(f.value ?? '', true);
-            envLines.push(`${varName}=${quoteEnvValue(resolved ?? '')}`);
+            // A reference that resolves to nothing is written through raw, as the
+            // project `.env` export does: compose then refuses the placeholder
+            // loudly, instead of starting the container with a silently blank secret.
+            envLines.push(
+              resolved == null && /^\$\{(.+)}$/.test(f.value ?? '')
+                ? `${varName}=${f.value}`
+                : `${varName}=${quoteEnvValue(resolved ?? '')}`,
+            );
           } else {
             out.push(`      - ${f.key}=${f.value ?? ''}`);
           }
@@ -2449,10 +2456,11 @@ export function exportK8s(project: Project): string {
         (f) => f.field_type === 'env_var' || f.field_type === 'secret',
       );
       const envBlock = envFields.length
-        ? '\n        env:' +
+        ? '\n          env:' +
           envFields
             .map(
-              (f) => `\n          - name: ${f.key}\n            value: ${JSON.stringify(f.value)}`,
+              (f) =>
+                `\n            - name: ${f.key}\n              value: ${JSON.stringify(f.value)}`,
             )
             .join('')
         : '';
@@ -2584,7 +2592,8 @@ export function exportTraefik(project: Project): string {
       if (type) {
         lines.push(`      ${type}:`);
         for (const f of m.fields) {
-          if (f.key !== 'type' && f.value) lines.push(`        ${f.key}: ${xv(f.value)}`);
+          if (f.key !== 'type' && f.value)
+            lines.push(`        ${f.key}: ${JSON.stringify(xv(f.value))}`);
         }
       }
     }
