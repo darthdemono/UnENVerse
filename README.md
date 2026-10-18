@@ -12,6 +12,14 @@
 </p>
 
 <p align="center">
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fwww.bestpractices.dev%2Fprojects%2F15623.json&query=%24.badge_percentage_1&suffix=%25%20complete&label=Silver&style=for-the-badge&labelColor=323330&logo=openssf&logoColor=white" alt="OpenSSF Best Practices silver"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fwww.bestpractices.dev%2Fprojects%2F15623.json&query=%24.badge_percentage_2&suffix=%25%20complete&label=Gold&style=for-the-badge&labelColor=323330&logo=openssf&logoColor=white" alt="OpenSSF Best Practices gold"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fwww.bestpractices.dev%2Fprojects%2F15623.json&query=%24.badge_percentage_baseline_3&suffix=%25%20complete&label=Baseline%20level%203&style=for-the-badge&labelColor=323330&logo=openssf&logoColor=white" alt="OpenSSF Baseline level 3"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=typescript"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=typescript&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=TypeScript%20coverage" alt="TypeScript code coverage"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=rust"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=rust&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Rust%20coverage" alt="Rust code coverage"></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
   <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
   <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
@@ -145,6 +153,7 @@ unv render config.tpl --out config.conf   # fill ${references} in a template
 - [Permission expressions](#permission-expressions)
 - [The security model](#the-security-model)
 - [Where your files live](#where-your-files-live)
+- [Roadmap](#roadmap)
 - [Building from source](#building-from-source)
 - [Development](#development)
 - [Continuous integration](#continuous-integration)
@@ -1059,6 +1068,20 @@ On Windows the CLI keeps sessions in `%LOCALAPPDATA%` rather than the roaming pr
 > mv ~/.config/io.apivault      ~/.config/io.unenverse
 > ```
 
+## Roadmap
+
+The plan for October 2026 to October 2027, ending in 1.0.0. It states intent, not a promise: security and compatibility work goes first, and dates move. Done so far: R00 to R09 (baseline, hotfixes, CI gating, dependency modernisation, the shared app layer, transactional migrations and local recovery, SFTP backups and restore drills, the metadata and lifecycle core, lossless config migration, Bitwarden, 1Password and KeePass import), the website, the CLI half of signed updates, and a behaviour-test round across Rust and TypeScript.
+
+| When            | Phases                                                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Oct to Dec 2026 | Release 0.56.0 and measure real coverage. **R21** compatibility contract and catalogue URL. **R20** delete, revoke, forget, rekey. **R19** vault identity and single writer. **R18** desktop CLI bridge. **R26** signed desktop updates. **R25** community files and support bundle. **R24** site truth generation. |
+| Jan to Mar 2027 | **R12** desktop hub and node deployment. **R10** SOPS, pass and gopass import and cutover. **R15** UI quality of life. Coverage to the reachable maximum.                                                                                                                                                           |
+| Apr to Jun 2027 | **R11** OpenBao, Infisical, AWS and Bitwarden Secrets Manager sources. **R13** rotation engine. **R16** macOS and Windows parity. **R26.1** winget and Scoop channels. **R27** Docker Compose file secrets.                                                                                                         |
+| Jul to Sep 2027 | **R14** plugin foundation. **R17** upstream integration experiments. **R29** Home Assistant `secrets.yaml`. **R28** scripts and sibling tools and **R23** sibling site fixes (both wait for authorisation). Independent security assessment. Release candidates.                                                    |
+| Oct 2027        | **1.0.0**                                                                                                                                                                                                                                                                                                           |
+
+1.0.0 ships when every phase is complete or cut with a reason, coverage is the reachable maximum for Rust and TypeScript with each unreachable line listed, the independent security assessment is fixed, fuzzing is a release gate, releases build reproducibly with signed tags, and macOS is shipped only if it is built and tested. The full plan, the criteria and what the project will not do are on the [roadmap page](https://unenverse.darthdemono.com/roadmap/).
+
 ## Building from source
 
 ```bash
@@ -1168,6 +1191,10 @@ Both are gitignored outputs; the harness is committed. The first full run triage
 The rule is that whatever the app can do the CLI can do, and the reverse (a rule about capability, not interaction: sidebar order and the undo toast have no CLI meaning). It is checked rather than promised. `tests/fixtures/parity/capabilities.json` classifies every CLI command (read live from `unv describe`) and every Tauri command into a capability marked `both`, a tracked gap, or an exemption with a written reason, and `unv-cli/tests/capabilities.rs` fails when a command belongs to no capability, when the map names something that does not exist, or when a command offered as "the UI has it" is never invoked by the frontend. Exemptions are the CLI-only things by nature (`exec`, `watch`, `shield`, `use`, shell completion, the session cache) and a handful of pure developer utilities. The check found six dead Tauri commands on its first run.
 
 ## Continuous integration
+
+[![Coverage by folder](https://codecov.io/gh/darthdemono/UnENVerse/graphs/tree.svg?token=WGEM1XSNED)](https://codecov.io/gh/darthdemono/UnENVerse)
+
+The picture is Codecov's tree of the repository: each block is a file, sized by lines and coloured by coverage. TypeScript is uploaded by the frontend job on every run. Rust is measured by `.github/workflows/coverage-rust.yml` on every push to `main` that touches Rust, weekly and on demand, and appears under the `rust` flag.
 
 ### `ci.yml`, the gate on every push and pull request
 
