@@ -676,10 +676,14 @@ pub fn plan_entry(entry: &Value, force: bool) -> EntryPlan {
     // branch below needs it too.
     macro_rules! propose {
         ($field:expr, $value:expr, $reason:expr) => {
-            if force || is_blank(entry, $field) {
+            // A proposal equal to what the entry already holds changes nothing, so it is
+            // not one: `api_key` counts as a blank `secretType`, and without this a
+            // second run proposed the same `api_key` for ever.
+            let value = $value;
+            if (force || is_blank(entry, $field)) && entry.get($field) != Some(&value) {
                 proposals.push(Proposal {
                     field: $field.to_string(),
-                    value: $value,
+                    value,
                     reason: $reason,
                 });
             }

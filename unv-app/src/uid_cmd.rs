@@ -64,7 +64,9 @@ pub fn register(
                 .unwrap_or(false)
         })
         .count();
-    out::ok(
+    let failure = (conflicts > 0 && conflicts == results.len())
+        .then(|| CliError::conflict(format!("All {conflicts} value(s) were already registered.")));
+    out::ok_or_fail(
         "uid.register",
         json!({ "results": results, "conflicts": conflicts }),
         || {
@@ -84,13 +86,8 @@ pub fn register(
                 );
             }
         },
-    );
-    if conflicts > 0 && conflicts == results.len() {
-        return Err(CliError::conflict(format!(
-            "All {conflicts} value(s) were already registered."
-        )));
-    }
-    Ok(())
+        failure,
+    )
 }
 
 pub fn mint(

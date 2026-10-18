@@ -631,32 +631,33 @@ fn report(findings: Vec<Finding>) -> CliResult {
         "findings": findings.iter().map(Finding::to_json).collect::<Vec<_>>(),
     });
 
-    crate::out::ok("doctor", payload, || {
-        for f in &findings {
-            let tag = match f.level {
-                Level::Ok => "  ok  ",
-                Level::Note => " note ",
-                Level::Warn => " warn ",
-                Level::Fail => " FAIL ",
-            };
-            println!("[{tag}] {:<12} {}", f.check, f.message);
-            if !f.remedy.is_empty() {
-                for line in f.remedy.split('\n') {
-                    println!("               → {}", line.trim());
-                }
-            }
-        }
-    });
-
     // The exit code is the point: a script runs `unv doctor` and branches on
     // it. `fail` is a broken vault, which is `invalid` rather than `unavailable`
-    // because retrying will not help.
-    match worst {
-        Level::Fail => Err(CliError::invalid(
-            "Vault has failing checks — see the findings above",
-        )),
-        _ => Ok(()),
-    }
+    // because retrying will not help. In envelope mode the findings ride in the
+    // error (one document), see `out::ok_or_fail`.
+    let failure = (worst == Level::Fail)
+        .then(|| CliError::invalid("Vault has failing checks — see the findings"));
+    crate::out::ok_or_fail(
+        "doctor",
+        payload,
+        || {
+            for f in &findings {
+                let tag = match f.level {
+                    Level::Ok => "  ok  ",
+                    Level::Note => " note ",
+                    Level::Warn => " warn ",
+                    Level::Fail => " FAIL ",
+                };
+                println!("[{tag}] {:<12} {}", f.check, f.message);
+                if !f.remedy.is_empty() {
+                    for line in f.remedy.split('\n') {
+                        println!("               → {}", line.trim());
+                    }
+                }
+            }
+        },
+        failure,
+    )
 }
 
 #[cfg(test)]
