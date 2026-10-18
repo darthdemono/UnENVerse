@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * How the grid lays entries out: grouped by type, by pool, by bundle, and plain.
  * A layout may reorder and fold entries together but must never lose one: the

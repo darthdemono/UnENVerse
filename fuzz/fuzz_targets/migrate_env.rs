@@ -1,4 +1,6 @@
 #![no_main]
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 
 use libfuzzer_sys::fuzz_target;
 

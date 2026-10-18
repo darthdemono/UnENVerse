@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Terminal formatting helpers and the destructive-action confirm prompt.
 
 use crate::error::{CliError, CliResult};

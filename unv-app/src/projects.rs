@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Project and category CRUD, mirroring `src/ts/projects.ts` — including the
 //! rename/delete cascades, which are the part that must not drift.
 

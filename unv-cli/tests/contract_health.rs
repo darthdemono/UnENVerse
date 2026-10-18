@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Checking the vault: `scan`, `rotate-check`, `diff`, `audit`, `status`
 //! (README "Commands", "Tools", "The security model"):
 //!

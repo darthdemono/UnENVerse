@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The parts of the extension that need no VS Code: finding a `${…}` under the
  * cursor, deciding what to complete, building an `unv exec` argv, and reading an

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for bundle-import.ts: quoting, escapes, f-strings, duplicates and the public-value rules. */
 import { describe, it, expect } from 'vitest';
 import { importPythonConfig } from '../src/ts/bundle-import';

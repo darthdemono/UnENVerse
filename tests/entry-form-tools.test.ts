@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The helpers around the entry form: the generator popover, cookie split and
  * capture import, session presets, the PGP key reader, the local-service

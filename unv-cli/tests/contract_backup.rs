@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! "Backups, and the one thing you cannot recover" (README): two formats that do
 //! different jobs, and the rules that keep a restore from becoming the way a
 //! vault is lost.

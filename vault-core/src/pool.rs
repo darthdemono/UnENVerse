@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The key-pool state file: `pools.json`.
 //!
 //! A key pool is several interchangeable credentials for one service. Which one

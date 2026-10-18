@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv update` (Phase 54, roadmap R26): replace a standalone `unv` from a
 //! signed release manifest.
 //!

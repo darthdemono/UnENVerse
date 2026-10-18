@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 34 — the node agent: what runs on the managed host (ADR-0140).
 //!
 //! It holds no vault key and no token that reads the vault. Its whole identity

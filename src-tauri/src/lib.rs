@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! UnENVerse — Tauri backend.
 //!
 //! Thin wrappers around `vault-core`; resolves filesystem paths via Tauri's

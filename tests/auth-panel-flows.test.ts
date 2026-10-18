@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The Authenticator panel as a person uses it: find a code, copy the code on
  * screen, add a second factor by hand.

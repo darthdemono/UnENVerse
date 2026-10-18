@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv node install`: turn this machine into a managed node in one command.
 //!
 //! Doing it by hand takes about ten steps (a system user, the binary, a config,

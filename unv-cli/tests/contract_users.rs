@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Multiple users and permission expressions, as the README describes them
 //! ("Multiple users", "Permission expressions"), through the real `unv`
 //! against a real `unv-server`:

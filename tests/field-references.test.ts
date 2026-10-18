@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * `${...}` references: how a placeholder in a config becomes a value, and how a
  * config file is written from chunks.

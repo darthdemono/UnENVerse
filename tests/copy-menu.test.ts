@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Copying an entry: the copy button, its caret menu, and what lands on the
  * clipboard for each choice.

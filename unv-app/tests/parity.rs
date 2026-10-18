@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The Rust half of the exporter parity check.
 //!
 //! `tests/cli-parity.test.ts` pins the TypeScript exporters against the golden

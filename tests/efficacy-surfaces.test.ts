@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 32.2: the remaining runtime-rendered surfaces that `efficacy-cards` and
  * `efficacy-config` do not reach: the health-scan results (jump to an entry,

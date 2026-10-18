@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The contract between the users panel and a remote server: every management
  * command maps to exactly one owner-only REST route, method and body. An

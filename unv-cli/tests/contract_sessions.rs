@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Signing in as a named user ("Signing in as a named user", README), through
 //! the real `unv` against a real `unv-server`:
 //!

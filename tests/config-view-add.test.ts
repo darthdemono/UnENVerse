@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Adding chunks to a structured project: every "+ Add ..." button the config
  * view draws for each project type must append exactly one chunk of the kind

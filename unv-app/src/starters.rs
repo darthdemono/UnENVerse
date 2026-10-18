@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Starter chunks for a newly created typed project — the Rust twin of
 //! `src/ts/chunks/starters.ts`.
 //!

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv totp` — the authenticator half of the vault (Phase 22).
 //!
 //! An entry's `totp_secret` is a seed a **third-party service** issued, from

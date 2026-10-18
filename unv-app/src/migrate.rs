@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Lossless, local configuration-file migration.
 //!
 //! Readers never modify their source. They return semantic fields for the vault

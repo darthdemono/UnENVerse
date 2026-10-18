@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for copy-profile.ts: profiles, metadata styles and every bundle export dialect. */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildCopyText, buildCopyTextAll, buildBundleExport } from '../src/ts/copy-profile';

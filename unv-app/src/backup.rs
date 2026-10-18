@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Encrypted backup (`.vaultbak`) — byte-compatible with the desktop app's
 //! WebCrypto implementation in `src/ts/import-export.ts`.
 //!

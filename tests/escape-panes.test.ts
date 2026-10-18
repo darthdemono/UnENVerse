@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 28.1: hostile values through the panes outside the card grid. Each pane
  * is fed markup in every field a vault, a remote server or a saved setting can

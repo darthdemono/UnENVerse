@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 36: the app's clipboard writes reach the materialisation log. Rust owns
  * the matching (fingerprints, never values); what is pinned here is that the

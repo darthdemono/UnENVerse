@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Importers for other password managers — Bitwarden and 1Password.
 //!
 //! Both vendors export JSON. The shapes differ, so each gets a reader that

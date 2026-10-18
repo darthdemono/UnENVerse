@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! A mock-runtime desktop for the IPC tests.
 #![allow(dead_code)]
 

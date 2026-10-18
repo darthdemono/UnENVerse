@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The config-view panel for cross-chunk checks (Phase 29). Rust owns the rules
  * (`vault-core/src/config_check.rs`); what is asserted here is what the app does

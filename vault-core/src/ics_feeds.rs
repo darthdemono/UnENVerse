@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Calendar feed tokens — Phase 24.3.
 //!
 //! A feed is a bearer credential of its own kind: 32 random bytes, shown once,

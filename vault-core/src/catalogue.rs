@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The provider catalogue: a signed, public table of issuer key prefixes that
 //! `unv enrich` consults before the table compiled into the binary.
 //!

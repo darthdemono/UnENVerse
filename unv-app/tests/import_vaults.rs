@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Importing from Bitwarden, 1Password and Proton Pass.
 //!
 //! The fixtures are deliberately awkward: each carries at least one item the

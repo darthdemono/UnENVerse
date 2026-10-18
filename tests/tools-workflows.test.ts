@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Tools that act on the vault: bulk selection and bundling, the side-by-side
  * secret diff, the expiry calendar and the migration preview/apply.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** R09 keeps source migration on the atomic local CLI path. */
 import { describe, it, expect, vi } from 'vitest';
 import { loadRealIndexHtml } from './helpers';

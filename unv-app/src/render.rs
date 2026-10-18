@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv render` — substitute `${…}` references in an arbitrary template.
 //!
 //! The exporters cover the config formats UnENVerse models. This covers

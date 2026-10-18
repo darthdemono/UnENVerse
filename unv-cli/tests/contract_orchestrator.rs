@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! "Secrets that are never seen at all", `--dry-run` and idempotency, from the
 //! README's CLI section: an orchestrator can create and rotate a secret
 //! without ever holding it, can ask what a command would do without it doing

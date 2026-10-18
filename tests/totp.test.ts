@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Stored third-party TOTP seeds — the TypeScript half (Phase 22).
  *

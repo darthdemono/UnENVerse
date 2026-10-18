@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 30.1: RemoteVaultStore.saveRows sends a PATCH carrying only the
  * changed entries and the deleted ids, with the same If-Match as a full save.

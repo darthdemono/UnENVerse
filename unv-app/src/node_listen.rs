@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 34.1 - the listening half of a node (ADR-0145).
 //!
 //! A node behind no NAT, with a public address, can wait for the hub instead of

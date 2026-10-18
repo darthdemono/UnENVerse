@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Composite secrets (Phase 24.1) — one value with secrets inside it.
 //!
 //! The motivating case is a calendar-sharing URL,

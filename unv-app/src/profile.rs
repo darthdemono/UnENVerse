@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Copy profiles — how much of an entry a copy or an export actually emits.
 //!
 //! Phase 23, step 3. The twin of `src/ts/copy-profile.ts`, pinned by

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Secret-free entry lifecycle viewer shared by the local and remote app. */
 import type { VaultEntry } from './types';
 import { RemoteVaultStore, st } from './state';

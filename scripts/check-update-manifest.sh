@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 # Fail unless the CLI update manifest names every required platform with a
 # 64-hex checksum and an https URL, and carries a signature. Usage:
 #   check-update-manifest.sh <unv-update.json> <version>

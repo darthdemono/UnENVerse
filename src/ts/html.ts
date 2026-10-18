@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Escape by construction (Phase 28, review-01 §2.3, ADR-0136).
  *

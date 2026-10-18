@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! vault-core — shared encryption, storage, and tooling for UnENVerse.
 //!
 //! Used by the Tauri desktop app, the HTTP server (`unv-server`), and the CLI

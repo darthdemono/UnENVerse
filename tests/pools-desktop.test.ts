@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Key pools in the desktop app, where the swap state (use counts, cooldowns, the
  * rotation cursor) lives in Rust.

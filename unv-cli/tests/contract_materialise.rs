@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Getting a real value out ("Ways to get the real value out", README) and the
 //! record of it (`matlog.rs`, ADR-0142): `exec`, `render --out`, `--out` and
 //! revealed output are the only paths a value leaves the vault by, none of them

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for history-pane.ts: error shapes, every button, restore and save paths. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml, resetState } from './helpers';

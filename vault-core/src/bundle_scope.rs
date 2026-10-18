@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Bundle-local template resolution (Phase 24.1, step 4).
 //!
 //! Resolves local variables, composite parts, sibling fields and optional

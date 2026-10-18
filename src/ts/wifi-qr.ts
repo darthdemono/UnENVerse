@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import qrcode from 'qrcode-generator';
 import { raw, setHtml } from './html';
 

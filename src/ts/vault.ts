@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { buildBundle, bundleSuggestions } from './bundle-scope';
 import { showEntryTimeline } from './entry-timeline';
 import { codeStatus, nextCode } from './recovery-codes';

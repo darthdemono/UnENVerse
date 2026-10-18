@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Assembles the product site from website/ into an output folder.
  *
@@ -189,7 +191,17 @@ export function seo(html, urlPath) {
   return add.length ? html.replace('</head>', `  ${add.join('\n  ')}\n</head>`) : html;
 }
 
-const NAV = ['home', 'download', 'quickstart', 'guides', 'security', 'importing', 'cli', 'nodes'];
+const NAV = [
+  'home',
+  'download',
+  'quickstart',
+  'roadmap',
+  'guides',
+  'security',
+  'importing',
+  'cli',
+  'nodes',
+];
 /** Sections that also have an icon in the activity rail. */
 const RAIL = ['home', 'download', 'guides', 'security'];
 

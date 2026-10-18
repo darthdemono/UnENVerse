@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { st, Settings, inTauri, newEntryId } from './state';
 import type { VaultEntry } from './types';
 import { showToast, clipboardWrite } from './utils';

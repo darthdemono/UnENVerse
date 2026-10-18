@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv enrich` — fill in an entry's metadata without reading its secret.
 //!
 //! A vault filled by importing `.env` files is mostly bare: everything is an

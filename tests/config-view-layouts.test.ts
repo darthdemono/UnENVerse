@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * How the config view lays a project out and what its small controls do: the
  * two-column splits, the nginx certificate column with its stubs and duplicate

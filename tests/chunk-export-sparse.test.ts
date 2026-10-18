@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Exporting chunks that are incomplete: fields with no value, no name, or no
  * chunk list at all. An export is a file someone deploys, so a missing value must

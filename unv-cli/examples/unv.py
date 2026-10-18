@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 """Minimal Python wrapper around the `unv` CLI.
 
 The point of this file is to show the shape of a correct integration, not to be

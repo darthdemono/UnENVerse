@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv doctor` and the file-mode promises ("`unv doctor`", README):
 //!
 //! * a healthy vault passes with exit 0;

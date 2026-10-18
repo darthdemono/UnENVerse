@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { showToast } from './utils';
 import { ICON_PATHS } from './icon-paths';
 import { html, setHtml, type SafeHtml } from './html';

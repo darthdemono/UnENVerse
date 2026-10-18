@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `backup archive` / `restore-archive` — the vault file and its salt together.
 //!
 //! The property under test is the one the feature exists for: a machine that has

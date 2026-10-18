@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Read a rendered config back into a project's chunks (Phase 35 and 34
  * leftovers): "restore this snapshot", and "take what the node actually has".

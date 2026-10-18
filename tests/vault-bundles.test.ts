@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Everything you can do to a bundle card and a recovery-code card from the
  * grid: reorder, rename a slot, add and remove members and variables, assign a

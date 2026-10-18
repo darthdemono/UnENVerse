@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 # Builds a throwaway demo server (all data fake), seeds it, drives the real
 # desktop app against it in the viewer container and writes PNGs.
 #

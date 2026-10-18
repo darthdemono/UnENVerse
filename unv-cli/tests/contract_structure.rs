@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Structure commands ("Projects, chunks and exports", README, and the cascade
 //! invariants in AGENTS.md): categories, tags and chunks.
 //!

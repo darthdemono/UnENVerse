@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * `chunks/env-link.ts` — matching plain `KEY=value` env fields against vault
  * entries so they can become `${ref}` placeholders.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 35 — the config time machine on the server (ADR-0141).
 //!
 //! One owner-only route, `POST /api/history {op, args}`, that hands the request

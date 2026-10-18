@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The timer half of vault-watch: start, stop, the hidden-window skip, and the
  * branches of one check that the main file leaves alone. `inTauri` is fixed at

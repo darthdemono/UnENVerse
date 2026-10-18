@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv oauth refresh` — Phase 24.5. Exchanges an `oauth_client` entry's refresh
 //! token for a new access token at the issuer's `token_url`.
 //!

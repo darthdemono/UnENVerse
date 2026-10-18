@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Durable, encrypted migration manifests and source archives.
 //!
 //! A migration import changes two things which must agree: the vault document

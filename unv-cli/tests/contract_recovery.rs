@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Recovery packages ("Backups", README): a streamed, age-encrypted snapshot to a
 //! destination, restored with a recovery identity into an EMPTY directory after
 //! every member has been validated, and verifiable afterwards.

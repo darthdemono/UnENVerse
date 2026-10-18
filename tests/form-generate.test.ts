@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The Generate button on the add/edit form: what it produces depends on the
  * kind of secret being entered.

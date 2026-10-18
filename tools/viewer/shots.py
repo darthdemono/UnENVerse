@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 """Drive the real desktop app on a virtual display and screenshot it (Phase 40).
 
 Runs inside the `unv-viewer` image (see ./Dockerfile). Starts Xvfb, then

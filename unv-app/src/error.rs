@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Structured errors with stable exit codes.
 //!
 //! An agent cannot read prose. Every failure carries a machine code that means

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Projects, chunks and `${refs}` as the README describes them ("Projects,
 //! chunks and exports"), plus the cascade rules the project holds itself to:
 //! a rename must never quietly break what pointed at the old name.

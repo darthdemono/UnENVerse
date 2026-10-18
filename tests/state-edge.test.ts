@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * State helpers at their edges: restoring a remembered view against a vault
  * that has changed, spending a recovery code that is gone, the .env / YAML / JSON

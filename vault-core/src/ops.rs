@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Durable operations records and their state-machine guard.
 
 use rusqlite::{params, Connection, OptionalExtension};

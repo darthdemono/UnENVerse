@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 // The product site (roadmap W1): the build helpers, and the colour tokens that
 // the design promises are readable. Pure functions only; the browser checks
 // live in scripts/check-site.mjs.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Saving an entry from the add/edit form: what is refused and why, and what a
  * successful save does to the entry and to everything that points at it.

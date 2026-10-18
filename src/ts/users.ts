@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import type { UserInfo, TokenInfo, UserClass } from './types';
 import { st, RemoteVaultStore } from './state';
 import {

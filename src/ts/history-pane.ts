@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Tools -> Config history (Phase 35): the app side of `unv history ...`.
  *

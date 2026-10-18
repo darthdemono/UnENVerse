@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Boots the real application inside a faked desktop shell: a Tauri bridge that
  * answers named commands from `backend`, a lock screen that accepts any password,

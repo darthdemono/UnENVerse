@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for nodes-pane.ts: every answer shape, button and read-back path. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { loadRealIndexHtml, resetState } from './helpers';

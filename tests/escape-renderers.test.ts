@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Hostile-value tests for the renderers migrated to the `html` tag (Phase 28).
  *

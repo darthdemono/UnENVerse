@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv template ls|show` — the presets `unv entry add --preset` and the
 //! app's Templates pane share (`vault_core::templates`, Phase 33.6). Compiled-in
 //! public reference data, so it needs no vault and no password.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml } from './helpers';
 

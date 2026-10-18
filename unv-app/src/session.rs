@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Password sources and cached remote sessions.
 //!
 //! An orchestrator should never hold the vault password. Three ways out of that,

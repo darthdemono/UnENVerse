@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Tools -> Config history (Phase 35). The dispatcher is tested in Rust, over real
  * HTTP in unv-server; this drives the pane: that it asks the right backend, what

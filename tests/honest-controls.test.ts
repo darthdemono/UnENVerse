@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 32a: drive the control, assert what the user sees, and assert the
  * refusal is honest. Each case here was a control the efficacy probe

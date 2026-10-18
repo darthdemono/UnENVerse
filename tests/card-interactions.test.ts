@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Small card behaviours that act on the entry list directly: expanding, the
  * eye button, rotating, duplicating, deleting (with Undo) and removing a bundle

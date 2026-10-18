@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv bundle` — Phase 24.1. A bundle is an ordinary entry of
 //! `secretType: "bundle"`; members are ordinary entries pointing back at it
 //! with `bundle_id` / `bundle_slot` / `bundle_order`. Membership is stored once,

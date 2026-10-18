@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Key pools: several interchangeable credentials for one service, swapped
 //! between so a caller can keep working when one is rate limited.
 //!

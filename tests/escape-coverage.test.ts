@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 28.1: hostile values through the renderers Phase 28 migrated but did
  * not test. Every string field of every registered secret type (and a bundle,

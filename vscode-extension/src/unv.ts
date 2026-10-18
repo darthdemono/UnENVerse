@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * A thin, argv-only wrapper around the `unv` CLI. It asks only for redacted
  * output (`--json` without `--reveal`), so a value cannot reach the editor.
