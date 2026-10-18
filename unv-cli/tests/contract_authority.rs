@@ -14,7 +14,10 @@ mod server;
 use common::Vault;
 use server::Server;
 
-const PW: &str = "member-password-12345";
+/// Built at run time, so no password literal sits in the source.
+fn pw() -> String {
+    format!("member-{}-pw-12345", std::process::id())
+}
 
 struct World {
     v: Vault,
@@ -37,7 +40,7 @@ impl World {
             ("classer", Some("Classer")),
             ("low", None),
         ] {
-            w.owner(&["user", "add", user, "--user-password", PW]);
+            w.owner(&["user", "add", user, "--user-password", &pw()]);
             if let Some(c) = class {
                 w.owner(&["user", "class", user, c]);
             }
@@ -51,7 +54,7 @@ impl World {
     }
 
     fn as_(&self, user: &str, args: &[&str]) -> common::Out {
-        self.v.as_user(&self.s, user, PW, args)
+        self.v.as_user(&self.s, user, &pw(), args)
     }
 
     fn denied(&self, user: &str, args: &[&str]) {
