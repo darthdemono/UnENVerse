@@ -357,3 +357,136 @@ http {
     expect(parseNginxConf('')).toEqual([]);
   });
 });
+
+describe('parsers: unusual but legal input', () => {
+  it('apache: an unbalanced closing tag does not swallow the rest of the file', () => {
+    const out = parseApacheConf(
+      '</VirtualHost>\n<VirtualHost *:80>\n  ServerName a.test\n</VirtualHost>\n',
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].fields[0]).toMatchObject({ key: 'ServerName', value: 'a.test' });
+  });
+
+  it('apache: a block nested inside another keeps its directives out of the outer chunk', () => {
+    const out = parseApacheConf(
+      '<VirtualHost *:80>\n  ServerName a.test\n  <Directory /var/www>\n    Require all granted\n  </Directory>\n  DocumentRoot /var/www\n</VirtualHost>\n',
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].fields.map((f) => f.key)).toEqual(['ServerName', 'DocumentRoot']);
+  });
+
+  it('wireguard: a line without = is ignored and a trailing comment is stripped', () => {
+    const out = parseWgConf(
+      '[Interface]\nnot a setting\nAddress = 10.0.0.1/24 # lan\nDNS = 1.1.1.1\nListenPort = 51820\nPostUp = echo hi\nEndpoint = h:1\n',
+    );
+    const f = Object.fromEntries(out[0].fields.map((x) => [x.key, x]));
+    expect(f.Address.value).toBe('10.0.0.1/24');
+    expect(f.Address.field_type).toBe('subnet');
+    expect(f.DNS.field_type).toBe('ip');
+    expect(f.ListenPort.field_type).toBe('port');
+    expect(f.PostUp.field_type).toBe('multiline');
+    expect(f.Endpoint.field_type).toBe('endpoint');
+    expect(out[0].fields).toHaveLength(5);
+  });
+
+  it('docker compose: networks and volumes at the top level, scalars, lists of other keys, user ids and comments', () => {
+    const out = parseDockerCompose(
+      [
+        'services:',
+        '  web:',
+        '    image: nginx:1 # pinned',
+        '    user: 1000:1000',
+        '    ports:',
+        '      - "80:80"',
+        '    devices:',
+        '      - /dev/a:/dev/a',
+        '    environment:',
+        '      - A=1',
+        '      B: two',
+        '      - =novalue',
+        '    stray:',
+        '      - ignored? no, a list',
+        'networks:',
+        '  front:',
+        '  back:',
+        'volumes:',
+        '  data:',
+        '  logs:',
+        '',
+      ].join('\n'),
+    );
+    const web = out.find((c) => c.name === 'web')!;
+    expect(web.fields.find((f) => f.key === 'image')!.value).toBe('nginx:1');
+    expect(web.fields.find((f) => f.key === 'user')!.field_type).toBe('user_id');
+    expect(web.fields.find((f) => f.key === 'ports')!.field_type).toBe('port');
+    expect(web.fields.find((f) => f.key === 'devices')!.field_type).toBe('list');
+    expect(web.fields.filter((f) => f.description === 'env').map((f) => f.key)).toEqual(['A', 'B']);
+    expect(out.find((c) => c.chunk_type === 'docker_network')!.fields.map((f) => f.key)).toEqual([
+      'front',
+      'back',
+    ]);
+    expect(out.find((c) => c.chunk_type === 'docker_volume')!.fields.map((f) => f.key)).toEqual([
+      'data',
+      'logs',
+    ]);
+  });
+
+  it('docker compose: a line with no name and a volumes list keyed under volumes become volume mounts', () => {
+    const out = parseDockerCompose('services:\n  web:\n    volumes:\n      - data:/d\n  :\n');
+    expect(out[0].fields.find((f) => f.key === 'volumes')!.field_type).toBe('volume_mount');
+  });
+
+  it('ssh: a line with only a word is skipped', () => {
+    const out = parseSshConfig('Host box\n  Compression\n  User me\n');
+    expect(out[0].fields).toEqual([expect.objectContaining({ key: 'User', value: 'me' })]);
+  });
+
+  it('nginx: quoted semicolons stay in the value, stray semicolons and unknown blocks are skipped, and stream and http containers are entered', () => {
+    const out = parseNginxConf(
+      [
+        'events { worker_connections 1; }',
+        ';',
+        'http {',
+        '  upstream app { server 127.0.0.1:1; ; }',
+        '  upstream { server 127.0.0.2:2; }',
+        '  map $a $b { default 1; }',
+        '  server {',
+        '    listen 80;',
+        "    add_header X-Note 'a;b';",
+        '    location / { proxy_pass http://app; }',
+        '    if ($a) { return 403; }',
+        '  }',
+        '}',
+        'stream { server { listen 53; } }',
+        'worker_processes 1;',
+      ].join('\n'),
+    );
+    expect(out.map((c) => c.chunk_type)).toEqual([
+      'nginx_upstream',
+      'nginx_upstream',
+      'nginx_server',
+      'nginx_location',
+      'nginx_server',
+    ]);
+    expect(out[1].name).toBe('upstream');
+    const server = out.find((c) => c.chunk_type === 'nginx_server')!;
+    expect(server.fields.find((f) => f.key.startsWith('add_header'))!.value).toContain("'a;b'");
+  });
+
+  it('nginx: an unterminated block ends at the end of the text', () => {
+    const out = parseNginxConf('server { listen 80;');
+    expect(out).toHaveLength(1);
+  });
+
+  it('nginx: double-quoted text is kept whole', () => {
+    const out = parseNginxConf('server { listen 80; return 200 "a;b"; }');
+    expect(out[0].fields.find((f) => f.key === 'return')!.value).toBe('200 "a;b"');
+  });
+
+  it('haproxy: directives before any section are ignored and a bare section is named for its kind', () => {
+    const out = parseHaproxyConf('stray line\nglobal\n  daemon\nlisten stats\n  bind *:8404\n');
+    expect(out.map((c) => c.name)).toEqual(['global', 'stats']);
+    expect(out[0].fields[0].key).toBe('daemon');
+    expect(out[1].fields[0].field_type).toBe('endpoint');
+  });
+});
