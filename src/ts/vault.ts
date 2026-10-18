@@ -145,8 +145,7 @@ function restoreSort(): void {
   const opt = SORT_OPTIONS.find((o) => o.value === saved);
   if (!opt) return;
   st.currentSortBy = opt.value;
-  const labelEl = document.getElementById('sort-label-text');
-  if (labelEl) labelEl.textContent = opt.label;
+  document.getElementById('sort-label-text')!.textContent = opt.label;
 }
 
 /**
@@ -374,8 +373,10 @@ async function init() {
 
   // Wrap form selects as custom dropdowns (WebKitGTK compositing workaround)
   ['f-secret-type', 'f-price', 'f-env'].forEach((id) => {
-    const el = document.getElementById(id) as HTMLSelectElement | null;
-    if (el) st.formCustomSelects.set(id, new CustomSelect(el));
+    st.formCustomSelects.set(
+      id,
+      new CustomSelect(document.getElementById(id) as HTMLSelectElement),
+    );
   });
 
   st.store = inTauri ? new TauriVaultStore() : new LocalVaultStore();
@@ -440,28 +441,22 @@ async function init() {
   //
   // A2 (2026-09-14) removed the sidebar section's pair (`#totp-*`); the
   // Authenticator panel's (`#auth-*`) is the only surface left.
-  for (const id of ['auth-import-btn']) {
-    const btn = document.getElementById(id);
-    if (!btn) continue;
-    btn.onclick = () => {
-      // Built and removed per use: WebKitGTK renders a native widget for any
-      // `<input type="file">` in the DOM regardless of CSS (the Phase 3 ghost).
-      openFilePicker(
-        '.txt,.json,.2fas,text/plain,application/json',
-        (text) => void runTotpImport(text),
-      );
-    };
-  }
-  for (const id of ['auth-export-btn']) {
-    const btn = document.getElementById(id);
-    if (!btn) continue;
-    btn.onclick = () => {
-      showDropdown(
-        btn,
-        EXPORT_FORMATS.map((f) => ({ label: f.label, fn: () => void runTotpExport(f.value) })),
-      );
-    };
-  }
+  const authImport = document.getElementById('auth-import-btn')!;
+  authImport.onclick = () => {
+    // Built and removed per use: WebKitGTK renders a native widget for any
+    // `<input type="file">` in the DOM regardless of CSS (the Phase 3 ghost).
+    openFilePicker(
+      '.txt,.json,.2fas,text/plain,application/json',
+      (text) => void runTotpImport(text),
+    );
+  };
+  const authExport = document.getElementById('auth-export-btn')!;
+  authExport.onclick = () => {
+    showDropdown(
+      authExport,
+      EXPORT_FORMATS.map((f) => ({ label: f.label, fn: () => void runTotpExport(f.value) })),
+    );
+  };
 
   // Sidebar — filter buttons
   document.getElementById('sidebar')!.addEventListener('click', (e) => {
@@ -587,8 +582,7 @@ async function init() {
         fn: () => {
           st.currentSortBy = opt.value;
           Settings.set('lastSortBy', opt.value);
-          const labelEl = document.getElementById('sort-label-text');
-          if (labelEl) labelEl.textContent = opt.label;
+          document.getElementById('sort-label-text')!.textContent = opt.label;
           renderGrid();
         },
       })),
@@ -607,8 +601,7 @@ async function init() {
   // layout preference, and resetting it on every launch made Ctrl-B feel like
   // it had not been remembered.
   document.getElementById('sidebar-toggle')!.addEventListener('click', () => {
-    const sb = document.getElementById('sidebar');
-    if (!sb) return;
+    const sb = document.getElementById('sidebar')!;
     sb.classList.toggle('collapsed');
     const collapsed = sb.classList.contains('collapsed');
     Settings.set('sidebarCollapsed', collapsed);
@@ -1042,12 +1035,6 @@ async function init() {
     const idx = el.dataset.idx !== undefined ? parseInt(el.dataset.idx!) : -1;
     const value = el.dataset.value ?? '';
     const field = el.dataset.field ?? '';
-    if (
-      action === 'copy-env' &&
-      el.classList.contains('card-head') &&
-      (e.target as HTMLElement).closest('[data-action]') !== el
-    )
-      return;
     if (window.__unvIsBulkMode?.() && action !== 'bulk-toggle') {
       const card = el.closest<HTMLElement>('[data-idx]');
       if (card) {
@@ -1148,10 +1135,7 @@ async function init() {
         // summary bar stands in for one, ticking every member it covers.
         if (window.__unvIsBulkMode?.()) {
           const members = poolsOf(st.vault).get(pool) ?? [];
-          members.forEach((m) => {
-            const i = st.vault.api_keys.indexOf(m);
-            if (i >= 0) window.__unvBulkToggle?.(i);
-          });
+          members.forEach((m) => window.__unvBulkToggle?.(st.vault.api_keys.indexOf(m)));
           break;
         }
         if (st.expandedPools.has(pool)) st.expandedPools.delete(pool);
@@ -1282,12 +1266,15 @@ async function init() {
       case 'bundle-add-member': {
         const bundleId = el.dataset.bundle ?? '';
         void (async () => {
-          const candidate = await showPrompt('Name of an unbundled entry to add');
+          const candidate = (await showPrompt('Name of an unbundled entry to add'))?.trim();
+          // Cancelled or empty: nothing was asked for. Without this an entry that has no
+          // label matched `label === undefined` and was pulled into the bundle.
+          if (!candidate) return;
           const matches = st.vault.api_keys.filter(
             (entry) =>
               entry.secretType !== 'bundle' &&
               !entry.bundle_id &&
-              (entry.provider === candidate?.trim() || entry.label === candidate?.trim()),
+              (entry.provider === candidate || entry.label === candidate),
           );
           const bundle = st.vault.api_keys.find(
             (entry) => entry.id === bundleId && entry.secretType === 'bundle',
@@ -1302,10 +1289,6 @@ async function init() {
             return;
           }
           const member = matches[0];
-          if (!member) {
-            showToast('No matching unbundled entry', 'err');
-            return;
-          }
           const poolName = typeof member.pool === 'string' ? member.pool.trim() : '';
           const pool = poolName
             ? st.vault.api_keys.filter((entry) => entry.pool?.trim() === poolName)
