@@ -101,10 +101,9 @@ const ARIA_CURRENT = raw(' aria-current="true"');
 // ── Project tree renderers ─────────────────────────────────────────────────
 
 export function renderProjectTree() {
-  const container = document.getElementById('category-tree');
-  if (!container) return;
+  const container = document.getElementById('category-tree')!;
   setHtml(container, '');
-  renderUserCatTree(container, st.vault.user_categories || [], st.vault.api_keys);
+  renderUserCatTree(container, st.vault.user_categories, st.vault.api_keys);
 }
 
 function renderProjectList(container: HTMLElement, projects: Project[], all: VaultEntry[]) {
@@ -204,8 +203,9 @@ function renderSidebar() {
   // Environment counts
   const envValues = ['production', 'staging', 'development', 'testing'] as const;
   envValues.forEach((env) => {
-    const el = document.getElementById(`count-env-${env}`);
-    if (el) el.textContent = String(all.filter((k) => k.environment === env).length);
+    document.getElementById(`count-env-${env}`)!.textContent = String(
+      all.filter((k) => k.environment === env).length,
+    );
   });
 
   // Update active state for both st.filter items and env filter items
@@ -215,8 +215,11 @@ function renderSidebar() {
     const on =
       t === 'env'
         ? st.currentEnvFilter === v && v !== ''
-        : (t === 'all' && st.filter.type === 'all' && !st.currentEnvFilter) ||
-          (t === st.filter.type && v === st.filter.value);
+        : t === 'all'
+          ? // "All" is lit only when nothing narrows the grid. Matching it by
+            // type and value as well kept it lit beside an environment filter.
+            st.filter.type === 'all' && !st.currentEnvFilter
+          : t === st.filter.type && v === st.filter.value;
     btn.classList.toggle('active', on);
     // Which filter is applied is the single most important piece of state in
     // this app — invariant 7 exists because a restored filter can hide every
@@ -227,7 +230,7 @@ function renderSidebar() {
 
   const catList = document.getElementById('project-list')!;
   setHtml(catList, '');
-  renderProjectList(catList, st.vault.projects || [], all);
+  renderProjectList(catList, st.vault.projects, all);
 
   renderTagSection(all);
   renderPoolSection(all);
@@ -259,17 +262,15 @@ function renderSidebar() {
  * untrusted vault becoming a pool named "[object Object]" (invariant 4).
  */
 function renderPoolSection(all: VaultEntry[]) {
-  const container = document.getElementById('pool-filter-list');
-  if (!container) return;
+  const container = document.getElementById('pool-filter-list')!;
 
   // `poolsOf` reads a vault-shaped object, and `all` is the entry array the rest
   // of the sidebar is counting — filtered by the active workspace, not the raw
   // vault — so the counts here match the grid rather than the whole file.
   const pools = poolsOf({ api_keys: all });
 
-  const section = document.getElementById('sidebar-section-pools');
-  if (section)
-    section.style.display = isSidebarSectionEnabled('pools') && pools.size > 0 ? '' : 'none';
+  const section = document.getElementById('sidebar-section-pools')!;
+  section.style.display = isSidebarSectionEnabled('pools') && pools.size > 0 ? '' : 'none';
 
   setHtml(
     container,
@@ -291,15 +292,13 @@ function renderPoolSection(all: VaultEntry[]) {
 }
 
 function renderPrefixSection(all: VaultEntry[]) {
-  const container = document.getElementById('prefix-filter-list');
-  if (!container) return;
+  const container = document.getElementById('prefix-filter-list')!;
   const pfxMap = new Map<string, number>();
   for (const k of all)
     for (const p of k.env_prefixes ?? []) pfxMap.set(p, (pfxMap.get(p) ?? 0) + 1);
 
-  const section = document.getElementById('sidebar-section-prefixes');
-  if (section)
-    section.style.display = isSidebarSectionEnabled('prefixes') && pfxMap.size > 0 ? '' : 'none';
+  const section = document.getElementById('sidebar-section-prefixes')!;
+  section.style.display = isSidebarSectionEnabled('prefixes') && pfxMap.size > 0 ? '' : 'none';
 
   setHtml(
     container,
@@ -342,8 +341,7 @@ function renderPrefixSection(all: VaultEntry[]) {
  * reads as "nothing else matches" rather than "here is what else exists".
  */
 function renderTypeChipBar(all: VaultEntry[]) {
-  const bar = document.getElementById('type-chip-bar');
-  if (!bar) return;
+  const bar = document.getElementById('type-chip-bar')!;
 
   const byType = new Map<string, number>();
   let totpCount = 0;
@@ -376,7 +374,7 @@ function renderTypeChipBar(all: VaultEntry[]) {
       return html`<button
         type="button"
         class="type-chip${active ? ' active' : ''}"
-        aria-pressed="${active}"
+        aria-pressed="${String(active)}"
         data-chip="${key}"
       >
         <span class="type-chip-label">${label}</span>
@@ -387,8 +385,7 @@ function renderTypeChipBar(all: VaultEntry[]) {
 }
 
 function renderTagSection(all: VaultEntry[]) {
-  const container = document.getElementById('tag-filter-list');
-  if (!container) return;
+  const container = document.getElementById('tag-filter-list')!;
 
   // Collect unique tags with counts
   const tagMap = new Map<string, number>();
@@ -398,9 +395,8 @@ function renderTagSection(all: VaultEntry[]) {
     }
   }
 
-  const section = document.getElementById('sidebar-section-tags');
-  if (section)
-    section.style.display = isSidebarSectionEnabled('tags') && tagMap.size > 0 ? '' : 'none';
+  const section = document.getElementById('sidebar-section-tags')!;
+  section.style.display = isSidebarSectionEnabled('tags') && tagMap.size > 0 ? '' : 'none';
 
   setHtml(
     container,
@@ -542,35 +538,6 @@ function buildRefIndex() {
   _refIndex = idx;
 }
 
-/** Compare a freshly-resolved env snapshot to the chunk's last copy, toast the delta, and stash it. */
-function diffAndStashCopy(chunk: SecretChunk, snapshot: Record<string, string>) {
-  const prev = chunk.last_copied_snapshot;
-  if (prev) {
-    const changed = Object.keys(snapshot).filter((k) => k in prev && prev[k] !== snapshot[k]);
-    const added = Object.keys(snapshot).filter((k) => !(k in prev));
-    const removed = Object.keys(prev).filter((k) => !(k in snapshot));
-    const parts: string[] = [];
-    if (changed.length) parts.push(`${changed.length} changed`);
-    if (added.length) parts.push(`${added.length} added`);
-    if (removed.length) parts.push(`${removed.length} removed`);
-    if (parts.length) {
-      const names = [...changed, ...added].slice(0, 4).join(', ');
-      showToast(
-        `Copied ✓ — since last: ${parts.join(', ')}${names ? ` (${names})` : ''}`,
-        'ok',
-        3500,
-      );
-    } else {
-      showToast('Copied ✓ — unchanged since last copy', 'ok', 1800);
-    }
-  } else {
-    showToast('Copied ✓', 'ok', 1500);
-  }
-  chunk.last_copied_snapshot = snapshot;
-  chunk.last_copied_at = new Date().toISOString();
-  void persist();
-}
-
 /**
  * "3 Spotify entries — bundle them?" Suggested, never automatic: one banner for
  * the largest undismissed provider group, above the grid. Dismissal is per
@@ -618,7 +585,7 @@ function renderBundleSuggestion(grid: HTMLElement): void {
 
 export function renderGrid() {
   buildRefIndex();
-  renderTypeChipBar(st.vault.api_keys || []);
+  renderTypeChipBar(st.vault.api_keys);
   const items = sorted(getFiltered());
   const grid = document.getElementById('card-grid')!;
   const validBundleIds = new Set(
@@ -629,8 +596,8 @@ export function renderGrid() {
   // Derived here rather than only flipped on click: lock, import and vault
   // switch all reset st.allExpanded, and the button was left reading
   // "Collapse All" with nothing expanded.
-  const expandBtn = document.getElementById('expand-all-btn');
-  if (expandBtn) expandBtn.textContent = st.allExpanded ? 'Collapse All' : 'Expand All';
+  const expandBtn = document.getElementById('expand-all-btn')!;
+  expandBtn.textContent = st.allExpanded ? 'Collapse All' : 'Expand All';
   const secretCount = items.filter((entry) => entry.secretType !== 'bundle').length;
   const visibleBundleIds = new Set<string>();
   for (const entry of items) {
@@ -712,7 +679,7 @@ export function renderGrid() {
           if (consumedPools.has(poolName)) continue;
           consumedPools.add(poolName);
           const partialMatch =
-            !!st.searchQ && poolMembers.length < (fullPoolsOf.get(poolName)?.length ?? 0);
+            !!st.searchQ && poolMembers.length < fullPoolsOf.get(poolName)!.length;
           grid.appendChild(buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch));
           continue;
         }
@@ -723,7 +690,7 @@ export function renderGrid() {
       consumed.add(bundle.id);
       const visibleMembers = (allMembers.get(bundle.id) ?? []).filter((m) => items.includes(m));
       const partial =
-        !items.includes(bundle) && visibleMembers.length < (allMembers.get(bundle.id)?.length ?? 0);
+        !items.includes(bundle) && visibleMembers.length < allMembers.get(bundle.id)!.length;
       const shownMembers = items.includes(bundle)
         ? (allMembers.get(bundle.id) ?? [])
         : visibleMembers;
@@ -766,12 +733,16 @@ export function renderGrid() {
       groups.get(stType)!.push(entry);
     });
     let animIdx = 0;
-    GROUP_ORDER.forEach((stType) => {
+    // Kinds without a heading of their own (cookie, composite, ...) follow the listed
+    // ones, so a layout never drops an entry that the toolbar count includes.
+    const order = [...GROUP_ORDER, ...[...groups.keys()].filter((t) => !GROUP_ORDER.includes(t))];
+    order.forEach((stType) => {
       const groupItems = groups.get(stType);
       if (!groupItems?.length) return;
       const hdr = document.createElement('div');
       hdr.className = 'type-group-header';
-      hdr.textContent = GROUP_LABELS[stType] || stType;
+      hdr.textContent =
+        GROUP_LABELS[stType] ?? stType.charAt(0).toUpperCase() + stType.slice(1).replace(/_/g, ' ');
       grid.appendChild(hdr);
       groupItems.forEach((entry) => grid.appendChild(buildCard(entry, idxOf(entry), animIdx++)));
     });
@@ -789,8 +760,7 @@ export function renderGrid() {
         // A search that matches only some of a pool's members forces it open
         // on those members, rather than hiding the reason the card matched
         // behind a collapsed summary the user did not ask to expand.
-        const partialMatch =
-          !!st.searchQ && poolMembers.length < (fullPools.get(poolName)?.length ?? 0);
+        const partialMatch = !!st.searchQ && poolMembers.length < fullPools.get(poolName)!.length;
         grid.appendChild(buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch));
         return;
       }
@@ -1236,11 +1206,11 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
     // documentation; hiding them behind a reveal click protects nothing and
     // makes the card unreadable for the half of a credential that is meant to be
     // read. An explicit reveal toggle still wins, in both directions.
+    const explicit = st.revealed[`${field}-${eid}`];
+    if (explicit !== undefined) return !explicit;
     if (field === 'key' && entry.primary_public) return false;
     if (field === 'secret' && entry.secret_public) return false;
-    return st.revealed[`${field}-${eid}`] !== undefined
-      ? !st.revealed[`${field}-${eid}`]
-      : Settings.get('maskKeysByDefault');
+    return Settings.get('maskKeysByDefault');
   };
   const hasMask = masked('key');
   // A composite's "value" is its rendered template, never `api_key` (which it
@@ -1329,8 +1299,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
   card.dataset.idx = String(idx);
 
   // Only http/https URLs are rendered as links — blocks javascript: and data: URIs.
-  const safeUrl = (url: string | null | undefined): SafeHtml | string => {
-    if (!url) return '';
+  const safeUrl = (url: string): SafeHtml | string => {
     const trimmed = url.trim();
     if (/^https?:\/\//i.test(trimmed))
       return html`<a href="${trimmed}" target="_blank" rel="noopener noreferrer">${trimmed}</a>`;
@@ -1408,7 +1377,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
         data-idx="${idx}"
         role="checkbox"
         tabindex="0"
-        aria-checked="${st.bulkSelected.has(eid)}"
+        aria-checked="${String(st.bulkSelected.has(eid))}"
         aria-label="${'Select ' + entry.provider}"
       >
         <svg
@@ -1478,7 +1447,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
                         data-field="key"
                         data-idx="${idx}"
                         data-value="${compositeValue}"
-                        aria-pressed="${!compositeMask}"
+                        aria-pressed="${String(!compositeMask)}"
                         aria-label="${'Reveal value for ' + entry.provider}"
                       >${eyeSVG}</button
                       ><button
@@ -1521,7 +1490,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
                     data-field="key"
                     data-idx="${idx}"
                     data-value="${entry.api_key}"
-                    aria-pressed="${!hasMask}"
+                    aria-pressed="${String(!hasMask)}"
                     aria-label="${'Reveal value for ' + entry.provider}"
                   >${eyeSVG}</button>
                   <button
@@ -1551,7 +1520,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
                     data-field="secret"
                     data-idx="${idx}"
                     data-value="${entry.api_secret}"
-                    aria-pressed="${!secretMasked}"
+                    aria-pressed="${String(!secretMasked)}"
                     aria-label="${'Reveal secret for ' + entry.provider}"
                   >${eyeSVG}</button
                   ><button
@@ -1649,7 +1618,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
                 aria-label="Second factor"
               >
                 <div class="key-group-title">Second factor</div>
-                <div class="key-row totp-key-row" data-totp-for="${entry.id ?? ''}">
+                <div class="key-row totp-key-row" data-totp-for="${eid}">
                   <div class="key-label">2FA</div>
                   <div class="key-value revealed totp-code" data-action="copy-totp">— — —</div>
                   <span class="totp-countdown"><i class="totp-countdown-fill"></i></span
@@ -1719,7 +1688,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
           data-action="pin"
           data-idx="${idx}"
           title="${entry.pinned ? 'Unpin' : 'Pin to top'}"
-          aria-pressed="${!!entry.pinned}"
+          aria-pressed="${String(!!entry.pinned)}"
           aria-label="${(entry.pinned ? 'Unpin ' : 'Pin ') + entry.provider}"
         >
           <svg
@@ -1773,9 +1742,8 @@ function getExpiryBorderClass(entry: VaultEntry): string {
   return ' expiry-safe';
 }
 
-function rotationAgeBadge(entry: VaultEntry): SafeHtml | '' {
-  if (!entry.last_rotated_at) return '';
-  const days = Math.round((Date.now() - new Date(entry.last_rotated_at).getTime()) / 86400000);
+function rotationAgeBadge(entry: VaultEntry): SafeHtml {
+  const days = Math.round((Date.now() - new Date(entry.last_rotated_at!).getTime()) / 86400000);
   const cls = days < 30 ? ' fresh' : '';
   const label = days === 0 ? 'today' : days === 1 ? '1d ago' : `${days}d ago`;
   return html`<span class="rotation-age-badge${cls}">${label}</span>`;
@@ -2060,7 +2028,9 @@ function renderConfigView(project: Project) {
       if (action === 'create-cert-stub') {
         const domain = el.dataset.domain || '';
         if (!domain) return;
-        ensureCertForDomain(domain, projId);
+        // The stub button names a domain, not a project, so the project on screen is the
+        // one the new certificate belongs to.
+        ensureCertForDomain(domain, projId || st.currentSelectedProjectIds[0]);
         void persist();
         showToast(`Created certificate entry for ${domain} — paste the PEMs`, 'ok');
         render();
@@ -2116,6 +2086,21 @@ function renderConfigView(project: Project) {
       const proj = st.vault.projects.find((p) => p.id === projId);
       if (!proj) return;
 
+      // A3: real bytes on disk via `saveFile`, not a blob-anchor click WebKitGTK
+      // has no download handler for.
+      const dlText = (content: string, filename: string) => {
+        void saveFile(content, filename).then((res) =>
+          showToast(
+            res.ok
+              ? res.path
+                ? `Downloaded to ${res.path}`
+                : 'Downloaded'
+              : `Failed: ${res.error}`,
+            res.ok ? 'ok' : 'error',
+          ),
+        );
+      };
+
       if (action === 'edit-chunk') {
         const chunk = proj.chunks?.find((c) => c.id === chunkId);
         if (chunk) openChunkEditModal(proj, chunk);
@@ -2126,29 +2111,6 @@ function renderConfigView(project: Project) {
         const chunk = proj.chunks?.find((c) => c.id === chunkId);
         if (chunk) {
           void clipboardWrite(chunkToString(chunk)).then(() => showToast('Copied ✓', 'ok', 1500));
-        }
-        return;
-      }
-
-      if (action === 'copy-chunk-raw') {
-        const chunk = proj.chunks?.find((c) => c.id === chunkId);
-        if (chunk) {
-          const envF = chunk.fields.filter(
-            (f) =>
-              f.description === 'env' ||
-              f.field_type === 'env_var' ||
-              chunk.chunk_type === 'env_file',
-          );
-          const snapshot: Record<string, string> = {};
-          const text = envF
-            .map((f) => {
-              const { resolved } = resolveFieldRef(f.value, false);
-              const v = resolved ?? f.value;
-              snapshot[f.key] = v;
-              return `${f.key}=${v}`;
-            })
-            .join('\n');
-          void clipboardWrite(text).then(() => diffAndStashCopy(chunk, snapshot));
         }
         return;
       }
@@ -2200,9 +2162,8 @@ function renderConfigView(project: Project) {
           name: _src.name + ' (copy)',
           fields: _src.fields.map((f) => ({ ...f })),
         };
-        if (!proj.chunks) proj.chunks = [];
-        const _ci2 = proj.chunks.findIndex((c) => c.id === chunkId);
-        proj.chunks.splice(_ci2 + 1, 0, _dup);
+        const _ci2 = proj.chunks!.findIndex((c) => c.id === chunkId);
+        proj.chunks!.splice(_ci2 + 1, 0, _dup);
         void persist();
         render();
         showToast(`Duplicated "${_src.name}"`, 'ok');
@@ -2933,21 +2894,6 @@ function renderConfigView(project: Project) {
         return;
       }
 
-      // A3: real bytes on disk via `saveFile`, not a blob-anchor click WebKitGTK
-      // has no download handler for.
-      const dlText = (content: string, filename: string) => {
-        void saveFile(content, filename).then((res) =>
-          showToast(
-            res.ok
-              ? res.path
-                ? `Downloaded to ${res.path}`
-                : 'Downloaded'
-              : `Failed: ${res.error}`,
-            res.ok ? 'ok' : 'error',
-          ),
-        );
-      };
-
       if (action === 'export-nginx') {
         const conf = exportNginx(proj);
         showDropdown(el, [
@@ -3230,8 +3176,8 @@ export function render() {
       // Structured project types (`renderConfigView`) reuse `#card-grid` for a
       // chunk tree, not entry cards — the type chip bar has nothing to filter
       // there and would otherwise linger from the last "All Secrets" render.
-      const bar = document.getElementById('type-chip-bar');
-      if (bar) bar.style.display = 'none';
+      const bar = document.getElementById('type-chip-bar')!;
+      bar.style.display = 'none';
       renderConfigView(project);
       updateCopyAllBtn();
       return;
@@ -3276,12 +3222,11 @@ export function activeFilterLabels(): string[] {
 
 /** Shows or hides the "Clear filters" button and its count. */
 export function updateActiveFilterBar(): void {
-  const btn = document.getElementById('clear-filters-btn');
-  if (!btn) return;
+  const btn = document.getElementById('clear-filters-btn')!;
   const labels = activeFilterLabels();
   btn.style.display = labels.length ? '' : 'none';
-  const countEl = document.getElementById('clear-filters-count');
-  if (countEl) countEl.textContent = labels.length > 1 ? `(${labels.length})` : '';
+  const countEl = document.getElementById('clear-filters-count')!;
+  countEl.textContent = labels.length > 1 ? `(${labels.length})` : '';
   btn.title = labels.length
     ? `Active — ${labels.join(', ')}\nClear every filter (Shift+Esc)`
     : 'Clear every active filter (Shift+Esc)';
@@ -3289,8 +3234,7 @@ export function updateActiveFilterBar(): void {
 
 export function updateCopyAllBtn() {
   updateActiveFilterBar();
-  const wrap = document.getElementById('copy-all-wrap');
-  if (!wrap) return;
+  const wrap = document.getElementById('copy-all-wrap')!;
   const items = getFiltered();
   wrap.style.display = items.length ? 'flex' : 'none';
   const btn = document.getElementById('copy-all-btn')!;
@@ -3380,10 +3324,10 @@ export function openEnvLinkModal(
   _envLinkProj = proj;
   _envLinkChunk = chunk;
   const matches = buildEnvLinkMatches(chunk);
-  const sub = document.getElementById('env-link-subtitle');
-  if (sub) sub.textContent = `${chunk.name} — ${matches.length} fields`;
-  const list = document.getElementById('env-link-list');
-  if (list) setHtml(list, html`${matches.map(_renderEnvLinkRow)}`);
+  const sub = document.getElementById('env-link-subtitle')!;
+  sub.textContent = `${chunk.name} — ${matches.length} fields`;
+  const list = document.getElementById('env-link-list')!;
+  setHtml(list, html`${matches.map(_renderEnvLinkRow)}`);
   document.getElementById('env-link-overlay')?.classList.add('open');
 }
 
