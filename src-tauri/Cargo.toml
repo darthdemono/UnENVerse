@@ -1,6 +1,6 @@
 [package]
 name    = "unenverse"
-version = "0.55.1"
+version = "0.56.0"
 edition = "2021"
 rust-version.workspace = true
 publish = false
@@ -52,3 +52,6 @@ gtk               = { version = "0.18", default-features = false }
 # Deny warnings, per [workspace.lints.rust] at the repo root.
 [lints]
 workspace = true
+
+[dev-dependencies]
+tauri = { version = "2.12", features = ["tray-icon", "test"] }
