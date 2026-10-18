@@ -117,10 +117,26 @@ impl From<String> for CliError {
     fn from(s: String) -> Self {
         let code = if s.contains(vault_core::CONFLICT_ERR) {
             Code::Conflict
-        } else if s.contains("Server error 401") || s.contains("Server error 403") {
+        } else if s.contains("Server error 401")
+            || s.contains("Server error 403")
+            // The local path has no HTTP status, only vault-core's message. A wrong
+            // master password is a failed authentication, and a caller must not be
+            // told "error" (retry?) about a refusal.
+            || s.starts_with("Wrong master password")
+        {
             Code::Denied
-        } else if s.contains("Server error 404") {
+        } else if s.contains("Server error 404")
+            || s.starts_with("No recovery destination")
+            || s.starts_with("No such operation")
+        {
             Code::NotFound
+        } else if s.contains(" already exists") || s.starts_with("The class still has") {
+            // "Already exists" is a conflict (6) by the README's table, wherever the
+            // message was raised.
+            Code::Conflict
+        } else if s.starts_with("Scheduled time must be") || s.starts_with("Unknown IANA time zone")
+        {
+            Code::Invalid
         } else if s.contains("Cannot reach server") || s.contains("Vault not unlocked") {
             Code::Unavailable
         } else {

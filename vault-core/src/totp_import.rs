@@ -293,6 +293,14 @@ pub fn parse(text: &str) -> Result<ParseReport, String> {
 /// Read an export in a format the caller has already decided.
 pub fn parse_as(text: &str, format: Format) -> Result<ParseReport, String> {
     let text = text.trim_start_matches('\u{feff}');
+    // Choosing the format skips guessing it, never the refusal of an encrypted export:
+    // without this check `--format aegis` on an encrypted vault says "no db.entries
+    // array" instead of naming the real problem.
+    if let Err(e) = detect(text) {
+        if e.contains("*encrypted*") {
+            return Err(e);
+        }
+    }
     let (items, skipped) = match format {
         Format::OtpauthList => parse_uri_list(text),
         Format::Aegis => parse_aegis(text)?,

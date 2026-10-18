@@ -1185,12 +1185,16 @@ pub fn class_member_count(conn: &Connection, class_id: &str) -> Result<i64, Stri
 }
 
 pub fn delete_user_class(conn: &Connection, class_id: &str) -> Result<(), String> {
-    // Unassign users first
-    conn.execute(
-        "UPDATE users SET class_id = NULL WHERE class_id = ?1",
-        rusqlite::params![class_id],
-    )
-    .map_err(|e| e.to_string())?;
+    // A class is a restriction ANDed with each member's own expression. Deleting it
+    // used to unassign its members, and a member with a broad individual expression
+    // became unrestricted: removing a restriction is a decision about each member,
+    // so they have to be moved first. The server refuses the same way.
+    let members = class_member_count(conn, class_id)?;
+    if members > 0 {
+        return Err(format!(
+            "The class still has {members} member(s). Assign them to another class first."
+        ));
+    }
     conn.execute(
         "DELETE FROM user_class_permissions WHERE class_id = ?1",
         rusqlite::params![class_id],

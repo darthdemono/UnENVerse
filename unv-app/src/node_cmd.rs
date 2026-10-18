@@ -83,6 +83,15 @@ pub fn token_new(
     ttl_secs: Option<i64>,
     out_file: Option<&Path>,
 ) -> CliResult {
+    // Decide where the token may go BEFORE minting it. Minting first and refusing
+    // to print afterwards leaves a live single-use credential in the hub that
+    // nobody can read, and blocks the name until it expires.
+    if out_file.is_none() && !out::revealing() {
+        return Err(CliError::new(
+            crate::error::Code::Redacted,
+            "The enrollment token would be printed. Pass --out FILE, or --reveal to print it.",
+        ));
+    }
     let c = hub(a)?;
     let body = json!({ "name": name, "projects": projects, "ttl_secs": ttl_secs });
     let r = c.send_json(Method::POST, "/api/nodes/tokens", Some(&body))?;

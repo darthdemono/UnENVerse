@@ -48,19 +48,19 @@ fn local_ip() -> Option<String> {
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
 
-fn db_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn db_path<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map(|d| d.join("vault.db"))
         .map_err(|e| e.to_string())
 }
-fn salt_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn salt_path<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map(|d| d.join("vault.salt"))
         .map_err(|e| e.to_string())
 }
-fn legacy_json_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn legacy_json_path<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map(|d| d.join("vault.json"))
@@ -73,7 +73,9 @@ fn ensure_parent(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn recovery_paths(app: &AppHandle) -> Result<unv_app::recovery_ops::RecoveryPaths, String> {
+fn recovery_paths<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Result<unv_app::recovery_ops::RecoveryPaths, String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(unv_app::recovery_ops::RecoveryPaths {
         db_path: data_dir.join("vault.db"),
@@ -105,6 +107,16 @@ fn retain_unlocked_session(
     *state_guard = Some(key);
     *ops_guard = Some(executor);
     Ok(())
+}
+
+/// A taken name says so, in words, instead of the SQL text of the constraint
+/// that refused it (the server's `rejected` does the same for the same reason).
+fn taken(e: String) -> String {
+    if e.contains("UNIQUE constraint failed") {
+        "That name is already taken".into()
+    } else {
+        e
+    }
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -141,8 +153,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn unlock_vault(
-        app: AppHandle,
+    pub fn unlock_vault<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         ops: State<OpsState>,
         password: String,
@@ -217,13 +229,13 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn vault_exists(app: AppHandle) -> Result<bool, String> {
+    pub fn vault_exists<R: tauri::Runtime>(app: AppHandle<R>) -> Result<bool, String> {
         Ok(db_path(&app)?.exists())
     }
 
     #[tauri::command]
-    pub fn reset_vault(
-        app: AppHandle,
+    pub fn reset_vault<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         lan: State<LanState>,
         ops: State<OpsState>,
@@ -255,8 +267,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn load_vault(
-        app: AppHandle,
+    pub fn load_vault<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Option<VersionedVault>, String> {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
@@ -277,8 +289,8 @@ mod commands {
     /// same database, and an unconditional write would silently discard whatever
     /// they had just saved.
     #[tauri::command]
-    pub fn save_vault(
-        app: AppHandle,
+    pub fn save_vault<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         data: serde_json::Value,
         expect_version: Option<String>,
@@ -307,8 +319,8 @@ mod commands {
     /// Phase 30.1: save a delta (see `vault_core::apply_row_patch`) instead of the
     /// whole document. Same compare-and-swap, audit and history as `save_vault`.
     #[tauri::command]
-    pub fn save_vault_rows(
-        app: AppHandle,
+    pub fn save_vault_rows<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         patch: serde_json::Value,
         expect_version: Option<String>,
@@ -365,8 +377,8 @@ mod commands {
     /// Builds the same redacted plan as `unv migrate plan`; copied values never
     /// return through IPC.
     #[tauri::command]
-    pub fn migrate_plan(
-        app: AppHandle,
+    pub fn migrate_plan<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         format: String,
         source_label: String,
@@ -390,8 +402,8 @@ mod commands {
     /// Re-plans immediately before applying, so a reviewed preview cannot
     /// overwrite a vault change that landed after the preview.
     #[tauri::command]
-    pub fn migrate_apply(
-        app: AppHandle,
+    pub fn migrate_apply<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         format: String,
         source_label: String,
@@ -430,7 +442,9 @@ mod commands {
     /// on first use. The seed never crosses this boundary; only signatures do. The
     /// CLI reads the same file (`unv node approver show`).
     #[tauri::command]
-    pub fn approver_public(app: AppHandle) -> Result<serde_json::Value, String> {
+    pub fn approver_public<R: tauri::Runtime>(
+        app: AppHandle<R>,
+    ) -> Result<serde_json::Value, String> {
         let dir = db_path(&app)?
             .parent()
             .map(std::path::Path::to_path_buf)
@@ -445,8 +459,8 @@ mod commands {
     /// approver key. The renderer names the request; the token (lifetime, nonce,
     /// approver) is built here, so a compromised page cannot choose any of them.
     #[tauri::command]
-    pub fn approver_sign(
-        app: AppHandle,
+    pub fn approver_sign<R: tauri::Runtime>(
+        app: AppHandle<R>,
         node_id: String,
         target: String,
         sha256: String,
@@ -476,8 +490,8 @@ mod commands {
     /// dispatcher, so the three cannot disagree. Local vault only: a remote
     /// vault's history is reached over HTTP by the frontend.
     #[tauri::command]
-    pub fn history_call(
-        app: AppHandle,
+    pub fn history_call<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         op: String,
         args: serde_json::Value,
@@ -491,8 +505,8 @@ mod commands {
 
     /// Secret-free lifecycle events for an entry detail view.
     #[tauri::command]
-    pub fn entry_timeline(
-        app: AppHandle,
+    pub fn entry_timeline<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         entry_id: String,
     ) -> Result<Vec<vault_core::lifecycle::TimelineEvent>, String> {
@@ -519,8 +533,8 @@ mod commands {
     /// runs on a timer, and a locked vault is the ordinary state rather than a
     /// failure worth reporting once a second.
     #[tauri::command]
-    pub fn vault_version(
-        app: AppHandle,
+    pub fn vault_version<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Option<String>, String> {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
@@ -532,13 +546,13 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn get_vault_path(app: AppHandle) -> Result<String, String> {
+    pub fn get_vault_path<R: tauri::Runtime>(app: AppHandle<R>) -> Result<String, String> {
         db_path(&app).map(|p| p.display().to_string())
     }
 
     #[tauri::command]
-    pub fn get_audit_log(
-        app: AppHandle,
+    pub fn get_audit_log<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<vault_core::AuditRow>, String> {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
@@ -608,7 +622,10 @@ mod commands {
     /// `remote_base` is passed by the frontend when it is connected to a remote
     /// vault, so the panel does not show the local vault's cursors under the
     /// remote's data — the same class of mistake the LAN gate exists to prevent.
-    fn pool_vault_key(app: &AppHandle, remote_base: Option<String>) -> Result<String, String> {
+    fn pool_vault_key<R: tauri::Runtime>(
+        app: &AppHandle<R>,
+        remote_base: Option<String>,
+    ) -> Result<String, String> {
         Ok(match remote_base.filter(|b| !b.trim().is_empty()) {
             Some(base) => vault_core::pool::remote_vault_key(base.trim()),
             None => vault_core::pool::local_vault_key(&db_path(app)?),
@@ -617,8 +634,8 @@ mod commands {
 
     /// Per-member pool state for the given entries.
     #[tauri::command]
-    pub fn pool_state(
-        app: AppHandle,
+    pub fn pool_state<R: tauri::Runtime>(
+        app: AppHandle<R>,
         pool: String,
         members: Vec<PoolMemberRef>,
         remote_base: Option<String>,
@@ -648,8 +665,8 @@ mod commands {
     /// cooling, so the caller can say so rather than copying nothing with no
     /// explanation.
     #[tauri::command]
-    pub fn pool_next(
-        app: AppHandle,
+    pub fn pool_next<R: tauri::Runtime>(
+        app: AppHandle<R>,
         pool: String,
         members: Vec<PoolMemberRef>,
         remote_base: Option<String>,
@@ -680,8 +697,8 @@ mod commands {
 
     /// Put one member on cooldown, or clear it with `seconds: None`.
     #[tauri::command]
-    pub fn pool_set_cooldown(
-        app: AppHandle,
+    pub fn pool_set_cooldown<R: tauri::Runtime>(
+        app: AppHandle<R>,
         pool: String,
         member: PoolMemberRef,
         seconds: Option<i64>,
@@ -701,8 +718,8 @@ mod commands {
 
     /// Forget a pool's cursor, cooldowns and counts on this machine.
     #[tauri::command]
-    pub fn pool_reset(
-        app: AppHandle,
+    pub fn pool_reset<R: tauri::Runtime>(
+        app: AppHandle<R>,
         pool: String,
         remote_base: Option<String>,
     ) -> Result<(), String> {
@@ -780,7 +797,10 @@ mod commands {
     /// an archive taken while another process (a LAN server, `unv`) is mid-write
     /// could still miss its last pages, so the pane says to lock first.
     #[tauri::command]
-    pub fn backup_archive_build(app: AppHandle, password: String) -> Result<String, String> {
+    pub fn backup_archive_build<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        password: String,
+    ) -> Result<String, String> {
         let db = fs::read(db_path(&app)?).map_err(|e| format!("Cannot read the vault: {e}"))?;
         let salt = fs::read(salt_path(&app)?).map_err(|e| format!("Cannot read the salt: {e}"))?;
         unv_app::backup::build_archive(&db, &salt, &password)
@@ -794,8 +814,8 @@ mod commands {
     /// first (a salt without a database is recoverable, the reverse is not), then
     /// the database, and removes a stale WAL. The renderer reloads afterwards.
     #[tauri::command]
-    pub fn backup_archive_restore(
-        app: AppHandle,
+    pub fn backup_archive_restore<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         lan: State<LanState>,
         ops: State<OpsState>,
@@ -849,8 +869,8 @@ mod commands {
     // ── User management (owner-only Tauri commands) ────────────────────────
 
     #[tauri::command]
-    pub fn list_users(
-        app: AppHandle,
+    pub fn list_users<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<vault_core::UserRecord>, String> {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
@@ -860,8 +880,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn create_user(
-        app: AppHandle,
+    pub fn create_user<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         username: String,
         password: Option<String>,
@@ -869,14 +889,14 @@ mod commands {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
         let key = g.as_ref().ok_or("Vault is locked")?;
         let conn = vault_core::open_db(&db_path(&app)?, key)?;
-        vault_core::create_user(&conn, &username, password.as_deref(), false)
+        vault_core::create_user(&conn, &username, password.as_deref(), false).map_err(taken)
     }
 
     // ── User class commands ──────────────────────────────────────────────────
 
     #[tauri::command]
-    pub fn list_user_classes(
-        app: AppHandle,
+    pub fn list_user_classes<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<vault_core::UserClass>, String> {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
@@ -885,8 +905,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn create_user_class(
-        app: AppHandle,
+    pub fn create_user_class<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         name: String,
         description: String,
@@ -904,11 +924,12 @@ mod commands {
             cap_manage_classes,
             cap_delete_projects,
         )
+        .map_err(taken)
     }
 
     #[tauri::command]
-    pub fn update_user_class(
-        app: AppHandle,
+    pub fn update_user_class<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         class_id: String,
         name: String,
@@ -928,11 +949,12 @@ mod commands {
             cap_manage_classes,
             cap_delete_projects,
         )
+        .map_err(taken)
     }
 
     #[tauri::command]
-    pub fn delete_user_class(
-        app: AppHandle,
+    pub fn delete_user_class<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         class_id: String,
     ) -> Result<(), String> {
@@ -970,8 +992,8 @@ mod commands {
         Ok(())
     }
 
-    fn recovery_connection(
-        app: &AppHandle,
+    fn recovery_connection<R: tauri::Runtime>(
+        app: &AppHandle<R>,
         state: &State<VaultState>,
     ) -> Result<(VaultKey, vault_core::SqlConnection), String> {
         let key = *state
@@ -987,8 +1009,8 @@ mod commands {
     // ── Recovery packages and durable operations (R05/R06) ─────────────────
 
     #[tauri::command]
-    pub fn backup_recovery_key(
-        app: AppHandle,
+    pub fn backup_recovery_key<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<(String, String), String> {
         let (_, conn) = recovery_connection(&app, &state)?;
@@ -999,8 +1021,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_destination_add(
-        app: AppHandle,
+    pub fn backup_destination_add<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         id: String,
         path: String,
@@ -1018,8 +1040,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_destination_add_sftp(
-        app: AppHandle,
+    pub fn backup_destination_add_sftp<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         id: String,
         host: String,
@@ -1061,8 +1083,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_destination_list(
-        app: AppHandle,
+    pub fn backup_destination_list<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<unv_app::recovery_ops::Destination>, String> {
         let (_, conn) = recovery_connection(&app, &state)?;
@@ -1070,8 +1092,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_destination_remove(
-        app: AppHandle,
+    pub fn backup_destination_remove<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         id: String,
     ) -> Result<(), String> {
@@ -1080,8 +1102,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_package(
-        app: AppHandle,
+    pub fn backup_package<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         dest: String,
     ) -> Result<unv_app::recovery_ops::PackageReceipt, String> {
@@ -1090,8 +1112,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_drill(
-        app: AppHandle,
+    pub fn backup_drill<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         dest: String,
     ) -> Result<vault_core::ops::Run, String> {
@@ -1100,8 +1122,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_schedule_add(
-        app: AppHandle,
+    pub fn backup_schedule_add<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         dest: String,
         interval: Option<u64>,
@@ -1122,8 +1144,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_schedule_drill(
-        app: AppHandle,
+    pub fn backup_schedule_drill<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         dest: String,
         day: Option<u8>,
@@ -1143,8 +1165,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn backup_schedule_list(
-        app: AppHandle,
+    pub fn backup_schedule_list<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<vault_core::ops::Schedule>, String> {
         let (_, conn) = recovery_connection(&app, &state)?;
@@ -1152,8 +1174,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn ops_list(
-        app: AppHandle,
+    pub fn ops_list<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<vault_core::ops::Run>, String> {
         let (_, conn) = recovery_connection(&app, &state)?;
@@ -1161,8 +1183,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn ops_show(
-        app: AppHandle,
+    pub fn ops_show<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         id: String,
     ) -> Result<Option<vault_core::ops::Run>, String> {
@@ -1171,8 +1193,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn ops_cancel(
-        app: AppHandle,
+    pub fn ops_cancel<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         id: String,
     ) -> Result<vault_core::ops::Run, String> {
@@ -1187,8 +1209,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn get_class_permissions(
-        app: AppHandle,
+    pub fn get_class_permissions<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         class_id: String,
     ) -> Result<PermissionExprs, String> {
@@ -1202,8 +1224,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn set_class_permissions(
-        app: AppHandle,
+    pub fn set_class_permissions<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         class_id: String,
         permissions: PermissionExprs,
@@ -1219,8 +1241,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn assign_user_class(
-        app: AppHandle,
+    pub fn assign_user_class<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
         class_id: Option<String>,
@@ -1235,8 +1257,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn set_user_password(
-        app: AppHandle,
+    pub fn set_user_password<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
         password: Option<String>,
@@ -1253,8 +1275,8 @@ mod commands {
     // the app cannot disagree about who may have a factor.
 
     #[tauri::command]
-    pub fn totp_status(
-        app: AppHandle,
+    pub fn totp_status<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
     ) -> Result<vault_core::users::TotpStatus, String> {
@@ -1266,8 +1288,8 @@ mod commands {
 
     /// Phase one. This is the **only** call that ever returns the secret.
     #[tauri::command]
-    pub fn totp_enroll(
-        app: AppHandle,
+    pub fn totp_enroll<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
     ) -> Result<vault_core::users::TotpStatus, String> {
@@ -1278,8 +1300,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn totp_confirm(
-        app: AppHandle,
+    pub fn totp_confirm<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
         code: String,
@@ -1291,8 +1313,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn totp_disable(
-        app: AppHandle,
+    pub fn totp_disable<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
     ) -> Result<(), String> {
@@ -1512,8 +1534,8 @@ mod commands {
     /// pairing, permissions, audit chain) over this machine's vault. Local only:
     /// against a remote the database is the server's, and `unv doctor` there.
     #[tauri::command]
-    pub fn doctor_file(
-        app: AppHandle,
+    pub fn doctor_file<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
     ) -> Result<Vec<serde_json::Value>, String> {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
@@ -1724,8 +1746,8 @@ mod commands {
     /// Phase 33.4: `unv user strict-write` / `class` in the app. `subject_kind`
     /// is `user` or `class`; the owner is the only caller the app can have.
     #[tauri::command]
-    pub fn set_strict_write(
-        app: AppHandle,
+    pub fn set_strict_write<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         subject_kind: String,
         subject_id: String,
@@ -1738,8 +1760,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn rename_user(
-        app: AppHandle,
+    pub fn rename_user<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
         new_username: String,
@@ -1747,12 +1769,12 @@ mod commands {
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
         let key = g.as_ref().ok_or("Vault is locked")?;
         let conn = vault_core::open_db(&db_path(&app)?, key)?;
-        vault_core::rename_user(&conn, &user_id, &new_username)
+        vault_core::rename_user(&conn, &user_id, &new_username).map_err(taken)
     }
 
     #[tauri::command]
-    pub fn delete_user(
-        app: AppHandle,
+    pub fn delete_user<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
     ) -> Result<(), String> {
@@ -1764,8 +1786,8 @@ mod commands {
 
     /// Creates a token and returns the plaintext (shown once only).
     #[tauri::command]
-    pub fn create_user_token(
-        app: AppHandle,
+    pub fn create_user_token<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
         description: String,
@@ -1787,8 +1809,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn revoke_user_token(
-        app: AppHandle,
+    pub fn revoke_user_token<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         token_id: String,
     ) -> Result<(), String> {
@@ -1799,8 +1821,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn list_user_tokens(
-        app: AppHandle,
+    pub fn list_user_tokens<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
     ) -> Result<Vec<vault_core::TokenRecord>, String> {
@@ -1811,8 +1833,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn get_user_permissions(
-        app: AppHandle,
+    pub fn get_user_permissions<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
     ) -> Result<PermissionExprs, String> {
@@ -1823,8 +1845,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn set_user_permissions(
-        app: AppHandle,
+    pub fn set_user_permissions<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         user_id: String,
         permissions: PermissionExprs,
@@ -1859,8 +1881,8 @@ mod commands {
     /// users, which keeps the master password off the wire and gives every peer
     /// its own RBAC scope and audit trail.
     #[tauri::command]
-    pub async fn lan_start(
-        app: AppHandle,
+    pub async fn lan_start<R: tauri::Runtime>(
+        app: AppHandle<R>,
         vault: State<'_, VaultState>,
         lan: State<'_, LanState>,
         port: Option<u16>,
@@ -2206,45 +2228,15 @@ fn configure_linux_webkit() {
     default_env("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 }
 
-// ── App entry ─────────────────────────────────────────────────────────────────
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    // Structured logging first, so anything the platform setup below reports is
-    // captured. `info` matches the server: a desktop session is long-lived and
-    // its log is read after the fact, when something has already gone wrong.
-    //
-    // The rule from `vault_core::telemetry` applies here too and matters most in
-    // this binary: log fingerprints, entry ids and provider names — never a
-    // stored value, never the master password, never a session token.
-    vault_core::telemetry::init("unenverse-desktop", "info");
-
-    #[cfg(target_os = "linux")]
-    configure_linux_webkit();
-    tracing::info!(version = env!("CARGO_PKG_VERSION"), "desktop starting");
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        // Restore the window where the user left it.
-        //
-        // VISIBLE is deliberately excluded from the saved flags. Clicking the
-        // tray icon hides the window (see the tray handler in `setup` below),
-        // so with VISIBLE on, hiding to the tray and then quitting would save
-        // "not visible" and the next launch would restore an invisible window —
-        // the app would appear to start and do nothing, with only the tray icon
-        // as a way back. Size and position are what the user actually wants
-        // remembered; visibility is a transient tray state.
-        //
-        // MAXIMIZED is kept: it is an explicit window-manager state the user
-        // set, and restoring maximized is the expected behaviour.
-        .plugin(
-            tauri_plugin_window_state::Builder::default()
-                .with_state_flags(
-                    tauri_plugin_window_state::StateFlags::SIZE
-                        | tauri_plugin_window_state::StateFlags::POSITION
-                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
-                )
-                .build(),
-        )
+/// The state and every IPC command, on any runtime. `run()` adds the window,
+/// plugins and tray around it; the tests drive the same registration through
+/// Tauri's mock runtime, so what they call is what the app ships.
+pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+    // reqwest is built with `rustls-no-provider`, so a client without an explicit TLS
+    // config (an unpinned `remote_request`, OAuth refresh, online enrich, the
+    // catalogue update) panics on build until one provider is the process default.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    builder
         .manage(VaultState(Mutex::new(None)))
         .manage(LanState(Mutex::new(None)))
         .manage(OpsState(Mutex::new(None)))
@@ -2344,6 +2336,47 @@ pub fn run() {
             commands::probe_cert_fingerprint,
             commands::write_export_file,
         ])
+}
+
+// ── App entry ─────────────────────────────────────────────────────────────────
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    // Structured logging first, so anything the platform setup below reports is
+    // captured. `info` matches the server: a desktop session is long-lived and
+    // its log is read after the fact, when something has already gone wrong.
+    //
+    // The rule from `vault_core::telemetry` applies here too and matters most in
+    // this binary: log fingerprints, entry ids and provider names — never a
+    // stored value, never the master password, never a session token.
+    vault_core::telemetry::init("unenverse-desktop", "info");
+
+    #[cfg(target_os = "linux")]
+    configure_linux_webkit();
+    tracing::info!(version = env!("CARGO_PKG_VERSION"), "desktop starting");
+    register(tauri::Builder::default())
+        .plugin(tauri_plugin_shell::init())
+        // Restore the window where the user left it.
+        //
+        // VISIBLE is deliberately excluded from the saved flags. Clicking the
+        // tray icon hides the window (see the tray handler in `setup` below),
+        // so with VISIBLE on, hiding to the tray and then quitting would save
+        // "not visible" and the next launch would restore an invisible window —
+        // the app would appear to start and do nothing, with only the tray icon
+        // as a way back. Size and position are what the user actually wants
+        // remembered; visibility is a transient tray state.
+        //
+        // MAXIMIZED is kept: it is an explicit window-manager state the user
+        // set, and restoring maximized is the expected behaviour.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
         .setup(|app| {
             // ── System Tray (item 18) ────────────────────────────────────────
             let tray = tauri::tray::TrayIconBuilder::new()

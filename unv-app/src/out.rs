@@ -604,6 +604,31 @@ pub fn ok(command: &str, data: Value, text: impl FnOnce()) {
     }
 }
 
+/// A result that is also a failure (`doctor` with a broken check, `uid register`
+/// when every value collided). Text mode shows the result, then the failure. In
+/// envelope mode the result rides inside the error as `error.details`, so stdout
+/// is ONE document: printing a success envelope and then an error envelope is two
+/// JSON values in a row, which no JSON parser reads, on exactly the run a caller
+/// most needs to understand.
+pub fn ok_or_fail(
+    command: &str,
+    data: Value,
+    text: impl FnOnce(),
+    failure: Option<CliError>,
+) -> Result<(), CliError> {
+    match failure {
+        Some(e) if is_json() => Err(e.with_details(data)),
+        Some(e) => {
+            ok(command, data, text);
+            Err(e)
+        }
+        None => {
+            ok(command, data, text);
+            Ok(())
+        }
+    }
+}
+
 /// Print an informational line that is not the command's result.
 ///
 /// Goes to stderr in JSON mode so it cannot corrupt the document a caller is

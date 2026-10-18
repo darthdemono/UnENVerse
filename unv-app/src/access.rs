@@ -106,6 +106,14 @@ pub fn get_password_for(provided: Option<&str>, user: Option<&str>) -> String {
         Some(u) => format!("Password for {u}: "),
         None => "Vault password: ".to_string(),
     };
+    // Windows reads the prompt from the console device, not from stdin, so with
+    // stdin closed or redirected (CI, a scheduled task, a service) it waits for a
+    // console nobody is at, forever. Unix has no controlling terminal in those
+    // cases and fails at once, which becomes the same empty password (denied).
+    #[cfg(windows)]
+    if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        return String::new();
+    }
     rpassword::prompt_password(prompt).unwrap_or_default()
 }
 

@@ -1069,6 +1069,14 @@ pub fn run_now(access: &Access, destination_id: &str) -> CliResult<Run> {
         return Err(CliError::invalid("Operations require local vault access"));
     };
     let conn = access.conn()?;
+    if !list_destinations(&conn)?
+        .iter()
+        .any(|d| d.id == destination_id)
+    {
+        return Err(CliError::not_found(format!(
+            "No destination '{destination_id}'"
+        )));
+    }
     execute_run(
         &conn,
         key,
@@ -1090,6 +1098,14 @@ pub fn run_drill_now(access: &Access, destination_id: &str) -> CliResult<Run> {
         return Err(CliError::invalid("Operations require local vault access"));
     };
     let conn = access.conn()?;
+    if !list_destinations(&conn)?
+        .iter()
+        .any(|d| d.id == destination_id)
+    {
+        return Err(CliError::not_found(format!(
+            "No destination '{destination_id}'"
+        )));
+    }
     run_drill_for_paths(&conn, key, &RecoveryPaths::local(), destination_id).map_err(CliError::from)
 }
 

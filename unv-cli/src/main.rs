@@ -1173,7 +1173,13 @@ enum ApproverCmd {
     /// Devices the hub accepts.
     Ls,
     /// Stop accepting a device, by (at least 8 characters of) its fingerprint.
-    Rm { fingerprint: String },
+    Rm {
+        /// The device's fingerprint, or at least its first 8 characters. Named
+        /// `device` internally: `fingerprint` is the id of the global TLS-pin
+        /// option, and a positional with that id is parsed (and rejected) as a pin.
+        #[arg(value_name = "FINGERPRINT")]
+        device: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1887,7 +1893,10 @@ enum BackupDestAddCmd {
         host: String,
         #[arg(long, default_value_t = 22)]
         port: u16,
-        #[arg(long)]
+        /// The login on the SFTP server. Not `--user`: that name belongs to the
+        /// global option that signs in as a sub-user, and clap cannot tell two
+        /// options with one name apart.
+        #[arg(long = "username")]
         user: String,
         #[arg(long)]
         path: String,
@@ -2142,7 +2151,54 @@ enum PermCmd {
 /// gives the main thread 8 MB): the process died with no output, which the
 /// capability test saw as an empty `describe`. Everything runs on a thread with an
 /// explicit stack instead of relying on the platform default.
+/// True when a panic message is the standard library giving up on a closed pipe.
+///
+/// Rust ignores SIGPIPE, so `println!` into a pipe whose reader has gone away
+/// (`unv describe | head -1`) panics instead of ending the way every other Unix
+/// tool does. The reader stopping is not an error of ours.
+/// A run that ended `failed` is a failure: exit non-zero, with the run (and why)
+/// in the one document printed. A drill that verified nothing must not look like
+/// one that passed.
+fn finish_run(command: &str, label: &str, run: vault_core::ops::Run) -> CliResult {
+    let failure = (run.state == vault_core::ops::RunState::Failed).then(|| {
+        CliError::unavailable(
+            run.error_msg
+                .clone()
+                .unwrap_or_else(|| format!("{label} failed")),
+        )
+    });
+    out::ok_or_fail(
+        command,
+        serde_json::json!({ "run": run }),
+        || println!("{label} {}: {}", run.id, run.state.as_str()),
+        failure,
+    )
+}
+
+fn is_closed_pipe_panic(message: &str) -> bool {
+    // Unix says "Broken pipe"; Windows says "The pipe has been ended" (os error 109)
+    // or "The pipe is being closed" (os error 232).
+    message.starts_with("failed printing to std")
+        && ["Broken pipe", "(os error 109)", "(os error 232)"]
+            .iter()
+            .any(|m| message.contains(m))
+}
+
 fn main() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let payload = info.payload();
+        let message = payload
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| payload.downcast_ref::<&str>().copied())
+            .unwrap_or("");
+        if is_closed_pipe_panic(message) {
+            // The reader chose to stop; there is nothing to report and nothing failed.
+            std::process::exit(0);
+        }
+        default_hook(info);
+    }));
     let worker = std::thread::Builder::new()
         .name("unv".into())
         .stack_size(32 * 1024 * 1024)
@@ -3020,7 +3076,7 @@ fn run_gen_offline(cmd: &GenCmd) -> Option<CliResult> {
         })),
         GenCmd::Ssh { comment, .. } => Some(gen::ssh_keypair(comment, &gen::current()).map(|v| {
             let pubkey = v.get("public_key").and_then(|c| c.as_str()).unwrap_or("").to_string();
-            let private = v.get("private_key_openssh").and_then(|c| c.as_str()).unwrap_or("").to_string();
+            let private = v.get("private_key").and_then(|c| c.as_str()).unwrap_or("").to_string();
             out::ok(
                 "gen.ssh",
                 serde_json::json!({
@@ -3350,7 +3406,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 ApproverCmd::Show => node_cmd::approver_show(),
                 ApproverCmd::Register { label } => node_cmd::approver_register(a, label),
                 ApproverCmd::Ls => node_cmd::approver_ls(a),
-                ApproverCmd::Rm { fingerprint } => node_cmd::approver_rm(a, fingerprint, yes),
+                ApproverCmd::Rm { device } => node_cmd::approver_rm(a, device, yes),
             },
             NodeCmd::Approvals { node, all } => node_cmd::approvals(a, node.as_deref(), *all),
             NodeCmd::Approve { approval } => node_cmd::decide(a, approval, true, yes),
@@ -3749,7 +3805,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 let fields = EntryFields {
                     secret_type: Some("ssh_key".into()),
                     key: v
-                        .get("private_key_openssh")
+                        .get("private_key")
                         .and_then(|c| c.as_str())
                         .map(String::from),
                     notes: v
@@ -3838,8 +3894,8 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 if out::is_json() { println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "ok": true, "command": "backup.recovery-key", "data": { "recipient": recipient, "identity": identity, "warning": "Save this identity now; it will not be shown again. An encrypted vault copy is used only for unlocked restore drills." } })).unwrap_or_default()); }
                 else { println!("Recipient: {recipient}\n\nSave this recovery identity now; it will not be shown again:\n{identity}\n\nAn encrypted vault copy is used only for unlocked restore drills."); }
             }),
-            BackupCmd::Drill { dest } => recovery_ops::run_drill_now(a, dest).map(|run| {
-                out::ok("backup.drill", serde_json::json!({ "run": run }), || println!("Restore drill {}: {}", run.id, run.state.as_str()));
+            BackupCmd::Drill { dest } => recovery_ops::run_drill_now(a, dest).and_then(|run| {
+                finish_run("backup.drill", "Restore drill", run)
             }),
             BackupCmd::Schedule { cmd } => match cmd {
                 BackupScheduleCmd::Add { dest, interval, daily, time_zone, max_lateness } => {
@@ -3877,9 +3933,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             OpsCmd::Cancel { id } => recovery_ops::cancel_run(a, id).map(|run| {
                 out::ok("ops.cancel", serde_json::json!({ "run": run }), || println!("Cancelled {}", run.id));
             }),
-            OpsCmd::Run { dest } => recovery_ops::run_now(a, dest).map(|run| {
-                out::ok("ops.run", serde_json::json!({ "run": run }), || println!("Run {}: {}", run.id, run.state.as_str()));
-            }),
+            OpsCmd::Run { dest } => recovery_ops::run_now(a, dest).and_then(|run| finish_run("ops.run", "Run", run)),
         },
 
         Commands::Enrich {

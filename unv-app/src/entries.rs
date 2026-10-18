@@ -1194,6 +1194,24 @@ pub fn cmd_rename(access: &Access, query: &str, new_name: &str) -> CliResult {
         .unwrap_or("")
         .to_string();
 
+    // The same uniqueness rule `entry add` applies: a provider name plus key id
+    // names exactly one entry. Renaming onto a name already in use would leave two
+    // indistinguishable entries, make every `${ref}` to it ambiguous and every
+    // lookup refuse to pick one.
+    let taken = data::entries(&vault).iter().any(|e| {
+        e.get("id").and_then(|v| v.as_str()).unwrap_or("") != self_id
+            && data::provider_of(e) == new_name
+            && e.get("key_id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                == Some(key_id.as_str()).filter(|s| !s.is_empty())
+    });
+    if taken {
+        return Err(CliError::conflict(format!(
+            "An entry named '{new_name}' already exists — pick another name, or give one of them a distinct key id"
+        )));
+    }
+
     entries_mut(&mut vault)[idx]["provider"] = json!(new_name);
     let rewritten = rename_provider_refs(&mut vault, &self_id, &old, &key_id, new_name);
 
@@ -1675,7 +1693,15 @@ pub fn cmd_cookie(
     let text = match form {
         "header" => crate::cookies::to_cookie_header(&jar),
         "json" => crate::cookies::to_cookie_json(&jar),
-        "curl" => crate::authreq::curl_for(&entry, None),
+        "curl" => {
+            // A session is not an `api_key`: the jar lives in the entry's variables,
+            // so the generic curl builder would print a command with no credential
+            // in it. Present the jar to it as the Cookie header it is.
+            let mut as_cookie = entry.clone();
+            as_cookie["auth_scheme"] = json!("cookie");
+            as_cookie["api_key"] = json!(crate::cookies::to_cookie_header(&jar));
+            crate::authreq::curl_for(&as_cookie, None)
+        }
         "txt" => crate::cookies::to_cookies_txt(&jar).map_err(CliError::invalid)?,
         other => return Err(CliError::invalid(format!("Unknown cookie form '{other}'"))),
     };

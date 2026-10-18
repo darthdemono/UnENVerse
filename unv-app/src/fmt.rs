@@ -76,22 +76,39 @@ pub fn read_stdin() -> CliResult<String> {
     Ok(buf.trim_end_matches('\n').to_string())
 }
 
+/// Create or truncate `path` and write `content`, readable by the owner only.
+///
+/// The file is opened with mode 0600 and, because opening an existing file keeps
+/// its old mode, tightened to 0600 *before* anything is written. A secret never
+/// sits in a world-readable file, not even for the instant between `write` and
+/// a later `chmod`. On other platforms the directory's access list applies.
+fn write_owner_only(path: &std::path::Path, content: &str) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)?;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        file.write_all(content.as_bytes())
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, content)
+    }
+}
+
 /// Write credential material to `path` with 0600 permissions.
 ///
 /// Separate from [`emit`], which is for artefacts: this is for a value that is
 /// itself a secret, so the mode is not optional and there is no stdout branch.
 pub fn write_secret_file(path: &std::path::Path, content: &str) -> CliResult {
-    std::fs::write(path, content)
+    write_owner_only(path, content)
         .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(path)
-            .map_err(|e| CliError::from(e.to_string()))?
-            .permissions();
-        perms.set_mode(0o600);
-        std::fs::set_permissions(path, perms).map_err(|e| CliError::from(e.to_string()))?;
-    }
     crate::matlog::note("file", &path.display().to_string(), content);
     Ok(())
 }
@@ -100,7 +117,9 @@ pub fn write_secret_file(path: &std::path::Path, content: &str) -> CliResult {
 pub fn emit(content: &str, path: Option<&std::path::Path>) -> CliResult {
     match path {
         Some(p) => {
-            std::fs::write(p, content)
+            // Whatever `--out` receives may hold a real value (the help of each
+            // `--out` says 0600), so every file written here is owner-only.
+            write_owner_only(p, content)
                 .map_err(|e| CliError::from(format!("Cannot write {}: {e}", p.display())))?;
             eprintln!("Wrote {}", p.display());
             crate::matlog::note("file", &p.display().to_string(), content);

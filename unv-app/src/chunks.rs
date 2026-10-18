@@ -342,6 +342,20 @@ pub fn rename(access: &Access, project: &str, chunk: &str, new_name: &str) -> Cl
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
+    // The rule `chunk add` applies: a name is unique within its project. Renaming onto
+    // a name in use would leave two chunks `${chunk:Name/Field}` cannot tell apart.
+    let taken = projects(&vault)[pi]["chunks"]
+        .as_array()
+        .is_some_and(|all| {
+            all.iter()
+                .enumerate()
+                .any(|(i, c)| i != ci && c.get("name").and_then(|v| v.as_str()) == Some(new_name))
+        });
+    if taken {
+        return Err(CliError::conflict(format!(
+            "Chunk '{new_name}' already exists in this project"
+        )));
+    }
     projects_mut(&mut vault)[pi]["chunks"][ci]["name"] = json!(new_name);
 
     // `${chunk:Name/Field}` addresses a chunk by name, so a rename that does not

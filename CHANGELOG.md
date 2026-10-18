@@ -9,6 +9,23 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - Coverage reports from CI are uploaded to Codecov when a token is configured.
 - `osv-scanner.toml` records why four dependency advisories do not apply to the shipped program, the same decisions as `deny.toml`.
 
+## 0.56.0 (2026-10-18)
+
+### Added
+
+- Behaviour tests for the whole command line, the hub and node flows, the desktop IPC commands and the TypeScript interface. The command line tests run the real `unv`, a real hub and agent, a KeePass file and an SFTP server; the desktop commands are called on Tauri's mock runtime without a window.
+
+### Fixed
+
+- A failed restore drill reported success and exited 0; it now exits non-zero and says why.
+- The desktop app panicked on any request to a server without a pinned certificate, on OAuth refresh, on online enrichment and on the catalogue update, because no TLS provider was installed.
+- Deleting a class with members left a member with a broad rule of their own unrestricted; it is refused, in the command line and the desktop as it already was on the server.
+- A taken user, class or node-token name showed raw database text and exited as invalid input; it is a conflict with a readable message.
+- Renaming a chunk onto an existing name left two chunks that references could not tell apart.
+- `enrich` proposed the same change on every run.
+- Secret files written by `render --out` and the generic writers are owner-only.
+- Nineteen interface defects found by the TypeScript tests, among them a start-up crash on a null stored setting, a restore without projects, and a stale edit target after a reload.
+
 ## 0.55.1 (2026-10-17)
 
 ### Added

@@ -122,7 +122,7 @@ pub(crate) async fn mint_token(
             Json(serde_json::json!({ "token": token, "expires_at": expires, "name": req.name }))
                 .into_response()
         }
-        Ok(Err(e)) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Ok(Err(e)) => crate::rejected(&e).into_response(),
         Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     }
 }
