@@ -684,10 +684,7 @@ pub fn class_set(
 
 pub fn class_rm(access: &Access, query: &str, yes: bool) -> CliResult {
     let id = resolve_class(access, query)?;
-    if !confirm(
-        &format!("Delete class '{query}'? Members are unassigned."),
-        yes,
-    )? {
+    if !confirm(&format!("Delete class '{query}'?"), yes)? {
         println!("Cancelled.");
         return Ok(());
     }
