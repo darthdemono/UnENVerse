@@ -24,6 +24,7 @@ fn finding(o: &common::Out, check: &str) -> Value {
         .unwrap_or_else(|| panic!("no '{check}' finding in {}", o.stdout))
 }
 
+#[cfg(unix)]
 fn pools_file(v: &Vault) -> std::path::PathBuf {
     v.path("state").join("unv").join("pools.json")
 }
