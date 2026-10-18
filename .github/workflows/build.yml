@@ -898,3 +898,22 @@ jobs:
 
             `vex.openvex.json` is an OpenVEX statement of the dependency advisories
             that do not affect UnENVerse, each with its reason.
+
+  # The site stamps its version and download table from the latest *release*, but
+  # docs.yml normally runs on the push, minutes before the release exists, so the
+  # site kept showing the previous version until the Monday schedule (0.56.0 stayed
+  # invisible for hours). A release created with GITHUB_TOKEN does not trigger
+  # other workflows, but `workflow_dispatch` is the documented exception, so the
+  # last job asks docs.yml to rebuild once the release is public.
+  site:
+    name: Refresh the website
+    needs: [meta, release]
+    if: needs.meta.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # dispatch docs.yml
+    steps:
+      - name: Rebuild the site against the new release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run docs.yml --repo "$GITHUB_REPOSITORY" --ref main
