@@ -88,6 +88,28 @@ too_many_arguments = "allow"
 todo          = "deny"
 unimplemented = "deny"
 
+# Tests and `cargo run` build in the dev profile, where Argon2id (m=64 MiB, t=3)
+# runs 30 to 50 times slower than in release and every test that unlocks a vault
+# paid for it: the Rust test job took 45 minutes. Only the key-derivation and
+# hashing crates are optimised; overflow checks and debug assertions stay on, and
+# release builds are unchanged.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
+[profile.dev.package.scrypt]
+opt-level = 3
+[profile.dev.package.pbkdf2]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.hmac]
+opt-level = 3
+[profile.dev.package.chacha20poly1305]
+opt-level = 3
+[profile.dev.package.curve25519-dalek]
+opt-level = 3
+
 [profile.release]
 panic         = "abort"
 codegen-units = 1
