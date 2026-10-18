@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roadmap to 1.0.0</title>
+  <meta name="description" content="The plan for October 2026 to October 2027 ending in 1.0.0: every remaining phase, the criteria for the release, and what the project will not do.">
+  <link rel="canonical" href="{{SITE_URL}}/roadmap/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Roadmap to 1.0.0">
+  <meta property="og:description" content="The plan for October 2026 to October 2027 ending in 1.0.0: every remaining phase, the criteria for the release, and what the project will not do.">
+  <meta property="og:url" content="{{SITE_URL}}/roadmap/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <h1>Roadmap to 1.0.0</h1>
+      <p class="lead">Plan for 18 October 2026 to October 2027, ending in 1.0.0. It is a statement of intent, not a promise: dates move when a defect, a security finding or a dependency change takes priority. Compatibility and security work always goes before new features.</p>
+      <h2 id="where-it-stands">Where it stands</h2>
+      <p>Phases R00 to R09 are done: baseline, security hotfixes, CI release gating, dependency modernisation, the shared <code>unv-app</code> layer, transactional SQLCipher migrations with local recovery, SFTP backups with retention and restore drills, the metadata and lifecycle core, the lossless config migration core, and full-fidelity import from Bitwarden, 1Password and KeePass. The website (W1), the CLI half of signed updates (R26) and a behaviour-test round across Rust and TypeScript (Phase 56, 0.56.0) are also done.</p>
+      <h2 id="the-year-by-quarter">The year, by quarter</h2>
+      <h3 id="october-to-december-2026-foundations">October to December 2026: foundations</h3>
+      <ul>
+        <li><strong>Release 0.56.0</strong> and measure real test coverage for Rust and TypeScript.</li>
+        <li><strong>R21 Compatibility contract and catalogue URL.</strong> Publish what integrators can rely on (CLI output, exit codes, file formats), test it, and fix the catalogue URL defect.</li>
+        <li><strong>R20 Delete, revoke, forget, rekey.</strong> Every destructive verb does exactly what the UI says; "forget" purges old values from local history; the master password can be changed.</li>
+        <li><strong>R19 Vault identity and single writer.</strong> Detect cloned vaults, keep two hubs from pushing to the same node, and warn about live vaults in synced folders.</li>
+        <li><strong>R18 Desktop CLI bridge.</strong> <code>unv</code> and the tools that call it read allowed values from the unlocked desktop over a local-only channel.</li>
+        <li><strong>R26 Signed desktop updates.</strong> The Tauri updater, using the signed manifest the CLI already verifies.</li>
+        <li><strong>R25 Community files and support bundle.</strong> Issue forms, a demo vault and a redacted support bundle, so help costs a solo maintainer less.</li>
+        <li><strong>R24 Site truth generation.</strong> Release version, CLI reference, supported formats and tested integration versions are generated, so the site cannot drift.</li>
+      </ul>
+      <h3 id="january-to-march-2027-deployment-and-sources">January to March 2027: deployment and sources</h3>
+      <ul>
+        <li><strong>R12 Desktop hub and node deployment.</strong> Deploy rendered configs to node agents from the desktop app, with health checks and approvals that keep their meaning under automation.</li>
+        <li><strong>R10 SOPS, pass and gopass.</strong> Import through the user's own tools, one-way sync while the source is authoritative, and an explicit cutover.</li>
+        <li><strong>R15 UI quality of life.</strong> Keyboard-first task flow, legible lists at scale, and an honest place in the UI for automation (parallel lane).</li>
+        <li><strong>Coverage to the reachable maximum</strong>, TypeScript and Rust (see the 1.0.0 criteria).</li>
+      </ul>
+      <h3 id="april-to-june-2027-rotation-and-reach">April to June 2027: rotation and reach</h3>
+      <ul>
+        <li><strong>R11 OpenBao, Infisical, AWS and Bitwarden Secrets Manager.</strong> Import with versions and references preserved; archive what cannot be operational.</li>
+        <li><strong>R13 Rotation engine.</strong> Rotate at the issuer, deploy through nodes, check consumers, revoke the old credential only when safe. PostgreSQL first.</li>
+        <li><strong>R16 macOS and Windows parity.</strong> macOS built, tested and documented (not claimed before then); Windows file protection and device-key placement brought to the Unix level (parallel lane).</li>
+        <li><strong>R26.1 Package-manager channels.</strong> winget and Scoop manifests; submission needs the maintainer's authorisation.</li>
+        <li><strong>R27 Docker Compose file secrets.</strong> Rotate a credential and deliver it as Compose secret files on every host that uses it.</li>
+      </ul>
+      <h3 id="july-to-september-2027-extension-and-hardening">July to September 2027: extension and hardening</h3>
+      <ul>
+        <li><strong>R14 Plugin foundation.</strong> Third parties add readers, destinations, notifiers and connectors without entering the trusted core.</li>
+        <li><strong>R17 Upstream integration experiments.</strong> Two integrations that reuse mature open-source tools; kept or dropped on evidence.</li>
+        <li><strong>R29 Home Assistant <code>secrets.yaml</code> via a node</strong>, with validation and rollback.</li>
+        <li><strong>R28 Scripts and sibling tools</strong> (EltePortal, Dossify) and **R23 sibling site fixes** (SL2 Analyzer, PingDD). Both touch other repositories and wait for the maintainer's authorisation.</li>
+        <li><strong>Independent security assessment</strong> and the fixes it produces.</li>
+        <li><strong>Release candidates</strong> for 1.0.0.</li>
+      </ul>
+      <h3 id="october-2027-1-0-0">October 2027: 1.0.0</h3>
+      <h2 id="criteria-for-1-0-0">Criteria for 1.0.0</h2>
+      <p>1.0.0 ships when every item below is true, and not before.</p>
+      <ol>
+        <li>Every phase above is complete, or removed from this page with the reason.</li>
+        <li>Test coverage is the reachable maximum for Rust and TypeScript, measured in CI, with each unreachable line (platform-only or defensive code) listed. Tests assert behaviour the documentation promises; the number is only a map.</li>
+        <li>The independent security assessment is done and its findings fixed or documented in <a href="https://github.com/darthdemono/UnENVerse/blob/main/SECURITY.md">SECURITY.md</a>.</li>
+        <li>Fuzz targets run as a release gate, and a release builds reproducibly.</li>
+        <li>Release tags are signed, and releases carry signatures, provenance and SBOMs.</li>
+        <li>The OpenSSF Best Practices Passing and Baseline badges hold, and Silver and Gold are met wherever one maintainer can meet them (see below).</li>
+        <li>macOS is shipped only if it is built, tested and documented.</li>
+        <li>A vault written by any 0.x release since 0.42 opens, with a backup kept first.</li>
+      </ol>
+      <h2 id="openssf-silver-and-gold">OpenSSF Silver and Gold</h2>
+      <p>Some criteria need more than one person: a bus factor of two, two unassociated significant contributors, two-person review and a second holder of the release keys. The plan is to keep the project open to a second maintainer (see <a href="https://github.com/darthdemono/UnENVerse/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> and the <code>good first issue</code> label) rather than to claim those criteria early. Everything else is in the plan above: source headers, signed tags, reproducible builds, fuzzing in the release gate and the coverage targets.</p>
+      <h2 id="what-the-project-will-not-do">What the project will not do</h2>
+      <ul>
+        <li>Charge for it, gate a feature behind payment, or require a cloud service.</li>
+        <li>Run an always-on daemon: scheduled work runs while the desktop app is open and the vault is unlocked, and the docs and UI say so.</li>
+        <li>Claim macOS support, or any integration, before it is built and tested.</li>
+        <li>Let automation satisfy a human-approval requirement.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

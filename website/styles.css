@@ -232,3 +232,6 @@ footer.site a { color: var(--ink); }
 /* Headings that follow a lead paragraph or a list need air above them. */
 main .wrap > h2:not(:first-child) { margin-top: 40px; }
 ol.steps > li > h2 { margin-top: 0; font-size: clamp(1.25rem, 2.4vw, 1.6rem); }
+
+.badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0; }
+.badges img { display: block; height: 28px; width: auto; }
