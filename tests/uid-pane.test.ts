@@ -91,3 +91,68 @@ describe('Unique IDs pane', () => {
     expect(calls[1][2]).toEqual({ before: '2026-01-01', dry_run: false });
   });
 });
+
+describe('Unique IDs pane edges', () => {
+  it('mints with defaults, shows a server refusal and an empty body', async () => {
+    const calls = await boot({ status: 500, body: null });
+    ($('uid-length') as HTMLInputElement).value = '';
+    $('uid-mint-btn').click();
+    await flush();
+    expect(calls[0][2]).toEqual({ length: 32 });
+    expect($('uid-status').textContent).toBe('Refused (500)');
+    expect($('uid-output').textContent).toBe('');
+  });
+
+  it('reports a transport failure by message, or by string for a non-Error', async () => {
+    for (const thrown of [new Error('down'), 'plain']) {
+      vi.resetModules();
+      const calls = await boot({ status: 200, body: {} });
+      void calls;
+      const { st } = await import('../src/ts/state');
+      (st.store as any).uidRequest = async () => {
+        throw thrown as Error;
+      };
+      $('uid-stats-btn').click();
+      await flush();
+      expect($('uid-status').textContent).toContain(
+        `Could not reach the server: ${String(thrown instanceof Error ? thrown.message : thrown)}`,
+      );
+    }
+  });
+
+  it('check sends the trimmed lines and lookup the first', async () => {
+    const calls = await boot({ status: 200, body: {} });
+    ($('uid-values') as HTMLTextAreaElement).value = ' a \n\nb';
+    $('uid-check-btn').click();
+    $('uid-lookup-btn').click();
+    await flush();
+    expect(calls[0][2]).toEqual({ values: ['a', 'b'] });
+    expect(calls[1][2]).toEqual({ value: 'a' });
+  });
+
+  it('a declined prune confirmation sends nothing', async () => {
+    vi.resetModules();
+    vi.doMock('../src/ts/utils', async (importOriginal) => {
+      const real = await importOriginal<typeof import('../src/ts/utils')>();
+      return { ...real, showConfirm: async () => false };
+    });
+    const calls = await boot({ status: 200, body: {} });
+    ($('uid-prune-before') as HTMLInputElement).value = '2026-01-01';
+    $('uid-prune-btn').click();
+    await flush();
+    expect(calls).toHaveLength(0);
+    vi.doUnmock('../src/ts/utils');
+  });
+
+  it('real prune without a date is refused', async () => {
+    const calls = await boot({ status: 200, body: {} });
+    $('uid-prune-btn').click();
+    await flush();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('init is a no-op when the pane is not mounted', async () => {
+    document.body.innerHTML = '';
+    (await import('../src/ts/uid-pane')).initUidPane();
+  });
+});
