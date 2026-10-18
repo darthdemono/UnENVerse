@@ -7,3 +7,4 @@
 - [ ] A UI change has a matching CLI change (or an entry in `tests/fixtures/parity/capabilities.json`)
 - [ ] Test data does not look like a real credential
 - [ ] No secrets, vault files or personal data in the diff
+- [ ] I wrote this change or have the right to submit it under Apache-2.0 ([Developer Certificate of Origin](https://developercertificate.org/))

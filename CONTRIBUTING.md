@@ -11,7 +11,21 @@ tests, docs and new importers or exporters are very welcome.
 - **Security problems are not issues.** Report them privately, as described in
   [SECURITY.md](SECURITY.md).
 - By contributing you agree your work is licensed under Apache-2.0, the licence of
-  this repository. Be kind: see the [Code of Conduct](CODE_OF_CONDUCT.md).
+  this repository, and you certify the
+  [Developer Certificate of Origin 1.1](https://developercertificate.org/): you wrote
+  the change or have the right to submit it under that licence. The pull request
+  template carries this as a checkbox you tick; adding `Signed-off-by` to your
+  commits (`git commit -s`) is welcome but not required. Be kind: see the
+  [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Good first issues
+
+Small tasks for new or casual contributors carry the
+[`good first issue`](https://github.com/darthdemono/UnENVerse/labels/good%20first%20issue)
+label. They are scoped to one file or one command, say what the expected behaviour
+is, and name the test to extend. Typical ones: a documentation fix, a missing test
+for a documented behaviour, a clearer error message, a new importer fixture. Comment
+on the issue before you start so two people do not do the same work.
 
 ## Reporting a bug
 
@@ -60,6 +74,31 @@ It is slow the first time. While iterating, `npm run check` (TypeScript side) an
 - Test data must not look like real credentials (GitHub push protection will
   reject the push).
 - Do not run a formatter over `index.html` or `tests/fixtures/`.
+
+## How review works
+
+Every change reaches `main` through a pull request and the `CI result` check
+(ruleset in [GOVERNANCE.md](GOVERNANCE.md)). The reviewer, who is never only the
+author when a second person is available, checks:
+
+1. **Behaviour.** The change does what the issue or the README says, and a bug fix
+   has a regression test that fails without the fix.
+2. **Invariants.** Nothing breaks the rules in [AGENTS.md](AGENTS.md): entries are
+   never identified by index, vault data is escaped, references are resolved by the
+   shared resolver, hidden controls are not treated as gates, and UI and CLI stay in
+   step.
+3. **Security.** Redaction stays fail-closed, no secret reaches a log, an error or a
+   test fixture, and a new route or command has a permission check and a test. Read
+   [THREAT_MODEL.md](THREAT_MODEL.md) when the change adds an input.
+4. **Scope.** Refactors, features, migrations and dependency upgrades are separate
+   changes, and the diff has no unrelated edits.
+5. **Checks.** `npm run preflight` is green, coverage did not fall, and a
+   user-visible change has a `CHANGELOG.md` line.
+
+A change is acceptable when all five hold. The reviewer approves or says what is
+missing; unresolved comments block the merge. While the project has one maintainer,
+the maintainer reviews outside contributions and checks their own against the same
+list before merging.
 
 ## Dependencies
 
