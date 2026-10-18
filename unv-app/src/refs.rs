@@ -422,7 +422,11 @@ pub fn resolve_ref(
                         continue;
                     }
                     let raw = f.get("value").and_then(|v| v.as_str()).unwrap_or("");
-                    if depth < 4 && raw.starts_with("${") && raw.ends_with('}') && raw.len() > 3 {
+                    if raw.starts_with("${") && raw.ends_with('}') && raw.len() > 3 {
+                        // A cycle past the depth limit is unresolved, never the literal `${...}`.
+                        if depth >= 4 {
+                            return None;
+                        }
                         return resolve_ref(
                             entries,
                             projects,
@@ -706,6 +710,20 @@ mod binding_ref_tests {
         assert_eq!(
             projects[0]["chunks"][0]["fields"][0]["value"],
             json!("${DB_PASSWORD}")
+        );
+    }
+
+    #[test]
+    fn cyclic_chunk_reference_is_unresolved_not_literal_text() {
+        // Regression: past the depth limit a cycle returned its own `${...}`
+        // text as if it were the value.
+        let projects = vec![json!({
+            "id": "app",
+            "chunks": [{ "name": "db", "fields": [{ "key": "LOOP", "value": "${chunk:db/LOOP}" }] }],
+        })];
+        assert_eq!(
+            resolve_ref(&[], &projects, "chunk:db/LOOP", "api_key", 0),
+            None
         );
     }
 }
