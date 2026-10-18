@@ -14,10 +14,10 @@ export default defineConfig({
       include: ['src/ts/**/*.ts'],
       exclude: ['src/ts/types.ts'],
       reporter: ['text', 'html', 'lcov', 'json-summary'],
-      // A floor just under the measured figures (statements 71.85, branches
-      // 61.53, functions 73.63, lines 74.24 on 2026-10-17). It stops the number
+      // A floor just under the measured figures (statements 99.52, branches
+      // 95.35, functions 99.13, lines 99.9 on 2026-10-18). It stops the number
       // sliding, nothing more: raise it when coverage rises, never to chase it.
-      thresholds: { statements: 71, branches: 60, functions: 73, lines: 74 },
+      thresholds: { statements: 99, branches: 95, functions: 99, lines: 99 },
     },
   },
 });

@@ -479,7 +479,11 @@ export function resolveFieldRef(
         if (chunk.name !== chunkName) continue;
         const f = chunk.fields.find((ff) => ff.key === fieldKey);
         if (!f) continue;
-        if (_depth < 4 && /^\$\{.+}$/.test(f.value)) {
+        if (/^\$\{.+}$/.test(f.value)) {
+          // A chain that is still pointing at another reference after four hops is a cycle
+          // (or as good as one). Handing back the unresolved `${...}` text as if it were a
+          // value wrote that literal into exported configs, so it is reported unresolved.
+          if (_depth >= 4) return { resolved: null, refName, unresolved: true, source: null };
           const nested = resolveFieldRef(f.value, useEnvCopyField, _depth + 1);
           return {
             resolved: nested.resolved,
@@ -604,7 +608,6 @@ export function renameProviderRefs(
 }
 
 function chunkFieldCopyText(key: string, value: string, chunkType: string): string {
-  if (chunkType === 'env_file') return `${key}=${value}`;
   if (chunkType === 'wg_interface' || chunkType === 'wg_peer') return `${key} = ${value}`;
   if (chunkType === 'ssh_host') return `    ${key} ${value}`;
   if (chunkType.startsWith('nginx_')) return `${key} ${value};`;
@@ -1442,7 +1445,6 @@ export function renderChunkCard(chunk: SecretChunk, project: Project): HTMLEleme
 
 function serviceChunkToYaml(sc: SecretChunk): string {
   const yamlStr = (v: string): string => {
-    if (!v) return '""';
     if (/[\s:#[\]{},|>&*!'"@`]/.test(v)) return JSON.stringify(v);
     return v;
   };
@@ -1666,7 +1668,6 @@ export function exportDockerCompose(project: Project): { yaml: string; envFile: 
   const envLines: string[] = [];
 
   const yamlStr = (v: string): string => {
-    if (!v) return '""';
     if (/[\s:#[\]{},|>&*!'"@`]/.test(v)) return JSON.stringify(v);
     return v;
   };
@@ -2033,7 +2034,7 @@ export function renderDockerServicesCard(project: Project): HTMLElement {
         </div>
       </div>${scalarsHtml.length ? html`<div class="docker-service-scalars">${scalarsHtml}</div>` : ''}
       ${subCards.length ? html`<div class="docker-service-subcards">${subCards}</div>` : ''}
-      ${!scalarsHtml.length && !subCards ? html`<div class="dsvc-empty">No fields — click Edit to configure</div>` : ''}</div>`;
+      ${!scalarsHtml.length && !subCards.length ? html`<div class="dsvc-empty">No fields — click Edit to configure</div>` : ''}</div>`;
   };
 
   const card = document.createElement('div');

@@ -1323,6 +1323,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
   onboardingCompleted: false,
 };
 
+/**
+ * Merge a stored settings object into `into`, keeping only values of the kind the setting
+ * has. The blob is plain JSON anyone can edit, and a `null` or a wrong-typed value (a string
+ * where a list belongs) used to replace the default and crash the first `.slice` that read it.
+ */
+function mergeStoredSettings(into: AppSettings, from: unknown): void {
+  if (typeof from !== 'object' || from === null || Array.isArray(from)) return;
+  const defaults = DEFAULT_SETTINGS as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(from)) {
+    if (value === null || value === undefined) continue;
+    const def = defaults[key];
+    if (def !== undefined && def !== null) {
+      if (Array.isArray(def) !== Array.isArray(value) || typeof def !== typeof value) continue;
+    }
+    (into as unknown as Record<string, unknown>)[key] = value;
+  }
+}
+
 export const Settings = {
   _data: { ...DEFAULT_SETTINGS } as AppSettings,
   get<K extends keyof AppSettings>(k: K): AppSettings[K] {
@@ -1345,11 +1363,11 @@ export const Settings = {
   async init() {
     try {
       const r = await fetch('./settings.json');
-      if (r.ok) Object.assign(this._data, await r.json());
+      if (r.ok) mergeStoredSettings(this._data, await r.json());
     } catch {}
     try {
       const s = localStorage.getItem('unenverse-settings');
-      if (s) Object.assign(this._data, JSON.parse(s));
+      if (s) mergeStoredSettings(this._data, JSON.parse(s));
     } catch {}
     // One-time migration: env/tags/prefixes became configurable sidebar sections.
     // Earlier installs persisted a list without them — merge them in once so they
@@ -1622,7 +1640,7 @@ export function restoreViewState(): boolean {
   const v = Settings.get('lastView');
   if (!v || typeof v !== 'object') return false;
 
-  const entries = st.vault.api_keys || [];
+  const entries = st.vault.api_keys;
   let applied = false;
 
   if (Array.isArray(v.expandedBundleIds)) {
@@ -1652,7 +1670,7 @@ export function restoreViewState(): boolean {
   st.bundleSlotTabs = validSlotTabs;
   applied ||= Object.keys(validSlotTabs).length > 0;
 
-  const categories = new Set(st.vault.user_categories || []);
+  const categories = new Set(st.vault.user_categories);
   const okFilter =
     v.filterType === 'all' ||
     (v.filterType === 'price' && entries.some((e) => e.price_type === v.filterValue)) ||
@@ -1705,7 +1723,7 @@ export function restoreViewState(): boolean {
     }
   }
 
-  const known = new Set((st.vault.projects || []).map((p) => p.id));
+  const known = new Set(st.vault.projects.map((p) => p.id));
   const projects = (Array.isArray(v.projectIds) ? v.projectIds : []).filter((id) => known.has(id));
   if (projects.length) {
     st.currentSelectedProjectIds = projects;
@@ -2032,7 +2050,7 @@ export function disambiguateNames(names: GeneratedName[]): string[] {
 
   return names.map((g) => {
     const key = g.name.toUpperCase();
-    if ((counts.get(key) ?? 0) < 2) return g.name;
+    if (counts.get(key)! < 2) return g.name;
     if (!taken.has(key)) {
       taken.add(key);
       return g.name;
@@ -2045,14 +2063,15 @@ export function disambiguateNames(names: GeneratedName[]): string[] {
     // the template), so appending it again can never disambiguate anything: the
     // two colliding names already contain it. Ordinals it is, and they are
     // stable for a given entry because the emission order is.
-    for (let n = 2; n <= names.length + 2; n++) {
+    // Never runs out: at most `names.length` candidates are taken, so one of the first
+    // `names.length + 1` ordinals is free.
+    for (let n = 2; ; n++) {
       const c = `${g.name}_${n}`;
       if (!used.has(c.toUpperCase())) {
         used.add(c.toUpperCase());
         return c;
       }
     }
-    return g.name;
   });
 }
 

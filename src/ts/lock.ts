@@ -83,8 +83,8 @@ export async function lockVault(reason: 'auto' | 'manual' | 'visibility' = 'manu
   closeModal();
   triggerRender();
 
-  const lockStatus = document.getElementById('lock-status');
-  if (lockStatus) lockStatus.textContent = 'Locked';
+  const lockStatus = document.getElementById('lock-status')!;
+  lockStatus.textContent = 'Locked';
 
   if (st.store instanceof TauriVaultStore) showRelockScreen(reason);
   else {
@@ -165,20 +165,20 @@ export function resetLock() {
   _warnTimer = null;
 
   const mins = Settings.get('autoLockMinutes');
-  const lockStatus = document.getElementById('lock-status');
+  const lockStatus = document.getElementById('lock-status')!;
 
   // Suspended while serving: peers are actively using the vault, and the host
   // not touching the keyboard is not a reason to cut them off. lan.ts closes an
   // idle server instead, which lands back here and re-arms the timer.
   if (st.lanServerRunning) {
     st.lockTimer = null;
-    if (lockStatus) lockStatus.textContent = 'Auto-lock: paused (serving LAN)';
+    lockStatus.textContent = 'Auto-lock: paused (serving LAN)';
     return;
   }
 
   if (!mins || mins <= 0) {
     st.lockTimer = null;
-    if (lockStatus) lockStatus.textContent = 'Auto-lock: Off';
+    lockStatus.textContent = 'Auto-lock: Off';
     return;
   }
 
@@ -192,7 +192,7 @@ export function resetLock() {
   }
 
   st.lockTimer = setTimeout(() => void lockVault('auto'), ms);
-  if (lockStatus) lockStatus.textContent = `Auto-lock: ${mins}min`;
+  lockStatus.textContent = `Auto-lock: ${mins}min`;
 
   // Bind activity listeners once — any mouse or keyboard event resets the timer.
   if (!_activityBound) {
@@ -310,7 +310,7 @@ export function showUnlockModal(isFirstRun: boolean) {
       const servers = recentServers();
       const items: ({ label: HtmlValue; active: boolean; fn: () => void } | '---')[] = [
         {
-          label: '&nbsp;&nbsp;Local Vault',
+          label: html`&nbsp;&nbsp;Local Vault`,
           active: !serverField.value,
           fn: () => {
             serverField.value = '';
@@ -404,8 +404,8 @@ export function showUnlockModal(isFirstRun: boolean) {
         st.store = remote;
         st.activeRemoteId = cfg.id;
         Settings.set('remote', { enabled: true, serverUrl });
-        const nameEl = document.getElementById('vault-name');
-        if (nameEl) nameEl.textContent = cfg.name;
+        const nameEl = document.getElementById('vault-name')!;
+        nameEl.textContent = cfg.name;
         overlay.classList.remove('open');
         document.getElementById('header')!.style.display = '';
         renderRemotePanel();

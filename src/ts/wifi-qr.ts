@@ -26,6 +26,6 @@ export function showWifiQr(uri: string, ssid: string): void {
  * should not sit in the DOM of a screen nobody is looking at. */
 export function hideWifiQr(): void {
   document.getElementById('wifi-qr-overlay')?.classList.remove('open');
-  const body = document.getElementById('wifi-qr-body');
-  if (body) setHtml(body, '');
+  const body = document.getElementById('wifi-qr-body')!;
+  setHtml(body, '');
 }

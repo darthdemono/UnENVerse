@@ -498,7 +498,7 @@ export async function liveCodeFor(entry: VaultEntry, withNext = false): Promise<
   // is `st.vaultOpen` regardless of whether that vault is local or remote.
   if (!st.vaultOpen) return null;
   const params = totpParamsOf(entry);
-  const secret = normalizeB32(entry.totp_secret || '');
+  const secret = normalizeB32(entry.totp_secret!);
   const key = cacheKey(secret, params, withNext);
   const hit = codeCache.get(key);
   if (hit && hit.expiresAt > Date.now()) {
@@ -558,7 +558,7 @@ export async function liveCodeFor(entry: VaultEntry, withNext = false): Promise<
 export function lastTotpError(entry: VaultEntry, withNext = false): string | null {
   if (!hasTotp(entry)) return null;
   const params = totpParamsOf(entry);
-  const secret = normalizeB32(entry.totp_secret || '');
+  const secret = normalizeB32(entry.totp_secret!);
   return lastError.get(cacheKey(secret, params, withNext)) ?? null;
 }
 

@@ -178,7 +178,7 @@ export function buildCopyText(entry: VaultEntry, opts: CopyOpts = {}): string {
   for (const xv of entry.extra_vars ?? []) {
     if (xv.key) values.push(xv.value ?? '');
   }
-  unique.forEach((name, i) => lines.push(`${name}=${quoteEnvValue(values[i] ?? '')}`));
+  unique.forEach((name, i) => lines.push(`${name}=${quoteEnvValue(values[i])}`));
 
   const push = (name: string, value: string) => lines.push(`${name}=${quoteEnvValue(value)}`);
 

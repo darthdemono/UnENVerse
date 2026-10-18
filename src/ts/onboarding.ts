@@ -291,8 +291,8 @@ function buildSteps(): Step[] {
 function closeForAction(): void {
   if (!_overlay) return;
   _detachKeys?.();
-  const header = document.getElementById('header');
-  if (header) header.style.display = '';
+  const header = document.getElementById('header')!;
+  header.style.display = '';
   if (document.body.contains(_overlay)) document.body.removeChild(_overlay);
   _overlay = null;
   Settings.set('onboardingCompleted', true);
