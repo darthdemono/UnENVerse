@@ -127,6 +127,13 @@ impl Vault {
         self.run_with(&["--server", &server.url], args)
     }
 
+    /// Same, with the human (non-JSON) output.
+    pub fn on_text(&self, server: &Server, args: &[&str]) -> crate::common::Out {
+        let mut all = vec!["--server", server.url.as_str()];
+        all.extend_from_slice(args);
+        self.run_text(&all)
+    }
+
     /// Run as a named user with that user's password.
     pub fn as_user(
         &self,
