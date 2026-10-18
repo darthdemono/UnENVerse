@@ -1,6 +1,6 @@
 {
   "name": "unenverse",
-  "version": "0.56.0",
+  "version": "0.56.1",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -30,7 +30,8 @@
     "docs": "node scripts/docs.mjs",
     "docs:rust": "cargo doc --workspace --no-deps",
     "preflight": "bash scripts/preflight.sh",
-    "check": "npm run version:check && npm run format:check && npm run lint && npm run typecheck && npm test",
+    "spdx:check": "node scripts/spdx.mjs",
+    "check": "npm run version:check && npm run spdx:check && npm run format:check && npm run lint && npm run typecheck && npm test",
     "docs:all": "npm run docs && npm run docs:rust"
   },
   "devDependencies": {
