@@ -32,13 +32,13 @@ that enforces it, so it can be checked.
   public (`out.rs`). The server binds `127.0.0.1` by default. Materialising
   paths are explicit and logged.
 - **Complete mediation.** Permissions apply before filtering, and gates are
-  enforced at the write, not only in the UI (AGENTS.md invariant 8; each gate is
+  enforced at the write, not only in the UI (CONTRIBUTING.md rule 8; each gate is
   verified by reverting it alone). `--dry-run` is enforced inside `Access::save`.
 - **Least privilege.** Scoped users and tokens; a node never holds a vault key;
   workflows use job-level minimal permissions.
 - **Economy of mechanism and a single implementation.** One Rust implementation
   is reached over IPC; where logic must exist twice, one golden fixture is
-  asserted from both sides (invariant 10).
+  asserted from both sides (CONTRIBUTING.md rule 10).
 - **Open design.** The format and algorithms are public; security rests on the
   key, not on secrecy of the design.
 - **Separation of privilege.** Widening changes are owner-only; node pushes can
@@ -46,19 +46,19 @@ that enforces it, so it can be checked.
 
 ## Common weaknesses and how each is countered
 
-| Weakness (OWASP / CWE)                                     | Countermeasure                                                                                                                                                                                               |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Injection and XSS (CWE-79, CWE-89)                         | Every vault field is escaped through the `html` tagged template; only `http(s):` URLs become links (invariant 4); a strict CSP in `tauri.conf.json`; SQLCipher access through parameterised `rusqlite` calls |
-| Memory safety (CWE-119, CWE-416)                           | Rust for the core, CLI, server and desktop shell; no C of our own                                                                                                                                            |
-| Weak or broken cryptography (CWE-327)                      | Argon2id (m=65536, t=3, p=1), SQLCipher, Ed25519 signatures, SHA-256, rustls with TLS 1.2+ (TLS 1.3 only for nodes); no SHA-1 or unauthenticated modes in security mechanisms                                |
-| Improper certificate validation (CWE-295)                  | One verifier in `vault-core/src/tls.rs`; there is no "do not verify" policy and `danger_accept_invalid_certs` appears nowhere in the workspace; pins are never silently re-pinned                            |
-| Missing authentication or authorisation (CWE-306, CWE-862) | Per-route permission checks, owner-only routes, sessions that end when a user, token, password or permission changes                                                                                         |
-| Brute force (CWE-307)                                      | Rate limiting on failed server logins; Argon2id cost on the vault                                                                                                                                            |
-| Timing side channels (CWE-208)                             | Constant-time comparison for secrets                                                                                                                                                                         |
-| Sensitive data exposure (CWE-200, CWE-532)                 | Fail-closed redaction, one list of secret fields (`SECRET_FIELDS`), owner-only file modes for every written output                                                                                           |
-| Vulnerable dependencies (CWE-1395)                         | Committed `Cargo.lock` and `package-lock.json`, `cargo deny`, `npm audit`, OSV scanner, Dependabot, CodeQL                                                                                                   |
-| Tampered release or update (CWE-494)                       | Keyless Sigstore signatures, build provenance, SBOMs, separately signed update manifest and catalogue                                                                                                        |
-| Log and history forgery (CWE-117)                          | Hash-chained audit log and config history that anchor their first row; `unv audit --verify`                                                                                                                  |
+| Weakness (OWASP / CWE)                                     | Countermeasure                                                                                                                                                                                                          |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Injection and XSS (CWE-79, CWE-89)                         | Every vault field is escaped through the `html` tagged template; only `http(s):` URLs become links (CONTRIBUTING.md rule 4); a strict CSP in `tauri.conf.json`; SQLCipher access through parameterised `rusqlite` calls |
+| Memory safety (CWE-119, CWE-416)                           | Rust for the core, CLI, server and desktop shell; no C of our own                                                                                                                                                       |
+| Weak or broken cryptography (CWE-327)                      | Argon2id (m=65536, t=3, p=1), SQLCipher, Ed25519 signatures, SHA-256, rustls with TLS 1.2+ (TLS 1.3 only for nodes); no SHA-1 or unauthenticated modes in security mechanisms                                           |
+| Improper certificate validation (CWE-295)                  | One verifier in `vault-core/src/tls.rs`; there is no "do not verify" policy and `danger_accept_invalid_certs` appears nowhere in the workspace; pins are never silently re-pinned                                       |
+| Missing authentication or authorisation (CWE-306, CWE-862) | Per-route permission checks, owner-only routes, sessions that end when a user, token, password or permission changes                                                                                                    |
+| Brute force (CWE-307)                                      | Rate limiting on failed server logins; Argon2id cost on the vault                                                                                                                                                       |
+| Timing side channels (CWE-208)                             | Constant-time comparison for secrets                                                                                                                                                                                    |
+| Sensitive data exposure (CWE-200, CWE-532)                 | Fail-closed redaction, one list of secret fields (`SECRET_FIELDS`), owner-only file modes for every written output                                                                                                      |
+| Vulnerable dependencies (CWE-1395)                         | Committed `Cargo.lock` and `package-lock.json`, `cargo deny`, `npm audit`, OSV scanner, Dependabot, CodeQL                                                                                                              |
+| Tampered release or update (CWE-494)                       | Keyless Sigstore signatures, build provenance, SBOMs, separately signed update manifest and catalogue                                                                                                                   |
+| Log and history forgery (CWE-117)                          | Hash-chained audit log and config history that anchor their first row; `unv audit --verify`                                                                                                                             |
 
 ## Residual risk
 

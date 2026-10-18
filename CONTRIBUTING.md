@@ -65,8 +65,8 @@ It is slow the first time. While iterating, `npm run check` (TypeScript side) an
 - **UI and CLI stay in step.** Whatever the desktop app can do, the `unv` CLI can
   do, and the reverse. The exceptions are listed in `tests/fixtures/parity/capabilities.json`.
 - **Never identify an entry by array index**, and treat vault data as untrusted
-  input (escape every field). The full list of rules every change must respect is
-  under "Invariants" and "Working rules" in [AGENTS.md](AGENTS.md).
+  input (escape every field). The full list is under "Rules every change must
+  respect" below.
 - Keep refactors, features, schema migrations and dependency upgrades in separate
   commits.
 - A user-visible change adds a line to `CHANGELOG.md` under Unreleased, and notes the
@@ -83,10 +83,8 @@ author when a second person is available, checks:
 
 1. **Behaviour.** The change does what the issue or the README says, and a bug fix
    has a regression test that fails without the fix.
-2. **Invariants.** Nothing breaks the rules in [AGENTS.md](AGENTS.md): entries are
-   never identified by index, vault data is escaped, references are resolved by the
-   shared resolver, hidden controls are not treated as gates, and UI and CLI stay in
-   step.
+2. **Invariants.** Nothing breaks the rules under "Rules every change must
+   respect" below.
 3. **Security.** Redaction stays fail-closed, no secret reaches a log, an error or a
    test fixture, and a new route or command has a permission check and a test. Read
    [THREAT_MODEL.md](THREAT_MODEL.md) when the change adds an input.
@@ -99,6 +97,36 @@ A change is acceptable when all five hold. The reviewer approves or says what is
 missing; unresolved comments block the merge. While the project has one maintainer,
 the maintainer reviews outside contributions and checks their own against the same
 list before merging.
+
+## Rules every change must respect
+
+1. **Never identify an entry by array index.** Use `entryId(entry)`; resolve
+   `data-idx` at once and never hold it across an `await` or user interaction.
+2. **Renames and deletes cascade.** Projects and categories nest by `/`; remap
+   `projectIds` before the dangling-reference prune. A provider rename also renames
+   the references in chunk fields.
+3. **Replacing the vault resets view state** in both directions of a vault switch
+   and repaints. Locking also clears the undo stack.
+4. **Vault data is untrusted input.** Escape every field with the `html` tagged
+   template; only `http(s):` URLs become links.
+5. **Copy and export resolve references** with the shared resolver, never by
+   matching `${...}` by hand (Docker Compose output keeps `${VAR}` on purpose).
+6. **Encoding.** Use `TextEncoder` before base64 for UTF-8, and never spread a large
+   byte array into `String.fromCharCode`.
+7. **Persisted ids are validated on read**, and a feature flag that hides UI gates
+   creation only.
+8. **A hidden control is not a gate.** Enforce a rule at the write as well as at the
+   paint, and prove each gate by reverting it alone.
+9. **Handlers on re-shown screens are assigned** (`el.onclick =`), not added.
+10. **Capability parity.** What the UI can do the CLI can do and the reverse, with
+    exemptions in `capabilities.json`. Prefer one Rust implementation reached over
+    IPC; when logic must exist twice, pin it with one golden fixture asserted from
+    both sides.
+
+Security rules that are never relaxed: redaction is fail-closed (a field prints only
+if listed public), there is one list of secret fields, `--dry-run` is enforced inside
+the save path, secrets are compared in constant time, a certificate is never silently
+re-pinned, and a hash chain anchors its first row.
 
 ## Dependencies
 
