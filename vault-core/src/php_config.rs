@@ -293,14 +293,55 @@ impl P<'_> {
 
     fn number(&mut self) -> Value {
         let start = self.i;
+        let negative = self.peek() == Some(b'-');
         if matches!(self.peek(), Some(b'-' | b'+')) {
             self.i += 1;
         }
-        while matches!(self.peek(), Some(b) if b.is_ascii_digit() || b == b'.' || b == b'e' || b == b'E' || b == b'_')
-        {
+        // PHP's integer syntax: `0x1A` hex, `0b101` binary, `0o17` and a leading-zero
+        // `0755` octal. Read as decimal, a file mode of 0755 would come out as 755.
+        let radix = match (
+            self.peek(),
+            self.s.get(self.i + 1).map(u8::to_ascii_lowercase),
+        ) {
+            (Some(b'0'), Some(b'x')) => Some(16),
+            (Some(b'0'), Some(b'b')) => Some(2),
+            (Some(b'0'), Some(b'o')) => Some(8),
+            _ => None,
+        };
+        if let Some(radix) = radix {
+            self.i += 2;
+            let digits_from = self.i;
+            while matches!(self.peek(), Some(b) if (b as char).is_digit(radix) || b == b'_') {
+                self.i += 1;
+            }
+            let digits = String::from_utf8_lossy(&self.s[digits_from..self.i]).replace('_', "");
+            return match i64::from_str_radix(&digits, radix) {
+                Ok(n) => Value::from(if negative { -n } else { n }),
+                Err(_) => Value::Null,
+            };
+        }
+        while matches!(self.peek(), Some(b) if b.is_ascii_digit() || b == b'.' || b == b'_') {
             self.i += 1;
         }
+        // An exponent may carry its own sign: `2.5E-2`, `1e+6`.
+        if matches!(self.peek(), Some(b'e' | b'E')) {
+            self.i += 1;
+            if matches!(self.peek(), Some(b'-' | b'+')) {
+                self.i += 1;
+            }
+            while matches!(self.peek(), Some(b) if b.is_ascii_digit()) {
+                self.i += 1;
+            }
+        }
         let text: String = String::from_utf8_lossy(&self.s[start..self.i]).replace('_', "");
+        let unsigned = text.trim_start_matches(['-', '+']);
+        let all_digits = !unsigned.is_empty() && unsigned.bytes().all(|b| b.is_ascii_digit());
+        if all_digits && unsigned.len() > 1 && unsigned.starts_with('0') {
+            return match i64::from_str_radix(unsigned, 8) {
+                Ok(n) => Value::from(if negative { -n } else { n }),
+                Err(_) => Value::Null,
+            };
+        }
         if let Ok(n) = text.parse::<i64>() {
             return Value::from(n);
         }
