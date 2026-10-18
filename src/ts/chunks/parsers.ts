@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * Config-file parsers — turn a pasted or imported config

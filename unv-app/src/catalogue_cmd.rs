@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv catalogue` — the signed provider catalogue (Phase 31).
 //!
 //! The format, signature and cache rules live in `vault_core::catalogue`; this

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Shared by the efficacy probes (Phase 32 / 32.1): did a user-visible thing
  * change after an action? Two signals, because each misses what the other sees:

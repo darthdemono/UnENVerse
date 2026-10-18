@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * The secret-type registry — Phase 24.5.

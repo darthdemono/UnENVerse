@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * "Open to LAN" must not be offered while a remote vault is connected.
  *

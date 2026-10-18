@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Generators — the Tools panel's secret / password / certificate / SSH panes.
 //!
 //! None of these touch the vault, so they work with no password and no server.

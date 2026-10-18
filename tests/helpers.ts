@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file Shared fixtures for the UI tests.
  *

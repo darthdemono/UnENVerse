@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `${…}` reference resolution — the Rust twin of `resolveFieldRef` in
 //! `src/ts/chunk-ops.ts`.
 //!

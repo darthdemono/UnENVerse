@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Entry CRUD — the terminal half of the add/edit form, plus the card actions
 //! (pin, tag, mark rotated, mark compromised) and version history.
 

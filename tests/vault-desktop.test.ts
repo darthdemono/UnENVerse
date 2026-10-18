@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Starting the app inside the desktop shell, and what happens to a vault as it
  * opens: the lock screen it starts on, how an older vault is brought up to date

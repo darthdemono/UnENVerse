@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 fn main() {
     // The app binary gets its Windows manifest from tauri-build. The integration
     // tests link the same Tauri runtime without it, so Windows cannot resolve the

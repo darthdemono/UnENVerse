@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Importing and exporting authenticator seeds — the TypeScript half (Phase 22).
  *

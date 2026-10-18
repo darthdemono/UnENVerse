@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 36 through the real binary, for the local half of blast radius: what
 //! `unv exec` and `--out` hand to this machine is logged by name, never by
 //! value, and a later rotation takes the entry off the list to rotate.

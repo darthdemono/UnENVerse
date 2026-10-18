@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * Copy profiles — how much of an entry a copy or an export actually emits.

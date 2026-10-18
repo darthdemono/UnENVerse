@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The buttons on a config view and on its chunks: reordering within a kind,
  * duplicating, deleting, adding docker networks and volumes, every import path

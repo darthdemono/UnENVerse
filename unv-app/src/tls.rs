@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The CLI's TLS policy — set once from the global flags, read by the one
 //! function that builds an HTTP client.
 //!

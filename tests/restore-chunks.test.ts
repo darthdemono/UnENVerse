@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { describe, expect, it } from 'vitest';
 import { applyRestore, canRestore, describePlan, planRestore } from '../src/ts/restore-chunks';
 import type { Project } from '../src/ts/types';

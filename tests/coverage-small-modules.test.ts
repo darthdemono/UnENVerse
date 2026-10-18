@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Branch coverage for small pure modules: file-cred, composite.
  * Each case names the shape of input that reaches the branch.

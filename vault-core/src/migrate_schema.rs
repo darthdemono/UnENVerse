@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Ordered, recorded SQLCipher schema migrations.
 //!
 //! Migration 0001 captures the complete pre-R05 schema, including the explicit

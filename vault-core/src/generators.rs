@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Cryptographic key and certificate generators.
 //!
 //! Every generator here takes an [`crate::entropy::Source`]. That is the whole

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! RFC 6238 time-based one-time passwords.
 //!
 //! # Two callers, one generator

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Import TOML config values as environment-style name/value pairs.
 
 use std::collections::BTreeMap;

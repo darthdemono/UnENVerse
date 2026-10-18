@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The app shell once a vault is open: the sidebar filters, the type chips, the
  * search box, the sort menu and the layout controls.

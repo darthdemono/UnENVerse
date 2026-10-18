@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Restoring from an encrypted backup or a plain JSON export: what a damaged or
  * minimal file does. A restore replaces the whole vault, so every refusal must

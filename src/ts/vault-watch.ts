@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * Notice when something *else* writes the vault, and pick the change up.

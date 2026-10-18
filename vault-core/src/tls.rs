@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Shared TLS client policy — the one place that decides whether a server is
 //! trusted.
 //!

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! A reader for PHP array literals, enough for application config files such as
 //! Nextcloud's `config/config.php` (Phase 38.1, ADR-0148).
 //!

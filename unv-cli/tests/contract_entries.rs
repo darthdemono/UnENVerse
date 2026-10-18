@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Entries: importing, enriching, presets and the lifecycle commands, as the
 //! README describes them ("Secrets", "Importing existing secrets", "Templates",
 //! "Secrets UnENVerse recognises on sight").

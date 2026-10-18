@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import type { Project, SecretChunk, ChunkField, ChunkFieldType } from '../types';
 import { st, triggerRender, persist } from '../state';
 import { showToast, delSVG } from '../utils';

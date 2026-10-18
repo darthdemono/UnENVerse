@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import type { VaultEntry, SecretType } from './types';
 import { renderComposite, renderErrorMessage, type CompositeKind } from './composite';
 import {

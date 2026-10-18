@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 34 — Nodes: the protocol, the hub's registry and the node's config.
 //!
 //! A **hub** is an `unv-server` holding the vault. A **node** is an agent on

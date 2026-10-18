@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The materialising formats ("Web sessions, composites and bundles", `unv emit`,
 //! `unv cookie`, `unv cxf`): each writes a credential in the shape the consuming
 //! tool reads, and each follows the one output rule: refused to a terminal

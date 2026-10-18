@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The settings that only exist in the desktop app: the signed provider
  * catalogue, the full-fidelity archive, recovery packages with destinations and

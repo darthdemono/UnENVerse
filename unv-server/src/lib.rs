@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv-server` — remote vault HTTP server, usable as a binary or embedded.
 //!
 //! The desktop app hosts this same router in-process for "Open to LAN", serving

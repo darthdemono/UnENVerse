@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The desktop half of a stored TOTP seed: what the app actually sends over IPC
  * and what it paints with the answer (Phase 22).

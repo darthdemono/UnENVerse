@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! What the README promises about secret values and the CLI ("The CLI",
 //! sections 1 and 2), checked by running the real binary:
 //!

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Restore drills ("Backups", README): a drill restores the latest completed
 //! package into a scratch location and verifies it, without activating it.
 //!

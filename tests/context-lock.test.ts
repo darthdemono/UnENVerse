@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 17 · 1.4 — switching to a remote must not leave the local key resident.
  *

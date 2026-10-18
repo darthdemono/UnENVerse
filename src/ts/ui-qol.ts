@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { Settings, pushRecentSearch, RECENT_SEARCH_MAX, st } from './state';
 import { inTauri, invokeTauri } from './tauri';
 import { html, raw, setHtml } from './html';

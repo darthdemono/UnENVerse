@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! File-shaped credentials — Phase 23, E17.
 //!
 //! The twin of `src/ts/file-cred.ts`.

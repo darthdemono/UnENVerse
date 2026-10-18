@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Shared harness for the behaviour tests that run the real `unv` binary.
 //!
 //! Every run is isolated: its own vault under a unique temp directory, its own

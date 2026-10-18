@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Entry icons: Simple Icons slugs and files embedded in the vault.
  *

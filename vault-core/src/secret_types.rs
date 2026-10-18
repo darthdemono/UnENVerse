@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The secret-type registry — Phase 24.5.
 //!
 //! Sixteen new types on top of the existing ten would be ~190 edit sites done

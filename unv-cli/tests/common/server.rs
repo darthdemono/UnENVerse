@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! A real `unv-server` for the tests that need one, started in-process on an
 //! ephemeral loopback port over a vault the test already created with the CLI.
 //!

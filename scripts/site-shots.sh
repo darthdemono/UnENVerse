@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 # Turns raw app screenshots into the site's WebP images and writes the manifest
 # that build-site.mjs reads for width/height (so every <img> reserves its space).
 #

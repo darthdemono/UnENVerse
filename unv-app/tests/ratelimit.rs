@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The Rust half of the rate-limit parser's cross-implementation parity.
 //!
 //! Cases live in `tests/fixtures/parity/rate-limit.json` at the repository

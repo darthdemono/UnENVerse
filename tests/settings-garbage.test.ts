@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Settings are plain JSON in browser storage, so anything may be in there: an
  * older build's blob, a hand edit, a key set to null. The app must still start,

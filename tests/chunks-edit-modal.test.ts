@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * `chunks/edit-modal.ts` — the add/rename/retype/delete editor for a chunk's
  * fields.

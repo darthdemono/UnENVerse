@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! User management, token management, and RBAC for UnENVerse.
 //!
 //! Users are stored in the SQLCipher-encrypted vault database — they can only

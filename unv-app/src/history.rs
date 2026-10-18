@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 35 — the config time machine's one dispatcher (ADR-0141).
 //!
 //! The CLI (local), `unv-server` (`POST /api/history`) and the desktop app (the

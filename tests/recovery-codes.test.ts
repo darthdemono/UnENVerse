@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { codeStatus, markUsed, nextCode } from '../src/ts/recovery-codes';

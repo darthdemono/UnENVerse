@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv-server` binary — CLI wrapper around the [`unv_server`] library.
 //!
 //! Everything substantive lives in the library so the desktop app can host the

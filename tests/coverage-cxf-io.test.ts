@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for cxf-io.ts: the import and export flows around the IPC bridge. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { makeEntry, makeVault, resetState } from './helpers';

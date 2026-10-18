@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The two vault stores speak to the outside world: the desktop one over Tauri
  * commands, the remote one over REST. What they send is a contract with the

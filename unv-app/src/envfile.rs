@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `.env` parsing, import and watch — the file-drop path from the UI.
 //!
 //! Also home to **the environment-variable name template** and **`.env`

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Generators and entropy sources ("Entropy sources", README, and `unv gen`):
 //!
 //! * `gen ssh` produces an Ed25519 key in OpenSSH format, the private half is

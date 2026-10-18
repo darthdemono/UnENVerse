@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * Pure secret-generation logic, shared by the Tools panel's generator panes

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { describe, expect, it } from 'vitest';
 import fixture from './fixtures/parity/config-readers.json';
 import { parseDockerCompose, parseNginxConf, parseWgConf } from '../src/ts/chunks/parsers';

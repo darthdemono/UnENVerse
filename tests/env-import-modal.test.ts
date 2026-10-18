@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Dropping a file on the vault: .env, Python config, YAML and JSON, and the
  * "which variables, with what settings" dialog they lead to.

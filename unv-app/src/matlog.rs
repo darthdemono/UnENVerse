@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 36 — the materialisation log (ADR-0142).
 //!
 //! Local `unv exec`, `--out` and revealed output are deliberately not in the

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv exec` — run a command with secrets in its environment.
 //!
 //! This is the command that makes "an agent never touches a key" true rather

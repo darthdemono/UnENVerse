@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import { st, applyUsersPanelVisibility, switchPanel, inTauri } from './state';
 import { showToast, showConfirm, clipboardWrite, errorMessage } from './utils';
 import { invokeTauri } from './tauri';

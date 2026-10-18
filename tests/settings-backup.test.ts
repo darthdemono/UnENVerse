@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Settings -> backup, recovery and housekeeping controls (desktop app).
  *

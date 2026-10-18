@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! How a credential is *sent* — Phase 23, E16.
 //!
 //! The twin of `src/ts/auth-request.ts`, pinned by

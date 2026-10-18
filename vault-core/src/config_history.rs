@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 35 — the config time machine (ADR-0141).
 //!
 //! Config lives in git and its secrets live elsewhere, and the two drift: the

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Health scan, audit-chain verification and vault statistics — the Tools
 //! panel's read-only analyses, ported from `src/ts/tools.ts` and `src/ts/audit.ts`.
 

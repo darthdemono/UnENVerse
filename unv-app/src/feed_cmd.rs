@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv calendar feed` — subscribable `.ics` URLs served by `unv-server`
 //! (Phase 24.3). Server-side only: there is nothing local to serve a feed from,
 //! so every command here refuses against `Access::Local` with an explanation

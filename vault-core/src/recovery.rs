@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Streamed age-encrypted recovery packages (`.unvpkg`, format v1).
 
 use age::secrecy::ExposeSecret;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import type { AuditRow } from './types';
 import { st, RemoteVaultStore } from './state';
 import { showToast, clipboardWrite, errorMessage } from './utils';

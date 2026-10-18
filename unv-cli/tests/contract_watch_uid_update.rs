@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv watch`, `unv uid prune`, `unv catalogue update` and `unv update install`:
 //!
 //! * watch syncs a `.env` change into the vault while it runs, and a missing file

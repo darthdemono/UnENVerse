@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Bundles ("Web sessions, composites and bundles", README): one card holding
 //! several whole entries. Members stay ordinary entries, so unbundling is
 //! lossless; `dissolve` and `remove` delete nothing, `delete` is the one verb

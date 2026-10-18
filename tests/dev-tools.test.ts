@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The developer tools: generators, converters, the JWT decoder, the CIDR
  * calculator and the cron explainer.

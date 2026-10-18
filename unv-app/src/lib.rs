@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Shared application engine for the CLI, desktop app and optional server.
 //!
 //! This is the former library half of `unv-cli`. It owns the reusable vault

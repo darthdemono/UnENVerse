@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 36 — blast radius (ADR-0142).
 //!
 //! After a compromise the question is always *which credentials were on that

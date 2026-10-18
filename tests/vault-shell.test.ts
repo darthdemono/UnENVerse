@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The app shell in `vault.ts`: sidebar filter buttons, the card context menu
  * and the global key handler. These bind once against index.html, so the suite

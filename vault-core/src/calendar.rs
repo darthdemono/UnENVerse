@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! iCalendar (RFC 5545) feed for the vault's dates — the Rust twin of
 //! `src/ts/calendar.ts`.
 //!

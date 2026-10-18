@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * "Link to vault": turning plain KEY=value lines of an env-file chunk into
  * references to vault entries (matching ones) or into new entries (everything

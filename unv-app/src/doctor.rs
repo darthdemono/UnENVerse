@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv doctor` — everything that can be checked about a vault without
 //! changing it.
 //!

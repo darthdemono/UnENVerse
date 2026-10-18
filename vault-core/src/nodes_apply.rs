@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 34 — the filesystem half of a node: hash a target, apply bytes to it
 //! transactionally, and keep the last few versions.
 //!

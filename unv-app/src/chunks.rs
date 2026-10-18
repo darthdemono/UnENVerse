@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Chunk CRUD inside a project, plus project-level config export.
 
 use crate::access::Access;

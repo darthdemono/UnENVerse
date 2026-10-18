@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 23, steps 4–7 — the behaviour changes that are not covered by a parity
  * fixture because they live on one side only.

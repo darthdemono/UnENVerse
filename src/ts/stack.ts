@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Stack integrations as data (Phase 38, ADR-0144): the TypeScript half of the
  * interpreter for `vault-core/data/stack-adapters.json`.

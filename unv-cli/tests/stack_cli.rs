@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 38 through the real binary: a Prometheus project is created (behind the
 //! experimental flag), grown from its descriptor, exported with secrets masked on
 //! stdout and real in a file, and checked by `unv check`.

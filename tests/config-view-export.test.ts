@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Exporting and importing a structured project: each project type's Export
  * button must offer to copy and to download the real rendered file, under the

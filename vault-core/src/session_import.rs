@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Web-session capture parsers (Phase 24.5, step 3).
 //!
 //! One implementation, in `vault-core`: the app reaches it over IPC and the CLI

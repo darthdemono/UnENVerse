@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for totp.ts: URI edge cases, builders, live codes and the ticker. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 

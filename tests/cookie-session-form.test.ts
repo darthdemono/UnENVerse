@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Entering a browser session in the add/edit form: splitting a pasted jar,
  * importing a captured request, checking it against a site's preset, and the

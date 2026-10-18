@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Unlocking and auto-locking: what a person is told, and what is kept or wiped.
  *

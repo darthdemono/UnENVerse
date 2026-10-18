@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv reset-vault` (Phase 33.5): refuses without `--yes` off a terminal, and
 //! removes exactly the vault and its salt.
 use std::process::{Command, Stdio};

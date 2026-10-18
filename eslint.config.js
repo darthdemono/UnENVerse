@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 // ESLint flat config.
 //
 // Two things this file is deliberately *not* doing:

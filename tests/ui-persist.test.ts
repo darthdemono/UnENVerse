@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Persistence of UI state across sessions, plus the QOL affordances added
  * alongside it.

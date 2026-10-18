@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Several writers, one database (roadmap: chaos testing, storage level).
 //!
 //! Each scenario puts two or more connections to the same SQLCipher file in the

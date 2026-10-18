@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv node` — Nodes (Phase 34, ADR-0140).
 //!
 //! Two halves in one command group, because the operator types both:

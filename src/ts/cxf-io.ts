@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * FIDO Credential Exchange (CXF) import/export — Phase 24.5, desktop half.

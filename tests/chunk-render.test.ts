@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The remaining chunk-ops surface: clipboard formatting, the nginx↔certificate
  * linking helpers, and the chunk card renderer.

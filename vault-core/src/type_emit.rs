@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Per-type emitters and validators for the Phase 24.5 credential types.
 //!
 //! The registry (`secret-types.json`) says which types exist; this is what a few

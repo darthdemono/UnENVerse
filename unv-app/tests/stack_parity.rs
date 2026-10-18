@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The Rust half of the stack-adapter check (Phase 38).
 //!
 //! `tests/stack.test.ts` pins the TypeScript interpreter against the golden

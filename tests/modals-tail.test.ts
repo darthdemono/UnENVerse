@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Corners of the entry form and card menus: tooltips from the schema, pasting a
  * seed, editing blobs and cookie jars, refusing an entry that would hold

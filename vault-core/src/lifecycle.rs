@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Credential generations and lifecycle facts (roadmap R07).
 //!
 //! Entry JSON holds current descriptive state. This module holds generations,

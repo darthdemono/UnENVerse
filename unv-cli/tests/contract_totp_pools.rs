@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Authenticator codes and key pools, as the README describes them
 //! ("Authenticator codes", "Key pools"):
 //!

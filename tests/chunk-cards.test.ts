@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * How a chunk card draws its fields: reference badges (vault, .env, chunk,
  * unresolved), docker service lists as badges, JSON values pretty-printed,

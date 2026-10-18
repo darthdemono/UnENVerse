@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 30.1: persist() sends a delta when the last-synced state can be trusted
  * and the whole document when it cannot. The server and Rust halves are tested

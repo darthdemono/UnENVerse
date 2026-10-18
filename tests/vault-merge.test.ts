@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The app's half of row-level merging (Phase 30). The storage layer decides what
  * merges (`vault-core/src/storage.rs`); what is asserted here is what the app does

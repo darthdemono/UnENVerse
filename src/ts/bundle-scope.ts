@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Bundle-local template resolution (Phase 24.1, step 4). */
 import type { Project, VaultEntry } from './types';
 import { renderComposite, type CompositeKind, type RenderError } from './composite';

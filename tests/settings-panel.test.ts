@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Settings panel. Theme and accent apply live so you can see what you are
  * choosing, which makes the save/cancel/escape paths the interesting part —

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * The edges of the small helper modules: what each says for input at the limit
  * of what it accepts. Each is a sentence a person could be shown.

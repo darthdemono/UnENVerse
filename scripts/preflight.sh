@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 # Runs, locally, the same gates CI runs on every push (ci.yml). Run it before
 # committing: `npm run preflight`. Rust formatting and clippy are the two that
 # have gone red in CI most often.

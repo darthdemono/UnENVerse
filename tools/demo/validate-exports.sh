@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright the UnENVerse contributors.
 # Exports every demo project and feeds each file to the tool that will really read it:
 # `docker compose config`, `nginx -t` and WireGuard's own parser. A config that only
 # round-trips through our parser proves little; a config the real tool refuses is a bug.

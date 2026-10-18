@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * What the buttons on an entry card do, and the keyboard shortcuts around them.
  *

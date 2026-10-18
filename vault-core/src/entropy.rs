@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Entropy sources for secret generation.
 //!
 //! The point of this module is a rule that is easy to state and easy to get

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 import type { VaultEntry, Project } from './types';
 import { st } from './state';
 

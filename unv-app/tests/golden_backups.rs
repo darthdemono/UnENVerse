@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Golden `.vaultbak` and `.vaultarc` files (roadmap R01, project phase 43).
 //!
 //! The fixtures in `fixtures/backups-0.42.x/` were written by the 0.42.4 build

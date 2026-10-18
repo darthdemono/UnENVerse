@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * @file
  * ENV chunk <-> vault linking — match plain `KEY=value` env-file fields

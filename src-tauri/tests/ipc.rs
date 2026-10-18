@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! The desktop's IPC commands, called the way the webview calls them: through
 //! the real registration (`unenverse_lib::register`) on Tauri's mock runtime.
 //! What is held to account is the contract the UI relies on: a locked vault

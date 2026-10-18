@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /**
  * Phase 24.5's form-side behaviour for the sixteen new types: the primary
  * value is optional for all of them (none has a `primary` in the registry),

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! `unv check [PROJECT]` — cross-chunk checks (Phase 29).
 //!
 //! The rules live in `vault_core::config_check` so the desktop app asks the same

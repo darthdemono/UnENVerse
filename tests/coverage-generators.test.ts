@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 /** Branch coverage for generators.ts: every format, charset flag and pattern. */
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import {

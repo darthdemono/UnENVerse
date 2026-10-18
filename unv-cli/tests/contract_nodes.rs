@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Nodes ("Nodes", README), the hub side driven through the real `unv` and a
 //! real `unv-server --nodes`:
 //!

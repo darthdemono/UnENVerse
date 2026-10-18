@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Phase 54: `unv update` refuses everything unverified and never loses the
 //! working executable. All fixtures are local; no network.
 

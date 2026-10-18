@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 //! Pool inspection, history lookups and the publisher commands:
 //!
 //! * `pool show` lists each member with its use count and whether it cools,
