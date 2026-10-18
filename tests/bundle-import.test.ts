@@ -127,4 +127,17 @@ describe('bundle import: the real Discord bot config (acceptance)', () => {
     const r = importPythonConfig(src);
     expect(r.vars.map((v) => !!v.public)).toEqual([false, false, false, false, true]);
   });
+
+  // Bug: an expression kept as source text that happened to read as prose (it has a
+  // space and no long mixed word) was marked public, so `x = 'pw' + 'hunter2'` printed.
+  it('source text the importer did not understand is never public', () => {
+    const src = [
+      "joined = 'pw' + 'hunter2'",
+      "call = decode('a b', 3)",
+      "escaped = 'two words \\q'",
+      "expr = f'{name.upper()} words'",
+    ].join('\n');
+    const r = importPythonConfig(src);
+    expect(r.vars.map((v) => !!v.public)).toEqual([false, false, false, false]);
+  });
 });

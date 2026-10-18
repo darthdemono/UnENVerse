@@ -366,6 +366,10 @@ pub fn import_python_config(text: &str) -> BundleImport {
         let source = strip_comment(source_full).trim();
 
         let (value, kind, extra): (String, &str, Option<String>);
+        // Source text the importer did not understand: it may hold a credential
+        // behind a neutral name (`x = "pw" + "hunter2"` reads as prose), so it is
+        // never judged safe to print.
+        let mut unread = false;
         let quoted = read_quoted(source).filter(|(_, _, rest)| {
             let r = rest.trim();
             r.is_empty() || r.starts_with('#')
@@ -380,6 +384,7 @@ pub fn import_python_config(text: &str) -> BundleImport {
                     value = source.to_string();
                     kind = "string";
                     extra = None;
+                    unread = true;
                 }
                 Some(body) if is_f => match convert_fstring(&body, &bound) {
                     None => {
@@ -389,6 +394,7 @@ pub fn import_python_config(text: &str) -> BundleImport {
                         value = body;
                         kind = "string";
                         extra = None;
+                        unread = true;
                     }
                     Some((text, rewrote)) => {
                         for (from, to) in rewrote {
@@ -443,6 +449,7 @@ pub fn import_python_config(text: &str) -> BundleImport {
             extra = Some(format!(
                 "{name} is not a supported literal; imported as source text"
             ));
+            unread = true;
         }
         if let Some(w) = extra {
             warnings.push(format!("line {line_no}: {w}"));
@@ -461,7 +468,7 @@ pub fn import_python_config(text: &str) -> BundleImport {
         }
         taken.insert(key.clone());
         bound.insert(name.to_string(), key.clone());
-        let public = is_public(name, kind, &value, &public_keys);
+        let public = !unread && is_public(name, kind, &value, &public_keys);
         if public {
             public_keys.insert(key.clone());
         }
