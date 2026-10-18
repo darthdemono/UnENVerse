@@ -670,10 +670,33 @@ fn parse_bitwarden(label: String, source_bytes: Vec<u8>) -> Result<Parsed, Strin
     Ok(parsed)
 }
 
+/// A .1pux section field's value is an object keyed by its type
+/// (`{"concealed": "…"}`, `{"totp": "otpauth://…"}`, `{"url": "…"}`), not a bare string.
+const ONEPASSWORD_TYPED_VALUES: [&str; 10] = [
+    "string",
+    "concealed",
+    "totp",
+    "url",
+    "phone",
+    "reference",
+    "menu",
+    "gender",
+    "creditCardNumber",
+    "creditCardType",
+];
+
 fn onepassword_field_value(field: &Value) -> Option<String> {
     text(field.get("value"))
         .or_else(|| text(field.get("v")))
         .or_else(|| scalar(field.get("value").unwrap_or(&Value::Null)))
+        .or_else(|| {
+            let typed = field.get("value")?.as_object()?;
+            ONEPASSWORD_TYPED_VALUES
+                .iter()
+                .find_map(|kind| text(typed.get(*kind)))
+                .or_else(|| typed.get("monthYear").and_then(scalar))
+                .or_else(|| text(typed.get("email").and_then(|e| e.get("email_address"))))
+        })
 }
 
 fn onepassword_fields(item: &Value) -> Vec<&Value> {
@@ -685,6 +708,15 @@ fn onepassword_fields(item: &Value) -> Vec<&Value> {
             .flatten(),
     );
     if let Some(details) = item.get("details") {
+        // The login's own username and password sit here in a real .1pux, marked by
+        // `designation`, apart from the sections.
+        fields.extend(
+            details
+                .get("loginFields")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten(),
+        );
         fields.extend(
             details
                 .get("fields")
@@ -743,7 +775,10 @@ fn onepassword_item(item: &Value, vault_name: Option<String>) -> Result<Item, Ar
     let mut extra_vars = Vec::new();
     let mut reports = Vec::new();
     for field in onepassword_fields(item) {
-        let label = text(field.get("label")).unwrap_or_else(|| "field".into());
+        let label = text(field.get("label"))
+            .or_else(|| text(field.get("title")))
+            .or_else(|| text(field.get("name")))
+            .unwrap_or_else(|| "field".into());
         let id = text(field.get("id")).unwrap_or_default();
         let purpose = text(field.get("purpose")).unwrap_or_default();
         let designation = text(field.get("designation")).unwrap_or_default();
@@ -759,7 +794,7 @@ fn onepassword_item(item: &Value, vault_name: Option<String>) -> Result<Item, Ar
             || id == "website"
             || label.eq_ignore_ascii_case("website");
         let is_totp = purpose.eq_ignore_ascii_case("OTP")
-            || id.contains("otp")
+            || id.to_ascii_lowercase().contains("otp")
             || label.to_ascii_lowercase().contains("one-time")
             || label.to_ascii_lowercase().contains("otp");
         if is_password {
