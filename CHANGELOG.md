@@ -4,9 +4,20 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.56.1 (2026-10-18)
+
+### Changed
+
+- Rust tests build the key-derivation and hashing crates optimised, so a test that unlocks a vault no longer pays for a debug-build Argon2id. A slow contract file went from 111 s to 9 s.
+- CI runs the Rust tests only for the crates a change can affect, and none for a TypeScript-only change. The desktop and command-line release builds start beside the CI gate instead of after it; publishing still needs the gate.
+- Rust coverage is measured on a runner (`coverage-rust.yml`) and uploaded to Codecov under the `rust` flag.
+
 ### Added
 
 - Coverage reports from CI are uploaded to Codecov when a token is configured.
+- A year roadmap to 1.0.0 on the website (`/roadmap/`), in the README and in the docs book, with the criteria for the release and what the project will not do.
+- Every source file carries an SPDX licence line and a copyright line; `npm run spdx:check` (part of `npm run check`) fails when one is missing.
+- `ASSURANCE_CASE.md` argues that the documented security requirements are met, and CONTRIBUTING.md now documents code review, good first issues and the Developer Certificate of Origin (a checkbox in the pull request template).
 - `osv-scanner.toml` records why four dependency advisories do not apply to the shipped program, the same decisions as `deny.toml`.
 
 ## 0.56.0 (2026-10-18)
