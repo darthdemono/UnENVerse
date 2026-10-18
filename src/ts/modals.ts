@@ -315,18 +315,18 @@ export function dynamicSecretFields() {
   const type = (document.getElementById('f-secret-type') as HTMLSelectElement).value as SecretType;
   const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.api_key;
 
-  const keyGroup = document.getElementById('f-key-group');
+  const keyGroup = document.getElementById('f-key-group')!;
   const keyLabelEl = document.getElementById('f-key-label');
-  const secretGroup = document.getElementById('f-secret-group');
-  const usernameRow = document.getElementById('f-username-row');
-  const certGroup = document.getElementById('f-cert-group');
-  const certKeyGroup = document.getElementById('f-cert-key-group');
-  const certIssuerGroup = document.getElementById('f-cert-issuer-group');
-  const blobGroup = document.getElementById('f-blob-group');
-  const accountGroup = document.getElementById('f-account-group');
+  const secretGroup = document.getElementById('f-secret-group')!;
+  const usernameRow = document.getElementById('f-username-row')!;
+  const certGroup = document.getElementById('f-cert-group')!;
+  const certKeyGroup = document.getElementById('f-cert-key-group')!;
+  const certIssuerGroup = document.getElementById('f-cert-issuer-group')!;
+  const blobGroup = document.getElementById('f-blob-group')!;
+  const accountGroup = document.getElementById('f-account-group')!;
   const providerLabel = document.getElementById('f-provider-label');
   const providerInput = document.getElementById('f-provider') as HTMLInputElement | null;
-  const envvarSubtypeGroup = document.getElementById('f-envvar-subtype-group');
+  const envvarSubtypeGroup = document.getElementById('f-envvar-subtype-group')!;
 
   const showKey =
     type !== 'certificate' && type !== 'file_blob' && type !== 'composite' && type !== 'bundle';
@@ -335,27 +335,27 @@ export function dynamicSecretFields() {
   // A composite's payload is its template plus its parts (extra_vars); a
   // bundle's is entirely its members and its local variables (extra_vars).
   // Neither has a single primary value the way every other type does.
-  const templateGroup = document.getElementById('f-template-group');
-  if (templateGroup) templateGroup.style.display = type === 'composite' ? 'flex' : 'none';
+  const templateGroup = document.getElementById('f-template-group')!;
+  templateGroup.style.display = type === 'composite' ? 'flex' : 'none';
   if (type === 'composite') refreshCompositePreview();
 
-  if (keyGroup) keyGroup.style.display = showKey ? 'flex' : 'none';
-  if (secretGroup) secretGroup.style.display = showSecret ? 'flex' : 'none';
-  if (usernameRow) usernameRow.style.display = showUser ? 'grid' : 'none';
-  if (certGroup) certGroup.style.display = type === 'certificate' ? 'flex' : 'none';
-  if (certKeyGroup) certKeyGroup.style.display = type === 'certificate' ? 'flex' : 'none';
-  if (certIssuerGroup) certIssuerGroup.style.display = type === 'certificate' ? 'flex' : 'none';
-  if (blobGroup) blobGroup.style.display = type === 'file_blob' ? 'flex' : 'none';
-  if (accountGroup) accountGroup.style.display = cfg.showAccount ? '' : 'none';
-  if (envvarSubtypeGroup) envvarSubtypeGroup.style.display = type === 'env_var' ? 'flex' : 'none';
+  keyGroup.style.display = showKey ? 'flex' : 'none';
+  secretGroup.style.display = showSecret ? 'flex' : 'none';
+  usernameRow.style.display = showUser ? 'grid' : 'none';
+  certGroup.style.display = type === 'certificate' ? 'flex' : 'none';
+  certKeyGroup.style.display = type === 'certificate' ? 'flex' : 'none';
+  certIssuerGroup.style.display = type === 'certificate' ? 'flex' : 'none';
+  blobGroup.style.display = type === 'file_blob' ? 'flex' : 'none';
+  accountGroup.style.display = cfg.showAccount ? '' : 'none';
+  envvarSubtypeGroup.style.display = type === 'env_var' ? 'flex' : 'none';
   // The User-Agent is shown for every type but *labelled* as required in
   // practice only on a cookie, where replay without the matching one 401s. It
   // stays visible elsewhere because an API client can have one too and hiding a
   // field is how a stored value becomes unreachable (invariant 7).
-  const uaGroup = document.getElementById('f-user-agent-group');
-  if (uaGroup) uaGroup.style.display = type === 'cookie' ? 'flex' : 'none';
-  const storageTokensGroup = document.getElementById('f-storage-tokens-group');
-  if (storageTokensGroup) storageTokensGroup.style.display = type === 'cookie' ? 'flex' : 'none';
+  const uaGroup = document.getElementById('f-user-agent-group')!;
+  uaGroup.style.display = type === 'cookie' ? 'flex' : 'none';
+  const storageTokensGroup = document.getElementById('f-storage-tokens-group')!;
+  storageTokensGroup.style.display = type === 'cookie' ? 'flex' : 'none';
   // The mount path is the delivery half of a file-shaped credential (E17): the
   // types whose payload is a file, plus `file_blob`, which held a path and never
   // the file.
@@ -394,7 +394,7 @@ function refreshRequiredMarker(
   keyInput: HTMLInputElement | null,
   label: string,
 ): void {
-  const type = (document.getElementById('f-secret-type') as HTMLSelectElement | null)?.value as
+  const type = (document.getElementById('f-secret-type') as HTMLSelectElement).value as
     SecretType | undefined;
   const extra_vars = [
     ...document.querySelectorAll<HTMLInputElement>('#f-extra-vars-list .extra-var-key'),
@@ -402,7 +402,7 @@ function refreshRequiredMarker(
     .map((el) => ({ key: el.value.trim() }))
     .filter((v) => v.key);
   const totp_secret =
-    (document.getElementById('f-totp') as HTMLInputElement | null)?.value.trim() || undefined;
+    (document.getElementById('f-totp') as HTMLInputElement).value.trim() || undefined;
   const optional = primaryIsOptional({ secretType: type, extra_vars, totp_secret } as VaultEntry);
   setHtml(
     labelEl,
@@ -634,7 +634,7 @@ function readTotpFields(): Pick<
   VaultEntry,
   'totp_secret' | 'totp_algorithm' | 'totp_digits' | 'totp_period' | 'totp_kind' | 'totp_counter'
 > {
-  const raw = (document.getElementById('f-totp') as HTMLInputElement | null)?.value?.trim() ?? '';
+  const raw = (document.getElementById('f-totp') as HTMLInputElement).value.trim();
   const none = {
     totp_secret: undefined,
     totp_algorithm: undefined,
@@ -658,12 +658,12 @@ function readTotpFields(): Pick<
     return v && Number.isInteger(n) ? n : null;
   };
   const algo =
-    ((document.getElementById('f-totp-algorithm') as HTMLSelectElement | null)?.value as
+    ((document.getElementById('f-totp-algorithm') as HTMLSelectElement).value as
       VaultEntry['totp_algorithm'] | undefined) || parsed.algorithm;
   const digits = num('f-totp-digits') ?? parsed.digits;
   const period = num('f-totp-period') ?? parsed.period;
   const kind =
-    ((document.getElementById('f-totp-kind') as HTMLSelectElement | null)?.value as
+    ((document.getElementById('f-totp-kind') as HTMLSelectElement).value as
       VaultEntry['totp_kind'] | undefined) || parsed.kind;
   const counter = num('f-totp-counter') ?? parsed.counter;
   // Steam fixes its own shape, so the three parameter boxes describe nothing for
@@ -698,18 +698,17 @@ function readTotpFields(): Pick<
  * It never prints the seed.
  */
 export function refreshTotpStatus(): void {
-  const input = document.getElementById('f-totp') as HTMLInputElement | null;
-  const status = document.getElementById('f-totp-status');
-  const params = document.getElementById('f-totp-params');
-  const kindRow = document.getElementById('f-totp-kind-row');
+  const input = document.getElementById('f-totp') as HTMLInputElement;
+  const status = document.getElementById('f-totp-status')!;
+  const params = document.getElementById('f-totp-params')!;
+  const kindRow = document.getElementById('f-totp-kind-row')!;
   const counterWrap = document.getElementById('f-totp-counter-wrap');
-  if (!input || !status) return;
   const raw = input.value.trim();
   status.classList.remove('err');
   if (!raw) {
     status.textContent = '';
-    if (params) params.hidden = true;
-    if (kindRow) kindRow.hidden = true;
+    params.hidden = true;
+    kindRow.hidden = true;
     return;
   }
   let parsed;
@@ -718,7 +717,7 @@ export function refreshTotpStatus(): void {
   } catch (e) {
     status.textContent = `Not a usable seed: ${(e as Error).message}`;
     status.classList.add('err');
-    if (params) params.hidden = false;
+    params.hidden = false;
     return;
   }
   // Bug 7 (2026-09-15): "some 2FA codes are wrong" traced to this condition.
@@ -751,8 +750,7 @@ export function refreshTotpStatus(): void {
     setSelect('f-totp-kind', parsed.kind);
     setNumber('f-totp-counter', parsed.counter);
   }
-  const kind =
-    (document.getElementById('f-totp-kind') as HTMLSelectElement | null)?.value || parsed.kind;
+  const kind = (document.getElementById('f-totp-kind') as HTMLSelectElement).value || parsed.kind;
   // The kind row appears as soon as there is a seed to describe: it is how a
   // user creates a counter-based or Steam entry from the app at all, and
   // without it that capability would exist only in the CLI (invariant 10).
@@ -767,16 +765,14 @@ export function refreshTotpStatus(): void {
     return;
   }
   const algo =
-    (document.getElementById('f-totp-algorithm') as HTMLSelectElement | null)?.value ||
-    parsed.algorithm;
+    (document.getElementById('f-totp-algorithm') as HTMLSelectElement).value || parsed.algorithm;
   const digits =
-    (document.getElementById('f-totp-digits') as HTMLInputElement | null)?.value || parsed.digits;
+    (document.getElementById('f-totp-digits') as HTMLInputElement).value || parsed.digits;
   const period =
-    (document.getElementById('f-totp-period') as HTMLInputElement | null)?.value || parsed.period;
+    (document.getElementById('f-totp-period') as HTMLInputElement).value || parsed.period;
   const from = parsed.issuer ? ` · from ${parsed.issuer}` : '';
   const counter =
-    (document.getElementById('f-totp-counter') as HTMLInputElement | null)?.value ||
-    String(parsed.counter);
+    (document.getElementById('f-totp-counter') as HTMLInputElement).value || String(parsed.counter);
   status.textContent =
     kind === 'hotp'
       ? `${digits} digits · ${algo} · counter-based, next #${counter}${from}`
@@ -850,9 +846,9 @@ export function wireTotpField(): void {
  * user may be showing somebody.
  */
 export function resetTotpField(): void {
-  const input = document.getElementById('f-totp') as HTMLInputElement | null;
+  const input = document.getElementById('f-totp') as HTMLInputElement;
   const reveal = document.getElementById('f-totp-reveal') as HTMLButtonElement | null;
-  if (input) input.type = 'password';
+  input.type = 'password';
   if (reveal) {
     reveal.setAttribute('aria-pressed', 'false');
     reveal.classList.remove('active');
@@ -919,13 +915,13 @@ export function fillForm(entry: Partial<VaultEntry>) {
   (document.getElementById('f-auth-template') as HTMLInputElement).value =
     entry.auth_template || '';
   (document.getElementById('f-user-agent') as HTMLInputElement).value = entry.user_agent || '';
-  const storageTokens = document.getElementById('f-storage-tokens') as HTMLTextAreaElement | null;
-  if (storageTokens) storageTokens.value = JSON.stringify(entry.storage_tokens ?? [], null, 2);
+  const storageTokens = document.getElementById('f-storage-tokens') as HTMLTextAreaElement;
+  storageTokens.value = JSON.stringify(entry.storage_tokens ?? [], null, 2);
   (document.getElementById('f-mount-path') as HTMLInputElement).value = entry.mount_path || '';
-  const fTemplate = document.getElementById('f-template') as HTMLTextAreaElement | null;
-  if (fTemplate) fTemplate.value = entry.composite_template || '';
-  const fTemplateKind = document.getElementById('f-template-kind') as HTMLSelectElement | null;
-  if (fTemplateKind) fTemplateKind.value = entry.composite_kind || 'link';
+  const fTemplate = document.getElementById('f-template') as HTMLTextAreaElement;
+  fTemplate.value = entry.composite_template || '';
+  const fTemplateKind = document.getElementById('f-template-kind') as HTMLSelectElement;
+  fTemplateKind.value = entry.composite_kind || 'link';
   // Normalised on read, not trusted: this entry may have been written by an
   // older build that only had the free-text field, by a remote server, or by an
   // imported backup. `normalizeRateLimit` is the one reader (CLAUDE.md
@@ -933,8 +929,8 @@ export function fillForm(entry: Partial<VaultEntry>) {
   const rl = normalizeRateLimit(entry);
   (document.getElementById('f-ratelimit') as HTMLInputElement).value =
     rl.rate_limit_count == null ? '' : String(rl.rate_limit_count);
-  const rlPeriod = document.getElementById('f-ratelimit-period') as HTMLSelectElement | null;
-  if (rlPeriod) rlPeriod.value = rl.rate_limit_period || '';
+  const rlPeriod = document.getElementById('f-ratelimit-period') as HTMLSelectElement;
+  rlPeriod.value = rl.rate_limit_period || '';
   // Text the number/period pair cannot express is shown beneath the inputs and
   // carried through the next save. Dropping it would lose what the user wrote.
   pendingRateLimitNote = rl.rate_limit_note || '';
@@ -964,17 +960,17 @@ export function fillForm(entry: Partial<VaultEntry>) {
   (document.getElementById('f-purpose') as HTMLInputElement).value = entry.purpose || '';
   (document.getElementById('f-pool') as HTMLInputElement).value = entry.pool || '';
   (document.getElementById('f-expires') as HTMLInputElement).value = entry.expires_at || '';
-  const rotEl = document.getElementById('f-rotation-days') as HTMLInputElement | null;
-  if (rotEl) rotEl.value = entry.rotation_days ? String(entry.rotation_days) : '';
-  const compEl = document.getElementById('f-compromised') as HTMLInputElement | null;
-  if (compEl) compEl.checked = !!entry.compromised;
+  const rotEl = document.getElementById('f-rotation-days') as HTMLInputElement;
+  rotEl.value = entry.rotation_days ? String(entry.rotation_days) : '';
+  const compEl = document.getElementById('f-compromised') as HTMLInputElement;
+  compEl.checked = !!entry.compromised;
   (document.getElementById('f-scopes') as HTMLInputElement).value = (entry.scopes || []).join(', ');
   (document.getElementById('f-apidesc') as HTMLInputElement).value = entry.api_description || '';
   (document.getElementById('f-desc') as HTMLInputElement).value = entry.description || '';
   (document.getElementById('f-details') as HTMLInputElement).value = entry.details || '';
   setIconField(document.getElementById('f-icon') as HTMLInputElement | null, entry.custom_icon);
-  const tagsInput = document.getElementById('f-tags-input') as HTMLInputElement | null;
-  if (tagsInput) tagsInput.value = (entry.tags || []).join(' ');
+  const tagsInput = document.getElementById('f-tags-input') as HTMLInputElement;
+  tagsInput.value = (entry.tags || []).join(' ');
   setHtml(
     document.getElementById('f-icon-preview')!,
     entry.custom_icon ? iconHTML('', entry.custom_icon) : '',
@@ -999,8 +995,8 @@ export function fillForm(entry: Partial<VaultEntry>) {
   if (entry.secretType === 'file_blob')
     (document.getElementById('f-blob') as HTMLInputElement).value = entry.blob_ref || '';
   if (entry.secretType === 'env_var') {
-    const envSubtype = document.getElementById('f-envvar-subtype') as HTMLSelectElement | null;
-    if (envSubtype) envSubtype.value = entry.env_var_subtype || 'string';
+    const envSubtype = document.getElementById('f-envvar-subtype') as HTMLSelectElement;
+    envSubtype.value = entry.env_var_subtype || 'string';
   }
   const extraList = document.getElementById('f-extra-vars-list');
   if (extraList) {
@@ -1012,8 +1008,8 @@ export function fillForm(entry: Partial<VaultEntry>) {
       extraList.appendChild(row);
     }
   }
-  const pfxInput = document.getElementById('f-env-prefixes') as HTMLInputElement | null;
-  if (pfxInput) pfxInput.value = (entry.env_prefixes || []).join(', ');
+  const pfxInput = document.getElementById('f-env-prefixes') as HTMLInputElement;
+  pfxInput.value = (entry.env_prefixes || []).join(', ');
   dynamicSecretFields();
 }
 
@@ -1083,8 +1079,7 @@ export const LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,23}$/;
  * in a screenshot.
  */
 export function updateNamePreview(): void {
-  const out = document.getElementById('f-name-preview');
-  if (!out) return;
+  const out = document.getElementById('f-name-preview')!;
   const get = (id: string) =>
     (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? '';
 
@@ -1095,6 +1090,17 @@ export function updateNamePreview(): void {
     label: get('f-label') || undefined,
     primary_role: get('f-role') || undefined,
     secret_role: get('f-secret-role') || undefined,
+    // The names an entry generates depend on which values it holds (`namesGeneratedBy`
+    // emits nothing for an empty one), so the draft says what the form will hold. Without
+    // this the collision check below compared an empty list and never warned.
+    api_key: '•',
+    api_secret: get('f-secret') || undefined,
+    api_url: get('f-apiurl') || undefined,
+    extra_vars: [
+      ...document.querySelectorAll<HTMLInputElement>('#f-extra-vars-list .extra-var-key'),
+    ]
+      .map((el) => ({ key: el.value.trim(), value: '' }))
+      .filter((v) => v.key),
   } as VaultEntry;
 
   const lines = [`${primaryEnvName(draft)}=••••••`];
@@ -1113,9 +1119,7 @@ export function updateNamePreview(): void {
   // cheaply avoid it is while they are choosing the name.
   const note = document.getElementById('f-name-collision');
   if (note) {
-    const editing = parseInt(
-      (document.getElementById('edit-index') as HTMLInputElement | null)?.value ?? '-1',
-    );
+    const editing = parseInt((document.getElementById('edit-index') as HTMLInputElement).value);
     const others = (st.vault?.api_keys ?? []).filter((_, i) => i !== editing);
     const mine = new Set(namesGeneratedBy(draft).map((g) => g.name.toUpperCase()));
     const clashes = others.filter((e) =>
@@ -1142,10 +1146,8 @@ export function updateNamePreview(): void {
  * established by E4's `formToEntry`).
  */
 export function refreshCompositePreview(): void {
-  const out = document.getElementById('f-template-preview');
-  if (!out) return;
-  const template =
-    (document.getElementById('f-template') as HTMLTextAreaElement | null)?.value ?? '';
+  const out = document.getElementById('f-template-preview')!;
+  const template = (document.getElementById('f-template') as HTMLTextAreaElement).value;
   const kind =
     ((document.getElementById('f-template-kind') as HTMLSelectElement | null)
       ?.value as CompositeKind) || 'link';
@@ -1184,12 +1186,11 @@ export function refreshCompositePreview(): void {
  * and, when the attributes are missing, what that costs.
  */
 function refreshCookieSplit(): void {
-  const group = document.getElementById('f-cookie-split-group');
-  const status = document.getElementById('f-cookie-split-status');
-  if (!group || !status) return;
+  const group = document.getElementById('f-cookie-split-group')!;
+  const status = document.getElementById('f-cookie-split-status')!;
   const isCookie =
-    (document.getElementById('f-secret-type') as HTMLSelectElement | null)?.value === 'cookie';
-  const raw = (document.getElementById('f-key') as HTMLInputElement | null)?.value ?? '';
+    (document.getElementById('f-secret-type') as HTMLSelectElement).value === 'cookie';
+  const raw = (document.getElementById('f-key') as HTMLInputElement).value;
   const jar = isCookie ? parseAnyCookies(raw) : [];
   group.style.display = isCookie && jar.length > 0 ? 'flex' : 'none';
   if (!jar.length) return;
@@ -1218,8 +1219,7 @@ interface SessionCapture {
 /** Fills the form from a parsed capture. Replaces the cookie rows (pressing it
  * twice must not duplicate them) and never touches a field the capture lacks. */
 function applySessionCapture(cap: SessionCapture): void {
-  const list = document.getElementById('f-extra-vars-list');
-  if (!list) return;
+  const list = document.getElementById('f-extra-vars-list')!;
   setHtml(list, '');
   for (const c of cap.cookies) {
     const row = _makeExtraVarRow(c.name, c.value, true, false);
@@ -1281,10 +1281,9 @@ export const LOCAL_SERVICE_PRESETS: {
 let _localPresetBound = false;
 
 function wireLocalServicePreset(): void {
-  const group = document.getElementById('f-local-preset-group');
-  const select = document.getElementById('f-local-preset') as HTMLSelectElement | null;
-  const type = document.getElementById('f-secret-type') as HTMLSelectElement | null;
-  if (!group || !select || !type) return;
+  const group = document.getElementById('f-local-preset-group')!;
+  const select = document.getElementById('f-local-preset') as HTMLSelectElement;
+  const type = document.getElementById('f-secret-type') as HTMLSelectElement;
   if (select.options.length <= 1) {
     for (const p of LOCAL_SERVICE_PRESETS) select.add(new Option(p.label, p.id));
   }
@@ -1308,18 +1307,17 @@ let _pgpBound = false;
 
 /** `gpg_key`: paste the public key, fill the expiry and the public identifiers. */
 function wirePgpImport(): void {
-  const group = document.getElementById('f-pgp-group');
+  const group = document.getElementById('f-pgp-group')!;
   const type = document.getElementById('f-secret-type') as HTMLSelectElement | null;
   const show = () => {
-    if (group) group.style.display = type?.value === 'gpg_key' ? 'flex' : 'none';
+    group.style.display = type?.value === 'gpg_key' ? 'flex' : 'none';
   };
   show();
   if (!_pgpBound) {
     _pgpBound = true;
     type?.addEventListener('change', show);
   }
-  const btn = document.getElementById('f-pgp-btn');
-  if (!btn) return;
+  const btn = document.getElementById('f-pgp-btn')!;
   btn.onclick = () => {
     void (async () => {
       if (!isTauri()) {
@@ -1370,18 +1368,17 @@ function wirePgpImport(): void {
 let _captureBound = false;
 
 function wireCaptureImport(): void {
-  const group = document.getElementById('f-capture-group');
+  const group = document.getElementById('f-capture-group')!;
   const type = document.getElementById('f-secret-type') as HTMLSelectElement | null;
   const show = () => {
-    if (group) group.style.display = type?.value === 'cookie' ? 'flex' : 'none';
+    group.style.display = type?.value === 'cookie' ? 'flex' : 'none';
   };
   show();
   if (!_captureBound) {
     _captureBound = true;
     type?.addEventListener('change', show);
   }
-  const btn = document.getElementById('f-capture-btn');
-  if (!btn) return;
+  const btn = document.getElementById('f-capture-btn')!;
   btn.onclick = () => {
     void (async () => {
       if (!isTauri()) {
@@ -1429,8 +1426,7 @@ function wireCookieSplit(): void {
         showToast('No cookies found in the value field', 'err', 1800);
         return;
       }
-      const list = document.getElementById('f-extra-vars-list');
-      if (!list) return;
+      const list = document.getElementById('f-extra-vars-list')!;
       // Replaces the rows rather than appending: pressing this twice on one jar
       // must not produce every cookie twice, and the rows it would duplicate are
       // the ones it just wrote.
@@ -1459,8 +1455,8 @@ let _sessionPresetBound = false;
  * every keystroke without constructing a whole entry each time.
  */
 function currentJarNames(): Set<string> {
-  const raw = (document.getElementById('f-key') as HTMLInputElement | null)?.value ?? '';
-  const type = (document.getElementById('f-secret-type') as HTMLSelectElement | null)?.value;
+  const raw = (document.getElementById('f-key') as HTMLInputElement).value;
+  const type = (document.getElementById('f-secret-type') as HTMLSelectElement).value;
   const names = new Set<string>();
   if (type === 'cookie') {
     for (const c of parseAnyCookies(raw)) names.add(c.name);
@@ -1476,16 +1472,15 @@ function currentJarNames(): Set<string> {
  * required cookies the jar is missing. Never edits the jar itself — see the
  * module doc on `session-presets.ts` for why this is informational only. */
 function refreshSessionPresetUI(): void {
-  const group = document.getElementById('f-session-preset-group');
-  const select = document.getElementById('f-session-preset') as HTMLSelectElement | null;
-  const status = document.getElementById('f-session-preset-status');
+  const group = document.getElementById('f-session-preset-group')!;
+  const select = document.getElementById('f-session-preset') as HTMLSelectElement;
+  const status = document.getElementById('f-session-preset-status')!;
   const copyBtn = document.getElementById(
     'f-session-preset-copy-header',
   ) as HTMLButtonElement | null;
-  if (!group || !select || !status) return;
 
   const isCookie =
-    (document.getElementById('f-secret-type') as HTMLSelectElement | null)?.value === 'cookie';
+    (document.getElementById('f-secret-type') as HTMLSelectElement).value === 'cookie';
   group.style.display = isCookie ? 'flex' : 'none';
   if (!isCookie) return;
 
@@ -1621,14 +1616,13 @@ let _genPopoverDocListenersBound = false;
  * find the right element after any later DOM replacement.
  */
 function wireGeneratorPopover(): void {
-  const caret = document.getElementById('f-key-generate-caret') as HTMLButtonElement | null;
-  const popover = document.getElementById('f-gen-popover');
-  const fKey = document.getElementById('f-key') as HTMLInputElement | null;
-  const output = document.getElementById('gp-output');
-  const useBtn = document.getElementById('gp-use-btn') as HTMLButtonElement | null;
-  const copyBtn = document.getElementById('gp-copy-btn') as HTMLButtonElement | null;
-  const genBtn = document.getElementById('gp-generate-btn') as HTMLButtonElement | null;
-  if (!caret || !popover || !fKey || !output || !useBtn || !copyBtn || !genBtn) return;
+  const caret = document.getElementById('f-key-generate-caret') as HTMLButtonElement;
+  const popover = document.getElementById('f-gen-popover')!;
+  const fKey = document.getElementById('f-key') as HTMLInputElement;
+  const output = document.getElementById('gp-output')!;
+  const useBtn = document.getElementById('gp-use-btn') as HTMLButtonElement;
+  const copyBtn = document.getElementById('gp-copy-btn') as HTMLButtonElement;
+  const genBtn = document.getElementById('gp-generate-btn') as HTMLButtonElement;
 
   let genBytes = 32;
   let activeTab = 'bytes';
@@ -1707,10 +1701,10 @@ function wireGeneratorPopover(): void {
 
   // ── Password length display ──
   const pwLength = document.getElementById('gp-pw-length') as HTMLInputElement | null;
-  const pwLenDisplay = document.getElementById('gp-pw-len-display');
+  const pwLenDisplay = document.getElementById('gp-pw-len-display')!;
   if (pwLength) {
     pwLength.oninput = () => {
-      if (pwLenDisplay) pwLenDisplay.textContent = pwLength.value;
+      pwLenDisplay.textContent = pwLength.value;
     };
   }
 
@@ -1789,12 +1783,12 @@ function resetGeneratorPopover(): void {
   const popover = document.getElementById('f-gen-popover');
   if (popover) popover.hidden = true;
   document.getElementById('f-key-generate-caret')?.setAttribute('aria-expanded', 'false');
-  const output = document.getElementById('gp-output');
-  if (output) output.textContent = '';
-  const useBtn = document.getElementById('gp-use-btn') as HTMLButtonElement | null;
-  const copyBtn = document.getElementById('gp-copy-btn') as HTMLButtonElement | null;
-  if (useBtn) useBtn.disabled = true;
-  if (copyBtn) copyBtn.disabled = true;
+  const output = document.getElementById('gp-output')!;
+  output.textContent = '';
+  const useBtn = document.getElementById('gp-use-btn') as HTMLButtonElement;
+  const copyBtn = document.getElementById('gp-copy-btn') as HTMLButtonElement;
+  useBtn.disabled = true;
+  copyBtn.disabled = true;
   // Matches `wireGeneratorPopover`'s fresh `activeTab = 'bytes'` on every
   // call — without this the DOM would still show whichever tab was last
   // clicked while the closure believes it is back on the first one.
@@ -1844,7 +1838,15 @@ function wireNamePreview(): void {
 
 // ── Modal open/close/save ─────────────────────────────────────────────────
 
+/**
+ * The entry the open form is editing, held by identity. The form keeps only an index, and a
+ * reload while it is open (a peer's edit, the vault watcher) can put a different entry at that
+ * index: saving would then overwrite a neighbour and keep its id (invariant 1).
+ */
+let _editTarget: VaultEntry | undefined;
+
 export function openModal(title: string, idx: number) {
+  _editTarget = idx >= 0 ? st.vault.api_keys[idx] : undefined;
   document.getElementById('modal-title')!.textContent = title;
   (document.getElementById('edit-index') as HTMLInputElement).value = String(idx);
   document.getElementById('modal-duplicate')!.style.display = idx >= 0 ? 'block' : 'none';
@@ -2083,6 +2085,7 @@ export function openEdit(e: Event, idx: number) {
 
 export function closeModal() {
   document.getElementById('modal-overlay')!.classList.remove('open');
+  _editTarget = undefined;
   clearDraft();
 }
 
@@ -2103,7 +2106,19 @@ export async function saveModal() {
     const idx = parseInt((document.getElementById('edit-index') as HTMLInputElement).value);
     // The entry being edited is the *base*: every field with no form input rides
     // through by construction rather than by the save path remembering it (E4).
-    const old = idx >= 0 ? st.vault.api_keys[idx] : undefined;
+    // It is the live object for the entry the form was opened on, not whatever sits at
+    // `idx` now.
+    const opened = idx >= 0 ? (_editTarget ?? st.vault.api_keys[idx]) : undefined;
+    const openedAt = opened ? resolveEditTarget(st.vault.api_keys, opened) : -1;
+    if (opened && openedAt < 0) {
+      showToast(
+        'This entry was changed or deleted elsewhere while you were editing it. Your edit was not saved.',
+        'err',
+        6000,
+      );
+      return;
+    }
+    const old = opened ? st.vault.api_keys[openedAt] : undefined;
     const entry = formToEntry(old);
     const t = entry.secretType || 'api_key';
     if (t === 'bundle') {
@@ -2541,10 +2556,10 @@ export async function quickGenerate() {
         commonName: 'localhost',
         validityDays: 365,
       });
-      const fCert = document.getElementById('f-cert') as HTMLTextAreaElement | null;
-      const fCertKey = document.getElementById('f-cert-key') as HTMLTextAreaElement | null;
-      if (fCert) fCert.value = result.cert_pem;
-      if (fCertKey) fCertKey.value = result.key_pem;
+      const fCert = document.getElementById('f-cert') as HTMLTextAreaElement;
+      const fCertKey = document.getElementById('f-cert-key') as HTMLTextAreaElement;
+      fCert.value = result.cert_pem;
+      fCertKey.value = result.key_pem;
       showToast('Certificate generated', 'ok');
     } catch (e) {
       showToast(String(e), 'err');
@@ -2595,7 +2610,9 @@ export function toggleReveal(e: Event, field: string, idx: number, value: string
   const key = `${field}-${entryId(entry)}`;
   const el = document.getElementById(`kv-${field}-${idx}`);
   if (!el) return;
-  st.revealed[key] = !st.revealed[key];
+  // Flip what is on screen, not the stored flag: a value that starts out printed (public, or
+  // masking turned off) has no flag yet, and flipping "unset" made the first click a no-op.
+  st.revealed[key] = !el.classList.contains('revealed');
   el.textContent = st.revealed[key] ? value : maskKey(value);
   el.classList.toggle('revealed', st.revealed[key]);
   const btn = document.getElementById(`reveal-${field}-${idx}`);
@@ -2877,8 +2894,8 @@ function _ddClose() {
     _ddCleanup();
     _ddCleanup = null;
   }
-  const dd = document.getElementById('dropdown');
-  if (dd) dd.style.display = 'none';
+  const dd = document.getElementById('dropdown')!;
+  dd.style.display = 'none';
 }
 
 export function showDropdown(anchorEl: HTMLElement, items: (DropdownItem | '---')[]) {
@@ -2921,13 +2938,18 @@ export function showDropdown(anchorEl: HTMLElement, items: (DropdownItem | '---'
     }
   };
 
+  // The outside-click handler is armed a moment late so the click that opened the menu
+  // does not close it. If the menu is dismissed before then, the pending arming has to be
+  // cancelled with it: it used to fire afterwards and leave a handler behind that closed
+  // the *next* menu on the very click that opened it.
+  const arm = setTimeout(() => document.addEventListener('click', close), 50);
   _ddCleanup = () => {
+    clearTimeout(arm);
     dd.removeEventListener('click', onClick);
     document.removeEventListener('click', close);
   };
 
   dd.addEventListener('click', onClick);
-  setTimeout(() => document.addEventListener('click', close), 50);
 }
 
 export function showContextMenu(x: number, y: number, items: (DropdownItem | '---')[]) {
@@ -2967,13 +2989,18 @@ export function showContextMenu(x: number, y: number, items: (DropdownItem | '--
     }
   };
 
+  // The outside-click handler is armed a moment late so the click that opened the menu
+  // does not close it. If the menu is dismissed before then, the pending arming has to be
+  // cancelled with it: it used to fire afterwards and leave a handler behind that closed
+  // the *next* menu on the very click that opened it.
+  const arm = setTimeout(() => document.addEventListener('click', close), 50);
   _ddCleanup = () => {
+    clearTimeout(arm);
     dd.removeEventListener('click', onClick);
     document.removeEventListener('click', close);
   };
 
   dd.addEventListener('click', onClick);
-  setTimeout(() => document.addEventListener('click', close), 50);
 }
 
 // ── Custom Select ─────────────────────────────────────────────────────────
