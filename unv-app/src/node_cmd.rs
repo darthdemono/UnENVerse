@@ -529,9 +529,16 @@ pub fn approver_ls(a: &Access) -> CliResult {
             println!("No approver devices are registered.");
         }
         for d in &rows {
+            // A plain prefix, not `cell`'s ellipsis: `approver rm` takes a prefix of the
+            // fingerprint, so what is printed here must be pasteable there.
+            let fp: String = d["fingerprint"]
+                .as_str()
+                .unwrap_or("")
+                .chars()
+                .take(16)
+                .collect();
             println!(
-                "{}  {}  {}",
-                cell(d["fingerprint"].as_str().unwrap_or(""), 16),
+                "{fp:<16}  {}  {}",
                 cell(d["label"].as_str().unwrap_or(""), 24),
                 d["added"].as_str().unwrap_or("")
             );
