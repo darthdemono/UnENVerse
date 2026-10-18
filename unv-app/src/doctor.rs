@@ -285,7 +285,17 @@ fn check_permissions() -> Vec<Finding> {
 /// The dangling-member check is invariant 2 applied to a file outside the vault:
 /// `pools.json` holds entry keys, and nothing tells it when an entry is renamed
 /// or deleted.
-fn check_pools(vault: &Value) -> Finding {
+///
+/// `vault_key` is the key this vault's pools are stored under (`pool::vault_key`); without
+/// one (the desktop checks a bare document) there is nothing to compare, and saying so beats
+/// reporting another vault's members as dangling.
+fn check_pools(vault: &Value, vault_key: Option<&str>) -> Finding {
+    let Some(vault_key) = vault_key else {
+        return Finding::ok(
+            "pools",
+            "Pool state is checked against a vault by `unv doctor`",
+        );
+    };
     let Some(path) = vault_core::pool::state_path() else {
         return Finding::at("pools", Level::Note, "No pool state directory", "");
     };
@@ -317,18 +327,14 @@ fn check_pools(vault: &Value) -> Finding {
         .iter()
         .map(vault_core::entry_ck)
         .collect();
+    // `vaults.<vault key>.<pool>.members.<entry key>`: only this vault's pools, and a
+    // member is any entry key the machine has recorded a use or cooldown for.
     let mut dangling = Vec::new();
-    if let Some(pools) = state.get("pools").and_then(|p| p.as_object()) {
+    if let Some(pools) = state["vaults"][vault_key].as_object() {
         for (name, p) in pools {
-            for m in p
-                .get("members")
-                .and_then(|m| m.as_array())
-                .unwrap_or(&vec![])
-            {
-                if let Some(ck) = m.as_str() {
-                    if !known.contains(ck) {
-                        dangling.push(format!("{name}: {ck}"));
-                    }
+            for ck in p["members"].as_object().into_iter().flat_map(|m| m.keys()) {
+                if !known.contains(ck) {
+                    dangling.push(format!("{name}: {}", ck.replace('\u{1}', "|")));
                 }
             }
         }
@@ -561,7 +567,7 @@ pub fn document_findings(vault: &Value) -> Vec<Value> {
         check_schema(vault),
         check_entry_ids(vault),
         check_bundle_membership(vault),
-        check_pools(vault),
+        check_pools(vault, None),
     ]
     .iter()
     .map(Finding::to_json)
@@ -621,7 +627,7 @@ pub fn run(access: Option<&Access>, open_error: Option<String>, fix: bool) -> Cl
     findings.push(check_schema(&vault));
     findings.push(check_entry_ids(&vault));
     findings.push(check_bundle_membership(&vault));
-    findings.push(check_pools(&vault));
+    findings.push(check_pools(&vault, Some(&crate::pool::vault_key(access))));
     findings.push(check_audit(access));
     report(findings)
 }
