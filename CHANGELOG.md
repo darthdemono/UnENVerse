@@ -4,6 +4,24 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Fixed
+
+- `unv node approver ls` printed each fingerprint cut short with an ellipsis, and `unv node approver rm` refused that text. It now prints a plain prefix that `rm` accepts.
+- `unv entry add --expires` accepted any text, so a mistyped date silently switched the expiry warning off. It now needs a real date such as `2030-01-31`. A malformed `--var` is reported as invalid input (exit 10).
+- A Kubernetes Deployment with environment variables exported invalid YAML, because the `env:` block was indented one level too shallow, in the app and in the command line.
+- Traefik middleware values were written unquoted, so a secret containing ` #` or quotes loaded back truncated. They are now quoted like router and service values.
+- A Compose reference that resolves to nothing was written into the `.env` as an empty value (app) or an escaped literal (command line), so the container started with a blank secret. The placeholder is now written through, which Compose refuses loudly.
+- Importing a Python config as bundle variables could mark source text it did not understand, such as `x = 'pw' + 'hunter2'`, as safe to print. Such text is never public now.
+- `unv doctor` never reported pool members whose entry was deleted, because it read a pool-state layout that does not exist. It now checks the real file for the current vault.
+- The PHP config reader (Nextcloud `config.php`) read `0755` as decimal, did not understand `0x1A`, `0b101` or `0o17`, and cut a float at a signed exponent such as `2.5E-2`.
+- `unv import-vault onepassword` ignored the login fields and typed section values of a real 1Password export, so usernames, passwords and one-time passwords were lost. Implemented from the published `.1pux` structure; it has not been checked against a real export.
+
+### Added
+
+- Behaviour tests for user and node administration in text output, delegated administration (no one can climb above their own authority), export and `import --json` round trips, the entry flags, the scan and status reports, the doctor checks, Bitwarden and 1Password imports, authenticator imports, the credential emitters, the PHP reader, web-session capture parsers and bundle templates.
+- A golden file shared by the app and the command line for the starter chunks of a new typed project, and a second exporter fixture of awkward inputs (`vault-edge.json`) that both implementations must render identically.
+- The nightly branch-coverage job also uploads per-branch records.
+
 ## 0.56.1 (2026-10-18)
 
 ### Changed

@@ -122,6 +122,13 @@ jobs:
             --ignore-filename-regex '(^|/)(tests|fuzz)/' \
             --json --summary-only --output-path coverage-rust-branches/summary.json
 
+      # Per-branch records (BRDA lines) so the uncovered branches can be named, not just counted.
+      - name: Export per-branch records
+        run: |
+          cargo +nightly llvm-cov report --branch \
+            --ignore-filename-regex '(^|/)(tests|fuzz)/' \
+            --lcov --output-path coverage-rust-branches/lcov.info
+
       - name: Summary
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
