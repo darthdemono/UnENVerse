@@ -1,8 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright the UnENVerse contributors.
 // Static guards for the CI/release workflows (roadmap R02). GitHub Actions cannot
 // run on a laptop, so what can be proven here is the shape that makes the
 // guarantees true: a release needs the CI gate, Docker tags move only after the
 // smoke test, every new validator carries a control that must fail, and nothing
 // third-party is referenced by a mutable tag.
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
@@ -54,9 +57,18 @@ describe('the release gate', () => {
     expect(Object.keys(ci.on)).toContain('workflow_call');
   });
 
-  it('is needed, directly or not, by everything that builds or publishes', () => {
-    for (const id of ['desktop', 'headless', 'docker', 'release']) {
+  it('is needed, directly or not, by everything that publishes', () => {
+    for (const id of ['docker', 'release']) {
       expect(ancestors(build, id).has('ci'), `${id} must depend on ci`).toBe(true);
+    }
+  });
+
+  it('lets the packaging jobs run beside the gate, because they publish nothing', () => {
+    // The bug this pins: desktop and headless waited for the whole gate, so a
+    // release took the CI time plus the slowest build. They only upload
+    // artefacts; `release` still needs `ci`, so a red commit cannot ship.
+    for (const id of ['desktop', 'headless']) {
+      expect(ancestors(build, id).has('ci'), `${id} should not wait for ci`).toBe(false);
     }
   });
 
@@ -300,5 +312,49 @@ describe('schedules and Dependabot', () => {
   it('never sets both directory and directories on one ecosystem', () => {
     for (const u of dep.updates)
       expect(Boolean(u.directory) && Boolean(u.directories), u['package-ecosystem']).toBe(false);
+  });
+});
+
+describe('the Rust test job runs only the crates a change can affect', () => {
+  // Runs the real classifier step from ci.yml on a list of changed files.
+  const classify = (files: string[]): { crates: string; rust: boolean } => {
+    const ci = load('ci.yml');
+    const run = (ci.jobs.changes.steps as Step[]).find((s) => s.run?.includes('not_site='))!.run!;
+    const body = run.slice(run.indexOf('not_site='), run.indexOf("printf 'changed files"));
+    const script = `docs='^README\\.md$'\nnot_docs=$(printf '%s' "$files" | grep -Ev "$docs" || true)\n${body}\necho "$crates|$rust"`;
+    const out = execFileSync('bash', ['-c', script], {
+      env: { ...process.env, files: files.join('\n') },
+      encoding: 'utf8',
+    })
+      .trim()
+      .split('\n')
+      .pop()!;
+    const [crates, rust] = out.split('|');
+    return { crates, rust: rust === 'true' };
+  };
+
+  it('tests one leaf crate alone', () => {
+    expect(classify(['unv-cli/src/main.rs'])).toEqual({ crates: '-p unv-cli', rust: true });
+  });
+
+  it('tests a crate and everything built on it', () => {
+    expect(classify(['unv-server/src/lib.rs']).crates).toBe(
+      '-p unv-server -p unv-cli -p unenverse',
+    );
+  });
+
+  it('tests the whole workspace for vault-core, manifests, the lockfile and anything unplaced', () => {
+    for (const f of [
+      'vault-core/src/lib.rs',
+      'Cargo.lock',
+      '.github/workflows/ci.yml',
+      'scripts/x.sh',
+    ])
+      expect(classify([f]).crates).toBe('--workspace');
+  });
+
+  it('runs no Rust tests for a TypeScript-only change', () => {
+    // The bug this pins: every change used to run the 45 minute Rust job.
+    expect(classify(['src/ts/render.ts', 'tests/a.test.ts'])).toEqual({ crates: '', rust: false });
   });
 });

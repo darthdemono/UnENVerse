@@ -59,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       rust: ${{ steps.classify.outputs.rust }}
+      crates: ${{ steps.classify.outputs.crates }}
       frontend: ${{ steps.classify.outputs.frontend }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           everything() {
-            { echo "rust=true"; echo "frontend=true"; } >> "$GITHUB_OUTPUT"
+            { echo "rust=true"; echo "frontend=true"; echo "crates=--workspace"; } >> "$GITHUB_OUTPUT"
             echo "Running everything: $1"
             exit 0
           }
@@ -98,9 +99,37 @@ jobs:
           not_site=$(printf '%s' "$not_docs" | grep -Ev '^website/' || true)
           frontend=false; rust=false
           if [ -n "$not_docs" ]; then frontend=true; fi
-          if [ -n "$not_site" ]; then rust=true; fi
+          # Which Rust crates need their tests. Dependencies run one way,
+          # vault-core -> unv-app -> unv-server -> unv-cli and the desktop crate
+          # (package `unenverse`), so a change tests the crate and everything that
+          # builds on it. Anything that is not clearly one crate or clearly
+          # TypeScript (manifests, lockfile, CI, scripts, fixtures, Docker) tests
+          # the whole workspace.
+          ts_only='^(src/|tests/[^/]+\.ts$|ui-lab/|public/|index\.html$|vscode-extension/|(vitest|eslint|vite|playwright)\.config\.[jt]s$|\.prettier|tsconfig\.json$|package(-lock)?\.json$)'
+          other=$(printf '%s' "$not_site" | grep -Ev "$ts_only" || true)
+          crates=""
+          add() { case " $crates " in *" $1 "*) ;; *) crates="$crates $1" ;; esac; }
+          whole=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              vault-core/*) whole=true ;;
+              unv-app/*) add unv-app; add unv-server; add unv-cli; add unenverse ;;
+              unv-server/*) add unv-server; add unv-cli; add unenverse ;;
+              unv-cli/*) add unv-cli ;;
+              src-tauri/*) add unenverse ;;
+              *) whole=true ;;
+            esac
+          done <<< "$other"
+          if [ "$whole" = true ]; then
+            crates="--workspace"
+          else
+            crates=$(printf '%s' "$crates" | sed -E 's/ ([a-z-]+)/ -p \1/g; s/^ //')
+          fi
+          if [ -n "$crates" ]; then rust=true; fi
           printf 'changed files:\n%s\n' "$files"
-          echo "frontend=${frontend} rust=${rust}"
+          echo "frontend=${frontend} rust=${rust} crates=${crates}"
+          echo "crates=${crates}" >> "$GITHUB_OUTPUT"
           { echo "rust=${rust}"; echo "frontend=${frontend}"; } >> "$GITHUB_OUTPUT"
 
   # `test` and `lint` used to be one `rust` job whose steps ran back to back, so
@@ -135,8 +164,15 @@ jobs:
       # vault-core holds the crypto, storage and RBAC logic; unv-server holds the
       # session and LAN-hosting logic. Regressions in either are security bugs
       # rather than cosmetic ones.
+      # Only the crates the change can affect (see `changes`); the whole workspace
+      # for anything it cannot place, the release gate and manual runs.
       - name: Test
-        run: cargo test --workspace --locked --verbose --no-fail-fast
+        shell: bash
+        env:
+          CRATES: ${{ needs.changes.outputs.crates }}
+        run: |
+          read -ra pkgs <<< "$CRATES"
+          cargo test "${pkgs[@]}" --locked --verbose --no-fail-fast
 
   lint:
     name: Lint (${{ matrix.os }})
