@@ -492,7 +492,9 @@ function wireRecoveryRows(): void {
     }
     return;
   }
-  const reload = async () => {
+  // `note` is what the action just did. It leads the summary: showing it first and then reloading
+  // replaced it at once, so a successful package or drill never told the person so.
+  const reload = async (note?: string) => {
     const [destinations, schedules, runs] = await Promise.all([
       invokeTauri<{ id: string; path: string }[]>('backup_destination_list'),
       invokeTauri<{ id: string; target: string; next_due_at?: string }[]>('backup_schedule_list'),
@@ -505,7 +507,7 @@ function wireRecoveryRows(): void {
     // receipt detail that the abbreviated list leaves out.
     if (latest) await invokeTauri('ops_show', { id: latest.id });
     show(
-      `Destinations: ${destinations.map((d) => d.id).join(', ') || 'none'} · schedules: ${schedules.length} · latest: ${latest ? `${latest.kind} ${latest.state}${latest.outcome ? `: ${latest.outcome}` : latest.error_msg ? `: ${latest.error_msg}` : ''}` : 'none'}`,
+      `${note ? `${note} · ` : ''}Destinations: ${destinations.map((d) => d.id).join(', ') || 'none'} · schedules: ${schedules.length} · latest: ${latest ? `${latest.kind} ${latest.state}${latest.outcome ? `: ${latest.outcome}` : latest.error_msg ? `: ${latest.error_msg}` : ''}` : 'none'}`,
     );
   };
   key.onclick = () =>
@@ -542,8 +544,7 @@ function wireRecoveryRows(): void {
         const receipt = await invokeTauri<{ package: string }>('backup_package', {
           dest: destinationId.value,
         });
-        show(`Verified package written: ${receipt.package}`);
-        await reload();
+        await reload(`Verified package written: ${receipt.package}`);
       } catch (e) {
         showToast(`Package failed: ${e instanceof Error ? e.message : String(e)}`, 'err', 5000);
       }
@@ -554,8 +555,7 @@ function wireRecoveryRows(): void {
         const run = await invokeTauri<{ id: string; state: string }>('backup_drill', {
           dest: destinationId.value,
         });
-        show(`Restore drill ${run.id}: ${run.state}`);
-        await reload();
+        await reload(`Restore drill ${run.id}: ${run.state}`);
       } catch (e) {
         showToast(
           `Restore drill failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -953,13 +953,13 @@ export function openSettings() {
 
   // footer buttons
   const saveBtn = document.getElementById('settings-save');
-  const cancelBtn = document.getElementById('settings-cancel');
+  const cancelBtn = document.getElementById('settings-cancel')!;
   if (saveBtn)
     saveBtn.onclick = () => {
       saveSettings();
       closeSettings();
     };
-  if (cancelBtn) cancelBtn.onclick = cancelSettings;
+  cancelBtn.onclick = cancelSettings;
 }
 
 /** Discard edits made since the panel opened, including live previews. */
