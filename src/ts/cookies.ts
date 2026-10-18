@@ -72,7 +72,6 @@ export function parseCookieHeader(raw: string): Cookie[] {
     const eq = piece.indexOf('=');
     if (eq <= 0) continue;
     const name = piece.slice(0, eq).trim();
-    if (!name) continue;
     out.push({ name, value: piece.slice(eq + 1).trim() });
   }
   return out;
@@ -234,7 +233,7 @@ export function toCookiesTxt(cookies: Cookie[]): string {
     const line = [
       domain,
       includeSub,
-      c.path || '/',
+      c.path!,
       c.secure ? 'TRUE' : 'FALSE',
       String(c.expires ?? 0),
       c.name,

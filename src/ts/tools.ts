@@ -301,7 +301,7 @@ export function initTools() {
   initVendorImportPane();
   initDoctorPane();
   const migratePreview = document.getElementById('migrate-preview');
-  const migrateApply = document.getElementById('migrate-apply') as HTMLButtonElement | null;
+  const migrateApply = document.getElementById('migrate-apply') as HTMLButtonElement;
   let migrationPlanIsCurrent = false;
   const migrationInput = (): {
     format: string;
@@ -322,7 +322,7 @@ export function initTools() {
   };
   const invalidateMigrationPlan = () => {
     migrationPlanIsCurrent = false;
-    if (migrateApply) migrateApply.disabled = true;
+    migrateApply.disabled = true;
   };
   ['migrate-format', 'migrate-source-label', 'migrate-template', 'migrate-text'].forEach((id) => {
     document.getElementById(id)?.addEventListener('input', invalidateMigrationPlan);
@@ -1621,10 +1621,10 @@ export function initTools() {
       (e) =>
         html`<option value="${entryId(e)}">${e.provider}${e.account_name ? ` / ${e.account_name}` : ''}</option>`,
     )}`;
-    const da = document.getElementById('diff-a') as HTMLSelectElement | null;
-    const db = document.getElementById('diff-b') as HTMLSelectElement | null;
-    if (da) setHtml(da, html`${opts}`);
-    if (db) setHtml(db, html`${opts}`);
+    const da = document.getElementById('diff-a') as HTMLSelectElement;
+    const db = document.getElementById('diff-b') as HTMLSelectElement;
+    setHtml(da, html`${opts}`);
+    setHtml(db, html`${opts}`);
   };
   refreshDiffSelects();
   document.getElementById('diff-run')?.addEventListener('click', () => {

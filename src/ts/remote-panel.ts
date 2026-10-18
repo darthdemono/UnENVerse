@@ -458,8 +458,8 @@ async function connectRemote(cfg: RemoteVaultConfig) {
     const { resetAuditPanel } = await import('./audit');
     resetAuditPanel();
 
-    const nameEl = document.getElementById('vault-name');
-    if (nameEl) nameEl.textContent = cfg.name;
+    const nameEl = document.getElementById('vault-name')!;
+    nameEl.textContent = cfg.name;
 
     showToast(`Connected to ${cfg.name}`, 'ok');
     applyUsersPanelVisibility();
@@ -515,8 +515,8 @@ export async function switchToLocalVault(): Promise<void> {
   // authenticated to. It also reappeared intact if the unlock was abandoned.
   triggerRender();
 
-  const nameEl = document.getElementById('vault-name');
-  if (nameEl) nameEl.textContent = 'Local Vault';
+  const nameEl = document.getElementById('vault-name')!;
+  nameEl.textContent = 'Local Vault';
 
   showToast('Switched to local vault', 'ok');
   applyUsersPanelVisibility();

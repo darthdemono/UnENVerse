@@ -10,14 +10,14 @@
 import { inTauri } from './state';
 
 export function initVendorImportPane(): void {
-  const vendor = document.getElementById('vi-vendor') as HTMLSelectElement | null;
-  const folders = document.getElementById('vi-folders') as HTMLInputElement | null;
+  const vendor = document.getElementById('vi-vendor') as HTMLSelectElement;
+  const folders = document.getElementById('vi-folders') as HTMLInputElement;
   const fileBtn = document.getElementById('vi-file-btn') as HTMLButtonElement | null;
   const applyBtn = document.getElementById('vi-apply-btn') as HTMLButtonElement | null;
   const status = document.getElementById('vi-status');
   if (!fileBtn || !applyBtn || !status) return;
-  if (vendor) vendor.disabled = true;
-  if (folders) folders.disabled = true;
+  vendor.disabled = true;
+  folders.disabled = true;
   if (!inTauri) {
     status.textContent =
       'Full-fidelity source migration is CLI-only. In a terminal: unv import-vault.';

@@ -20,7 +20,7 @@ const localInvoke = <T>(cmd: string, args?: Record<string, unknown>) =>
  * locked, so route each command to the server's owner-only REST endpoints; on a
  * local vault, fall through to the Tauri command. Keeps every call site unchanged.
  */
-async function invoke<T = unknown>(
+export async function invoke<T = unknown>(
   cmd: string,
   args: Record<string, unknown> = {},
 ): Promise<T | undefined> {
@@ -1086,7 +1086,7 @@ async function saveClassDetails(classId: string) {
 async function deleteClass(classId: string) {
   if (
     !(await showConfirm(
-      'Delete this class? Users assigned to it will lose their class permissions.',
+      'Delete this class? It must have no members.',
     ))
   )
     return;
@@ -1255,17 +1255,17 @@ export function initUsersPanel() {
         btn.classList.add('active');
         _activeSubPanel = btn.dataset.sub as 'users' | 'classes';
 
-        const usersList = document.getElementById('users-list');
-        const classesList = document.getElementById('classes-list');
-        const createUser = document.getElementById('create-user-btn');
-        const createClass = document.getElementById('create-class-btn');
+        const usersList = document.getElementById('users-list')!;
+        const classesList = document.getElementById('classes-list')!;
+        const createUser = document.getElementById('create-user-btn')!;
+        const createClass = document.getElementById('create-class-btn')!;
         const ws = document.getElementById('users-workspace');
 
         if (_activeSubPanel === 'users') {
-          if (usersList) usersList.style.display = '';
-          if (classesList) classesList.style.display = 'none';
-          if (createUser) createUser.style.display = '';
-          if (createClass) createClass.style.display = 'none';
+          usersList.style.display = '';
+          classesList.style.display = 'none';
+          createUser.style.display = '';
+          createClass.style.display = 'none';
           if (ws)
             setHtml(
               ws,
@@ -1273,10 +1273,10 @@ export function initUsersPanel() {
             );
           await renderUsersPanel();
         } else {
-          if (usersList) usersList.style.display = 'none';
-          if (classesList) classesList.style.display = '';
-          if (createUser) createUser.style.display = 'none';
-          if (createClass) createClass.style.display = '';
+          usersList.style.display = 'none';
+          classesList.style.display = '';
+          createUser.style.display = 'none';
+          createClass.style.display = '';
           if (ws)
             setHtml(ws, html`<div class="users-detail-empty">Select a class to configure.</div>`);
           await renderClassesPanel();
@@ -1314,6 +1314,6 @@ export function initUsersPanel() {
     );
 
   // Show users create btn by default
-  const createUser = document.getElementById('create-user-btn');
-  if (createUser) createUser.style.display = '';
+  const createUser = document.getElementById('create-user-btn')!;
+  createUser.style.display = '';
 }
