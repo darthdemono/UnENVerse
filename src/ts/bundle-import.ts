@@ -197,6 +197,9 @@ export function importPythonConfig(text: string): BundleImport {
     let value: string;
     let kind: ValueKind;
     let extraWarning = '';
+    // Source text the importer did not understand may hold a credential behind a neutral
+    // name (`x = "pw" + "hunter2"` reads as prose), so it is never judged safe to print.
+    let unread = false;
 
     const q = readQuoted(source);
     if (q && /^\s*(?:#.*)?$/.test(q.rest)) {
@@ -206,6 +209,7 @@ export function importPythonConfig(text: string): BundleImport {
         warnings.push(`line ${lineNo}: unsupported escape in ${name}; imported as source text`);
         value = source;
         kind = 'string';
+        unread = true;
       } else if (isF) {
         const converted = convertFString(body, bound);
         if (converted === null) {
@@ -214,6 +218,7 @@ export function importPythonConfig(text: string): BundleImport {
           );
           value = body;
           kind = 'string';
+          unread = true;
         } else {
           value = converted.text;
           // An f-string with nothing to fill in is just a string; only a real hole
@@ -248,6 +253,7 @@ export function importPythonConfig(text: string): BundleImport {
       value = source;
       kind = 'string';
       extraWarning = `${name} is not a supported literal; imported as source text`;
+      unread = true;
     }
     if (extraWarning) warnings.push(`line ${lineNo}: ${extraWarning}`);
 
@@ -262,7 +268,7 @@ export function importPythonConfig(text: string): BundleImport {
     }
     taken.add(key);
     bound.set(name, key);
-    const isPub = isPublic(name, kind, value, publicKeys);
+    const isPub = !unread && isPublic(name, kind, value, publicKeys);
     if (isPub) publicKeys.add(key);
     vars.push(isPub ? { key, value, kind, public: true } : { key, value, kind });
   });
