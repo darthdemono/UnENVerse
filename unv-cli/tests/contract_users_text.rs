@@ -153,7 +153,7 @@ fn a_token_is_listed_without_its_secret_and_refused_before_minting_unless_reveal
     let shown = v.run_text(&["--reveal", "user", "token", "new", "alice", "--desc", "ci"]);
     assert_eq!(shown.code, 0, "{}", shown.all());
     let secret = shown.stdout.trim().to_string();
-    assert_eq!(secret.len(), 64, "the token alone on stdout: {secret}");
+    assert_eq!(secret.len(), 64, "the token alone on stdout");
     assert!(shown.stderr.contains("will not be shown again"));
 
     let list = text_ok(&v, &["user", "token", "ls", "alice"]);

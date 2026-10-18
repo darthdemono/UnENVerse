@@ -79,14 +79,20 @@ fn the_preview_counts_everything_and_writes_and_prints_nothing() {
         (c["imported"].as_u64(), c["archived"].as_u64()),
         (Some(9), Some(2))
     );
-    for secret in [
+    for (n, secret) in [
         "pw-1-secret",
         "4111111111111111",
         "zzz-no-id",
         "old-pw",
         "JBSWY3DP",
-    ] {
-        assert!(!o.all().contains(secret), "the preview leaked {secret}");
+    ]
+    .iter()
+    .enumerate()
+    {
+        assert!(
+            !o.all().contains(secret),
+            "the preview leaked value number {n}"
+        );
     }
     assert_eq!(v.run(&["list"]).code, 3, "a preview writes no entry");
     // What an individual export cannot contain is named, not silently absent.

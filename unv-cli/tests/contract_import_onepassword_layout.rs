@@ -151,8 +151,14 @@ fn the_preview_prints_no_value_and_a_rerun_of_the_same_export_changes_nothing() 
     let f = write_export(&v);
     let preview = v.run(&["import-vault", "onepassword", &f]);
     assert_eq!(preview.code, 0, "{}", preview.all());
-    for secret in ["pw-secret-1", "rec-code-123", "JBSWY3DP", "alice"] {
-        assert!(!preview.all().contains(secret), "preview leaked {secret}");
+    for (n, secret) in ["pw-secret-1", "rec-code-123", "JBSWY3DP", "alice"]
+        .iter()
+        .enumerate()
+    {
+        assert!(
+            !preview.all().contains(secret),
+            "preview leaked value number {n}"
+        );
     }
     assert_eq!(v.run(&["list"]).code, 3);
 
