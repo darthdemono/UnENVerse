@@ -4103,6 +4103,15 @@ mod tests {
     /// worst-case bound cannot tell the two apart there and this fraction can.
     const HEALTH_STALL_SHARE: f64 = 0.4;
 
+    /// Bound for the user-creation test. Creating a user hashes with cheaper
+    /// parameters than a login, and the dev profile now builds Argon2 optimised, so
+    /// sixty creations keep both KDF permits busy on every core of a two-core
+    /// runner. The probe then loses CPU to the hashing threads, not to inline
+    /// hashing: measured 0.13 to 0.17 on a four-core laptop, 0.56 on a two-core
+    /// Windows runner (worst probe 725 ms), against 0.95 with the offload removed.
+    /// 0.8 sits between the contended case and the broken one.
+    const CREATE_STALL_SHARE: f64 = 0.8;
+
     fn stall_share(probes: &[Duration], run: Duration) -> f64 {
         probes.iter().sum::<Duration>().as_secs_f64() / run.as_secs_f64().max(f64::EPSILON)
     }
@@ -4235,7 +4244,7 @@ mod tests {
         let share = stall_share(&probes, started.elapsed());
         eprintln!("60 user creations; worst /api/health {worst:?}, {share:.3} of the run waiting");
         assert!(
-            share < HEALTH_STALL_SHARE,
+            share < CREATE_STALL_SHARE,
             "health waited {share:.2} of the run (worst {worst:?})"
         );
     }
