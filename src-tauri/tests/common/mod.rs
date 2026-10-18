@@ -56,6 +56,18 @@ pub fn desk(tag: &str) -> Desk {
     }
 }
 
+/// Lock the vault before the next test gets the shared data directory. Most tests
+/// finish unlocked, which leaves the operations executor (and any LAN server)
+/// running with the old key; the next test then wipes the directory and unlocks
+/// while that executor can still write into it, and the unlock fails with "Wrong
+/// master password" against a database the old test recreated. Locking stops and
+/// joins them. It runs before the field guard is released.
+impl Drop for Desk {
+    fn drop(&mut self) {
+        let _ = self.call("lock_vault", json!({}));
+    }
+}
+
 impl Desk {
     pub fn call(&self, cmd: &str, body: Value) -> Result<Value, Value> {
         let res = get_ipc_response(
