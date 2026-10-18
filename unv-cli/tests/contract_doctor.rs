@@ -42,12 +42,21 @@ fn a_healthy_vault_passes_every_check_and_exits_0() {
     let v = healthy("doctor-ok");
     let o = v.run(&["doctor"]);
     assert_eq!(o.code, 0, "{}", o.all());
+    // Windows files inherit the directory ACL, so doctor reports the permission
+    // check as a note there ("Not enforceable on this platform"), never as ok.
+    let permissions = if cfg!(windows) { "note" } else { "ok" };
     for f in findings(&o) {
-        assert_eq!(f["level"], "ok", "{f}");
+        let want = if f["check"] == "permissions" {
+            permissions
+        } else {
+            "ok"
+        };
+        assert_eq!(f["level"], want, "{f}");
     }
-    for check in ["integrity", "salt", "permissions", "audit"] {
+    for check in ["integrity", "salt", "audit"] {
         assert_eq!(level_of(&o, check), "ok");
     }
+    assert_eq!(level_of(&o, "permissions"), permissions);
 }
 
 #[test]

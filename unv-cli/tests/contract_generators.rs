@@ -238,15 +238,19 @@ fn every_generator_reports_which_entropy_source_produced_the_value() {
             "{args:?}: the default stays the OS source: {d}"
         );
     }
-    let d = data(
-        &v,
-        &["--entropy-source", "file:/dev/urandom"],
-        &["gen", "secret"],
-    );
-    assert_eq!(
-        d["entropy_source"], "file:/dev/urandom",
-        "'the flag was accepted' and 'the bytes came from there' differ: {d}"
-    );
+    // /dev/urandom exists only on Unix.
+    #[cfg(unix)]
+    {
+        let d = data(
+            &v,
+            &["--entropy-source", "file:/dev/urandom"],
+            &["gen", "secret"],
+        );
+        assert_eq!(
+            d["entropy_source"], "file:/dev/urandom",
+            "'the flag was accepted' and 'the bytes came from there' differ: {d}"
+        );
+    }
 }
 
 #[test]
@@ -284,6 +288,8 @@ fn an_absent_device_fails_closed_with_exit_7_naming_it() {
     );
 }
 
+// /dev/zero exists only on Unix.
+#[cfg(unix)]
 #[test]
 fn a_dead_device_is_refused_not_silently_mixed_in() {
     let v = Vault::new("dead");

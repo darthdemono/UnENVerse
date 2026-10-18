@@ -136,7 +136,7 @@ jobs:
       # session and LAN-hosting logic. Regressions in either are security bugs
       # rather than cosmetic ones.
       - name: Test
-        run: cargo test --workspace --locked --verbose
+        run: cargo test --workspace --locked --verbose --no-fail-fast
 
   lint:
     name: Lint (${{ matrix.os }})
