@@ -31,5 +31,5 @@ workspace = true
 [dev-dependencies]
 unv-server = { path = "../unv-server" }
 axum       = "0.8"
-tokio      = { version = "1", features = ["rt-multi-thread", "net"] }
+tokio      = { version = "1", features = ["rt-multi-thread", "net", "sync"] }
 keepass    = { version = "0.15", features = ["save_kdbx4"] }

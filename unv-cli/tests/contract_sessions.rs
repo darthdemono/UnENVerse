@@ -53,8 +53,9 @@ fn login(v: &Vault, s: &Server, user: &str, password: &str) -> common::Out {
         .env("XDG_DATA_HOME", v.path("data"))
         .env("XDG_CONFIG_HOME", v.path("config"))
         .env("XDG_STATE_HOME", v.path("state"))
-        .stdin(std::process::Stdio::null())
-        .args(["login", "--server", &s.url, "--user", user]);
+        .stdin(std::process::Stdio::null());
+    common::pin_state_files(&mut c, &v.dir);
+    c.args(["login", "--server", &s.url, "--user", user]);
     let o = c.output().unwrap();
     common::Out {
         code: o.status.code().unwrap_or(-1),

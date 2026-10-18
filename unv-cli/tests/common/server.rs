@@ -10,6 +10,23 @@ use std::net::SocketAddr;
 
 pub struct Server {
     pub url: String,
+    stop: Option<tokio::sync::oneshot::Sender<()>>,
+    stopped: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+/// Stop the server and wait for its runtime to wind down. A server thread still
+/// running when the test binary exits races the process's exit handlers (the
+/// SQLCipher and TLS libraries tear down static state), which once crashed a
+/// finished binary with SIGSEGV after every test had passed.
+impl Drop for Server {
+    fn drop(&mut self) {
+        if let Some(stop) = self.stop.take() {
+            let _ = stop.send(());
+        }
+        if let Ok(rx) = self.stopped.lock() {
+            let _ = rx.recv_timeout(std::time::Duration::from_secs(10));
+        }
+    }
 }
 
 impl Server {
@@ -29,6 +46,8 @@ impl Server {
             "create the vault with the CLI first"
         );
         let (tx, rx) = std::sync::mpsc::channel();
+        let (stop, stop_rx) = tokio::sync::oneshot::channel::<()>();
+        let (done_tx, stopped) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async move {
@@ -47,13 +66,19 @@ impl Server {
                     listener,
                     app.into_make_service_with_connect_info::<SocketAddr>(),
                 )
+                .with_graceful_shutdown(async {
+                    let _ = stop_rx.await;
+                })
                 .await
                 .unwrap();
             });
+            let _ = done_tx.send(());
         });
         let addr = rx.recv().unwrap();
         Server {
             url: format!("http://{addr}"),
+            stop: Some(stop),
+            stopped: std::sync::Mutex::new(stopped),
         }
     }
 }
