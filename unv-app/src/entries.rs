@@ -393,6 +393,27 @@ pub fn label_is_valid(v: &str) -> bool {
     v.chars().count() <= 24 && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
+/// A real calendar day `YYYY-MM-DD`, optionally followed by a time (`T…`). The health
+/// scan compares only the first ten characters as text, so a value that is not a date
+/// ("soon", "2030-13-45") would never be found expired and the warning would be lost.
+fn expiry_is_valid(v: &str) -> bool {
+    let Some(day) = v.get(..10) else { return false };
+    if !(v.len() == 10 || v[10..].starts_with('T')) {
+        return false;
+    }
+    let parts: Vec<&str> = day.split('-').collect();
+    let [y, m, d] = parts[..] else { return false };
+    if y.len() != 4 || m.len() != 2 || d.len() != 2 {
+        return false;
+    }
+    let (Ok(y), Ok(m), Ok(d)) = (y.parse::<i32>(), m.parse::<u8>(), d.parse::<u8>()) else {
+        return false;
+    };
+    time::Month::try_from(m)
+        .ok()
+        .is_some_and(|month| time::Date::from_calendar_date(y, month, d).is_ok())
+}
+
 fn set_str(entry: &mut Value, field: &str, value: &str) {
     if value.is_empty() {
         entry.as_object_mut().map(|o| o.remove(field));
@@ -747,6 +768,11 @@ impl EntryFields {
             set_str(entry, "pool", v.trim());
         }
         if let Some(v) = &self.expires {
+            if !v.is_empty() && !expiry_is_valid(v) {
+                return Err(CliError::invalid(format!(
+                    "--expires '{v}' is not a date like 2030-01-31"
+                )));
+            }
             set_str(entry, "expires_at", v);
         }
         if let Some(v) = self.rotation_days {
@@ -826,9 +852,9 @@ impl EntryFields {
                 .cloned()
                 .unwrap_or_default();
             for raw in &self.vars {
-                let (k, v) = raw
-                    .split_once('=')
-                    .ok_or_else(|| format!("--var expects key=value, got '{raw}'"))?;
+                let (k, v) = raw.split_once('=').ok_or_else(|| {
+                    CliError::invalid(format!("--var expects key=value, got '{raw}'"))
+                })?;
                 let (key, is_secret) = match k.strip_prefix('!') {
                     Some(stripped) => (stripped, true),
                     None => (k, false),
