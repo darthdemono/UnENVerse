@@ -125,8 +125,9 @@ pub fn cmd_render(
 
     match out_path {
         Some(p) => {
-            std::fs::write(p, &result.text)
-                .map_err(|e| CliError::from(format!("Cannot write {}: {e}", p.display())))?;
+            // The file receives real values: owner-only, and recorded in the
+            // materialisation log like every other `--out`.
+            crate::fmt::write_secret_file(p, &result.text)?;
             out::ok(
                 "render",
                 json!({
