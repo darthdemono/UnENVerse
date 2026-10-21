@@ -9,9 +9,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # SQLCipher is compiled in (`vault-core/bundled`), the same engine the releases
 # ship, instead of Debian's libsqlcipher. The vendored OpenSSL it builds needs
 # perl and make, which the rust image already carries.
-# hadolint ignore=DL3008
 # Unpinned on purpose: the base image is pinned by digest, and a package version pin would break the
 # build the day Debian publishes a security update to it.
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     mold \

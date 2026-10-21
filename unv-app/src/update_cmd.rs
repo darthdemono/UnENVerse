@@ -282,6 +282,7 @@ fn check_origin(exe: &Path) -> CliResult {
 }
 
 pub fn run(cmd: &UpdateCmd, yes: bool) -> CliResult {
+    // nosemgrep: rust.lang.security.current-exe.current-exe (only an executable beside .unv-standalone is replaced, and the new archive is verified before the swap)
     let exe = std::env::current_exe()
         .map_err(|e| CliError::from(format!("Cannot locate this executable: {e}")))?;
     run_with(cmd, yes, upd::pinned_key(), &exe, env!("CARGO_PKG_VERSION"))
