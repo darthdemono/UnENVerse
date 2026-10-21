@@ -25,6 +25,7 @@ type Job = {
   steps?: Step[];
   if?: string;
   with?: Record<string, unknown>;
+  strategy?: { matrix: { include: { label?: string; arch?: string }[] } };
 };
 type Workflow = {
   on: Record<string, unknown>;
@@ -76,7 +77,7 @@ describe('the release gate', () => {
     expect(needs(build.jobs.release).sort()).toEqual([
       'ci',
       'desktop',
-      'docker',
+      'docker-manifest',
       'headless',
       'meta',
     ]);
@@ -91,6 +92,35 @@ describe('the release gate', () => {
   it('has no job called by the gate that asks for more than read access', () => {
     const text = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
     expect(text).not.toMatch(/(contents|packages|id-token|pages): write/);
+  });
+});
+
+describe('release targets', () => {
+  const targets = [
+    'linux-x86_64',
+    'linux-aarch64',
+    'linux-x86_64-musl',
+    'linux-aarch64-musl',
+    'windows-x86_64',
+    'windows-aarch64',
+  ];
+  it('builds every CLI target the update manifest guard requires, named as std::env::consts says', () => {
+    const m = (
+      load('build.yml').jobs.headless.strategy as { matrix: { include: { label: string }[] } }
+    ).matrix;
+    expect(m.include.map((i) => i.label).sort()).toEqual([...targets].sort());
+    const guard = fs.readFileSync(path.join(root, 'scripts/check-update-manifest.sh'), 'utf8');
+    for (const t of targets) expect(guard).toContain(t);
+  });
+});
+
+describe('desktop bundles', () => {
+  it('build natively for every architecture and the release downloads each one', () => {
+    const build = load('build.yml');
+    const labels = build.jobs.desktop.strategy!.matrix.include.map((i) => i.label).sort();
+    expect(labels).toEqual(['linux-aarch64', 'linux-x86_64', 'windows-aarch64', 'windows-x86_64']);
+    const dl = (build.jobs.release.steps as Step[]).map((s) => s.run ?? '').join('\n');
+    for (const l of labels) expect(dl).toContain(`desktop-${l}`);
   });
 });
 
@@ -110,11 +140,25 @@ describe('the Docker image', () => {
     expect(steps[push].if).toContain("publish == 'true'");
   });
 
-  it('pushes the version, the minor line and latest, and nothing else', () => {
+  it('pushes only the per-architecture tag; the release tags come from the manifest job', () => {
     const run = steps[at(/^\s*docker push /m)].run as string;
     expect(run).toContain('outputs.version');
-    expect(run).toContain('outputs.minor');
-    expect(run).toContain('latest');
+    expect(run).toContain('matrix.arch');
+    expect(run).not.toContain('latest');
+  });
+
+  it('builds amd64 and arm64 on native runners and joins them into version, minor and latest', () => {
+    const build = load('build.yml');
+    const m = build.jobs.docker.strategy!.matrix;
+    expect(m.include.map((i) => i.arch).sort()).toEqual(['amd64', 'arm64']);
+    const join = build.jobs['docker-manifest'];
+    expect(needs(join)).toContain('docker');
+    expect(join.if).toContain("publish == 'true'");
+    const run = (join.steps as Step[]).map((s) => s.run ?? '').join('\n');
+    expect(run).toContain('imagetools create');
+    for (const t of ['"$VERSION"', '"$MINOR"', 'latest']) expect(run).toContain(t);
+    expect(run).toContain('-amd64');
+    expect(run).toContain('-arm64');
   });
 });
 
