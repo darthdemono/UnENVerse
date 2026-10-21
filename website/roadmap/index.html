@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Roadmap to 1.0.0</title>
-  <meta name="description" content="The plan for October 2026 to October 2027 ending in 1.0.0: every remaining phase, the criteria for the release, and what the project will not do.">
+  <title>UnENVerse roadmap to 1.0.0</title>
+  <meta name="description" content="The UnENVerse plan for October 2026 to October 2027 ending in 1.0.0: every remaining phase, the criteria for the release, and what the project will not do.">
   <link rel="canonical" href="{{SITE_URL}}/roadmap/">
   <link rel="icon" href="/assets/app-icon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Roadmap to 1.0.0">
-  <meta property="og:description" content="The plan for October 2026 to October 2027 ending in 1.0.0: every remaining phase, the criteria for the release, and what the project will not do.">
+  <meta property="og:title" content="UnENVerse roadmap to 1.0.0">
+  <meta property="og:description" content="The UnENVerse plan for October 2026 to October 2027 ending in 1.0.0: every remaining phase, the criteria for the release, and what the project will not do.">
   <meta property="og:url" content="{{SITE_URL}}/roadmap/">
   <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -20,7 +20,7 @@
 <main id="main">
   <section>
     <div class="wrap prose">
-      <h1>Roadmap to 1.0.0</h1>
+      <h1>UnENVerse roadmap to 1.0.0</h1>
       <p class="lead">Plan for 18 October 2026 to October 2027, ending in 1.0.0. It is a statement of intent, not a promise: dates move when a defect, a security finding or a dependency change takes priority. Compatibility and security work always goes before new features.</p>
       <h2 id="where-it-stands">Where it stands</h2>
       <p>Phases R00 to R09 are done: baseline, security hotfixes, CI release gating, dependency modernisation, the shared <code>unv-app</code> layer, transactional SQLCipher migrations with local recovery, SFTP backups with retention and restore drills, the metadata and lifecycle core, the lossless config migration core, and full-fidelity import from Bitwarden, 1Password and KeePass. The website (W1), the CLI half of signed updates (R26) and a behaviour-test round across Rust and TypeScript (Phase 56, 0.56.0) are also done.</p>
@@ -61,6 +61,16 @@
         <li><strong>Release candidates</strong> for 1.0.0.</li>
       </ul>
       <h3 id="october-2027-1-0-0">October 2027: 1.0.0</h3>
+      <h2 id="after-1-0-0">After 1.0.0: the agent-safety lane</h2>
+      <p>In October 2026 ProjectDiscovery showed that a small fine-tune of an open model (about $8 of GPU time for the run) can pass every clean test and still, on a trigger phrase, make a coding agent fetch a script that posts every <code>.env</code> file and SSH key in the working directory to a stranger's server. No benchmark or scanner can tell such a model from a clean one, so the defence is to limit what the agent can read and reach. UnENVerse is not a sandbox and cannot detect a backdoored model, but it can make the stolen thing worthless and the theft visible. Five phases are planned after 1.0.0:</p>
+      <ul>
+        <li><strong>Ref-only project files.</strong> <code>unv env --refs</code> writes a file of <code>${refs}</code>, not values, and a migrate command replaces a plaintext <code>.env</code> with it.</li>
+        <li><strong>Per-command secret release.</strong> A secret is released only to the commands it was bound to, so a model-written shell line gets nothing.</li>
+        <li><strong>An SSH agent.</strong> Keys are served over the agent protocol and never sit as files under <code>~/.ssh</code>.</li>
+        <li><strong>Canary entries.</strong> Decoy credentials planted where an attacker looks first, with an alert when one is used. This detects theft; it prevents nothing.</li>
+        <li><strong>Sandboxed exec.</strong> An opt-in launcher with filesystem and egress limits that fails closed on a platform that cannot enforce them.</li>
+      </ul>
+      <p>Every numbered phase, done and planned, is listed in the <a href="/docs/phases/index.html">phases section of the documentation</a>.</p>
       <h2 id="criteria-for-1-0-0">Criteria for 1.0.0</h2>
       <p>1.0.0 ships when every item below is true, and not before.</p>
       <ol>
