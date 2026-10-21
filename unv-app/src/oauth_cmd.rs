@@ -125,14 +125,13 @@ pub fn refresh(access: &Access, query: &str, yes: bool) -> CliResult {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::write_recovery_file;
 
     /// The recovery file held a live refresh token and was written with the default mode
     /// before a chmod, so another user could read it in the shared temp directory in between.
     /// It must exist with owner-only permissions from the first byte.
-    #[cfg(unix)]
     #[test]
     fn the_recovery_file_is_owner_only_and_holds_the_token() {
         use std::os::unix::fs::PermissionsExt;
