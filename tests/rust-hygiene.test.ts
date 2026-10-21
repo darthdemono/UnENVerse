@@ -28,7 +28,8 @@ describe('temporary files in production code', () => {
         const text = fs.readFileSync(f, 'utf8');
         const cut = text.indexOf('#[cfg(test)]');
         const prod = cut < 0 ? text : text.slice(0, cut);
-        if (/temp_dir\(\)/.test(prod) && !SAFE_HELPERS.test(prod)) bad.push(path.relative(root, f));
+        if (prod.includes('temp_dir()') && !SAFE_HELPERS.test(prod))
+          bad.push(path.relative(root, f));
       }
     }
     expect(bad).toEqual([]);
