@@ -1315,7 +1315,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarCollapsed: false,
   lastSortBy: 'provider',
   recentSearches: [] as string[],
-  rememberFilters: true,
+  // Off: the app opens on All secrets. A remembered filter made the first screen depend on
+  // whatever was selected last time, which read as random. Opt in under Settings.
+  collapsedTreeNodes: [] as string[],
+  rememberFilters: false,
   lastView: null as PersistedView | null,
   experimentalProjectTypes: false,
   // Off by default: the safe behaviour is the default, and the convenience is
@@ -1420,6 +1423,18 @@ export const Settings = {
       // insert it again.
       if (!localStorage.getItem('unenverse-sb-migrated-totp')) {
         localStorage.setItem('unenverse-sb-migrated-totp', '1');
+      }
+    } catch {}
+    // The app opens on All secrets, in the Secrets panel. Installs that saved the old
+    // remember-filters default (on) get it switched off once, under its own flag, so a
+    // later opt-in in Settings is honoured.
+    try {
+      if (!localStorage.getItem('unenverse-open-on-all')) {
+        this._data.rememberFilters = false;
+        this._data.lastView = null;
+        this._data.activePanel = 'secrets';
+        localStorage.setItem('unenverse-open-on-all', '1');
+        this._persist();
       }
     } catch {}
     // A2: persisted settings can outlive the Authenticator sidebar surface.
@@ -1603,6 +1618,18 @@ export function pushRecentSearch(q: string): void {
     (s) => s.toLowerCase() !== query.toLowerCase(),
   );
   Settings.set('recentSearches', [query, ...prev].slice(0, RECENT_SEARCH_MAX));
+}
+
+// ── Sidebar tree folding ───────────────────────────────────────────────────
+
+export function isTreeCollapsed(key: string): boolean {
+  return (Settings.get('collapsedTreeNodes') ?? []).includes(key);
+}
+
+export function toggleTreeNode(key: string): void {
+  const now = new Set(Settings.get('collapsedTreeNodes') ?? []);
+  if (!now.delete(key)) now.add(key);
+  Settings.set('collapsedTreeNodes', [...now]);
 }
 
 // ── View persistence ───────────────────────────────────────────────────────
