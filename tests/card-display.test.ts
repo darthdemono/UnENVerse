@@ -420,9 +420,17 @@ describe('the copy button label and bulk selection', { timeout: 30000 }, () => {
 
   it('a session offers Verify instead of Rotate', async () => {
     await show([entry('a', 'Sess', { secretType: 'cookie' }), entry('b', 'Key')]);
-    expect(card('Sess').querySelector('[data-action="verify"]')).not.toBeNull();
-    expect(card('Sess').querySelector('[data-action="rotate"]')).toBeNull();
-    expect(card('Key').querySelector('[data-action="rotate"]')).not.toBeNull();
+    const labels = (c: string) => {
+      card(c).querySelector<HTMLElement>('[data-action="card-more"]')!.click();
+      const l = [...document.querySelectorAll('#dropdown .dropdown-item')].map(
+        (i) => i.textContent,
+      );
+      document.getElementById('dropdown')!.style.display = 'none';
+      return l;
+    };
+    expect(labels('Sess')).toContain('Mark as still signed in');
+    expect(labels('Sess')).not.toContain('Mark as rotated');
+    expect(labels('Key')).toContain('Mark as rotated');
   });
 });
 
@@ -464,7 +472,7 @@ describe('entries written by an older or hand-edited vault', { timeout: 30000 },
     await show([sparse('bun', 'Empty bundle', { secretType: 'bundle', api_key: '' })], {
       groupBundles: true,
     });
-    expect(document.querySelector('.bundle-card-wrap')!.textContent).toContain('bundle: 0');
+    expect(document.querySelector('.bundle-card-wrap')!.textContent).toContain('bundle · 0');
   });
 
   it('the tag, category and sidebar sections tolerate entries without those fields', async () => {

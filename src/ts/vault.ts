@@ -25,6 +25,7 @@ import {
   applySidebarLayout,
   saveViewState,
   restoreViewState,
+  toggleTreeNode,
   clearAllFilters,
   SIDEBAR_MIN_W,
   SIDEBAR_MAX_W,
@@ -119,6 +120,7 @@ import type { ProjectType, SecretType } from './types';
 import { EXPORT_FORMATS, runTotpExport, runTotpImport } from './totp-io';
 import { runCxfImport, runCxfExport } from './cxf-io';
 import { setHtml } from './html';
+import { openProjectMenu } from './assign-project';
 
 // Wire the global render callback so all modules can call triggerRender()
 setRenderFn(render);
@@ -159,6 +161,15 @@ function restoreSort(): void {
  * *next* code if the click crossed a step boundary — the one failure that is
  * both invisible and guaranteed to be blamed on the website.
  */
+function verifySession(idx: number): void {
+  const entry = st.vault.api_keys[idx];
+  if (!entry) return;
+  entry.last_verified_at = new Date().toISOString();
+  void persist();
+  triggerRender();
+  showToast('Session verified ✓', 'ok', 1800);
+}
+
 function copyTotpFrom(el: HTMLElement): void {
   const slot = el.closest<HTMLElement>('[data-totp-for]');
   const code = slot?.dataset.totpCode ?? '';
@@ -522,6 +533,12 @@ async function init() {
   // Categories section: rename/delete tags
   document.getElementById('category-tree')!.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
+    const fold = target.closest<HTMLElement>('[data-tree-toggle]');
+    if (fold?.dataset.treeToggle) {
+      toggleTreeNode(fold.dataset.treeToggle);
+      render();
+      return;
+    }
     const renameBtn = target.closest<HTMLElement>('.rename-cat');
     if (renameBtn?.dataset.category) {
       void renameCategory(renameBtn.dataset.category);
@@ -537,6 +554,12 @@ async function init() {
   // Projects section: selection, rename, delete
   document.getElementById('project-list')!.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
+    const fold = target.closest<HTMLElement>('[data-tree-toggle]');
+    if (fold?.dataset.treeToggle) {
+      toggleTreeNode(fold.dataset.treeToggle);
+      render();
+      return;
+    }
     const projBtn = target.closest<HTMLButtonElement>('[data-project-id]');
     if (projBtn?.dataset.projectId) {
       const id = projBtn.dataset.projectId!;
@@ -1061,6 +1084,21 @@ async function init() {
       case 'copy-env-menu':
         openCopyEnvMenu(e, idx);
         break;
+      // The secondary actions live behind one button so the copy button keeps its width
+      // (eight footer controls squeezed its label away on a three-column grid).
+      case 'card-more': {
+        const entry = st.vault.api_keys[idx];
+        if (!entry) break;
+        showDropdown(el, [
+          entry.secretType === 'cookie'
+            ? { label: 'Mark as still signed in', fn: () => verifySession(idx) }
+            : { label: 'Mark as rotated', fn: () => markAsRotated(idx) },
+          { label: 'Lifecycle timeline', fn: () => void showEntryTimeline(entry) },
+          { label: 'Projects…', fn: () => openProjectMenu(el, [entry]) },
+          { label: 'Duplicate', fn: () => duplicateKey(e, idx) },
+        ]);
+        break;
+      }
       case 'rotate':
         markAsRotated(idx);
         break;
@@ -1072,16 +1110,9 @@ async function init() {
       // The session equivalent (E13). Rotating a cookie means logging in again
       // in a browser, which nothing here can do, so "never rotated" was a
       // finding with no available fix; "never verified" has one.
-      case 'verify': {
-        const entry = st.vault.api_keys[idx];
-        if (entry) {
-          entry.last_verified_at = new Date().toISOString();
-          void persist();
-          triggerRender();
-          showToast('Session verified ✓', 'ok', 1800);
-        }
+      case 'verify':
+        verifySession(idx);
         break;
-      }
       case 'pin': {
         const entry = st.vault.api_keys[idx];
         if (entry) {

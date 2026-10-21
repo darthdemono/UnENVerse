@@ -947,59 +947,37 @@
 }
 
 /* ── Bundle card (Phase 24.1) ──────────────────────────────────────────────
-   The bundle reuses the pool card's wrapper, but its header carries a dozen
-   controls and its members carry their own control rows; none of these classes
-   had a rule, so everything sat on one non-wrapping line and clipped. */
-.bundle-card-wrap {
+   A bundle's summary is built from the entry card's own parts (icon tile, name and
+   badges, chevron, tag chips, footer), so it takes its fonts, sizes and colours from
+   the same tokens. What makes it a bundle is one accent rule on the left and one
+   badge; do not restyle the parts here. */
+.pool-card-wrap.bundle-card-wrap {
+  background: var(--surface);
   border-left: 3px solid var(--accent);
-  background: linear-gradient(180deg, var(--bg2), var(--bg1, var(--bg2)));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  border-radius: var(--r);
 }
 .bundle-card-wrap .pool-card-summary {
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: 0;
+  padding: 0;
+  min-height: var(--cs-card-h, 236px);
+}
+.bundle-card-wrap.expanded .pool-card-summary {
   min-height: 0;
-  padding: 14px 16px;
 }
-.bundle-head {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+.bundle-card-wrap .bundle-head {
+  cursor: default;
 }
-.bundle-card-wrap .pool-card-icon {
-  font-size: 18px;
-}
-.bundle-card-wrap .pool-card-name {
-  flex: 1 1 8em;
-  min-width: 0;
-  font-size: 15px;
-}
-.bundle-card-wrap .pool-card-badge {
-  margin-left: 0;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-.bundle-actions-inline {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
+.bundle-card-wrap.expanded .card-chevron svg {
+  transform: rotate(180deg);
 }
 .bundle-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-left: 30px;
+  padding-bottom: 6px;
 }
 .bundle-union {
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: var(--bg3, rgba(255, 255, 255, 0.05));
-  color: var(--text2);
-  font-size: 11.5px;
+  background: var(--accent-dim);
+  color: var(--accent);
 }
 .bundle-manage {
   grid-column: 1 / -1;
@@ -1041,4 +1019,11 @@
 }
 .bundle-member .card-foot {
   flex-wrap: wrap;
+}
+
+.project-pick-empty {
+  padding: 8px 10px;
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 1.5;
 }

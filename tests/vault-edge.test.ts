@@ -92,7 +92,10 @@ describe('clicks on things that are gone', { timeout: 30000 }, () => {
 
   it('the timeline button on a live card says the timeline needs the desktop app or a remote vault', async () => {
     document
-      .querySelector<HTMLElement>('#card-grid [data-action="timeline"][data-idx="0"]')!
+      .querySelector<HTMLElement>('#card-grid [data-action="card-more"][data-idx="0"]')!
+      .click();
+    [...document.querySelectorAll<HTMLElement>('#dropdown .dropdown-item')]
+      .find((i) => i.textContent === 'Lifecycle timeline')!
       .click();
     await flush(80);
     expect(toasts).toContainEqual([
