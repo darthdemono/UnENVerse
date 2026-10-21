@@ -678,6 +678,29 @@ describe('relativeTime', () => {
     expect(relativeTime(new Date(Date.now() + 120_000).toISOString())).toBe('just now');
   });
 
+  // The app used to open on whatever filter was selected last time (remember-filters defaulted
+  // on), so the first screen looked random. It now opens on All secrets, and an install that saved
+  // the old default is switched off once.
+  it('opens on All secrets by default and migrates an install that saved the old default', async () => {
+    localStorage.clear();
+    localStorage.setItem(
+      'unenverse-settings',
+      JSON.stringify({
+        rememberFilters: true,
+        activePanel: 'tools',
+        lastView: { filterType: 'category', filterValue: 'payments' },
+      }),
+    );
+    await Settings.init();
+    expect(Settings.get('rememberFilters')).toBe(false);
+    expect(Settings.get('lastView')).toBeNull();
+    expect(Settings.get('activePanel')).toBe('secrets');
+    // A later opt-in survives the next launch: the migration ran once.
+    Settings.set('rememberFilters', true);
+    await Settings.init();
+    expect(Settings.get('rememberFilters')).toBe(true);
+  });
+
   it('singularises one unit', () => {
     expect(relativeTime(new Date(Date.now() - 61_000).toISOString())).toBe('1 minute ago');
   });

@@ -1140,6 +1140,8 @@ export interface AppSettings {
   /** Most-recent-first search strings, capped at RECENT_SEARCH_MAX. */
   recentSearches: string[];
   /** When true, the grid filter/project selection is restored on next launch. */
+  /** Sidebar tree nodes the user folded shut: `p:<project id>` or `c:<category name>`. */
+  collapsedTreeNodes: string[];
   rememberFilters: boolean;
   /** Last grid view, restored at launch when `rememberFilters` is set. */
   lastView: PersistedView | null;

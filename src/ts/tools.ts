@@ -47,6 +47,7 @@ import { resolveFieldRef } from './chunk-ops';
 import { initAuditPanel } from './audit';
 import { invokeTauri, isTauri } from './tauri';
 import { html, setHtml, type SafeHtml } from './html';
+import { openProjectMenu } from './assign-project';
 
 type ImportRecord = Record<string, unknown>;
 
@@ -443,10 +444,10 @@ export function initTools() {
     btn.setAttribute('aria-controls', `sidebar-section-${btn.dataset.section}`);
   });
 
-  // Restore active panel & tool from settings
-  const activePanel = (Settings.get('activePanel') || 'secrets') as 'secrets' | 'tools' | 'users';
+  // Always open on the Secrets panel (All secrets); only the last tool is remembered, for when
+  // the Tools panel is opened.
   const activeTool = Settings.get('activeTool') || 'secret-gen';
-  switchPanel(activePanel === 'users' ? 'secrets' : activePanel); // don't restore users panel on init
+  switchPanel('secrets');
   switchTool(activeTool);
 
   // ── SECRET GENERATOR ──
@@ -1491,6 +1492,12 @@ export function initTools() {
 
   bulkSelectBtn.addEventListener('click', () => (st.bulkMode ? exitBulkMode() : enterBulkMode()));
   document.getElementById('bulk-cancel-btn')?.addEventListener('click', exitBulkMode);
+
+  document.getElementById('bulk-project-btn')?.addEventListener('click', (e) => {
+    const picked = selectedEntries();
+    if (!picked.length) showToast('Select entries first', 'info');
+    else openProjectMenu(e.currentTarget as HTMLElement, picked);
+  });
 
   document.getElementById('bulk-bundle-btn')?.addEventListener('click', () => {
     void (async () => {
