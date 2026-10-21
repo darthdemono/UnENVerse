@@ -126,6 +126,36 @@ describe('showing and copying', { timeout: 30000 }, () => {
   });
 });
 
+describe('the card menu and projects', { timeout: 30000 }, () => {
+  it('puts an entry on a project and takes it off again from the card menu', async () => {
+    st.vault.projects.push({ id: 'web', name: 'Web', description: '' } as never);
+    await viaMenu('Projects…');
+    const item = (t: string) =>
+      [...document.querySelectorAll<HTMLElement>('#dropdown .dropdown-item')].find(
+        (i) => i.textContent === t,
+      )!;
+    item('Web').click();
+    await flush();
+    expect(st.vault.api_keys[0].projectIds).toEqual(['Universal', 'web']);
+    expect(toasts).toContainEqual(['Added to Web', 'ok']);
+    await viaMenu('Projects…');
+    expect(item('✓ Web')).toBeTruthy();
+    item('✓ Web').click();
+    await flush();
+    expect(st.vault.api_keys[0].projectIds).toEqual(['Universal']);
+    expect(toasts).toContainEqual(['Removed from Web', 'ok']);
+  });
+
+  it('offers a session its own verify action instead of rotate', async () => {
+    st.vault.api_keys[0].secretType = 'cookie';
+    (await import('../src/ts/state')).triggerRender();
+    await flush();
+    await viaMenu('Mark as still signed in');
+    expect(st.vault.api_keys[0].last_verified_at).toBeTruthy();
+    expect(toasts).toContainEqual(['Session verified ✓', 'ok']);
+  });
+});
+
 describe('changing an entry', { timeout: 30000 }, () => {
   it('rotating stamps today, snapshots the old value into history and clears the compromised flag', async () => {
     st.vault.api_keys[0].compromised = true;
