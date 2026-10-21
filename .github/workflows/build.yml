@@ -245,8 +245,18 @@ jobs:
         include:
           - os: ubuntu-22.04
             label: linux-x86_64
+          # Native arm64 runner (free for public repos): no cross toolchain, and
+          # webkit2gtk and the vendored OpenSSL build as they do on x86_64. The
+          # label is `aarch64` because that is std::env::consts::ARCH, which
+          # `unv update` uses to pick its archive.
+          - os: ubuntu-22.04-arm
+            label: linux-aarch64
           - os: windows-latest
             label: windows-x86_64
+          # Native Windows on Arm installer. Not emulated: the x64 installer
+          # also runs on Arm, so this only buys a native app.
+          - os: windows-11-arm
+            label: windows-aarch64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -320,14 +330,17 @@ jobs:
           perl_bin="${OPENSSL_SRC_PERL:-perl}"
           missing=""
           command -v "$perl_bin" >/dev/null || missing="$missing perl"
-          command -v nasm >/dev/null || missing="$missing nasm"
+          # NASM assembles OpenSSL's x86 code only; the arm64 target needs none.
+          if [ "${RUNNER_ARCH}" != "ARM64" ]; then
+            command -v nasm >/dev/null || missing="$missing nasm"
+          fi
           if [ -n "$missing" ]; then
             echo "::error::openssl-src needs$missing to vendor OpenSSL for Windows."
             exit 1
           fi
           echo "perl: $(command -v "$perl_bin")"
           "$perl_bin" --version | sed -n '2p'
-          nasm -v
+          if [ "${RUNNER_ARCH}" != "ARM64" ]; then nasm -v; fi
           if ! "$perl_bin" -MLocale::Maketext::Simple -e 1 2>/dev/null; then
             echo "::error::$perl_bin cannot load Locale::Maketext::Simple, so OpenSSL's Configure will fail. This is usually Git for Windows' MSYS perl shadowing Strawberry Perl."
             exit 1
@@ -400,14 +413,30 @@ jobs:
           - os: ubuntu-22.04
             label: linux-x86_64
             archive: tar.gz
+          - os: ubuntu-22.04-arm
+            label: linux-aarch64
+            archive: tar.gz
+          # Static musl builds (Alpine and any other distro): built inside an
+          # Alpine container so the toolchain is musl-native, not a cross setup.
+          - os: ubuntu-22.04
+            label: linux-x86_64-musl
+            archive: tar.gz
+            musl: true
+          - os: ubuntu-22.04-arm
+            label: linux-aarch64-musl
+            archive: tar.gz
+            musl: true
           - os: windows-latest
             label: windows-x86_64
+            archive: zip
+          - os: windows-11-arm
+            label: windows-aarch64
             archive: zip
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install mold
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !matrix.musl
         run: sudo apt-get update && sudo apt-get install -y mold
 
       # openssl-src builds OpenSSL from source, and OpenSSL's Configure is a Perl
@@ -455,14 +484,17 @@ jobs:
           perl_bin="${OPENSSL_SRC_PERL:-perl}"
           missing=""
           command -v "$perl_bin" >/dev/null || missing="$missing perl"
-          command -v nasm >/dev/null || missing="$missing nasm"
+          # NASM assembles OpenSSL's x86 code only; the arm64 target needs none.
+          if [ "${RUNNER_ARCH}" != "ARM64" ]; then
+            command -v nasm >/dev/null || missing="$missing nasm"
+          fi
           if [ -n "$missing" ]; then
             echo "::error::openssl-src needs$missing to vendor OpenSSL for Windows."
             exit 1
           fi
           echo "perl: $(command -v "$perl_bin")"
           "$perl_bin" --version | sed -n '2p'
-          nasm -v
+          if [ "${RUNNER_ARCH}" != "ARM64" ]; then nasm -v; fi
           if ! "$perl_bin" -MLocale::Maketext::Simple -e 1 2>/dev/null; then
             echo "::error::$perl_bin cannot load Locale::Maketext::Simple, so OpenSSL's Configure will fail. This is usually Git for Windows' MSYS perl shadowing Strawberry Perl."
             exit 1
@@ -480,10 +512,25 @@ jobs:
       # updates). A release must compile the pinned graph, not today's.
       # Built one package at a time so a failure names the crate.
       - name: Build unv
+        if: ${{ !matrix.musl }}
         run: cargo build --release --locked -p unv-cli --features vault-core/bundled
 
       - name: Build unv-server
+        if: ${{ !matrix.musl }}
         run: cargo build --release --locked -p unv-server --features vault-core/bundled
+
+      # Both binaries in one Alpine container. musl links statically by default,
+      # so the result runs on any Linux of that architecture. The files land in
+      # target/release as root; the chown hands them back for the steps below.
+      - name: Build unv and unv-server (musl)
+        if: ${{ matrix.musl }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/w -w /w rust:1.90-alpine sh -euc '
+            apk add --no-cache build-base perl linux-headers pkgconf
+            cargo build --release --locked -p unv-cli -p unv-server --features vault-core/bundled'
+          sudo chown -R "$(id -u):$(id -g)" target
+          file target/release/unv | tee /dev/stderr | grep -qE "static(ally)?[- ]linked|static-pie"
 
       - name: Smoke test the binaries
         shell: bash
@@ -535,11 +582,23 @@ jobs:
   # this adds over that is the packaging, and packaging only matters when
   # something is being shipped.
   # ---------------------------------------------------------------------------
+  #
+  # One native build per architecture (a Rust build under QEMU takes over an
+  # hour). Each pushes `<version>-<arch>`; `docker-manifest` below stitches the
+  # two into the version, minor and `latest` tags.
   docker:
-    name: Server image (GHCR)
+    name: Server image (${{ matrix.arch }})
     needs: [meta, ci]
     if: needs.meta.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-22.04-arm
+            arch: arm64
     permissions:
       contents: read
       packages: write # push to ghcr.io
@@ -572,11 +631,12 @@ jobs:
           MINOR="${VERSION%.*}"
           echo "name=${NAME}"   >> "$GITHUB_OUTPUT"
           echo "minor=${MINOR}" >> "$GITHUB_OUTPUT"
-          echo "image: ${NAME}:${VERSION} (also :${MINOR}, :latest)"
+          echo "image: ${NAME}:${VERSION}-${{ matrix.arch }}"
 
-      # Three tags on a release: the exact version, the minor line, and
-      # `latest`. `0.6` moving to `0.6.1` is what lets a compose file pin a
-      # patch stream; `latest` is for people who have not decided yet.
+      # The release tags (exact version, minor line, `latest`) are created by
+      # `docker-manifest` once both architectures are pushed. `0.6` moving to
+      # `0.6.1` is what lets a compose file pin a patch stream; `latest` is for
+      # people who have not decided yet.
       #
       # No `:main` tag. An image named after a branch is one `docker pull`
       # away from someone running unreleased code against a real vault.
@@ -590,17 +650,14 @@ jobs:
           # never carries a `:latest` tag even for a moment.
           push: false
           load: true
-          tags: |
-            ${{ steps.img.outputs.name }}:${{ needs.meta.outputs.version }}
-            ${{ steps.img.outputs.name }}:${{ steps.img.outputs.minor }}
-            ${{ steps.img.outputs.name }}:latest
+          tags: ${{ steps.img.outputs.name }}:${{ needs.meta.outputs.version }}-${{ matrix.arch }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.meta.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=Apache-2.0
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
 
       # The image has to actually start. A Dockerfile that builds and then dies
       # on ENTRYPOINT is the failure a build-only job cannot see, and for a
@@ -611,24 +668,52 @@ jobs:
       - name: Smoke test the image
         run: |
           docker run --rm --entrypoint unv-server \
-            "${{ steps.img.outputs.name }}:${{ needs.meta.outputs.version }}" --version
+            "${{ steps.img.outputs.name }}:${{ needs.meta.outputs.version }}-${{ matrix.arch }}" --version
 
-      # The exact image that just passed, by tag. `docker push` of three tags of
-      # one local image uploads layers once; the other two are manifest writes.
-      - name: Push the tags
+      # The exact image that just passed, by its per-architecture tag.
+      - name: Push the architecture tag
         if: needs.meta.outputs.publish == 'true'
+        run: docker push "${{ steps.img.outputs.name }}:${{ needs.meta.outputs.version }}-${{ matrix.arch }}"
+
+  # Joins the per-architecture images into the tags people pull. Only runs when
+  # both architectures passed their smoke test and were pushed.
+  docker-manifest:
+    name: Server image (multi-arch tags)
+    needs: [meta, docker]
+    if: needs.meta.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create the multi-arch tags
+        shell: bash
         run: |
           set -euo pipefail
-          for t in "${{ needs.meta.outputs.version }}" "${{ steps.img.outputs.minor }}" latest; do
-            docker push "${{ steps.img.outputs.name }}:${t}"
+          NAME="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/unv-server"
+          VERSION="${{ needs.meta.outputs.version }}"
+          MINOR="${VERSION%.*}"
+          for t in "$VERSION" "$MINOR" latest; do
+            docker buildx imagetools create -t "${NAME}:${t}" \
+              "${NAME}:${VERSION}-amd64" "${NAME}:${VERSION}-arm64"
           done
+          docker buildx imagetools inspect "${NAME}:${VERSION}" | grep -E 'linux/(amd64|arm64)'
 
   # ---------------------------------------------------------------------------
   release:
     name: Publish release
     # `ci` is listed on its own because desktop and headless run beside the gate:
     # the property "no release from a red commit" is this one line.
-    needs: [meta, ci, desktop, headless, docker]
+    needs: [meta, ci, desktop, headless, docker-manifest]
     if: needs.meta.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -654,8 +739,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          for a in desktop-linux-x86_64 desktop-windows-x86_64 \
-                   headless-linux-x86_64 headless-windows-x86_64; do
+          for a in desktop-linux-x86_64 desktop-linux-aarch64 \
+                   desktop-windows-x86_64 desktop-windows-aarch64 \
+                   headless-linux-x86_64 headless-linux-aarch64 \
+                   headless-linux-x86_64-musl headless-linux-aarch64-musl \
+                   headless-windows-x86_64 headless-windows-aarch64; do
             for i in 1 2 3 4 5; do
               if gh run download "$GITHUB_RUN_ID" -n "$a" -D "artifacts/$a"; then
                 continue 2
@@ -730,10 +818,14 @@ jobs:
 
           # Headless binaries get archived per platform, with a flat layout so
           # `tar xzf … && ./unv` works with no path juggling.
-          ( cd artifacts/headless-linux-x86_64 && chmod +x unv unv-server \
-            && tar czf "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-linux-x86_64.tar.gz" . )
-          ( cd artifacts/headless-windows-x86_64 \
-            && zip -qr "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-windows-x86_64.zip" . )
+          for t in linux-x86_64 linux-aarch64 linux-x86_64-musl linux-aarch64-musl; do
+            ( cd "artifacts/headless-$t" && chmod +x unv unv-server \
+              && tar czf "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-$t.tar.gz" . )
+          done
+          for t in windows-x86_64 windows-aarch64; do
+            ( cd "artifacts/headless-$t" \
+              && zip -qr "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-$t.zip" . )
+          done
 
           # The signed CLI update feed (Phase 54). It exists only when the
           # maintainer has set the UNV_UPDATE_KEY secret and pinned the matching
@@ -748,7 +840,11 @@ jobs:
               --version "$VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
               --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}" \
               --asset "linux-x86_64=release-assets/unv-${VERSION}-linux-x86_64.tar.gz" \
+              --asset "linux-aarch64=release-assets/unv-${VERSION}-linux-aarch64.tar.gz" \
+              --asset "linux-x86_64-musl=release-assets/unv-${VERSION}-linux-x86_64-musl.tar.gz" \
+              --asset "linux-aarch64-musl=release-assets/unv-${VERSION}-linux-aarch64-musl.tar.gz" \
               --asset "windows-x86_64=release-assets/unv-${VERSION}-windows-x86_64.zip" \
+              --asset "windows-aarch64=release-assets/unv-${VERSION}-windows-aarch64.zip" \
               --key-file "$RUNNER_TEMP/update.key" -o release-assets/unv-update.json
             rm -f "$RUNNER_TEMP/update.key"
             scripts/check-update-manifest.sh release-assets/unv-update.json "$VERSION"
@@ -854,9 +950,9 @@ jobs:
             | File | Platform |
             | ---- | -------- |
             | `*.AppImage` | Linux, any distro — SQLCipher and OpenSSL are compiled in |
-            | `*.deb` | Debian / Ubuntu |
-            | `*.rpm` | Fedora / RHEL |
-            | `*-setup.exe` | Windows (NSIS; WebView2 is fetched by the installer if absent) |
+            | `*.deb` | Debian / Ubuntu (`amd64`, `arm64`) |
+            | `*.rpm` | Fedora / RHEL (`x86_64`, `aarch64`) |
+            | `*-setup.exe` | Windows, x64 and Arm (NSIS; WebView2 is fetched by the installer if absent) |
 
             Linux bundles are built on Ubuntu 22.04, so they run on that glibc and newer.
 
@@ -864,8 +960,9 @@ jobs:
 
             | File | Contains |
             | ---- | -------- |
-            | `unv-${{ needs.meta.outputs.version }}-linux-x86_64.tar.gz` | `unv`, `unv-server` |
-            | `unv-${{ needs.meta.outputs.version }}-windows-x86_64.zip` | `unv.exe`, `unv-server.exe` |
+            | `unv-${{ needs.meta.outputs.version }}-linux-x86_64.tar.gz`, `-linux-aarch64.tar.gz` | `unv`, `unv-server` (glibc) |
+            | `unv-${{ needs.meta.outputs.version }}-linux-x86_64-musl.tar.gz`, `-linux-aarch64-musl.tar.gz` | `unv`, `unv-server`, static (Alpine and any other distro) |
+            | `unv-${{ needs.meta.outputs.version }}-windows-x86_64.zip`, `-windows-aarch64.zip` | `unv.exe`, `unv-server.exe` |
 
             `unv describe` prints the full command tree, exit codes and redaction
             rules as JSON — read that rather than guessing from error messages.
