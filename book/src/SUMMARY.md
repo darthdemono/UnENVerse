@@ -167,3 +167,4 @@
   - [0157: Config migration binds source identity and archives unsupported bytes](adr/0157-config-migration-binds-source-identity-and-archives-unsupported-bytes.md)
   - [0158: The CLI updates itself only from a separately signed manifest](adr/0158-the-cli-updates-itself-only-from-a-separately-signed-manifest.md)
   - [0159: Main is protected by a ruleset and builds follow what changed](adr/0159-main-is-protected-by-a-ruleset-and-builds-follow-what-changed.md)
+  - [0160: Releases cover arm64 and static musl builds](adr/0160-releases-cover-arm64-and-static-musl-builds.md)
