@@ -17,6 +17,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  parseChangelog,
+  renderMarkdown,
+  summary as changelogSummary,
+  atomFeed,
+  esc as escHtml,
+} from './changelog-site.mjs';
 
 export const SITE_URL = 'https://unenverse.darthdemono.com';
 const REPO = 'darthdemono/UnENVerse';
@@ -50,15 +57,43 @@ export function esc(s) {
 
 /** Which release assets are shown, and what each one is for. Signatures are not listed as rows. */
 const KINDS = [
-  { re: /\.AppImage$/, group: 'desktop', label: 'Linux, any distribution (AppImage)' },
-  { re: /\.deb$/, group: 'desktop', label: 'Debian and Ubuntu (.deb)' },
-  { re: /\.rpm$/, group: 'desktop', label: 'Fedora and RHEL (.rpm)' },
-  { re: /-setup\.exe$/, group: 'desktop', label: 'Windows installer (.exe)' },
-  { re: /^unv-.*-linux-x86_64\.tar\.gz$/, group: 'cli', label: 'Linux: unv and unv-server' },
+  {
+    re: /(amd64|x86_64)\.AppImage$/,
+    group: 'desktop',
+    label: 'Linux x86_64, any distribution (AppImage)',
+  },
+  {
+    re: /(arm64|aarch64)\.AppImage$/,
+    group: 'desktop',
+    label: 'Linux arm64, any distribution (AppImage)',
+  },
+  { re: /_amd64\.deb$/, group: 'desktop', label: 'Debian and Ubuntu, x86_64 (.deb)' },
+  { re: /_arm64\.deb$/, group: 'desktop', label: 'Debian and Ubuntu, arm64 (.deb)' },
+  { re: /\.x86_64\.rpm$/, group: 'desktop', label: 'Fedora and RHEL, x86_64 (.rpm)' },
+  { re: /\.aarch64\.rpm$/, group: 'desktop', label: 'Fedora and RHEL, arm64 (.rpm)' },
+  { re: /x64-setup\.exe$/, group: 'desktop', label: 'Windows x64 installer (.exe)' },
+  { re: /arm64-setup\.exe$/, group: 'desktop', label: 'Windows on Arm installer (.exe)' },
+  { re: /^unv-.*-linux-x86_64\.tar\.gz$/, group: 'cli', label: 'Linux x86_64: unv and unv-server' },
+  { re: /^unv-.*-linux-aarch64\.tar\.gz$/, group: 'cli', label: 'Linux arm64: unv and unv-server' },
+  {
+    re: /^unv-.*-linux-x86_64-musl\.tar\.gz$/,
+    group: 'cli',
+    label: 'Linux x86_64, static (Alpine and any distribution)',
+  },
+  {
+    re: /^unv-.*-linux-aarch64-musl\.tar\.gz$/,
+    group: 'cli',
+    label: 'Linux arm64, static (Alpine and any distribution)',
+  },
   {
     re: /^unv-.*-windows-x86_64\.zip$/,
     group: 'cli',
-    label: 'Windows: unv.exe and unv-server.exe',
+    label: 'Windows x64: unv.exe and unv-server.exe',
+  },
+  {
+    re: /^unv-.*-windows-aarch64\.zip$/,
+    group: 'cli',
+    label: 'Windows on Arm: unv.exe and unv-server.exe',
   },
 ];
 
@@ -162,6 +197,51 @@ export function seo(html, urlPath) {
     add.push(
       '<link rel="alternate" type="text/plain" href="/llms.txt" title="UnENVerse for language models">',
     );
+  if (!has('rel="canonical"')) add.push(`<link rel="canonical" href="${SITE_URL}${urlPath}">`);
+  if (!has('/changelog/feed.xml'))
+    add.push(
+      '<link rel="alternate" type="application/atom+xml" href="/changelog/feed.xml" title="UnENVerse changelog">',
+    );
+  // One structured-data node per page that says what the page is and ties it to the site and its
+  // author, so crawlers and answer engines do not have to infer either from the markup.
+  if (
+    title &&
+    !has('"@type":"WebPage"') &&
+    !has('"@type":"FAQPage"') &&
+    !has('"@type":"TechArticle"')
+  ) {
+    const type =
+      urlPath.startsWith('/changelog/') && urlPath !== '/changelog/' ? 'TechArticle' : 'WebPage';
+    const page = {
+      '@context': 'https://schema.org',
+      '@type': type,
+      name: title,
+      ...(desc ? { description: desc } : {}),
+      url: `${SITE_URL}${urlPath}`,
+      inLanguage: 'en',
+      isPartOf: { '@type': 'WebSite', name: 'UnENVerse', url: `${SITE_URL}/` },
+      author: AUTHOR,
+      publisher: AUTHOR,
+      about: { '@type': 'SoftwareApplication', name: 'UnENVerse', url: `${SITE_URL}/` },
+    };
+    add.push(
+      `<script type="application/ld+json">${JSON.stringify(page).replace(/</g, '\\u003c')}</script>`,
+    );
+  }
+  if (urlPath === '/' && !has('"@type":"WebSite"')) {
+    const site = {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'UnENVerse',
+      alternateName: ['UnENVerse secrets manager', 'unv'],
+      url: `${SITE_URL}/`,
+      inLanguage: 'en',
+      publisher: AUTHOR,
+    };
+    add.push(
+      `<script type="application/ld+json">${JSON.stringify(site).replace(/</g, '\\u003c')}</script>`,
+    );
+  }
   if (urlPath !== '/' && title && !has('BreadcrumbList')) {
     const trail = [['Home', '/']];
     let acc = '';
@@ -188,14 +268,32 @@ export function seo(html, urlPath) {
       `<script type="application/ld+json">${JSON.stringify(doc).replace(/</g, '\\u003c')}</script>`,
     );
   }
-  return add.length ? html.replace('</head>', `  ${add.join('\n  ')}\n</head>`) : html;
+  let out = add.length ? html.replace('</head>', `  ${add.join('\n  ')}\n</head>`) : html;
+  // Microdata root, for consumers that read itemprop rather than JSON-LD.
+  if (!/<html[^>]*itemscope/.test(out))
+    out = out.replace(
+      /<html lang="en">/,
+      '<html lang="en" itemscope itemtype="https://schema.org/WebPage">',
+    );
+  if (title && !out.includes('itemprop="name"'))
+    out = out.replace('</head>', `  <meta itemprop="name" content="${escAttr(title)}">\n</head>`);
+  if (desc && !out.includes('itemprop="description"') && !/<meta itemprop="description"/.test(out))
+    out = out.replace(
+      '</head>',
+      `  <meta itemprop="description" content="${escAttr(desc)}">\n</head>`,
+    );
+  return out;
 }
 
 const NAV = [
   'home',
+  'features',
   'download',
   'quickstart',
   'roadmap',
+  'changelog',
+  'faq',
+  'architecture',
   'guides',
   'security',
   'importing',
@@ -234,6 +332,153 @@ export function sitemap(urls, date) {
     .map((u) => `  <url><loc>${SITE_URL}${u}</loc><lastmod>${date}</lastmod></url>`)
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${items}\n</urlset>\n`;
+}
+
+/**
+ * Writes /changelog/ (index, one page per section of CHANGELOG.md) and its Atom feed.
+ * @returns the page URLs for the sitemap.
+ */
+export function changelogSite({ out, partials, vars, today, md }) {
+  const text = md ?? fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  const entries = parseChangelog(text);
+  const urls = ['/changelog/'];
+  const meta = (e) => escHtml(changelogSummary(e, 110));
+  const write = (rel, html, url) => {
+    const dest = path.join(out, rel);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, seo(html, url));
+  };
+  const tpl = (n) => fs.readFileSync(path.join(ROOT, 'website/partials', n), 'utf8');
+  const first = entries.find((e) => e.slug !== 'unreleased') ?? entries[0];
+  const list = entries
+    .map(
+      (e) =>
+        `        <li><a href="/changelog/${e.slug}/"><strong>${escHtml(e.title)}</strong></a>${e.date ? ` <time datetime="${e.date}">${e.date}</time>` : ''}<br>${escHtml(changelogSummary(e, 160))}</li>`,
+    )
+    .join('\n');
+  write(
+    'changelog/index.html',
+    fill(
+      tpl('changelog-index.html'),
+      { ...vars, CL_LIST: list, CL_LATEST: escHtml(first.title) },
+      partials,
+      'changelog',
+    ),
+    '/changelog/',
+  );
+  entries.forEach((e, i) => {
+    const newer = entries[i - 1];
+    const older = entries[i + 1];
+    const nav = [
+      newer
+        ? `<a href="/changelog/${newer.slug}/" rel="prev">Newer: ${escHtml(newer.title)}</a>`
+        : '',
+      older
+        ? `<a href="/changelog/${older.slug}/" rel="next">Older: ${escHtml(older.title)}</a>`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    write(
+      `changelog/${e.slug}/index.html`,
+      fill(
+        tpl('changelog-entry.html'),
+        {
+          ...vars,
+          CL_TITLE: escHtml(e.title),
+          CL_SLUG: e.slug,
+          CL_META: meta(e),
+          CL_DESC: escHtml(changelogSummary(e, 300)),
+          CL_BODY: renderMarkdown(e.body),
+          CL_NAV: nav,
+        },
+        partials,
+        'changelog',
+      ),
+      `/changelog/${e.slug}/`,
+    );
+    urls.push(`/changelog/${e.slug}/`);
+  });
+  fs.writeFileSync(path.join(out, 'changelog/feed.xml'), atomFeed(entries, SITE_URL, today));
+  return urls;
+}
+
+/**
+ * Renders /faq/ from website/partials/faq.json, so the visible answers and the FAQPage
+ * structured data are the same strings and cannot drift apart.
+ * @returns the page URLs for the sitemap.
+ */
+export function faqSite({ out, partials, vars }) {
+  const items = JSON.parse(fs.readFileSync(path.join(ROOT, 'website/partials/faq.json'), 'utf8'));
+  const body = items
+    .map(
+      ({ q, a }) =>
+        `      <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">\n        <h2 itemprop="name">${esc(q)}</h2>\n        <div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer"><p itemprop="text">${esc(a)}</p></div>\n      </div>`,
+    )
+    .join('\n');
+  const ld = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map(({ q, a }) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  }).replace(/</g, '\\u003c');
+  const tpl = fs.readFileSync(path.join(ROOT, 'website/partials/faq-page.html'), 'utf8');
+  const html = seo(fill(tpl, { ...vars, FAQ_BODY: body, FAQ_LD: ld }, partials, 'faq'), '/faq/');
+  fs.mkdirSync(path.join(out, 'faq'), { recursive: true });
+  fs.writeFileSync(path.join(out, 'faq/index.html'), html);
+  return ['/faq/'];
+}
+
+/** Visible text of a page's <main>, as plain text with blank lines between blocks. */
+export function mainText(html) {
+  const main = /<main[^>]*>([\s\S]*)<\/main>/.exec(html)?.[1] ?? html;
+  return main
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<svg[\s\S]*?<\/svg>/g, '')
+    .replace(/<h([1-6])[^>]*>/g, (_m, l) => `\n\n${'#'.repeat(Number(l))} `)
+    .replace(/<li[^>]*>/g, '\n- ')
+    .replace(/<\/(p|div|ul|ol|table|tr|pre|figure)>/g, '\n')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Writes /llms.txt (the curated index) and /llms-full.txt (the same index followed by the
+ * text of the FAQ, features, architecture and the latest release notes), so a model can read
+ * one document instead of crawling. Both are built from the pages, never hand-copied.
+ */
+export function llmsSite({ out, vars, md }) {
+  const text = (name) => fs.readFileSync(path.join(ROOT, 'website/partials', name), 'utf8');
+  const fillTxt = (t) =>
+    t.replaceAll('{{VERSION}}', vars.VERSION).replaceAll('{{SITE_URL}}', SITE_URL);
+  const entries = parseChangelog(md ?? fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'));
+  const recent = entries.filter((e) => e.slug !== 'unreleased');
+  const notes = recent
+    .slice(0, 8)
+    .map((e) => `- [${e.title}](${SITE_URL}/changelog/${e.slug}/): ${changelogSummary(e, 140)}`)
+    .join('\n');
+  const index = `${fillTxt(text('llms.txt')).trimEnd()}\n\n## Recent releases\n\n${notes}\n`;
+  fs.writeFileSync(path.join(out, 'llms.txt'), index);
+  const page = (rel) => mainText(fs.readFileSync(path.join(out, rel, 'index.html'), 'utf8'));
+  const latest = recent
+    .slice(0, 3)
+    .map((e) => `## Release ${e.title}\n\n${e.body}`)
+    .join('\n\n');
+  fs.writeFileSync(
+    path.join(out, 'llms-full.txt'),
+    `${index}\n---\n\n# Full text\n\n${['faq', 'features', 'architecture'].map(page).join('\n\n---\n\n')}\n\n---\n\n# Latest release notes\n\n${latest}\n`,
+  );
 }
 
 export function build({ src, out, release, sums, today = new Date().toISOString().slice(0, 10) }) {
@@ -285,6 +530,8 @@ export function build({ src, out, release, sums, today = new Date().toISOString(
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(APP_ICON, dest);
   }
+  urls.push(...changelogSite({ out, partials, vars, today }), ...faqSite({ out, partials, vars }));
+  llmsSite({ out, vars });
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemap(urls.sort(), today));
   return { version, pages: urls };
 }
