@@ -114,6 +114,8 @@ jobs:
       - name: Read and cross-check the version
         id: v
         shell: bash
+        env:
+          PUBLISH_INPUT: ${{ inputs.publish }}
         run: |
           set -euo pipefail
 
@@ -194,7 +196,7 @@ jobs:
             *)
               # workflow_dispatch, or a push to some other branch. Build so the
               # artefacts can be downloaded and tested; publish only if asked.
-              publish="${{ inputs.publish || false }}"
+              publish="${PUBLISH_INPUT:-false}"
               build=true
               ;;
           esac
@@ -350,7 +352,9 @@ jobs:
           fi
           echo "Locale::Maketext::Simple loads — OpenSSL's Configure will run."
 
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -506,7 +510,9 @@ jobs:
           fi
           echo "Locale::Maketext::Simple loads — OpenSSL's Configure will run."
 
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -628,12 +634,14 @@ jobs:
       - name: Compute image name and tags
         id: img
         shell: bash
+        env:
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           # `github.repository` is `owner/name`, and GHCR requires it lowercased:
           # a capital letter in either half makes `docker push` fail with an
           # "invalid reference format" that names nothing useful.
-          NAME="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/unv-server"
+          NAME="ghcr.io/$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')/unv-server"
           VERSION="${{ needs.meta.outputs.version }}"
           MINOR="${VERSION%.*}"
           echo "name=${NAME}"   >> "$GITHUB_OUTPUT"
@@ -704,9 +712,11 @@ jobs:
 
       - name: Create the multi-arch tags
         shell: bash
+        env:
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          NAME="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/unv-server"
+          NAME="ghcr.io/$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')/unv-server"
           VERSION="${{ needs.meta.outputs.version }}"
           MINOR="${VERSION%.*}"
           for t in "$VERSION" "$MINOR" latest; do

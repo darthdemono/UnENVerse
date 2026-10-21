@@ -146,7 +146,7 @@ mod commands {
                 fn GetKeyState(key: i32) -> i16;
             }
             // VK_CAPITAL = 0x14; the low bit is the toggle state.
-            Some(unsafe { GetKeyState(0x14) } & 1 != 0)
+            Some(unsafe { GetKeyState(0x14) } & 1 != 0) // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage (one Win32 call, no pointers)
         }
         #[cfg(not(any(target_os = "linux", target_os = "windows")))]
         {

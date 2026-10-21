@@ -3,6 +3,9 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
+    # A release gets a week to be yanked or reported before it is proposed.
+    cooldown:
+      default-days: 7
     # Families move together: Vitest and its coverage package must share a version
     # (a split pair fails at install), the Tauri JS packages track the Rust crates,
     # and the lint tools are one review. First match wins, so the families come
@@ -29,6 +32,9 @@ updates:
   - package-ecosystem: cargo
     directory: /
     schedule: { interval: weekly }
+    # A release gets a week to be yanked or reported before it is proposed.
+    cooldown:
+      default-days: 7
     groups:
       tauri:
         patterns: ["tauri", "tauri-*", "wry", "tao"]
@@ -85,6 +91,9 @@ updates:
       - dependency-name: toml
   - package-ecosystem: github-actions
     schedule: { interval: weekly }
+    # A release gets a week to be yanked or reported before it is proposed.
+    cooldown:
+      default-days: 7
     # `directories`, not `directory` (the two cannot be combined): the workflows
     # live under /.github/workflows, and the local composite action under
     # /.github/actions/*.
@@ -97,6 +106,9 @@ updates:
     # watches them: it rewrites tag and digest together.
     directories: ["/", "/tools/viewer"]
     schedule: { interval: weekly }
+    # A release gets a week to be yanked or reported before it is proposed.
+    cooldown:
+      default-days: 7
     groups:
       base-images:
         update-types: [minor, patch]
