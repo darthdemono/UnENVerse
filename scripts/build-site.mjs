@@ -432,21 +432,56 @@ export function faqSite({ out, partials, vars }) {
   return ['/faq/'];
 }
 
-/** Visible text of a page's <main>, as plain text with blank lines between blocks. */
+/**
+ * Visible text of a page's <main>, as plain text with blank lines between blocks.
+ *
+ * A single pass over the characters, not a chain of regular expressions: the input is the site's
+ * own generated pages, and a scanner that walks `<` to `>` cannot be fooled by a nested or
+ * unterminated tag the way a pattern can.
+ */
 export function mainText(html) {
-  const main = /<main[^>]*>([\s\S]*)<\/main>/.exec(html)?.[1] ?? html;
-  return main
-    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<svg[\s\S]*?<\/svg>/g, '')
-    .replace(/<h([1-6])[^>]*>/g, (_m, l) => `\n\n${'#'.repeat(Number(l))} `)
-    .replace(/<li[^>]*>/g, '\n- ')
-    .replace(/<\/(p|div|ul|ol|table|tr|pre|figure)>/g, '\n')
-    .replace(/<br\s*\/?>/g, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
+  const start = html.indexOf('<main');
+  const from = start < 0 ? 0 : html.indexOf('>', start) + 1;
+  const end = html.lastIndexOf('</main>');
+  const body = html.slice(from, end < 0 ? html.length : end);
+  const lower = body.toLowerCase();
+  const SKIP = [
+    ['<script', '</script>'],
+    ['<style', '</style>'],
+    ['<svg', '</svg>'],
+  ];
+  let out = '';
+  let i = 0;
+  while (i < body.length) {
+    const lt = body.indexOf('<', i);
+    if (lt < 0) {
+      out += body.slice(i);
+      break;
+    }
+    out += body.slice(i, lt);
+    const skip = SKIP.find(([open]) => lower.startsWith(open, lt));
+    if (skip) {
+      const close = lower.indexOf(skip[1], lt);
+      i = close < 0 ? body.length : close + skip[1].length;
+      continue;
+    }
+    const gt = body.indexOf('>', lt);
+    const tag = body
+      .slice(lt + 1, gt < 0 ? body.length : gt)
+      .trim()
+      .toLowerCase();
+    i = gt < 0 ? body.length : gt + 1;
+    const closing = tag.startsWith('/');
+    const name = (closing ? tag.slice(1) : tag).split(/[\s/]/)[0];
+    if (!closing && /^h[1-6]$/.test(name)) out += `\n\n${'#'.repeat(Number(name[1]))} `;
+    else if (!closing && name === 'li') out += '\n- ';
+    else if (name === 'br') out += '\n';
+    else if (closing && ['p', 'div', 'ul', 'ol', 'table', 'tr', 'pre', 'figure'].includes(name))
+      out += '\n';
+  }
+  const ENTITIES = { lt: '<', gt: '>', quot: '"', '#39': "'", amp: '&' };
+  return out
+    .replace(/&(lt|gt|quot|#39|amp);/g, (_m, k) => ENTITIES[k])
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
