@@ -1,0 +1,23 @@
+# zizmor (the workflow auditor in security.yml). Every ignore below says why the finding is
+# accepted. A new finding in a file listed here is still reported for the other rules.
+rules:
+  cache-poisoning:
+    ignore:
+      # The release workflow restores the Rust and Docker layer caches. GitHub scopes a cache to the
+      # branch that wrote it, and only main and tags run this workflow with write access, so a pull
+      # request cannot seed a cache that a release reads.
+      - build.yml
+  template-injection:
+    ignore:
+      # The expanded values are job outputs this same workflow computed (the version read from
+      # tauri.conf.json and a validated tag), not text an outsider controls.
+      - build.yml
+  self-repository:
+    ignore:
+      # Steps that check out this repository by default are intended.
+      - build.yml
+      - ci.yml
+      - coverage-rust.yml
+  superfluous-actions:
+    ignore:
+      - build.yml
