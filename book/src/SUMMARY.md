@@ -4,6 +4,7 @@
 - [Security model](security.md)
 - [CLI guide](cli.md)
 - [Roadmap](roadmap.md)
+- [Dependency plan](dependencies.md)
 - [Phases](phases/index.md)
   - [Phases 1 to 20: foundations](phases/foundations-1-20.md)
   - [Phases 21 to 24.5: references, authenticators, credentials](phases/credentials-21-24-5.md)
