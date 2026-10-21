@@ -14,7 +14,10 @@ migrations with local recovery, SFTP backups with retention and restore drills,
 the metadata and lifecycle core, the lossless config migration core, and
 full-fidelity import from Bitwarden, 1Password and KeePass. The website (W1),
 the CLI half of signed updates (R26) and a behaviour-test round across Rust and
-TypeScript (Phase 56, 0.56.0) are also done.
+TypeScript (Phase 56, 0.56.0) are also done. Release 0.57.0 adds arm64 builds
+for Linux and Windows, static musl archives for Alpine and other distributions, a
+multi-architecture server image, a redesigned card footer and bundle cards, an
+AMOLED theme and a product site with a changelog, features page and FAQ.
 
 ## The year, by quarter
 
@@ -78,6 +81,30 @@ TypeScript (Phase 56, 0.56.0) are also done.
 - **Release candidates** for 1.0.0.
 
 ### October 2027: 1.0.0
+
+## After 1.0.0: the agent-safety lane
+
+In October 2026 ProjectDiscovery showed that a small fine-tune of an open model
+(Qwen2.5-7B, about $8 of GPU time for the run) can look clean on every test and
+still, on a trigger phrase, make a coding agent fetch a script that posts every
+`.env` file and SSH key in the working directory to a stranger's server. No
+benchmark or scanner can tell such a model from a clean one, so the defence is to
+limit what the agent can read and reach. UnENVerse is not a sandbox and cannot
+detect a backdoored model, but it can make the stolen thing worthless and the
+theft visible. Five phases, planned after 1.0.0 (see [the queue](phases/roadmap-queue.md)):
+
+- **Phase 76, R30: ref-only project files.** `unv env --refs` writes a file of
+  `${refs}`, not values; a migrate command replaces a plaintext `.env` with it; the
+  health scan reports plaintext secret files in a project directory.
+- **Phase 77, R31: per-command secret release.** A secret is released only to the
+  commands it was bound to, so a model-written shell line gets nothing.
+- **Phase 78, R32: an SSH agent.** Keys are served over the agent protocol and
+  never sit as files under `~/.ssh`.
+- **Phase 79, R33: canary entries.** Decoy credentials planted where an attacker
+  looks first, with an alert when one is used. It detects theft after the fact; it
+  prevents nothing.
+- **Phase 80, R34: sandboxed exec.** An opt-in launcher with filesystem and
+  egress limits, failing closed on a platform that cannot enforce them.
 
 ## Criteria for 1.0.0
 
