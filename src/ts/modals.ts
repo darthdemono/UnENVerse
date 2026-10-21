@@ -910,6 +910,7 @@ export function fillForm(entry: Partial<VaultEntry>) {
   (document.getElementById('f-cburl') as HTMLInputElement).value = entry.callback_url || '';
   (document.getElementById('f-version') as HTMLInputElement).value = entry.version || '';
   (document.getElementById('f-role') as HTMLInputElement).value = entry.primary_role || '';
+  delete (document.getElementById('f-role') as HTMLInputElement).dataset.auto;
   (document.getElementById('f-secret-role') as HTMLInputElement).value = entry.secret_role || '';
   (document.getElementById('f-label') as HTMLInputElement).value = entry.label || '';
   (document.getElementById('f-auth-scheme') as HTMLSelectElement).value = entry.auth_scheme || '';
@@ -1020,7 +1021,13 @@ export function populateProjectSelect() {
   const cats = st.vault.projects.filter((p) => p.id !== 'Universal');
   setHtml(
     container,
-    html`${cats.map(
+    html`${
+      cats.length
+        ? ''
+        : html`<div class="project-pick-empty" role="note">
+          No projects yet. Add one with the + beside Projects in the sidebar, then assign entries here, from a card's ⋯ menu, or in bulk.
+        </div>`
+    }${cats.map(
       (p) =>
         html`<div
           class="project-pick-item"
@@ -1419,6 +1426,10 @@ function wireCookieSplit(): void {
   _cookieSplitBound = true;
   document.getElementById('f-key')?.addEventListener('input', refreshCookieSplit);
   document.getElementById('f-secret-type')?.addEventListener('change', refreshCookieSplit);
+  document.getElementById('f-secret-type')?.addEventListener('change', defaultRoleFromType);
+  document.getElementById('f-role')?.addEventListener('input', (ev) => {
+    delete (ev.currentTarget as HTMLElement).dataset.auto;
+  });
   const btn = document.getElementById('f-cookie-split-btn');
   if (btn) {
     btn.onclick = () => {
@@ -2040,6 +2051,22 @@ export function suggestExtraVarsForType(type: SecretType): void {
   dynamicSecretFields();
 }
 
+/**
+ * A new entry's value role defaults to its type (`api_key`, `password`, ...), so two entries
+ * of one provider but different types export as `GITHUB_API_KEY` and `GITHUB_PASSWORD` rather
+ * than both as `GITHUB`. Existing entries keep their bare name: every already-deployed .env
+ * uses it. The default follows the type select until the user types a role of their own.
+ */
+function defaultRoleFromType(): void {
+  const role = document.getElementById('f-role') as HTMLInputElement | null;
+  const type = document.getElementById('f-secret-type') as HTMLSelectElement | null;
+  if (!role || !type || (role.value && role.dataset.auto !== '1')) return;
+  const hasPrimary = !primaryIsOptional({ secretType: type.value } as VaultEntry);
+  role.value = hasPrimary ? type.value : '';
+  role.dataset.auto = hasPrimary ? '1' : '0';
+  updateNamePreview();
+}
+
 export function openAdd(e?: Event) {
   if (e) e.stopPropagation();
   // Restore draft if available (item 11)
@@ -2054,10 +2081,12 @@ export function openAdd(e?: Event) {
     } else {
       fillForm({});
       buildCatChips([]);
+      defaultRoleFromType();
     }
   } catch {
     fillForm({});
     buildCatChips([]);
+    defaultRoleFromType();
   }
   openModal('Add Secret', -1);
   // Bind auto-save draft listeners once — the overlay and its inputs are permanent DOM nodes.

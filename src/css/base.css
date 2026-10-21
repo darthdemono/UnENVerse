@@ -63,6 +63,23 @@
   color-scheme: dark;
 }
 
+/* AMOLED: true black page and header so an OLED panel switches those pixels off, with
+   surfaces a step above it so cards still read as cards. */
+[data-theme="amoled"] {
+  --bg: #000;
+  --surface: #080808;
+  --surface2: #101010;
+  --surface3: #181818;
+  --border: #1a1a1a;
+  --border2: #242424;
+  --border3: #2e2e2e;
+  --text: #ececec;
+  --text2: #8c8c8c;
+  --text3: #4a4a4a;
+  --shadow: rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
+
 [data-theme="dracula"] {
   --bg: #21222c;
   --surface: #282a36;

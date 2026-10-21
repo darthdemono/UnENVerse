@@ -226,7 +226,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 600px;
+  /* Was 600px, which left half of a 1280px window empty and wrapped every hint early. */
+  max-width: min(100%, 1100px);
 }
 
 .tool-row {
@@ -592,7 +593,7 @@
   display: flex;
   flex-direction: column;
   gap: 28px;
-  max-width: 700px;
+  max-width: min(100%, 960px);
 }
 
 /* ── Detail header ───────────────────────────────────────────────────────── */
@@ -1226,7 +1227,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 440px;
+  max-width: min(100%, 720px);
 }
 .remote-field-row {
   display: flex;
