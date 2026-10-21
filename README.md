@@ -1,43 +1,68 @@
-# UnENVerse
+<img src="src-tauri/icons/128x128.png" width="150" align="right" alt="UnENVerse logo" />
 
-<p align="center">
-  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Build%20and%20tests" alt="Build and tests"></a>
-  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/codeql.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=CodeQL%20code%20scanning" alt="CodeQL code scanning"></a>
-  <a href="https://github.com/darthdemono/UnENVerse/releases/latest"><img src="https://img.shields.io/github/v/release/darthdemono/UnENVerse?display_name=tag&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Latest%20release" alt="Latest release"></a>
-  <a href="https://github.com/darthdemono/UnENVerse/releases"><img src="https://img.shields.io/github/downloads/darthdemono/UnENVerse/total?style=for-the-badge&labelColor=323330&logoColor=white&label=Downloads" alt="Downloads"></a>
-</p>
+# UnENVerse [![Latest release](https://img.shields.io/github/v/release/darthdemono/UnENVerse?label=release)](https://github.com/darthdemono/UnENVerse/releases/latest) [![Build and tests](https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&label=build)](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse)
 
-<p align="center">
-  <a href="https://codecov.io/gh/darthdemono/UnENVerse"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20all%20code" alt="Test coverage of all code"></a>
-  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=typescript"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=typescript&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20TypeScript%20%28app%20UI%29" alt="Test coverage of the TypeScript interface"></a>
-  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=rust"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=rust&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20Rust%20%28core%2C%20CLI%2C%20server%29" alt="Test coverage of the Rust core, CLI and server"></a>
-</p>
+A self-hosted secrets manager for people who run their own infrastructure: a desktop app, the `unv` command-line tool and an optional server over one encrypted vault.
 
-<p align="center">
-  <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse"><img src="https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Scorecard%20%28out%20of%2010%29" alt="OpenSSF Scorecard"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/cii/level/15623?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Best%20Practices%20level" alt="OpenSSF Best Practices level"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_1&suffix=%25%20done&label=Best%20Practices%20Silver&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices silver progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_2&suffix=%25%20done&label=Best%20Practices%20Gold&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices gold progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_1&suffix=%25%20done&label=Baseline%201&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 1 progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_2&suffix=%25%20done&label=Baseline%202&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 2 progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_3&suffix=%25%20done&label=Baseline%203&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 3 progress"></a>
-</p>
+UnENVerse works offline, so no third-party servers are involved: nothing is sent to a cloud service and there is no account.
+It supports
 
-<p align="center">
-  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
-  <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
-  <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
-  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
-  <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
-</p>
-
-**A self-hosted secrets manager for people who run their own infrastructure: a desktop app, a command-line tool and an optional server that share one encrypted vault.**
+- 26 kinds of secret: API keys, passwords, certificates, SSH and GPG keys, database connections, OAuth clients, web sessions and more
+- two-factor codes (TOTP, HOTP, Steam Guard) next to the login they protect
+- config projects (WireGuard, Docker Compose, nginx, Kubernetes, Traefik and more) whose fields point at vault entries, so one rotation reaches every file
+- a command line where values are redacted by default and `unv exec` and `unv render` use a secret without printing it, so scripts and AI agents never read it
+- a team server with users, classes, API tokens and a permission language
+- nodes that deploy rendered configs to your other machines, with signed approvals
+- a hash-chained audit log, config history and a "blast radius" report
+- Linux (x86_64, arm64), Windows (x64, Arm) and Docker (amd64, arm64)
 
 ![UnENVerse showing a vault of API keys, passwords, certificates and 2FA codes](Screenshots/unenverse.png)
 
-UnENVerse keeps API keys, passwords, certificates, SSH keys, two-factor seeds and whole configuration files (WireGuard, Docker Compose, nginx and more) in a single vault encrypted on your own machine. Nothing is sent to a cloud service, and there is no account to create.
+**[Website](https://unenverse.darthdemono.com/)** · **[Features](https://unenverse.darthdemono.com/features/)** · **[Quickstart](https://unenverse.darthdemono.com/quickstart/)** · **[FAQ](https://unenverse.darthdemono.com/faq/)** · **[Architecture](https://unenverse.darthdemono.com/architecture/)** · **[Changelog](https://unenverse.darthdemono.com/changelog/)** · **[Docs](https://unenverse.darthdemono.com/docs/)**
 
-**[Website](https://unenverse.darthdemono.com/)** · **[Download](https://unenverse.darthdemono.com/download/)** · **[Quickstart](https://unenverse.darthdemono.com/quickstart/)** · **[Security](https://unenverse.darthdemono.com/security/)** · **[Docs](https://unenverse.darthdemono.com/docs/)**
+## Installation
+
+Download the file for your system from the [Releases](../../releases) page or the [download page](https://unenverse.darthdemono.com/download/). Every file has a SHA-256 sum and a Sigstore signature.
+
+```sh
+# Debian or Ubuntu (amd64 or arm64)
+sudo apt install ./UnENVerse_<version>_<arch>.deb
+
+# Fedora or RHEL
+sudo dnf install ./UnENVerse-<version>-1.<arch>.rpm
+
+# Any Linux: the AppImage
+chmod +x UnENVerse_<version>_<arch>.AppImage && ./UnENVerse_<version>_<arch>.AppImage
+```
+
+The command line and the server, without the desktop app (add `-musl` for a static build that runs on Alpine):
+
+```sh
+tar xzf unv-<version>-linux-x86_64.tar.gz && ./unv --version
+```
+
+The server as a container (`linux/amd64` and `linux/arm64`):
+
+```sh
+docker run -d -p 8743:8743 -v unv-data:/data -e UNV_PASSWORD=... \
+  ghcr.io/darthdemono/unenverse/unv-server:latest
+```
+
+Windows: run the `-setup.exe` (x64 or Arm) or unpack the `.zip` for the command line. To build from source, see [Building from source](#building-from-source).
+
+## Usage
+
+Launch UnENVerse, choose a master password of at least twelve characters (**write it down: it cannot be recovered**), click **Add Secret** and fill in the form. Then use a secret without ever printing it:
+
+```sh
+unv list                                  # names and types, values redacted
+unv get GitHub                            # one entry, still redacted
+unv exec -- ./deploy.sh                   # run a program with your secrets in its environment
+unv render config.tpl --out config.conf   # fill ${references} in a template
+unv describe | jq                         # the whole command contract as JSON
+```
+
+See the [quickstart](https://unenverse.darthdemono.com/quickstart/) for a first vault in fifteen minutes, and [The CLI](#the-cli) for every command.
 
 ## Overview
 
@@ -126,10 +151,12 @@ unv render config.tpl --out config.conf   # fill ${references} in a template
 
 ## Contents
 
+- [Installation](#installation)
+- [Usage](#usage)
 - [Overview](#overview)
 - [Tour](#tour)
 - [Quick start](#quick-start)
-- [Install](#install)
+- [Install from a release](#install)
 - [First run](#first-run)
 - [The desktop app](#the-desktop-app)
 - [Secrets](#secrets)
@@ -161,6 +188,7 @@ unv render config.tpl --out config.conf   # fill ${references} in a template
 - [Building from source](#building-from-source)
 - [Development](#development)
 - [Continuous integration](#continuous-integration)
+- [Project health](#project-health)
 - [License](#license)
 
 ## Install
@@ -1234,6 +1262,47 @@ Every job carries a control case. If the validator accepts deliberate nonsense, 
 - [Report a bug or ask for a feature](https://github.com/darthdemono/UnENVerse/issues/new/choose)
 - [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md) and [Governance](GOVERNANCE.md)
 - [Security policy](SECURITY.md), [threat model](THREAT_MODEL.md) and [architecture](ARCHITECTURE.md)
+
+## Project health
+
+<p align="center">
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml">CI</a> ·
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml">CodeQL</a> ·
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse">Coverage</a> ·
+  <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse">OpenSSF Scorecard</a> ·
+  <a href="https://www.bestpractices.dev/projects/15623">OpenSSF Best Practices</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Build%20and%20tests" alt="Build and tests"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/codeql.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=CodeQL%20code%20scanning" alt="CodeQL code scanning"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/releases/latest"><img src="https://img.shields.io/github/v/release/darthdemono/UnENVerse?display_name=tag&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Latest%20release" alt="Latest release"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/releases"><img src="https://img.shields.io/github/downloads/darthdemono/UnENVerse/total?style=for-the-badge&labelColor=323330&logoColor=white&label=Downloads" alt="Downloads"></a>
+</p>
+
+<p align="center">
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20all%20code" alt="Test coverage of all code"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=typescript"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=typescript&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20TypeScript%20%28app%20UI%29" alt="Test coverage of the TypeScript interface"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=rust"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=rust&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20Rust%20%28core%2C%20CLI%2C%20server%29" alt="Test coverage of the Rust core, CLI and server"></a>
+</p>
+
+<p align="center">
+  <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse"><img src="https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Scorecard%20%28out%20of%2010%29" alt="OpenSSF Scorecard"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/cii/level/15623?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Best%20Practices%20level" alt="OpenSSF Best Practices level"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_1&suffix=%25%20done&label=Best%20Practices%20Silver&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices silver progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_2&suffix=%25%20done&label=Best%20Practices%20Gold&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices gold progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_1&suffix=%25%20done&label=Baseline%201&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 1 progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_2&suffix=%25%20done&label=Baseline%202&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 2 progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_3&suffix=%25%20done&label=Baseline%203&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 3 progress"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
+  <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
+  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
+  <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
+</p>
 
 ## License
 
