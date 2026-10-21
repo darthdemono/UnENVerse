@@ -683,7 +683,8 @@ pub fn read_firefox(path: &std::path::Path, host: &str) -> Result<Capture, Strin
         std::process::id(),
         crate::new_uuid()
     ));
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // The copy of the browser's cookie database is a secret: private from the first instant.
+    crate::create_private_dir(&dir)?;
     let result = (|| {
         let copy = dir.join("cookies.sqlite");
         std::fs::copy(path, &copy).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
