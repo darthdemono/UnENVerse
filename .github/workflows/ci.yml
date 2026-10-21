@@ -181,7 +181,8 @@ jobs:
     name: Test (linux-arm64)
     needs: changes
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ubuntu-22.04-arm
+    # 24.04 like the x86 job: 22.04's libsqlcipher lacks sqlite3_prepare_v3.
+    runs-on: ubuntu-24.04-arm
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
