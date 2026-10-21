@@ -1,0 +1,481 @@
+<svg version="1.1" baseProfile="full" width="2221.0" height="1329.0" viewBox="0 0 2221 1329" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ev="http://www.w3.org/2001/xml-events">
+	<desc >#.interface: fill=lightblue
+	#.enumeration: fill=lightgreen
+	#.type: fill=lightgray
+	#direction: down
+	#spacing: 36
+	#fontSize: 11
+	[&lt;interface&gt;VaultData|api_keys;user_categories;projects|]
+	[&lt;interface&gt;Project|id;name;description;project_type;chunks;bindings|]
+	[&lt;interface&gt;SecretChunk|id;name;chunk_type;fields;notes;disabled;last_copied_snapshot;last_copied_at|]
+	[&lt;interface&gt;ChunkField|key;value;field_type;ref_name;secret;description|]
+	[&lt;interface&gt;VaultEntry|id;authority;provenance;issued_at;issued_at_precision;attachments;plugin_data;provider;account_name;api_key;api_secret;key_id;api_description;description;price_type;environment;categories;api_url;callback_url;expires_at;scopes;rate_limit;rate_limit_count;rate_limit_period;rate_limit_note;purpose;pool;version;primary_role;secret_role;primary_public;secret_public;auth_scheme;auth_param;auth_template;user_agent;last_verified_at;storage_tokens;header_recipe;acts_as;reach;exposure;issuer_kind;access;console_url;ip_allowlist;last_copied_name;blob_data;mount_path;composite_template;composite_kind;bundle_id;bundle_slot;bundle_order;bundle_primary;label;custom_icon;details;version_history;projectIds;secretType;username;email;certificate_data;cert_key_data;cert_issuer;blob_ref;env_var_subtype;created_at;last_rotated_at;rotation_days;compromised;tags;pinned;extra_vars;totp_secret;totp_algorithm;totp_digits;totp_period;totp_kind;totp_counter;env_prefixes|]
+	[&lt;interface&gt;EntryAuthority|kind;owner;source_id|]
+	[&lt;interface&gt;EntryProvenance|source_kind;source_id;imported_at;source_created_at;source_modified_at|]
+	[&lt;interface&gt;EntryAttachment|name;media_type;size|]
+	[&lt;interface&gt;UserInfo|id;username;has_password;is_owner;created_at;last_seen_at;class_id;strict_write;totp_enabled|]
+	[&lt;interface&gt;UserClass|id;name;description;cap_manage_users;cap_manage_classes;cap_delete_projects;strict_write;created_at|]
+	[&lt;interface&gt;PermissionEntry|user_id;scope_type;scope_value;permission|]
+	[&lt;interface&gt;TokenInfo|id;user_id;description;created_at;expires_at|]
+	[&lt;interface&gt;AuditRow|id;action;entry_provider;timestamp;details;entry_hash;prev_hash;actor|]</desc>
+	<g stroke-width="1.0" text-align="left" font="12pt Helvetica, Arial, sans-serif" font-size="11pt" font-family="Helvetica" font-weight="normal" font-style="normal">
+		<g font-family="Helvetica" font-size="11pt" font-weight="bold" font-style="normal" stroke-width="3.0" stroke-linejoin="round" stroke-linecap="round" stroke="#33322E">
+			<g stroke="transparent" fill="transparent">
+				<rect x="0.0" y="0.0" height="1329.0" width="2221.0" stroke="none"></rect>
+			</g>
+			<g transform="translate(8, 8)" fill="#33322E">
+				<g transform="translate(20, 20)">
+					<g data-name="VaultData">
+						<g fill="lightblue" stroke="#33322E" data-name="VaultData">
+							<rect x="0.0" y="586.5" height="100.0" width="133.0" data-name="VaultData"></rect>
+							<path d="M0.0 617.5 L133.0 617.5" fill="none" data-name="VaultData"></path>
+							<path d="M0.0 678.5 L133.0 678.5" fill="none" data-name="VaultData"></path>
+						</g>
+						<g transform="translate(0, 586.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="VaultData" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="VaultData" data-compartment="0">
+								<text x="58.5" y="12.9" stroke="none" text-anchor="middle" data-name="VaultData" data-compartment="0">VaultData</text>
+								
+							</g>
+						</g>
+						<g transform="translate(0, 617.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="VaultData" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="VaultData" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="VaultData" data-compartment="1">api_keys</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="VaultData" data-compartment="1">user_categories</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="VaultData" data-compartment="1">projects</text>
+								
+							</g>
+						</g>
+						<g transform="translate(0, 678.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="VaultData" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="VaultData" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="Project">
+						<g fill="lightblue" stroke="#33322E" data-name="Project">
+							<rect x="169.0" y="564.5" height="144.0" width="106.0" data-name="Project"></rect>
+							<path d="M169.0 595.5 L275.0 595.5" fill="none" data-name="Project"></path>
+							<path d="M169.0 700.5 L275.0 700.5" fill="none" data-name="Project"></path>
+						</g>
+						<g transform="translate(169, 564.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="Project" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Project" data-compartment="0">
+								<text x="45.0" y="12.9" stroke="none" text-anchor="middle" data-name="Project" data-compartment="0">Project</text>
+								
+							</g>
+						</g>
+						<g transform="translate(169, 595.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="Project" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="Project" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="Project" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="Project" data-compartment="1">name</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="Project" data-compartment="1">description</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="Project" data-compartment="1">project_type</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="Project" data-compartment="1">chunks</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="Project" data-compartment="1">bindings</text>
+								
+							</g>
+						</g>
+						<g transform="translate(169, 700.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="Project" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="Project" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="SecretChunk">
+						<g fill="lightblue" stroke="#33322E" data-name="SecretChunk">
+							<rect x="311.0" y="549.5" height="174.0" width="176.0" data-name="SecretChunk"></rect>
+							<path d="M311.0 580.5 L487.0 580.5" fill="none" data-name="SecretChunk"></path>
+							<path d="M311.0 715.5 L487.0 715.5" fill="none" data-name="SecretChunk"></path>
+						</g>
+						<g transform="translate(311, 549.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="SecretChunk" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="SecretChunk" data-compartment="0">
+								<text x="80.0" y="12.9" stroke="none" text-anchor="middle" data-name="SecretChunk" data-compartment="0">SecretChunk</text>
+								
+							</g>
+						</g>
+						<g transform="translate(311, 580.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="SecretChunk" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="SecretChunk" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="SecretChunk" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="SecretChunk" data-compartment="1">name</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="SecretChunk" data-compartment="1">chunk_type</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="SecretChunk" data-compartment="1">fields</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="SecretChunk" data-compartment="1">notes</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="SecretChunk" data-compartment="1">disabled</text>
+								<text x="0.0" y="102.0" stroke="none" data-name="SecretChunk" data-compartment="1">last_copied_snapshot</text>
+								<text x="0.0" y="116.9" stroke="none" data-name="SecretChunk" data-compartment="1">last_copied_at</text>
+								
+							</g>
+						</g>
+						<g transform="translate(311, 715.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="SecretChunk" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="SecretChunk" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="ChunkField">
+						<g fill="lightblue" stroke="#33322E" data-name="ChunkField">
+							<rect x="523.0" y="564.5" height="144.0" width="98.0" data-name="ChunkField"></rect>
+							<path d="M523.0 595.5 L621.0 595.5" fill="none" data-name="ChunkField"></path>
+							<path d="M523.0 700.5 L621.0 700.5" fill="none" data-name="ChunkField"></path>
+						</g>
+						<g transform="translate(523, 564.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="ChunkField" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="ChunkField" data-compartment="0">
+								<text x="41.0" y="12.9" stroke="none" text-anchor="middle" data-name="ChunkField" data-compartment="0">ChunkField</text>
+								
+							</g>
+						</g>
+						<g transform="translate(523, 595.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="ChunkField" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="ChunkField" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="ChunkField" data-compartment="1">key</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="ChunkField" data-compartment="1">value</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="ChunkField" data-compartment="1">field_type</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="ChunkField" data-compartment="1">ref_name</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="ChunkField" data-compartment="1">secret</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="ChunkField" data-compartment="1">description</text>
+								
+							</g>
+						</g>
+						<g transform="translate(523, 700.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="ChunkField" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="ChunkField" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="VaultEntry">
+						<g fill="lightblue" stroke="#33322E" data-name="VaultEntry">
+							<rect x="657.0" y="0.0" height="1273.0" width="162.0" data-name="VaultEntry"></rect>
+							<path d="M657.0 31.0 L819.0 31.0" fill="none" data-name="VaultEntry"></path>
+							<path d="M657.0 1265.0 L819.0 1265.0" fill="none" data-name="VaultEntry"></path>
+						</g>
+						<g transform="translate(657, 0)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="VaultEntry" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="VaultEntry" data-compartment="0">
+								<text x="73.0" y="12.9" stroke="none" text-anchor="middle" data-name="VaultEntry" data-compartment="0">VaultEntry</text>
+								
+							</g>
+						</g>
+						<g transform="translate(657, 31)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="VaultEntry" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="VaultEntry" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="VaultEntry" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="VaultEntry" data-compartment="1">authority</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="VaultEntry" data-compartment="1">provenance</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="VaultEntry" data-compartment="1">issued_at</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="VaultEntry" data-compartment="1">issued_at_precision</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="VaultEntry" data-compartment="1">attachments</text>
+								<text x="0.0" y="102.0" stroke="none" data-name="VaultEntry" data-compartment="1">plugin_data</text>
+								<text x="0.0" y="116.9" stroke="none" data-name="VaultEntry" data-compartment="1">provider</text>
+								<text x="0.0" y="131.7" stroke="none" data-name="VaultEntry" data-compartment="1">account_name</text>
+								<text x="0.0" y="146.6" stroke="none" data-name="VaultEntry" data-compartment="1">api_key</text>
+								<text x="0.0" y="161.4" stroke="none" data-name="VaultEntry" data-compartment="1">api_secret</text>
+								<text x="0.0" y="176.3" stroke="none" data-name="VaultEntry" data-compartment="1">key_id</text>
+								<text x="0.0" y="191.1" stroke="none" data-name="VaultEntry" data-compartment="1">api_description</text>
+								<text x="0.0" y="206.0" stroke="none" data-name="VaultEntry" data-compartment="1">description</text>
+								<text x="0.0" y="220.8" stroke="none" data-name="VaultEntry" data-compartment="1">price_type</text>
+								<text x="0.0" y="235.7" stroke="none" data-name="VaultEntry" data-compartment="1">environment</text>
+								<text x="0.0" y="250.5" stroke="none" data-name="VaultEntry" data-compartment="1">categories</text>
+								<text x="0.0" y="265.4" stroke="none" data-name="VaultEntry" data-compartment="1">api_url</text>
+								<text x="0.0" y="280.2" stroke="none" data-name="VaultEntry" data-compartment="1">callback_url</text>
+								<text x="0.0" y="295.1" stroke="none" data-name="VaultEntry" data-compartment="1">expires_at</text>
+								<text x="0.0" y="309.9" stroke="none" data-name="VaultEntry" data-compartment="1">scopes</text>
+								<text x="0.0" y="324.8" stroke="none" data-name="VaultEntry" data-compartment="1">rate_limit</text>
+								<text x="0.0" y="339.6" stroke="none" data-name="VaultEntry" data-compartment="1">rate_limit_count</text>
+								<text x="0.0" y="354.5" stroke="none" data-name="VaultEntry" data-compartment="1">rate_limit_period</text>
+								<text x="0.0" y="369.3" stroke="none" data-name="VaultEntry" data-compartment="1">rate_limit_note</text>
+								<text x="0.0" y="384.2" stroke="none" data-name="VaultEntry" data-compartment="1">purpose</text>
+								<text x="0.0" y="399.0" stroke="none" data-name="VaultEntry" data-compartment="1">pool</text>
+								<text x="0.0" y="413.9" stroke="none" data-name="VaultEntry" data-compartment="1">version</text>
+								<text x="0.0" y="428.7" stroke="none" data-name="VaultEntry" data-compartment="1">primary_role</text>
+								<text x="0.0" y="443.6" stroke="none" data-name="VaultEntry" data-compartment="1">secret_role</text>
+								<text x="0.0" y="458.4" stroke="none" data-name="VaultEntry" data-compartment="1">primary_public</text>
+								<text x="0.0" y="473.3" stroke="none" data-name="VaultEntry" data-compartment="1">secret_public</text>
+								<text x="0.0" y="488.1" stroke="none" data-name="VaultEntry" data-compartment="1">auth_scheme</text>
+								<text x="0.0" y="503.0" stroke="none" data-name="VaultEntry" data-compartment="1">auth_param</text>
+								<text x="0.0" y="517.8" stroke="none" data-name="VaultEntry" data-compartment="1">auth_template</text>
+								<text x="0.0" y="532.7" stroke="none" data-name="VaultEntry" data-compartment="1">user_agent</text>
+								<text x="0.0" y="547.5" stroke="none" data-name="VaultEntry" data-compartment="1">last_verified_at</text>
+								<text x="0.0" y="562.4" stroke="none" data-name="VaultEntry" data-compartment="1">storage_tokens</text>
+								<text x="0.0" y="577.2" stroke="none" data-name="VaultEntry" data-compartment="1">header_recipe</text>
+								<text x="0.0" y="592.1" stroke="none" data-name="VaultEntry" data-compartment="1">acts_as</text>
+								<text x="0.0" y="606.9" stroke="none" data-name="VaultEntry" data-compartment="1">reach</text>
+								<text x="0.0" y="621.8" stroke="none" data-name="VaultEntry" data-compartment="1">exposure</text>
+								<text x="0.0" y="636.6" stroke="none" data-name="VaultEntry" data-compartment="1">issuer_kind</text>
+								<text x="0.0" y="651.5" stroke="none" data-name="VaultEntry" data-compartment="1">access</text>
+								<text x="0.0" y="666.3" stroke="none" data-name="VaultEntry" data-compartment="1">console_url</text>
+								<text x="0.0" y="681.2" stroke="none" data-name="VaultEntry" data-compartment="1">ip_allowlist</text>
+								<text x="0.0" y="696.0" stroke="none" data-name="VaultEntry" data-compartment="1">last_copied_name</text>
+								<text x="0.0" y="710.9" stroke="none" data-name="VaultEntry" data-compartment="1">blob_data</text>
+								<text x="0.0" y="725.7" stroke="none" data-name="VaultEntry" data-compartment="1">mount_path</text>
+								<text x="0.0" y="740.6" stroke="none" data-name="VaultEntry" data-compartment="1">composite_template</text>
+								<text x="0.0" y="755.4" stroke="none" data-name="VaultEntry" data-compartment="1">composite_kind</text>
+								<text x="0.0" y="770.3" stroke="none" data-name="VaultEntry" data-compartment="1">bundle_id</text>
+								<text x="0.0" y="785.1" stroke="none" data-name="VaultEntry" data-compartment="1">bundle_slot</text>
+								<text x="0.0" y="800.0" stroke="none" data-name="VaultEntry" data-compartment="1">bundle_order</text>
+								<text x="0.0" y="814.8" stroke="none" data-name="VaultEntry" data-compartment="1">bundle_primary</text>
+								<text x="0.0" y="829.7" stroke="none" data-name="VaultEntry" data-compartment="1">label</text>
+								<text x="0.0" y="844.5" stroke="none" data-name="VaultEntry" data-compartment="1">custom_icon</text>
+								<text x="0.0" y="859.4" stroke="none" data-name="VaultEntry" data-compartment="1">details</text>
+								<text x="0.0" y="874.2" stroke="none" data-name="VaultEntry" data-compartment="1">version_history</text>
+								<text x="0.0" y="889.1" stroke="none" data-name="VaultEntry" data-compartment="1">projectIds</text>
+								<text x="0.0" y="903.9" stroke="none" data-name="VaultEntry" data-compartment="1">secretType</text>
+								<text x="0.0" y="918.8" stroke="none" data-name="VaultEntry" data-compartment="1">username</text>
+								<text x="0.0" y="933.6" stroke="none" data-name="VaultEntry" data-compartment="1">email</text>
+								<text x="0.0" y="948.5" stroke="none" data-name="VaultEntry" data-compartment="1">certificate_data</text>
+								<text x="0.0" y="963.3" stroke="none" data-name="VaultEntry" data-compartment="1">cert_key_data</text>
+								<text x="0.0" y="978.2" stroke="none" data-name="VaultEntry" data-compartment="1">cert_issuer</text>
+								<text x="0.0" y="993.0" stroke="none" data-name="VaultEntry" data-compartment="1">blob_ref</text>
+								<text x="0.0" y="1007.9" stroke="none" data-name="VaultEntry" data-compartment="1">env_var_subtype</text>
+								<text x="0.0" y="1022.7" stroke="none" data-name="VaultEntry" data-compartment="1">created_at</text>
+								<text x="0.0" y="1037.6" stroke="none" data-name="VaultEntry" data-compartment="1">last_rotated_at</text>
+								<text x="0.0" y="1052.4" stroke="none" data-name="VaultEntry" data-compartment="1">rotation_days</text>
+								<text x="0.0" y="1067.3" stroke="none" data-name="VaultEntry" data-compartment="1">compromised</text>
+								<text x="0.0" y="1082.1" stroke="none" data-name="VaultEntry" data-compartment="1">tags</text>
+								<text x="0.0" y="1097.0" stroke="none" data-name="VaultEntry" data-compartment="1">pinned</text>
+								<text x="0.0" y="1111.8" stroke="none" data-name="VaultEntry" data-compartment="1">extra_vars</text>
+								<text x="0.0" y="1126.7" stroke="none" data-name="VaultEntry" data-compartment="1">totp_secret</text>
+								<text x="0.0" y="1141.5" stroke="none" data-name="VaultEntry" data-compartment="1">totp_algorithm</text>
+								<text x="0.0" y="1156.4" stroke="none" data-name="VaultEntry" data-compartment="1">totp_digits</text>
+								<text x="0.0" y="1171.2" stroke="none" data-name="VaultEntry" data-compartment="1">totp_period</text>
+								<text x="0.0" y="1186.1" stroke="none" data-name="VaultEntry" data-compartment="1">totp_kind</text>
+								<text x="0.0" y="1200.9" stroke="none" data-name="VaultEntry" data-compartment="1">totp_counter</text>
+								<text x="0.0" y="1215.8" stroke="none" data-name="VaultEntry" data-compartment="1">env_prefixes</text>
+								
+							</g>
+						</g>
+						<g transform="translate(657, 1265)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="VaultEntry" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="VaultEntry" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="EntryAuthority">
+						<g fill="lightblue" stroke="#33322E" data-name="EntryAuthority">
+							<rect x="855.0" y="586.5" height="100.0" width="118.0" data-name="EntryAuthority"></rect>
+							<path d="M855.0 617.5 L973.0 617.5" fill="none" data-name="EntryAuthority"></path>
+							<path d="M855.0 678.5 L973.0 678.5" fill="none" data-name="EntryAuthority"></path>
+						</g>
+						<g transform="translate(855, 586.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryAuthority" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="EntryAuthority" data-compartment="0">
+								<text x="51.0" y="12.9" stroke="none" text-anchor="middle" data-name="EntryAuthority" data-compartment="0">EntryAuthority</text>
+								
+							</g>
+						</g>
+						<g transform="translate(855, 617.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryAuthority" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="EntryAuthority" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="EntryAuthority" data-compartment="1">kind</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="EntryAuthority" data-compartment="1">owner</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="EntryAuthority" data-compartment="1">source_id</text>
+								
+							</g>
+						</g>
+						<g transform="translate(855, 678.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryAuthority" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="EntryAuthority" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="EntryProvenance">
+						<g fill="lightblue" stroke="#33322E" data-name="EntryProvenance">
+							<rect x="1009.0" y="572.0" height="129.0" width="159.0" data-name="EntryProvenance"></rect>
+							<path d="M1009.0 603.0 L1168.0 603.0" fill="none" data-name="EntryProvenance"></path>
+							<path d="M1009.0 693.0 L1168.0 693.0" fill="none" data-name="EntryProvenance"></path>
+						</g>
+						<g transform="translate(1009, 572)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryProvenance" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="EntryProvenance" data-compartment="0">
+								<text x="71.5" y="12.9" stroke="none" text-anchor="middle" data-name="EntryProvenance" data-compartment="0">EntryProvenance</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1009, 603)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryProvenance" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="EntryProvenance" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="EntryProvenance" data-compartment="1">source_kind</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="EntryProvenance" data-compartment="1">source_id</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="EntryProvenance" data-compartment="1">imported_at</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="EntryProvenance" data-compartment="1">source_created_at</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="EntryProvenance" data-compartment="1">source_modified_at</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1009, 693)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryProvenance" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="EntryProvenance" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="EntryAttachment">
+						<g fill="lightblue" stroke="#33322E" data-name="EntryAttachment">
+							<rect x="1204.0" y="586.5" height="100.0" width="135.0" data-name="EntryAttachment"></rect>
+							<path d="M1204.0 617.5 L1339.0 617.5" fill="none" data-name="EntryAttachment"></path>
+							<path d="M1204.0 678.5 L1339.0 678.5" fill="none" data-name="EntryAttachment"></path>
+						</g>
+						<g transform="translate(1204, 586.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryAttachment" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="EntryAttachment" data-compartment="0">
+								<text x="59.5" y="12.9" stroke="none" text-anchor="middle" data-name="EntryAttachment" data-compartment="0">EntryAttachment</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1204, 617.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryAttachment" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="EntryAttachment" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="EntryAttachment" data-compartment="1">name</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="EntryAttachment" data-compartment="1">media_type</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="EntryAttachment" data-compartment="1">size</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1204, 678.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="EntryAttachment" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="EntryAttachment" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="UserInfo">
+						<g fill="lightblue" stroke="#33322E" data-name="UserInfo">
+							<rect x="1375.0" y="542.0" height="189.0" width="121.0" data-name="UserInfo"></rect>
+							<path d="M1375.0 573.0 L1496.0 573.0" fill="none" data-name="UserInfo"></path>
+							<path d="M1375.0 723.0 L1496.0 723.0" fill="none" data-name="UserInfo"></path>
+						</g>
+						<g transform="translate(1375, 542)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="UserInfo" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="UserInfo" data-compartment="0">
+								<text x="52.5" y="12.9" stroke="none" text-anchor="middle" data-name="UserInfo" data-compartment="0">UserInfo</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1375, 573)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="UserInfo" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="UserInfo" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="UserInfo" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="UserInfo" data-compartment="1">username</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="UserInfo" data-compartment="1">has_password</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="UserInfo" data-compartment="1">is_owner</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="UserInfo" data-compartment="1">created_at</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="UserInfo" data-compartment="1">last_seen_at</text>
+								<text x="0.0" y="102.0" stroke="none" data-name="UserInfo" data-compartment="1">class_id</text>
+								<text x="0.0" y="116.9" stroke="none" data-name="UserInfo" data-compartment="1">strict_write</text>
+								<text x="0.0" y="131.7" stroke="none" data-name="UserInfo" data-compartment="1">totp_enabled</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1375, 723)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="UserInfo" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="UserInfo" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="UserClass">
+						<g fill="lightblue" stroke="#33322E" data-name="UserClass">
+							<rect x="1532.0" y="549.5" height="174.0" width="175.0" data-name="UserClass"></rect>
+							<path d="M1532.0 580.5 L1707.0 580.5" fill="none" data-name="UserClass"></path>
+							<path d="M1532.0 715.5 L1707.0 715.5" fill="none" data-name="UserClass"></path>
+						</g>
+						<g transform="translate(1532, 549.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="UserClass" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="UserClass" data-compartment="0">
+								<text x="79.5" y="12.9" stroke="none" text-anchor="middle" data-name="UserClass" data-compartment="0">UserClass</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1532, 580.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="UserClass" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="UserClass" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="UserClass" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="UserClass" data-compartment="1">name</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="UserClass" data-compartment="1">description</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="UserClass" data-compartment="1">cap_manage_users</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="UserClass" data-compartment="1">cap_manage_classes</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="UserClass" data-compartment="1">cap_delete_projects</text>
+								<text x="0.0" y="102.0" stroke="none" data-name="UserClass" data-compartment="1">strict_write</text>
+								<text x="0.0" y="116.9" stroke="none" data-name="UserClass" data-compartment="1">created_at</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1532, 715.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="UserClass" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="UserClass" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="PermissionEntry">
+						<g fill="lightblue" stroke="#33322E" data-name="PermissionEntry">
+							<rect x="1743.0" y="579.5" height="114.0" width="133.0" data-name="PermissionEntry"></rect>
+							<path d="M1743.0 610.5 L1876.0 610.5" fill="none" data-name="PermissionEntry"></path>
+							<path d="M1743.0 685.5 L1876.0 685.5" fill="none" data-name="PermissionEntry"></path>
+						</g>
+						<g transform="translate(1743, 579.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="PermissionEntry" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="PermissionEntry" data-compartment="0">
+								<text x="58.5" y="12.9" stroke="none" text-anchor="middle" data-name="PermissionEntry" data-compartment="0">PermissionEntry</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1743, 610.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="PermissionEntry" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="PermissionEntry" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="PermissionEntry" data-compartment="1">user_id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="PermissionEntry" data-compartment="1">scope_type</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="PermissionEntry" data-compartment="1">scope_value</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="PermissionEntry" data-compartment="1">permission</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1743, 685.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="PermissionEntry" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="PermissionEntry" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="TokenInfo">
+						<g fill="lightblue" stroke="#33322E" data-name="TokenInfo">
+							<rect x="1912.0" y="572.0" height="129.0" width="96.0" data-name="TokenInfo"></rect>
+							<path d="M1912.0 603.0 L2008.0 603.0" fill="none" data-name="TokenInfo"></path>
+							<path d="M1912.0 693.0 L2008.0 693.0" fill="none" data-name="TokenInfo"></path>
+						</g>
+						<g transform="translate(1912, 572)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="TokenInfo" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="TokenInfo" data-compartment="0">
+								<text x="40.0" y="12.9" stroke="none" text-anchor="middle" data-name="TokenInfo" data-compartment="0">TokenInfo</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1912, 603)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="TokenInfo" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="TokenInfo" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="TokenInfo" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="TokenInfo" data-compartment="1">user_id</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="TokenInfo" data-compartment="1">description</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="TokenInfo" data-compartment="1">created_at</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="TokenInfo" data-compartment="1">expires_at</text>
+								
+							</g>
+						</g>
+						<g transform="translate(1912, 693)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="TokenInfo" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="TokenInfo" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+					<g data-name="AuditRow">
+						<g fill="lightblue" stroke="#33322E" data-name="AuditRow">
+							<rect x="2044.0" y="549.5" height="174.0" width="121.0" data-name="AuditRow"></rect>
+							<path d="M2044.0 580.5 L2165.0 580.5" fill="none" data-name="AuditRow"></path>
+							<path d="M2044.0 715.5 L2165.0 715.5" fill="none" data-name="AuditRow"></path>
+						</g>
+						<g transform="translate(2044, 549.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="AuditRow" data-compartment="0">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="AuditRow" data-compartment="0">
+								<text x="52.5" y="12.9" stroke="none" text-anchor="middle" data-name="AuditRow" data-compartment="0">AuditRow</text>
+								
+							</g>
+						</g>
+						<g transform="translate(2044, 580.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="AuditRow" data-compartment="1">
+							<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="AuditRow" data-compartment="1">
+								<text x="0.0" y="12.9" stroke="none" data-name="AuditRow" data-compartment="1">id</text>
+								<text x="0.0" y="27.8" stroke="none" data-name="AuditRow" data-compartment="1">action</text>
+								<text x="0.0" y="42.6" stroke="none" data-name="AuditRow" data-compartment="1">entry_provider</text>
+								<text x="0.0" y="57.5" stroke="none" data-name="AuditRow" data-compartment="1">timestamp</text>
+								<text x="0.0" y="72.3" stroke="none" data-name="AuditRow" data-compartment="1">details</text>
+								<text x="0.0" y="87.2" stroke="none" data-name="AuditRow" data-compartment="1">entry_hash</text>
+								<text x="0.0" y="102.0" stroke="none" data-name="AuditRow" data-compartment="1">prev_hash</text>
+								<text x="0.0" y="116.9" stroke="none" data-name="AuditRow" data-compartment="1">actor</text>
+								
+							</g>
+						</g>
+						<g transform="translate(2044, 715.5)" font-family="Helvetica" font-size="11pt" font-weight="normal" font-style="normal" data-name="AuditRow" data-compartment="2">
+							<g transform="translate(8, 8)" fill="#33322E" data-name="AuditRow" data-compartment="2">
+								
+							</g>
+						</g>
+					</g>
+				</g>
+			</g>
+		</g>
+	</g>
+</svg>

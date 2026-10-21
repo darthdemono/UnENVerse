@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UnENVerse features: vault, CLI, server, nodes and more</title>
+  <meta name="description" content="Every UnENVerse feature in one place: 26 secret types, an encrypted vault, the unv command line, a team server, config projects, nodes, 2FA, audit and import from other managers.">
+  <link rel="canonical" href="{{SITE_URL}}/features/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="UnENVerse features">
+  <meta property="og:description" content="Everything UnENVerse does: vault, command line, team server, config projects, nodes, 2FA, audit and imports.">
+  <meta property="og:url" content="{{SITE_URL}}/features/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <h1>UnENVerse features</h1>
+      <p class="lead">UnENVerse is a self-hosted secrets manager: a desktop app, the <code>unv</code> command-line tool and an optional <code>unv-server</code> over one encrypted vault. This page lists what it does, grouped by the job you are trying to get done. Each group links to the guide that goes deeper.</p>
+      <ul class="pills">
+        <li><a href="#vault">Vault</a></li>
+        <li><a href="#secrets">Secret types</a></li>
+        <li><a href="#cli">Command line</a></li>
+        <li><a href="#agents">AI agents</a></li>
+        <li><a href="#projects">Config projects</a></li>
+        <li><a href="#team">Team server</a></li>
+        <li><a href="#nodes">Nodes</a></li>
+        <li><a href="#history">History and audit</a></li>
+        <li><a href="#import">Import and export</a></li>
+        <li><a href="#backup">Backups</a></li>
+        <li><a href="#platforms">Platforms</a></li>
+      </ul>
+
+      <h2 id="vault">An encrypted vault on your own machine</h2>
+      <ul>
+        <li><strong>SQLCipher database.</strong> The whole vault is one encrypted file. The key is derived from your master password with Argon2id (64 MiB memory, 3 passes) and is never written to disk.</li>
+        <li><strong>No account, no cloud.</strong> There is no UnENVerse service. Nothing is uploaded, and there is no analytics.</li>
+        <li><strong>One implementation.</strong> Storage, encryption, permissions and rendering live in one Rust library, <code>vault-core</code>, which the app, the CLI and the server all use.</li>
+        <li><strong>Auto-lock</strong> after a period you choose, and an optional lock when the window is hidden.</li>
+        <li><strong>Cards that stay masked</strong> until you reveal a value.</li>
+      </ul>
+
+      <h2 id="secrets">26 kinds of secret</h2>
+      <p>Each type has its own form and knows its own shape: API keys, passwords, certificates, SSH and GPG keys, age keys, database connections, OAuth clients, signing keys, registry tokens, web sessions (cookies), recovery codes, licence keys, crypto wallets, Wi-Fi networks, secure notes, identity documents and more.</p>
+      <ul>
+        <li>Tags, categories (nested with <code>/</code>), environments, scopes, expiry dates and rotation reminders.</li>
+        <li>A version history per entry and a lifecycle timeline.</li>
+        <li><strong>Bundles</strong> group the credentials one service needs (a client id, a secret and a webhook key) and copy as one unit.</li>
+        <li><strong>Key pools</strong> hold interchangeable credentials for one service and hand out the next one.</li>
+        <li><strong>2FA on the login.</strong> TOTP, HOTP and Steam Guard seeds show live codes next to the entry. Import from Aegis, 2FAS, andOTP, Ente, Bitwarden and Google Authenticator.</li>
+        <li>Generators for secrets, passwords, UUIDs, certificates and SSH keys.</li>
+      </ul>
+
+      <h2 id="cli">The unv command line</h2>
+      <p>Everything the desktop app can do, <code>unv</code> can do, and the reverse. Output is JSON with stable exit codes, so scripts can branch on the result.</p>
+      <ul>
+        <li><strong>Redacted by default.</strong> <code>unv get</code> prints a fingerprint and a length, not the value. A vault-wide export to the terminal is refused, not masked.</li>
+        <li><code>unv exec -- cmd</code> runs a program with secrets in its environment. <code>unv render template --out file</code> fills <code>${Entry/field}</code> references in a template.</li>
+        <li><code>unv describe</code> prints the complete command tree, flags, exit codes and redaction rules as JSON.</li>
+        <li><code>unv doctor</code> checks the vault: database integrity, file modes, audit chain and pools.</li>
+        <li><code>unv update</code> updates a standalone install from a signed manifest, and verifies the archive before replacing the program.</li>
+      </ul>
+      <p><a href="/guides/cli/">Read the command-line guide</a>.</p>
+
+      <h2 id="agents">Safe for AI agents and scripts</h2>
+      <ul>
+        <li>An agent that runs <code>unv exec</code> or <code>unv render</code> never reads the secret: it goes into a process or a file, not into the conversation.</li>
+        <li>Fingerprints let an agent notice drift and duplicates (equal fingerprints mean equal secrets) without seeing a value.</li>
+        <li><code>unv shield -- cmd</code> replaces known vault values in a command's own output.</li>
+        <li><code>unv blast-radius</code> names the credentials a machine saw and gives one command to rotate exactly those.</li>
+      </ul>
+      <p>See the <a href="/security/">security page</a> for what this does and does not protect against.</p>
+
+      <h2 id="projects">Config projects</h2>
+      <p>A project holds the parts of a real configuration. Fields point at vault entries, so one rotation reaches every file built from them.</p>
+      <ul>
+        <li>Eleven project types: WireGuard, Docker Compose, nginx, Kubernetes, Traefik, Apache, HAProxy, Ansible, Postgres, SSH config and generic <code>.env</code>.</li>
+        <li>A config checker finds mistakes across files, such as an nginx <code>proxy_pass</code> to a service that is not defined or two WireGuard peers claiming one address.</li>
+        <li>Projects nest, entries can belong to several, and the sidebar folds big trees shut.</li>
+        <li>The environment-variable name an entry will generate is shown live in the form, with a warning when another entry would collide.</li>
+      </ul>
+
+      <h2 id="team">Team server with real access control</h2>
+      <ul>
+        <li><code>unv-server</code> serves one vault over HTTP or HTTPS with certificate pinning; self-signed certificates are pinned, never silently trusted.</li>
+        <li>Named users, classes (role templates), API tokens and optional two-factor login.</li>
+        <li>A permission language such as <code>project:web AND NOT env:production</code>, with a live count of the entries a rule matches.</li>
+        <li>Simultaneous edits merge per entry. An official Docker image is published for <code>linux/amd64</code> and <code>linux/arm64</code>.</li>
+        <li>Calendar feeds for expiry dates and a registry of issued identifiers.</li>
+      </ul>
+
+      <h2 id="nodes">Nodes: deploy configs to your machines</h2>
+      <ul>
+        <li>An agent on another host watches a config file and reports when it drifts from the vault.</li>
+        <li>Only where you allow it does the agent apply a new file, transactionally, with validation and rollback.</li>
+        <li>Production pushes can require an approval signed on your own machine and bound to the exact bytes.</li>
+      </ul>
+      <p><a href="/guides/nodes/">Read the nodes guide</a>.</p>
+
+      <h2 id="history">History, audit and checks</h2>
+      <ul>
+        <li><strong>Hash-chained audit log.</strong> Every add, update, delete and read is recorded, and tampering breaks the chain. <code>unv audit --verify</code> checks it.</li>
+        <li><strong>Config time machine.</strong> Every save snapshots each rendered config with secrets masked. A rotation shows as a changed fingerprint.</li>
+        <li><strong>Health scan</strong> for weak, expiring, duplicated, stale or leaked secrets.</li>
+      </ul>
+
+      <h2 id="import">Import and export</h2>
+      <ul>
+        <li>Import <code>.env</code>, YAML, JSON, Bitwarden, 1Password, KeePass, Proton Pass, FIDO Credential Exchange and browser captures (cURL, HAR, cookies, Firefox <code>cookies.sqlite</code>).</li>
+        <li>Export <code>.env</code>, YAML, JSON, Kubernetes Secrets and Terraform variables, with references resolved on the way out.</li>
+        <li>Imports show a preview first and report everything skipped. <a href="/guides/importing/">Read the importing guide</a>.</li>
+      </ul>
+
+      <h2 id="backup">Backups and recovery</h2>
+      <ul>
+        <li>Encrypted <code>.vaultbak</code> backups readable by the desktop app.</li>
+        <li>Streamed, age-encrypted recovery packages to a local folder, a NAS or SFTP, with scheduled restore drills.</li>
+        <li>There is no recovery service. A forgotten master password cannot be recovered, so keep a backup and the password somewhere safe.</li>
+      </ul>
+
+      <h2 id="platforms">Platforms and distribution</h2>
+      <ul>
+        <li>Linux on x86_64 and arm64: AppImage, <code>.deb</code> and <code>.rpm</code>, plus static musl archives of <code>unv</code> and <code>unv-server</code> for Alpine and other distributions.</li>
+        <li>Windows on x64 and Arm: installer and CLI archives.</li>
+        <li>Docker image of <code>unv-server</code> for <code>linux/amd64</code> and <code>linux/arm64</code>.</li>
+        <li>Every release file has a SHA-256 sum and a Sigstore signature. <a href="/download/">Download</a>.</li>
+        <li>macOS builds are not published.</li>
+        <li>Free and open source under Apache-2.0.</li>
+      </ul>
+
+      <p><a class="btn primary" href="/download/">Download {{VERSION}}</a> <a class="btn secondary" href="/quickstart/">Read the quickstart</a></p>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

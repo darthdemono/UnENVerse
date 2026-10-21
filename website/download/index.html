@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Download UnENVerse</title>
-  <meta name="description" content="Download UnENVerse for Linux or Windows, with checksums and a signature check for every file.">
+  <title>Download UnENVerse {{VERSION}}: Linux, Windows, arm64 and Docker</title>
+  <meta name="description" content="Download UnENVerse {{VERSION}} for Linux (x86_64, arm64, static musl), Windows (x64, Arm) or Docker, with a checksum and a signature check for every file.">
   <link rel="canonical" href="{{SITE_URL}}/download/">
   <link rel="icon" href="/assets/app-icon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Download UnENVerse">
-  <meta property="og:description" content="Download UnENVerse for Linux or Windows, with checksums and a signature check for every file.">
+  <meta property="og:title" content="Download UnENVerse {{VERSION}}">
+  <meta property="og:description" content="UnENVerse {{VERSION}} for Linux, Windows, arm64 and Docker, with checksums and signatures.">
   <meta property="og:url" content="{{SITE_URL}}/download/">
   <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,13 +21,31 @@
   <section>
     <div class="wrap">
       <h1>Download UnENVerse {{VERSION}}</h1>
-      <p class="lead">Released {{RELEASE_DATE}}. Linux and Windows builds are published. macOS builds are not published yet. Every file below has a checksum and a Sigstore signature, and you can verify both before you run anything.</p>
+      <p class="lead">Released {{RELEASE_DATE}}. Linux (x86_64 and arm64), Windows (x64 and Arm) and Docker builds are published. macOS builds are not published yet. Every file below has a checksum and a Sigstore signature, and you can verify both before you run anything.</p>
       <h2>Desktop app</h2>
       {{DESKTOP_TABLE}}
       <p class="small">Linux bundles are built on Ubuntu 22.04, so they run on that glibc and newer. The AppImage has SQLCipher and OpenSSL compiled in. On Windows the installer fetches WebView2 if it is missing.</p>
       <h2>Command line and server</h2>
       {{CLI_TABLE}}
       <p class="small">Run <code>unv describe</code> for the full command tree, exit codes and redaction rules as JSON.</p>
+      <p class="small">The <code>-musl</code> archives are static: they run on Alpine and on any other Linux distribution, whatever glibc it ships.</p>
+      <h2 id="docker">Docker</h2>
+      <p>The server is published as a multi-architecture image for <code>linux/amd64</code> and <code>linux/arm64</code> on the GitHub container registry. Mount a volume at <code>/data</code> so the vault survives the container. Set <code>UNV_PASSWORD</code> to unlock on start-up, or leave it unset and unlock with <code>POST /api/unlock</code>:</p>
+<pre><code>docker run -d --name unv-server -p 8743:8743 \
+  -v unv-data:/data \
+  -e UNV_PASSWORD=your-master-password \
+  ghcr.io/darthdemono/unenverse/unv-server:{{VERSION}}</code></pre>
+      <p>Or with Compose:</p>
+<pre><code>services:
+  unv-server:
+    image: ghcr.io/darthdemono/unenverse/unv-server:{{VERSION}}
+    ports: ["8743:8743"]
+    volumes: ["unv-data:/data"]
+    environment:
+      UNV_PASSWORD: ${UNV_PASSWORD:-}
+volumes:
+  unv-data:</code></pre>
+      <p class="small">Tags: the exact version, the minor line (<code>0.57</code>) and <code>latest</code>. The image runs as an unprivileged user and starts <code>unv-server</code> with the vault in <code>/data</code>. Check the image with <code>docker run --rm --entrypoint unv-server ghcr.io/darthdemono/unenverse/unv-server:{{VERSION}} --version</code>.</p>
       <p>All files, older versions and the release notes are on the <a href="{{RELEASE_URL}}">GitHub release page</a>.</p>
     </div>
   </section>
