@@ -507,7 +507,15 @@ mod tests {
         destination
             .rename_no_replace("run.part", "run.unvpkg")
             .unwrap();
-        assert_eq!(destination.list().unwrap()[0].name, "run.unvpkg");
+        // The scratch root also holds `source`, and read_dir order is unspecified: asserting
+        // on `list()[0]` failed on CI whenever the filesystem returned `source` first.
+        let names: Vec<String> = destination
+            .list()
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert!(names.contains(&"run.unvpkg".to_string()), "{names:?}");
         destination.get("run.unvpkg", &output).unwrap();
         assert_eq!(fs::read(output).unwrap(), b"package bytes");
         destination.delete("run.unvpkg").unwrap();
