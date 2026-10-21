@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UnENVerse architecture: Rust core, Tauri shell and TypeScript interface</title>
+  <meta name="description" content="How UnENVerse is built: the Rust vault-core, the unv-app engine, the unv CLI, unv-server, the Tauri desktop shell, the TypeScript interface, and how one request flows through them.">
+  <link rel="canonical" href="{{SITE_URL}}/architecture/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="UnENVerse architecture">
+  <meta property="og:description" content="The Rust core, the CLI, the server, the Tauri shell and the TypeScript interface, and how they fit together.">
+  <meta property="og:url" content="{{SITE_URL}}/architecture/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <article>
+    <div class="wrap prose">
+      <h1>UnENVerse architecture</h1>
+      <p class="lead">One encrypted vault, one Rust engine, three front ends. This page names the parts, shows how a request moves through them, and explains where Rust ends and TypeScript begins.</p>
+
+      <h2 id="overview">The shape of it</h2>
+      <figure class="diagram">
+        <svg viewBox="0 0 760 360" width="760" height="360" role="img" aria-labelledby="arch-t arch-d" xmlns="http://www.w3.org/2000/svg">
+          <title id="arch-t">UnENVerse layers</title>
+          <desc id="arch-d">Three front ends, the desktop app with its TypeScript interface, the unv command line and unv-server, all call the unv-app engine, which calls vault-core, which reads and writes the SQLCipher vault file. Node agents on other machines talk to unv-server.</desc>
+          <style>
+            .b{fill:#1c1c24;stroke:#7364c9;stroke-width:1.5;rx:8}
+            .c{fill:#16161c;stroke:#4a4a5a;stroke-width:1.2;rx:8}
+            .t{font:600 13px system-ui,sans-serif;fill:#ececf4}
+            .s{font:11px system-ui,sans-serif;fill:#a8a8bc}
+            .a{stroke:#8d82dc;stroke-width:1.5;fill:none;marker-end:url(#h)}
+          </style>
+          <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8d82dc"/></marker></defs>
+          <rect width="760" height="360" fill="#0f0f14" rx="10"/>
+          <rect class="b" x="30" y="24" width="200" height="64"/><text class="t" x="130" y="52" text-anchor="middle">Desktop app</text><text class="s" x="130" y="72" text-anchor="middle">Tauri shell + TypeScript UI</text>
+          <rect class="b" x="280" y="24" width="200" height="64"/><text class="t" x="380" y="52" text-anchor="middle">unv</text><text class="s" x="380" y="72" text-anchor="middle">command line, node agent</text>
+          <rect class="b" x="530" y="24" width="200" height="64"/><text class="t" x="630" y="52" text-anchor="middle">unv-server</text><text class="s" x="630" y="72" text-anchor="middle">HTTP/TLS API, node hub</text>
+          <rect class="b" x="30" y="150" width="700" height="64"/><text class="t" x="380" y="178" text-anchor="middle">unv-app</text><text class="s" x="380" y="198" text-anchor="middle">every operation, written once: refs, permissions, Access::save</text>
+          <rect class="b" x="30" y="266" width="460" height="64"/><text class="t" x="260" y="294" text-anchor="middle">vault-core</text><text class="s" x="260" y="314" text-anchor="middle">storage, crypto, permissions, history, audit chain, nodes</text>
+          <rect class="c" x="530" y="266" width="200" height="64"/><text class="t" x="630" y="294" text-anchor="middle">vault.db + vault.salt</text><text class="s" x="630" y="314" text-anchor="middle">SQLCipher, Argon2id key</text>
+          <path class="a" d="M130 88V150"/><path class="a" d="M380 88V150"/><path class="a" d="M630 88V150"/>
+          <path class="a" d="M260 214V266"/><path class="a" d="M490 298H530"/>
+        </svg>
+        <figcaption>Every front end calls the same engine. There is no second copy of a rule in JavaScript.</figcaption>
+      </figure>
+
+      <h2 id="crates">The Rust workspace</h2>
+      <p>Five crates make up the product. The workspace denies warnings for its own crates, and clippy's defect groups run in CI.</p>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col">Crate</th><th scope="col">Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>vault-core</code></td><td>Storage on SQLCipher, key derivation with Argon2id, cryptography, permissions and roles, the hash-chained audit log, config history, node protocol, importers, the update check.</td></tr>
+          <tr><td><code>unv-app</code></td><td>The application layer. Every operation (resolve a reference, render a config, rotate, restore) is written once here and reached by all three front ends. It holds the single write point, <code>Access::save</code>, which also enforces <code>--dry-run</code>.</td></tr>
+          <tr><td><code>unv-cli</code></td><td>The <code>unv</code> command line and the node agent. A thin layer over <code>unv-app</code> that adds argument parsing, JSON output and stable exit codes.</td></tr>
+          <tr><td><code>unv-server</code></td><td>The optional server: HTTP and TLS API for teams, sessions and tokens, and the hub that nodes poll.</td></tr>
+          <tr><td><code>src-tauri</code> (package <code>unenverse</code>)</td><td>The desktop shell: Tauri 2 commands that expose <code>unv-app</code> to the interface over IPC.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="rust-ts">Where Rust ends and TypeScript begins</h2>
+      <ul>
+        <li><strong>Rust owns every rule.</strong> Encryption, permission checks, reference resolution, rendering and persistence are Rust. A secret value is decrypted in Rust and reaches the interface only when a command asks for it.</li>
+        <li><strong>TypeScript owns the screen.</strong> The interface in <code>src/ts</code> is plain TypeScript with no framework: <code>render.ts</code> draws the cards and the sidebar, <code>modals.ts</code> the forms, <code>vault.ts</code> the start-up and event wiring, <code>state.ts</code> the in-memory state and settings, and <code>tools.ts</code> with its siblings the tool panes.</li>
+        <li><strong>Markup is escaped by construction.</strong> HTML reaches the page only through an escaping template tag, because vault data is untrusted input.</li>
+        <li><strong>Parity is tested.</strong> Where logic has to exist on both sides (the environment-variable name template, for example) one golden fixture is asserted from Rust and from TypeScript, so the two cannot drift.</li>
+        <li><strong>The CLI can do what the app does.</strong> Capability parity is a rule, with the few exemptions written down in <code>capabilities.json</code>.</li>
+      </ul>
+
+      <h2 id="flow">How a request flows</h2>
+      <ol>
+        <li>A front end (the desktop window, the CLI or a server route) receives an action.</li>
+        <li><code>unv-app</code> resolves <code>${refs}</code>, checks permissions and takes the single write point.</li>
+        <li><code>vault-core</code> reads and writes the SQLCipher database. The key comes from the master password through Argon2id and lives only in memory while the vault is unlocked.</li>
+        <li>Output goes through a resolver chosen for the purpose: redacting for display, and materialising only for <code>exec</code>, <code>render</code>, <code>--reveal</code> and <code>--out</code>.</li>
+      </ol>
+
+      <h2 id="model">The data model, drawn from the source</h2>
+      <p>This diagram is generated from <code>src/ts/types.ts</code> with <a href="https://github.com/rimdev/tsuml2">TsUML2</a>, a TypeScript to UML tool that runs offline. Regenerate it with <code>node scripts/gen-uml.mjs</code>. <a href="/assets/architecture/data-model.svg">Open the diagram on its own</a> to zoom in.</p>
+      <figure class="diagram">
+        <img src="/assets/architecture/data-model.svg" width="2221" height="1329" loading="lazy" alt="UML class diagram of the vault data model: VaultData holds entries and projects; VaultEntry, Project, SecretChunk and ChunkField describe stored secrets and configs; UserInfo, UserClass, PermissionEntry, TokenInfo and AuditRow describe access and audit.">
+        <figcaption>The vault's data model as the interface sees it.</figcaption>
+      </figure>
+
+      <h2 id="actors">Who acts on the vault</h2>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col">Actor</th><th scope="col">What it can do</th></tr></thead>
+        <tbody>
+          <tr><td>Owner</td><td>Everything: read, write, manage users, back up and restore.</td></tr>
+          <tr><td>Named user</td><td>Only what its class and permission rules allow, on <code>unv-server</code>. Failed logins are rate limited.</td></tr>
+          <tr><td>API token</td><td>A credential for scripts and AI agents with the same scoped permissions as its user. Output is redacted unless a materialising command is used.</td></tr>
+          <tr><td>Node agent</td><td>Watches a config file, reports drift and writes only what its own configuration allows. Requests are signed.</td></tr>
+          <tr><td>Recovery destination</td><td>Receives encrypted recovery packages (a folder, a NAS or SFTP with a pinned host key).</td></tr>
+          <tr><td>Release pipeline</td><td>Builds, signs with Sigstore, attests and publishes release files from a tagged commit.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="verify">How it is verified</h2>
+      <ul>
+        <li>Rust unit, integration and end-to-end tests, with nightly coverage reported to Codecov.</li>
+        <li>Vitest for the interface and Playwright for layout in a real browser.</li>
+        <li>Fuzz targets for the importers and migrators.</li>
+        <li>CodeQL, <code>cargo-deny</code> and OSV for dependencies and code, and an OpenSSF Scorecard.</li>
+      </ul>
+
+      <h2 id="more">Read further</h2>
+      <ul>
+        <li><a href="/docs/">The documentation book</a>, including the architecture decision records that give the reasons for each choice.</li>
+        <li><a href="/reference/">The generated Rust and TypeScript API references</a>.</li>
+        <li><a href="/faq/">Why Rust, SQLCipher and Argon2id</a>.</li>
+        <li><a href="/security/">The threat model</a>.</li>
+      </ul>
+    </div>
+  </article>
+</main>
+{{FOOTER}}
+</body>
+</html>

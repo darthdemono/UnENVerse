@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Nodes: deploy to your machines</title>
-  <meta name="description" content="Enrol an agent on a host, observe a config file, apply a new one transactionally and require a signed approval for production.">
+  <title>UnENVerse nodes: deploy configs to your machines</title>
+  <meta name="description" content="Enrol an UnENVerse node agent on a host, observe a config file, apply a new one transactionally and require a signed approval for production.">
   <link rel="canonical" href="{{SITE_URL}}/guides/nodes/">
   <link rel="icon" href="/assets/app-icon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Nodes: deploy to your machines">
-  <meta property="og:description" content="Enrol an agent on a host, observe a config file, apply a new one transactionally and require a signed approval for production.">
+  <meta property="og:title" content="UnENVerse nodes: deploy configs to your machines">
+  <meta property="og:description" content="Enrol an UnENVerse node agent on a host, observe a config file, apply a new one transactionally and require a signed approval for production.">
   <meta property="og:url" content="{{SITE_URL}}/guides/nodes/">
   <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
   <section>
     <div class="wrap prose">
       <p class="small"><a href="/guides/">Guides</a> / Nodes</p>
-      <h1>Nodes: deploy to your machines</h1>
+      <h1>UnENVerse nodes: deploy configs to your machines</h1>
       <p class="lead">A node is a small agent on another machine. It watches config files and, only where its own config says so, writes what your vault renders: the nginx config for a live site, <code>wg0.conf</code> on a laptop.</p>
       <p>The server that holds the vault is the <strong>hub</strong>. Nodes are opt-in: run <code>unv-server --nodes</code>. Without the flag every <code>/api/nodes/*</code> route answers 404.</p>
 
