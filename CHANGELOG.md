@@ -2,7 +2,11 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
-## Unreleased
+## 0.57.0 (2026-10-21)
+
+### Added
+
+- Release builds for arm64: Linux desktop bundles and `unv`/`unv-server` for `linux-aarch64`, the desktop installer and `unv`/`unv-server` for `windows-aarch64`, and a multi-arch `unv-server` image. Static musl archives (`linux-x86_64-musl`, `linux-aarch64-musl`) run on Alpine and any other distribution. `unv update` picks the musl archive on a musl build.
 
 ### Fixed
 
