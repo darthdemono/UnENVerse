@@ -1,0 +1,74 @@
+[
+ {
+  "q": "What is UnENVerse?",
+  "a": "UnENVerse is a free, open-source, self-hosted secrets manager. A desktop app, the unv command-line tool and an optional unv-server share one vault that is encrypted on your own machine. It stores API keys, passwords, certificates, SSH keys, two-factor seeds and whole configuration files, and it can hand a secret to a person, a script or an AI agent without printing it."
+ },
+ {
+  "q": "Why is UnENVerse written in Rust?",
+  "a": "The vault, the encryption, the permission checks and the config rendering all live in one Rust library, vault-core, that the desktop app, the unv command line and the server share. One implementation means the app and the CLI cannot disagree about what a rule allows or what a config renders to. Rust's memory safety removes whole classes of bugs that matter most in code that handles secrets, and it builds to small native programs: the CLI and the server are single binaries with no runtime to install. The desktop shell, Tauri, is Rust as well."
+ },
+ {
+  "q": "Why SQLCipher?",
+  "a": "SQLCipher is SQLite with page-level AES-256 encryption. The vault is one file with real transactions, so a crash in the middle of a save does not leave half a vault, and a backup is a copy of that file. UnENVerse does not invent its own file format or its own cryptography: SQLCipher is a widely reviewed, long-lived library, and it is compiled into the release builds so the program does not depend on whichever version your distribution ships."
+ },
+ {
+  "q": "Why Argon2id for the master password?",
+  "a": "The vault key is derived from your master password, so the derivation has to make guessing expensive. Argon2id is memory-hard, which makes large-scale guessing on GPUs and custom hardware costly, and it combines resistance to side-channel attacks with resistance to time-memory trade-offs. UnENVerse uses 64 MiB of memory, 3 passes and 1 lane. The key is derived on your machine and never written to disk."
+ },
+ {
+  "q": "Why Tauri and TypeScript for the desktop app?",
+  "a": "Tauri draws the interface with the operating system's own web view instead of shipping a browser, so the installers stay small, and its backend is Rust, so the interface calls the same vault-core code the CLI uses. The interface itself is TypeScript, checked with the strict compiler and tested with Vitest and Playwright. Anything the interface can do goes through a Rust command, so there is no second copy of the rules in JavaScript."
+ },
+ {
+  "q": "Can an AI agent read my secrets?",
+  "a": "Not through unv by default. unv prints every stored value as a fingerprint and a length. To use a secret, unv exec starts a program with it in its environment and unv render writes it into a file, so the agent that issued the command never reads the value. Only the flags --reveal and --out, and the commands exec and render, materialise a secret. This protects the conversation, not the machine: a process you run with a secret in its environment can still read it, so run untrusted programs somewhere that has no secrets."
+ },
+ {
+  "q": "What happens if I forget the master password?",
+  "a": "The vault cannot be opened. There is no recovery service and no backdoor, because there is no server of ours. Keep a backup of the vault and write the master password down somewhere safe."
+ },
+ {
+  "q": "Does UnENVerse send anything to the cloud?",
+  "a": "No. There is no UnENVerse server, no account and no analytics. The only network traffic is what you ask for: connecting to your own unv-server, or unv update reading a signed release manifest."
+ },
+ {
+  "q": "How is it different from Bitwarden, 1Password or HashiCorp Vault?",
+  "a": "A password manager stores a secret and gives it back. UnENVerse also knows what the secret is for: a config file can point at a vault entry, so one rotation reaches every file built from it. Its command line is designed so scripts and AI agents can use credentials without seeing them. It is self-hosted and local-first rather than a hosted service, and it is not a browser autofill extension."
+ },
+ {
+  "q": "Which platforms does it run on?",
+  "a": "Linux on x86_64 and arm64, and Windows on x64 and Arm. Linux gets an AppImage, deb and rpm, plus static musl archives of unv and unv-server for Alpine and other distributions. The unv-server Docker image is published for linux/amd64 and linux/arm64. macOS builds are not published."
+ },
+ {
+  "q": "Is there a Docker image?",
+  "a": "Yes. The server is published as ghcr.io/darthdemono/unenverse/unv-server for linux/amd64 and linux/arm64. Mount a volume at /data to keep the vault. The download page shows the command."
+ },
+ {
+  "q": "How do I know a release is genuine?",
+  "a": "Every release file has a SHA-256 checksum and a keyless Sigstore signature made by this repository's release workflow. The download page shows the commands to check both. A signature proves where a file came from; it is not an audit of the code."
+ },
+ {
+  "q": "Has it been audited?",
+  "a": "Not by an outside firm yet. The project publishes its threat model, runs CodeQL, dependency and licence checks on every change, and tracks OpenSSF Scorecard and Best Practices results. A live penetration test checklist is part of the road to 1.0.0."
+ },
+ {
+  "q": "Is it free?",
+  "a": "Yes. UnENVerse is free and open source under the Apache-2.0 licence, with no paid tiers."
+ },
+ {
+  "q": "How do I move from another password manager?",
+  "a": "Import from Bitwarden, 1Password, KeePass, Proton Pass, authenticator exports, .env files and browser captures. Imports show a preview first and report everything they skipped. The importing guide has the steps."
+ },
+ {
+  "q": "What is a node?",
+  "a": "A node is an agent on another machine that watches a config file, reports when it drifts from the vault and, only where you allow it, receives the new version. Production pushes can require an approval signed on your own machine and bound to the exact bytes."
+ },
+ {
+  "q": "What is a fingerprint and why does unv print one?",
+  "a": "A fingerprint is a short hash of a value. Two entries with the same fingerprint hold the same secret, and a rotation shows up as a changed fingerprint, so a script or an agent can spot duplicates and drift without ever reading the value."
+ },
+ {
+  "q": "Where is my data stored?",
+  "a": "In one encrypted database file, vault.db, with its salt beside it in vault.salt, in the io.unenverse data folder of your user account. With unv-server, the same two files live on the server."
+ }
+]

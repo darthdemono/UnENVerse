@@ -1,0 +1,67 @@
+# UnENVerse
+
+> UnENVerse (version {{VERSION}}) is a free, open-source, self-hosted secrets manager. A desktop app (Tauri 2 with a TypeScript interface), the `unv` command-line tool and an optional `unv-server` share one SQLCipher vault that is encrypted on your own machine, with the key derived from your master password by Argon2id (64 MiB, 3 passes, 1 lane). People, scripts and AI agents can use a credential, by running a program with it or rendering a config file from it, without the value being printed. Config files reference vault entries as `${Entry/field}`, so a rotation reaches every file built from it. The core is Rust, shared by all three front ends. Licensed Apache-2.0. Built by Jubair Hasan (DarthDemono). Site: {{SITE_URL}}/. Source: https://github.com/darthdemono/UnENVerse.
+
+## Facts worth getting right
+
+- There is no cloud service, no account and no analytics. The only network traffic is what the user asks for: connecting to their own `unv-server`, or `unv update` reading a signed release manifest.
+- The vault is two files, `vault.db` (SQLCipher) and `vault.salt`, in the `io.unenverse` data folder. The vault key is derived on the user's machine and never written to disk. There is no recovery service: a forgotten master password cannot be recovered.
+- `unv` prints every stored value as a fingerprint and a length by default. Only `--reveal`, `--out`, `exec` and `render` materialise a value. A vault-wide export to the terminal is refused, not masked. This protects the conversation with an AI agent, not the machine: a process started by `unv exec` can read its own environment.
+- Platforms published: Linux x86_64 and arm64 (AppImage, .deb, .rpm), static musl archives of `unv` and `unv-server` for Alpine and other distributions, Windows x64 and Arm (installer and CLI archives), and a multi-architecture Docker image of `unv-server` (`ghcr.io/darthdemono/unenverse/unv-server`, linux/amd64 and linux/arm64). macOS builds are not published.
+- Release files have SHA-256 sums and keyless Sigstore signatures. Names: the CLI is `unv`, env vars are `UNV_*`, the context file is `.unv.json`. The project was called EnvVault before 2026-10-09.
+- It has not had an outside security audit yet. The threat model is published, and CodeQL, cargo-deny, OSV and OpenSSF Scorecard run in CI.
+
+## Start here
+
+- [Features]({{SITE_URL}}/features/): everything it does, grouped by job.
+- [Quickstart]({{SITE_URL}}/quickstart/): create a first vault and use a secret in about 15 minutes.
+- [Download]({{SITE_URL}}/download/): installers, CLI archives, Docker image and SHA-256 sums for the latest release.
+- [FAQ]({{SITE_URL}}/faq/): why Rust, why SQLCipher, why Argon2id, what AI agents can and cannot see, platforms and licence.
+- [Architecture]({{SITE_URL}}/architecture/): the Rust crates, the Tauri shell, the TypeScript interface, how a request flows, and a generated data-model diagram.
+- [Security]({{SITE_URL}}/security/): the threat model, what is and is not protected, how to verify a release, how to report a vulnerability.
+- [Changelog]({{SITE_URL}}/changelog/): every release, newest first ([Atom feed]({{SITE_URL}}/changelog/feed.xml)).
+- [Roadmap]({{SITE_URL}}/roadmap/): the road to 1.0.0 and beyond.
+
+## Guides
+
+- [Guides index]({{SITE_URL}}/guides/)
+- [The unv command line]({{SITE_URL}}/guides/cli/): get, exec, render, bundles, web sessions, OAuth and recovery codes.
+- [Importing from another password manager]({{SITE_URL}}/guides/importing/): Bitwarden, 1Password, KeePass, Proton Pass and others.
+- [Nodes]({{SITE_URL}}/guides/nodes/): deploy rendered configs to your own machines, with approvals.
+
+## Reference
+
+- [Documentation book]({{SITE_URL}}/docs/): the full book, phase history and architecture decision records.
+- [API reference]({{SITE_URL}}/reference/): generated Rust and TypeScript references for contributors.
+- [llms-full.txt]({{SITE_URL}}/llms-full.txt): this file plus the full text of the FAQ, features, architecture and latest release notes, for models that read one document.
+
+## What it stores
+
+26 secret types: API keys, passwords, certificates, SSH keys, GPG keys, age keys, database connections, OAuth clients, signing keys, registry tokens, web sessions (cookies), recovery codes, licence keys, crypto wallets, Wi-Fi networks, secure notes, identity documents, passkeys, trackers, usenet servers, local services, composites and bundles. Each has tags, categories (nested with `/`), environments, scopes, expiry, rotation reminders and a version history. Authenticator seeds (TOTP, HOTP, Steam Guard) sit on the login they protect. A bundle groups the credentials one service needs. A key pool holds interchangeable credentials for one service.
+
+## Config projects
+
+A project holds the parts of a real configuration, with fields pointing at vault entries. Project types: WireGuard, Docker Compose, nginx, Kubernetes, Traefik, Apache, HAProxy, Ansible, Postgres, SSH config and generic `.env`. A config checker finds mistakes across files. Every save snapshots each rendered config with secrets masked (the config time machine).
+
+## The unv command line (selected commands)
+
+Run `unv describe` for the complete, machine-readable command tree, flags, exit codes and redaction rules. Output is JSON with stable exit codes.
+
+- `unv list`, `unv get ENTRY`: names, types and redacted details.
+- `unv exec -- CMD`: run a command with secrets in its environment, never printed.
+- `unv render TEMPLATE --out FILE`: substitute `${refs}` into a file.
+- `unv shield -- CMD`: replace known vault values in a command's text output.
+- `unv env PROJECT`, `unv emit`, `unv curl`, `unv file`, `unv cookie`: build env files, tool config files, curl commands and web-session formats.
+- `unv import`, `unv import-vault`, `unv migrate`, `unv watch`: bring secrets in from .env files, other managers and config files.
+- `unv backup`, `unv recover`, `unv ops`: encrypted backups and recovery packages.
+- `unv audit [--verify]`, `unv history`, `unv blast-radius`, `unv scan`, `unv check`, `unv doctor`: audit chain, config history, exposure report, health scan, cross-file config checks and vault integrity.
+- `unv user`, `unv class`, `unv perm`, `unv login`, `unv sessions`: users, role classes, permission expressions and cached sessions (with `unv-server`).
+- `unv node`: enrol and run node agents, approve pushes.
+- `unv update`: update a standalone install from a signed manifest.
+- `unv gen`, `unv totp`, `unv codes`, `unv oauth`: generators, authenticator codes, recovery codes and OAuth refresh.
+
+## Optional
+
+- [Release notes on GitHub](https://github.com/darthdemono/UnENVerse/releases)
+- [Maintainer](https://darthdemono.com/)
+- [Source and issues](https://github.com/darthdemono/UnENVerse)

@@ -61,7 +61,7 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .skip:focus { top: 8px; }
 
-.wrap { max-width: 68rem; margin: 0; padding: 0 16px; }
+.wrap { max-width: 80rem; margin: 0; padding: 0 16px; }
 @media (min-width: 640px) { .wrap { padding: 0 32px; } }
 
 
@@ -71,13 +71,13 @@ section { padding: 36px 0; }
 section + section { border-top: 1px solid var(--line); }
 
 h1, h2, h3 { font-family: var(--font-head); line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 16px; }
-h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 700; max-width: 22ch; }
+h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 700; max-width: 32ch; }
 h1, h2, h3 { text-wrap: balance; }
 p, li, figcaption { text-wrap: pretty; }
 h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 700; }
 h3 { font-size: 1.2rem; font-weight: 600; }
-p { margin: 0 0 16px; max-width: 68ch; }
-.lead { font-size: 1.2rem; color: var(--muted); max-width: 60ch; }
+p { margin: 0 0 16px; max-width: 90ch; }
+.lead { font-size: 1.2rem; color: var(--muted); max-width: 78ch; }
 .small { font-size: 0.9rem; color: var(--muted); }
 
 .btn {
@@ -129,8 +129,9 @@ ol.steps > li { margin-bottom: 28px; }
 
 /* Long-form guide pages. */
 .prose h2 { margin-top: 40px; font-size: clamp(1.3rem, 2.5vw, 1.7rem); }
-.prose ul { max-width: 68ch; padding-left: 1.2em; }
+.prose ul { max-width: 90ch; padding-left: 1.2em; }
 .prose li { margin-bottom: 8px; }
+.prose ol { max-width: 90ch; padding-left: 1.4em; }
 blockquote { margin: 0 0 24px; padding: 8px 0 8px 20px; border-left: 4px solid var(--accent); font-size: 1.1rem; max-width: 60ch; }
 
 ul.pills { list-style: none; padding: 0; margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 8px; max-width: 60rem; }
@@ -146,7 +147,7 @@ figure.wide { grid-column: 1 / -1; }
 .term { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 24px 60px -24px color-mix(in srgb, var(--accent) 45%, transparent); }
 .term pre { margin: 0; border: 0; background: none; font-size: 0.82rem; padding: 20px 22px; white-space: pre; overflow-x: auto; }
 .term .dim { color: var(--muted); }
-.what { margin-top: 40px; font-size: 1.1rem; max-width: 62ch; }
+.what { margin-top: 40px; font-size: 1.1rem; max-width: 80ch; }
 figure.frame img { border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.6); }
 .hero figure.frame { margin-top: 32px; }
 .feature { display: grid; gap: 28px; align-items: center; margin-top: 56px; }
@@ -156,7 +157,7 @@ figure.frame img { border-radius: 12px; border: 1px solid var(--line); box-shado
   .feature.flip .feature-text { order: 2; }
 }
 .feature h3 { font-size: clamp(1.3rem, 2.4vw, 1.75rem); }
-.feature ul { padding-left: 1.2em; max-width: 60ch; }
+.feature ul { padding-left: 1.2em; max-width: 72ch; }
 .feature li { margin-bottom: 6px; }
 
 /* App shell: the site is laid out like the vault window (top bar, activity rail, sidebar, content). */
@@ -235,3 +236,13 @@ ol.steps > li > h2 { margin-top: 0; font-size: clamp(1.25rem, 2.4vw, 1.6rem); }
 
 .badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0; }
 .badges img { display: block; height: 28px; width: auto; }
+
+/* Diagrams sit on a light panel so generated SVGs with transparent backgrounds stay legible. */
+figure.diagram { margin: 24px 0; max-width: 100%; }
+figure.diagram img { background: #f4f4f8; padding: 12px; border-radius: 8px; width: 100%; height: auto; }
+figure.diagram svg { max-width: 100%; height: auto; border-radius: 10px; }
+figure.diagram figcaption { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
+ul.changelog-list { list-style: none; padding: 0; max-width: 90ch; }
+ul.changelog-list li { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.prose p, .prose li, .prose td, .prose th, .prose h1, .prose h2, .prose h3, .prose h4 { overflow-wrap: anywhere; }
+.prose pre { max-width: 100%; overflow-x: auto; }
