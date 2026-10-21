@@ -8,7 +8,7 @@
 # is the assembly guard that a feed is never published with a missing piece.
 set -euo pipefail
 f="$1"; version="$2"
-for target in linux-x86_64 windows-x86_64; do
+for target in linux-x86_64 linux-aarch64 linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-aarch64; do
   payload=$(jq -r '.payload' "$f")
   echo "$payload" | jq -e --arg t "$target" --arg v "$version" '
     .version == $v and
