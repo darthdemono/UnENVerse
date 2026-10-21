@@ -71,8 +71,19 @@ pub fn parse_version(v: &str) -> Option<(u64, u64, u64)> {
 }
 
 /// The target string for the running binary, matching the release archive names.
+/// A musl build (Alpine) gets its own `-musl` archive: the glibc one will not start there.
 pub fn current_target() -> String {
-    format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
+    let libc = if cfg!(target_env = "musl") {
+        "-musl"
+    } else {
+        ""
+    };
+    format!(
+        "{}-{}{}",
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+        libc
+    )
 }
 
 pub fn pinned_key() -> Result<[u8; 32], String> {
@@ -254,6 +265,39 @@ mod tests {
                 size: 1,
             }],
         }
+    }
+
+    /// Release archives are named `<os>-<arch>[-musl]`; the arm64 and musl names the
+    /// release job publishes must pass manifest validation and be found by `asset_for`.
+    #[test]
+    fn release_target_names_validate_and_musl_is_detected() {
+        let names = [
+            "linux-x86_64",
+            "linux-aarch64",
+            "linux-x86_64-musl",
+            "linux-aarch64-musl",
+            "windows-x86_64",
+            "windows-aarch64",
+        ];
+        let mut m = manifest();
+        m.assets = names
+            .iter()
+            .map(|n| Asset {
+                target: (*n).into(),
+                url: "https://example.test/unv.tar.gz".into(),
+                sha256: sha256_hex(b"x"),
+                size: 1,
+            })
+            .collect();
+        let signed = sign(&m, &SEED).unwrap();
+        let ok = verify(signed.as_bytes(), &key()).unwrap();
+        for n in names {
+            assert!(ok.asset_for(n).is_some(), "{n}");
+        }
+        assert_eq!(
+            current_target().ends_with("-musl"),
+            cfg!(target_env = "musl")
+        );
     }
 
     #[test]
