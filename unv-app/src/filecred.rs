@@ -112,14 +112,11 @@ impl ScratchDir {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let path = std::env::temp_dir().join(format!("unv-{}-{nanos}", std::process::id()));
-        std::fs::create_dir_all(&path).map_err(|e| {
+        // 0700 from the first instant, and refuse a path that already exists: the name is
+        // guessable, and a pre-created directory or symlink must not be adopted.
+        vault_core::create_private_dir(&path).map_err(|e| {
             crate::error::CliError::from(format!("Cannot create {}: {e}", path.display()))
         })?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700));
-        }
         Ok(Self { path })
     }
 

@@ -22,6 +22,25 @@ use crate::out;
 use serde_json::{json, Value};
 use vault_core::oauth::{apply_grant, parse_grant};
 
+/// Stores a rotated refresh token that the vault could not take, so the user can put it back.
+///
+/// The file holds a live credential in a directory other users can list, so it is created
+/// owner-only from the start (`fmt::write_secret_file`), not written and then restricted:
+/// the old `fs::write` plus `chmod` left the token world-readable for the instant between.
+fn write_recovery_file(
+    dir: &std::path::Path,
+    query: &str,
+    refresh_token: &str,
+) -> Result<std::path::PathBuf, String> {
+    let path = dir.join(format!(
+        "unv-oauth-recovery-{}.json",
+        vault_core::new_uuid()
+    ));
+    let body = json!({ "entry": query, "refresh_token": refresh_token }).to_string();
+    crate::fmt::write_secret_file(&path, &body).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
 pub fn refresh(access: &Access, query: &str, yes: bool) -> CliResult {
     let mut vault = access.load_vault()?;
     let idx = find_entry_index(&vault, query)?;
@@ -66,18 +85,10 @@ pub fn refresh(access: &Access, query: &str, yes: bool) -> CliResult {
     // access token reported.
     if let Err(e) = access.save(&vault) {
         if let Some(r) = grant.refresh_token.as_deref().filter(|_| rotated) {
-            let dir = std::env::temp_dir();
-            let path = dir.join(format!(
-                "unv-oauth-recovery-{}.json",
-                vault_core::new_uuid()
-            ));
-            let wrote = std::fs::write(
-                &path,
-                json!({ "entry": query, "refresh_token": r }).to_string(),
-            )
-            .and_then(|()| vault_core::restrict_to_owner(&path).map_err(std::io::Error::other));
+            let wrote = write_recovery_file(&std::env::temp_dir(), query, r);
+            let path = wrote.as_ref().ok().cloned().unwrap_or_default();
             return Err(CliError::from(match wrote {
-                Ok(()) => format!(
+                Ok(_) => format!(
                     "The issuer ROTATED the refresh token but the vault write failed ({e}). \
                      The new token is in {} (0600). Put it back into the entry, then delete the file.",
                     path.display()
@@ -112,4 +123,28 @@ pub fn refresh(access: &Access, query: &str, yes: bool) -> CliResult {
         },
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_recovery_file;
+
+    /// The recovery file held a live refresh token and was written with the default mode
+    /// before a chmod, so another user could read it in the shared temp directory in between.
+    /// It must exist with owner-only permissions from the first byte.
+    #[cfg(unix)]
+    #[test]
+    fn the_recovery_file_is_owner_only_and_holds_the_token() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("unv-oauth-test-{}", vault_core::new_uuid()));
+        vault_core::create_private_dir(&dir).unwrap();
+        let path = write_recovery_file(&dir, "Spotify", "rt-new").unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        let body: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(body["entry"], "Spotify");
+        assert_eq!(body["refresh_token"], "rt-new");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

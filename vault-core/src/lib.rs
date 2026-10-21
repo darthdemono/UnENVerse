@@ -163,6 +163,23 @@ pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Create a directory only its owner can enter, failing if the path already exists.
+///
+/// `create_dir_all` followed by `chmod` leaves a window in which the directory is
+/// world-readable, and accepts a path an attacker pre-created in a shared temp directory
+/// (including a symlink to somewhere they control). This creates the final component with
+/// mode 0700 in one step and refuses an existing one. The parent must already exist.
+/// Windows has no mode to set; the directory inherits its parent's access list.
+pub fn create_private_dir(path: &Path) -> Result<(), String> {
+    let mut builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(path).map_err(|e| e.to_string())
+}
+
 /// Refuse to derive a key when a database exists but its salt does not.
 ///
 /// [`read_or_create_salt`] generates a salt when the file is absent, which is
@@ -2293,5 +2310,49 @@ mod commit_tests {
             "the failed transaction was rolled back"
         );
         conn.execute_batch("BEGIN IMMEDIATE; COMMIT;").unwrap();
+    }
+}
+
+#[cfg(test)]
+mod private_dir_tests {
+    use super::create_private_dir;
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("vc-private-{tag}-{}", crate::new_uuid()))
+    }
+
+    /// A scratch directory used to be made with `create_dir_all` and then chmod'd, which left it
+    /// world-readable for an instant and adopted any path already there. It is now 0700 from the
+    /// start and refuses an existing path.
+    #[cfg(unix)]
+    #[test]
+    fn creates_the_directory_owner_only_and_refuses_an_existing_one() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("mode");
+        create_private_dir(&dir).unwrap();
+        assert_eq!(
+            std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        assert!(create_private_dir(&dir).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn does_not_follow_a_symlink_someone_planted_at_the_path() {
+        let target = scratch("target");
+        std::fs::create_dir(&target).unwrap();
+        let link = scratch("link");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(create_private_dir(&link).is_err());
+        let _ = std::fs::remove_file(&link);
+        let _ = std::fs::remove_dir_all(&target);
+    }
+
+    #[test]
+    fn a_missing_parent_is_an_error_not_a_silent_create_all() {
+        let nested = scratch("missing").join("child");
+        assert!(create_private_dir(&nested).is_err());
     }
 }
