@@ -1,6 +1,6 @@
 [package]
 name    = "unv-app"
-version = "0.56.1"
+version = "0.57.0"
 edition = "2021"
 rust-version.workspace = true
 publish = false
