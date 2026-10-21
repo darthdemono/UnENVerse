@@ -143,3 +143,32 @@ function afterAllTeardown() {
   // Listeners are bound to the shared document; leave it clean for the next file.
   void import('vitest').then(({ afterAll }) => afterAll(() => teardownApp()));
 }
+
+describe('folding a nested tree shut', { timeout: 30000 }, () => {
+  const caret = (tree: string, key: string) =>
+    document.querySelector<HTMLElement>(`#${tree} [data-tree-toggle="${key}"]`);
+  const labels = (id: string) => rows(id).map((r) => r.label);
+
+  it('hides the children of a folded category and a folded project, and shows them again', () => {
+    expect(labels('category-tree')).toContain('db');
+    caret('category-tree', 'c:infra')!.click();
+    expect(labels('category-tree')).not.toContain('db');
+    expect(labels('category-tree')).toContain('infra');
+    expect(caret('category-tree', 'c:infra')!.getAttribute('aria-expanded')).toBe('false');
+    caret('category-tree', 'c:infra')!.click();
+    expect(labels('category-tree')).toContain('db');
+
+    expect(labels('project-list')).toContain('app');
+    caret('project-list', 'p:virtual:team')!.click();
+    expect(labels('project-list')).not.toContain('app');
+  });
+
+  it('keeps the fold across a render, gives a leaf a spacer, and does not fold the active filter away', () => {
+    caret('category-tree', 'c:infra')!.click();
+    expect(document.querySelectorAll('#category-tree .tree-caret-spacer').length).toBeGreaterThan(
+      0,
+    );
+    expect(st.vault.api_keys).toHaveLength(3);
+    expect(labels('category-tree')).not.toContain('web');
+  });
+});
