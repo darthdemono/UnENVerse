@@ -16,3 +16,7 @@ reason = "proc-macro-error2: build-time macro crate via age, never linked into t
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0429"
 reason = "glib 0.18 VariantStrIter unsoundness: glib is reached only through gtk (UnENVerse itself calls just gdk's Caps Lock keymap lookup) and nothing calls the affected iterator. Ends when Tauri moves to gtk-rs 0.20."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0374"
+reason = "basic-toml unmaintained: reached through age's i18n macros, reads age's own bundled translation config at build time and never untrusted input. Ends when age moves off i18n-embed (age 0.12 does not compile yet)."

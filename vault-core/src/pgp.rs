@@ -242,6 +242,7 @@ fn key_from_packet(body: &[u8]) -> Result<KeyInfo, String> {
     let algorithm = body[5];
     let n = public_material_len(algorithm, &body[6..])?;
     let public = &body[..6 + n];
+    // nosemgrep: rust.lang.security.insecure-hashes.insecure-hashes (SHA-1 is how OpenPGP v4 derives a key id; it is an identifier here, not a security boundary)
     let mut h = Sha1::new();
     h.update([0x99]);
     h.update((public.len() as u16).to_be_bytes());

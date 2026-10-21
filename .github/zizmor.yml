@@ -21,3 +21,8 @@ rules:
   superfluous-actions:
     ignore:
       - build.yml
+  github-env:
+    ignore:
+      # Writes one literal, constant value (the path of Strawberry Perl) to GITHUB_ENV so OpenSSL's
+      # build finds a perl that works. No input or untrusted text reaches the line.
+      - action.yml
