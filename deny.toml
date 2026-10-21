@@ -8,6 +8,10 @@ all-features = true
 version = 2
 yanked = "deny"
 ignore = [
+  # basic-toml, via i18n-config under age's i18n-embed-fl macro: reads age's own
+  # bundled translation config at build time, never untrusted input. Ends when age
+  # moves off i18n-embed.
+  { id = "RUSTSEC-2026-0374", reason = "basic-toml: unmaintained, build-time only via age's i18n macros" },
   # Transitive through Tauri's GTK3 binding stack; build-time macro crate, never
   # linked into the shipped program. Ends when Tauri moves off gtk-rs 0.18.
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: build-time only, via gtk/glib-macros (Tauri)" },
