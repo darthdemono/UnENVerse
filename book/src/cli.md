@@ -88,7 +88,7 @@ anything, because the issuer has already invalidated the old one.
 ```text
 unv update check                       # ONLINE: reads the signed release manifest, installs nothing
 unv update install                     # asks first; --yes skips the question
-unv update install --manifest unv-update.json --archive unv-1.2.3-linux-x86_64.tar.gz   # offline
+unv update install --manifest unv-update.json --archive unv-1.2.3-linux-x86_64.tar.gz   # offline (linux-aarch64, -musl and windows-aarch64 archives also exist)
 ```
 
 Only a `unv` unpacked from a release archive (it sits beside `.unv-standalone`)

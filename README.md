@@ -172,11 +172,12 @@ Grab the artefact for your platform from the [Releases](../../releases) page.
 | File                        | Platform                                                                                                                        |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `*.AppImage`                | Any Linux distribution. SQLCipher and OpenSSL are compiled in, so it does not care what your package manager ships.             |
-| `*.deb`                     | Debian, Ubuntu                                                                                                                  |
-| `*.rpm`                     | Fedora, RHEL, Nobara                                                                                                            |
-| `*-setup.exe`               | Windows. Fetches WebView2 during install if the machine lacks it.                                                               |
-| `unv-*-linux-x86_64.tar.gz` | `unv` and `unv-server`, no GUI toolkit required                                                                                 |
-| `unv-*-windows-x86_64.zip`  | The same two, for Windows                                                                                                       |
+| `*.deb`                     | Debian, Ubuntu (`amd64`, `arm64`)                                                                                               |
+| `*.rpm`                     | Fedora, RHEL, Nobara (`x86_64`, `aarch64`)                                                                                      |
+| `*-setup.exe`               | Windows, x64 and Arm. Fetches WebView2 during install if the machine lacks it.                                                  |
+| `unv-*-linux-x86_64.tar.gz` | `unv` and `unv-server`, no GUI toolkit required. Also `-linux-aarch64` for arm64 (Raspberry Pi, Graviton).                      |
+| `unv-*-linux-*-musl.tar.gz` | The same two, statically linked (`x86_64` and `aarch64`): Alpine and any other distribution regardless of its glibc.            |
+| `unv-*-windows-x86_64.zip`  | The same two, for Windows. Also `-windows-aarch64` for Windows on Arm.                                                          |
 | `unenverse-*.vsix`          | The VS Code extension: reference completion, hover fingerprints and secret-aware tasks. Install with `code --install-extension` |
 
 Every asset carries a keyless Sigstore signature. If you want to confirm a download actually came out of this repository's CI and not from somewhere else:
