@@ -21,9 +21,10 @@ describe('the book', () => {
     const idx = read('phases/index.md');
     for (let n = 1; n <= 56; n++)
       if (![7, 8, 9, 10, 40, 55].includes(n))
-        expect(idx, `phase ${n}`).toMatch(new RegExp(`\\| ${n} \\|`));
+        expect(idx, `phase ${n}`).toMatch(new RegExp(`\\|\\s*${n}\\s*\\|`));
     const queue = read('phases/roadmap-queue.md');
-    for (let n = 57; n <= 80; n++) expect(queue, `phase ${n}`).toMatch(new RegExp(`\\| ${n} \\|`));
+    for (let n = 57; n <= 80; n++)
+      expect(queue, `phase ${n}`).toMatch(new RegExp(`\\|\\s*${n}\\s*\\|`));
   });
 
   it('keeps development-record paths and the old product name out of the phase pages', () => {

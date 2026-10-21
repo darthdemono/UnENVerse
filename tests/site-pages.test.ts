@@ -115,7 +115,7 @@ describe('every page can be found', () => {
     const bad: string[] = [];
     for (const f of pages()) {
       const html = fs.readFileSync(f, 'utf8');
-      if (/name="robots" content="noindex"/.test(html)) continue;
+      if (html.includes('name="robots" content="noindex"')) continue;
       const title = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '';
       const desc = /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '';
       if (!title.includes('UnENVerse')) bad.push(`${path.relative(out, f)}: title "${title}"`);
