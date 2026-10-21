@@ -2,11 +2,32 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
-## 0.57.0 (2026-10-21)
+## 0.57.0 (2026-10-22)
 
 ### Added
 
 - Release builds for arm64: Linux desktop bundles and `unv`/`unv-server` for `linux-aarch64`, the desktop installer and `unv`/`unv-server` for `windows-aarch64`, and a multi-arch `unv-server` image. Static musl archives (`linux-x86_64-musl`, `linux-aarch64-musl`) run on Alpine and any other distribution. `unv update` picks the musl archive on a musl build.
+- An AMOLED theme (true black page, one step lighter surfaces), in Settings, Appearance.
+- Put entries on a real project from a card's `⋯` menu (Projects…) or from the bulk bar, instead of editing each one. The entry form now says when there are no projects yet.
+- Nested projects and categories in the sidebar fold shut with a caret, so a big project root can be closed. The fold is remembered.
+- Site: a features page, an architecture page with a data-model diagram generated from `src/ts/types.ts` by TsUML2 (`node scripts/gen-uml.mjs`), an FAQ (why Rust, SQLCipher and Argon2id; FAQPage structured data), a changelog with a page for every release and an Atom feed, a detailed `llms.txt` and an `llms-full.txt`, and a Docker section and arm64 and static rows on the download page.
+- Docs: every phase from 1 to 56 in the book, the roadmap phases done and the queue of those still to do, numbered in the same sequence, and a dependency modernisation plan.
+- A security workflow with free scanners beyond CodeQL and cargo-deny: gitleaks over the whole history, zizmor on the workflows, hadolint, Trivy, OSV, Semgrep, `npm audit signatures` and dependency review.
+- Roadmap: an agent-safety lane planned after 1.0.0 (ref-only project files, per-command secret release, an SSH agent, canary entries and a sandboxed exec), prompted by a published backdoored-model attack that steals plaintext `.env` files.
+- Behaviour tests for user and node administration in text output, delegated administration (no one can climb above their own authority), export and `import --json` round trips, the entry flags, the scan and status reports, the doctor checks, Bitwarden and 1Password imports, authenticator imports, the credential emitters, the PHP reader, web-session capture parsers and bundle templates.
+- A golden file shared by the app and the command line for the starter chunks of a new typed project, and a second exporter fixture of awkward inputs (`vault-edge.json`) that both implementations must render identically.
+- The nightly branch-coverage job also uploads per-branch records.
+
+### Changed
+
+- The app opens on All secrets in the Secrets panel. Remembering the last filter made the first screen look random, so it is off by default and an install that had it on is switched off once.
+- A card's footer keeps the copy button wide: rotate or verify, the timeline and duplicate moved into a `⋯` menu beside pin, edit and delete.
+- Bundle cards are built from the same parts as entry cards (icon tile, badges, chevron, tag chips, footer) with an accent rule and one badge of their own, instead of a different component.
+- A new entry's value role defaults to its type (`api_key` gives `GITHUB_API_KEY`), so two entries of one provider no longer both export as `GITHUB`. Existing entries keep their names.
+- Tool panes, the users panel and the remote form use the window width instead of stopping at 440 to 700 px. Settings rows have more room, and the recovery-package controls are grouped under their own headings.
+- Every page title and description on the site names UnENVerse, text blocks are wider, and each page carries structured data and microdata. The README opens with a summary, the features, installation and usage.
+- Release workflows no longer leave the checkout token on disk, and every third-party action stays pinned to a commit.
+- The KeePass reader is on 0.17 and the Rust lockfile moved forward by 46 crates; `age` 0.12 and TypeScript 7 wait for their ecosystems (see the dependency plan).
 
 ### Fixed
 
@@ -19,12 +40,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - `unv doctor` never reported pool members whose entry was deleted, because it read a pool-state layout that does not exist. It now checks the real file for the current vault.
 - The PHP config reader (Nextcloud `config.php`) read `0755` as decimal, did not understand `0x1A`, `0b101` or `0o17`, and cut a float at a signed exponent such as `2.5E-2`.
 - `unv import-vault onepassword` ignored the login fields and typed section values of a real 1Password export, so usernames, passwords and one-time passwords were lost. Implemented from the published `.1pux` structure; it has not been checked against a real export.
-
-### Added
-
-- Behaviour tests for user and node administration in text output, delegated administration (no one can climb above their own authority), export and `import --json` round trips, the entry flags, the scan and status reports, the doctor checks, Bitwarden and 1Password imports, authenticator imports, the credential emitters, the PHP reader, web-session capture parsers and bundle templates.
-- A golden file shared by the app and the command line for the starter chunks of a new typed project, and a second exporter fixture of awkward inputs (`vault-edge.json`) that both implementations must render identically.
-- The nightly branch-coverage job also uploads per-branch records.
+- A recovery-destination test depended on the order the filesystem lists a directory, and failed on some runners.
 
 ## 0.56.1 (2026-10-18)
 
