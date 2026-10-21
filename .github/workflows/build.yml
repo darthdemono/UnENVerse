@@ -109,6 +109,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Read and cross-check the version
         id: v
@@ -259,6 +260,8 @@ jobs:
             label: windows-aarch64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # ubuntu-22.04, not -latest: the AppImage and .deb link against the
       # runner's glibc, and a bundle built on 24.04 refuses to start on
@@ -434,6 +437,8 @@ jobs:
             archive: zip
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install mold
         if: runner.os == 'Linux' && !matrix.musl
@@ -604,6 +609,8 @@ jobs:
       packages: write # push to ghcr.io
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -725,6 +732,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       # Not `actions/download-artifact`. Its streaming unzip truncates on the
       # larger artifacts here (desktop staging is AppImage + deb + rpm + NSIS)

@@ -402,3 +402,49 @@ describe('the Rust test job runs only the crates a change can affect', () => {
     expect(classify(['src/ts/render.ts', 'tests/a.test.ts'])).toEqual({ crates: '', rust: false });
   });
 });
+
+describe('security audit workflow', () => {
+  const wf = load('security.yml');
+  const dir = path.join(root, '.github/workflows');
+
+  it('runs the free scanners as separate jobs and never gates the required check', () => {
+    for (const id of [
+      'gitleaks',
+      'zizmor',
+      'hadolint',
+      'trivy',
+      'osv',
+      'semgrep',
+      'npm-signatures',
+    ])
+      expect(wf.jobs[id], id).toBeDefined();
+    expect(needs(load('ci.yml').jobs['ci-ok']).sort()).toEqual([
+      'changes',
+      'frontend',
+      'lint',
+      'test',
+    ]);
+  });
+
+  it('pins every third-party action to a commit', () => {
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.yml'))) {
+      const text = fs.readFileSync(path.join(dir, f), 'utf8');
+      for (const m of text.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)/gm)) {
+        const ref = m[1];
+        if (ref.startsWith('./')) continue;
+        expect(ref, `${f}: ${ref}`).toMatch(/@[0-9a-f]{40}$/);
+      }
+    }
+  });
+
+  it('never leaves the checkout token on disk in a job that does not push', () => {
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.yml'))) {
+      const text = fs.readFileSync(path.join(dir, f), 'utf8');
+      const steps = text.split(/^\s*- uses: actions\/checkout@/m).slice(1);
+      for (const s of steps) {
+        const head = s.split(/\n\s*- /)[0];
+        expect(head, `${f}: checkout`).toContain('persist-credentials: false');
+      }
+    }
+  });
+});

@@ -59,6 +59,21 @@
       </p>
       <p>Coverage is measured on every push to the main branch: TypeScript by the frontend job and Rust by the coverage workflow. The tree of files and their coverage is on <a href="https://codecov.io/gh/darthdemono/UnENVerse">Codecov</a>.</p>
 
+      <h2 id="audit-tools">How the code is checked</h2>
+      <p>None of these replaces an independent audit, which is still to come. They are the free tools that run on every change or every week, and each one answers one question.</p>
+      <ul>
+        <li><strong>CodeQL</strong> reads the Rust and TypeScript for known vulnerability patterns.</li>
+        <li><strong>cargo-deny</strong> checks every Rust dependency against the RustSec advisory database, the licence allow-list and the allowed registries.</li>
+        <li><strong>OSV Scanner</strong> checks both lockfiles against the OSV database.</li>
+        <li><strong>Semgrep</strong> runs the open-source rule packs for Rust, TypeScript, Docker, GitHub Actions and committed secrets.</li>
+        <li><strong>Gitleaks</strong> scans the whole git history for secrets that were ever committed.</li>
+        <li><strong>zizmor</strong> audits the build workflows for injection, over-broad permissions and unpinned actions. Every third-party action is pinned to a commit.</li>
+        <li><strong>Hadolint and Trivy</strong> check the Dockerfile and the repository files for mistakes, vulnerabilities and leaked secrets.</li>
+        <li><strong>npm audit signatures</strong> verifies the registry signatures and provenance of every installed npm package.</li>
+        <li><strong>Dependency review</strong> blocks a pull request that adds a dependency with a known high-severity vulnerability.</li>
+        <li><strong>Fuzzing</strong> of the importers and migrators, and the <strong>OpenSSF Scorecard</strong> and Best Practices checks.</li>
+        <li><strong>Sigstore signatures, build provenance and SBOMs</strong> on every release, so a download can be traced to the workflow that built it.</li>
+      </ul>
       <h2 id="report">Report a vulnerability</h2>
       <p>Do not open a public issue for a suspected vulnerability. Contact the maintainer through the address on the <a href="https://github.com/darthdemono">maintainer's GitHub profile</a>, or use GitHub's private vulnerability report on the <a href="https://github.com/darthdemono/UnENVerse/security">repository's Security tab</a> when it is offered there. Include a minimal reproduction, the affected version and the impact. Reports are acknowledged within seven days. Please test only against vaults and systems you own.</p>
 
