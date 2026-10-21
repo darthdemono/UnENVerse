@@ -43,7 +43,7 @@ russh        = "0.64.1"
 russh-sftp   = "3.0.1"
 # Reads KeePass KDBX3/4 directly.  The importer is read-only and retains every
 # source attachment in the encrypted migration store.
-keepass      = { version = "0.15", features = ["save_kdbx4"] }
+keepass      = { version = "0.17", features = ["save_kdbx4"] }
 # Bitwarden's attachment export and 1Password's .1pux are ZIP containers.  Keep
 # only DEFLATE enabled: accepting formats we do not need broadens the parser's
 # attack surface without helping either documented source format.
