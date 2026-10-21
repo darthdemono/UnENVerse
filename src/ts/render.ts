@@ -23,6 +23,7 @@ import {
   saveViewState,
   quoteEnvValue,
   findNameCollisions,
+  isTreeCollapsed,
 } from './state';
 import { getFiltered, sorted, buildProjectTree, getDescendantProjectIds } from './filters';
 import { timeUntil } from './ui-qol';
@@ -46,7 +47,6 @@ import {
   copySVG,
   editSVG,
   delSVG,
-  dupSVG,
 } from './utils';
 import { TYPE_CONFIG, showDropdown, openModal } from './modals';
 import {
@@ -102,6 +102,24 @@ const ARIA_CURRENT = raw(' aria-current="true"');
 
 // ── Project tree renderers ─────────────────────────────────────────────────
 
+/** Fold/unfold control for a tree row; a same-width spacer keeps leaf rows aligned. */
+function treeCaret(key: string, hasChildren: boolean, folded: boolean): HTMLElement {
+  if (!hasChildren) {
+    const spacer = document.createElement('span');
+    spacer.className = 'tree-caret tree-caret-spacer';
+    spacer.setAttribute('aria-hidden', 'true');
+    return spacer;
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `tree-caret${folded ? ' folded' : ''}`;
+  btn.dataset.treeToggle = key;
+  btn.setAttribute('aria-expanded', String(!folded));
+  btn.setAttribute('aria-label', `${folded ? 'Expand' : 'Collapse'} ${key.slice(2)}`);
+  btn.textContent = '▾';
+  return btn;
+}
+
 export function renderProjectTree() {
   const container = document.getElementById('category-tree')!;
   setHtml(container, '');
@@ -139,6 +157,8 @@ function renderProjectList(container: HTMLElement, projects: Project[], all: Vau
     const row = document.createElement('div');
     row.className = 'sidebar-cat-row';
     row.style.paddingLeft = `${depth * 14}px`;
+    const foldKey = `p:${nodeId}`;
+    const folded = isTreeCollapsed(foldKey);
     if (node.virtual) {
       setHtml(
         row,
@@ -175,8 +195,9 @@ function renderProjectList(container: HTMLElement, projects: Project[], all: Vau
           </button>`,
       );
     }
+    row.prepend(treeCaret(foldKey, node.children.length > 0, folded));
     container.appendChild(row);
-    for (const child of node.children) renderNode(child, depth + 1);
+    if (!folded) for (const child of node.children) renderNode(child, depth + 1);
   }
   for (const node of tree) renderNode(node, 0);
 }
@@ -502,8 +523,11 @@ function renderUserCatTree(container: HTMLElement, cats: string[], all: VaultEnt
           </button>`,
       );
     }
+    const foldKey = `c:${node.name}`;
+    const folded = isTreeCollapsed(foldKey);
+    row.prepend(treeCaret(foldKey, node.children.length > 0, folded));
     container.appendChild(row);
-    for (const child of node.children) renderCatNode(child, depth + 1);
+    if (!folded) for (const child of node.children) renderCatNode(child, depth + 1);
   }
   for (const root of roots) renderCatNode(root, 0);
 }
@@ -803,9 +827,9 @@ function buildBundleCard(
   );
   const categories = [...new Set(scopeMembers.flatMap((member) => member.categories ?? []))].sort();
   const tags = [...new Set(scopeMembers.flatMap((member) => member.tags ?? []))].sort();
-  const unionChip = (label: string, values: string[]) =>
+  const unionChip = (label: string, values: readonly string[]) =>
     values.length
-      ? html`<span class="bundle-union" title="${`${label}: ${values.join(', ')}`}"
+      ? html`<span class="tag-chip-card bundle-union" title="${`${label}: ${values.join(', ')}`}"
           >${label}: ${values.slice(0, 3).join(', ')}${values.length > 3 ? ` +${values.length - 3}` : ''}</span
         >`
       : '';
@@ -815,37 +839,67 @@ function buildBundleCard(
         `${collision.name}: ${collision.sources.map((source) => `${source.entry.provider}/${source.role || 'value'}`).join(', ')}`,
     )
     .join('\n');
-  // One primary action and one overflow menu: the header used to carry seven
-  // equal-weight buttons, which read as a toolbar rather than a card.
+  // The summary is built from the same pieces as an entry card (icon tile, name and
+  // badges, chevron, tag chips, footer) so a bundle reads as a card with one extra
+  // badge, not as a different component. Only the left rule and the badge are its own.
+  const chipRows = [
+    ['Projects', projectNames],
+    ['Categories', categories],
+    ['Tags', tags],
+  ] as const;
+  const copyLabel = primary ? `Copy ${primary.bundle_slot || primary.provider}` : '';
   setHtml(
     summary,
     html`
-      <div class="bundle-head">
+      <div class="card-head bundle-head">
+        <div
+          class="provider-icon-wrap"
+          data-action="icon"
+          data-idx="${idxOf(bundle)}"
+          role="button"
+          tabindex="0"
+          aria-label="${'Change icon for ' + bundle.provider}"
+        >${iconHTML(bundle.provider, bundle.custom_icon)}</div>
+        <div class="card-meta">
+          <div class="card-provider">
+            <span class="card-provider-name" title="${bundle.provider}">${bundle.provider}</span>
+            <span class="badge badge-keyid">bundle · ${members.length}</span>${collisions.length ? html`<span class="badge badge-compromised bundle-collision" title="${collisionTitle}">${collisions.length} name collision${collisions.length === 1 ? '' : 's'}</span>` : ''}</div>
+          <div class="card-account">${primary ? `primary: ${primary.bundle_slot || primary.provider}` : ''}</div>
+        </div>
         <button
           type="button"
-          class="pool-card-expand"
+          class="card-chevron"
           data-action="bundle-toggle"
           data-bundle="${id}"
           aria-expanded="${String(expanded)}"
-          title="${expanded ? 'Collapse' : 'Expand'} bundle"
+          aria-label="${(expanded ? 'Collapse ' : 'Expand ') + bundle.provider}"
         >
-          <span class="pool-card-chevron" aria-hidden="true">▸</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </button>
-        <span class="pool-card-icon" aria-hidden="true">▣</span>
-        <span class="pool-card-name">${bundle.provider}</span>
-        <span class="pool-card-badge">bundle: ${members.length}</span>${collisions.length ? html`<span class="badge badge-warning bundle-collision" title="${collisionTitle}">${collisions.length} name collision${collisions.length === 1 ? '' : 's'}</span>` : ''}
-        <span class="bundle-actions-inline">${primary ? html`<button type="button" class="btn btn-accent btn-sm" data-action="copy-field" data-value="${primary.api_key || primary.api_secret || ''}">Copy ${primary.bundle_slot || primary.provider}</button>` : ''}
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            data-action="edit"
-            data-idx="${idxOf(bundle)}"
-          >
-            Edit
-          </button>
-        </span>
       </div>
-      ${projectNames.length || categories.length || tags.length ? html`<div class="bundle-chips">${unionChip('Projects', projectNames)}${unionChip('Categories', categories)}${unionChip('Tags', tags)}</div>` : ''}
+      ${chipRows.some(([, values]) => values.length) ? html`<div class="card-tags bundle-chips">${chipRows.map(([label, values]) => unionChip(label, values))}</div>` : ''}
+      <div class="card-foot">${
+        primary
+          ? html`<button
+          type="button"
+          class="env-copy-btn"
+          data-action="copy-field"
+          data-value="${primary.api_key || primary.api_secret || ''}"
+          aria-label="${copyLabel}"
+        >${copySVG}<span>${copyLabel}</span></button>`
+          : ''
+      }
+        <button
+          type="button"
+          class="icon-btn sm"
+          data-action="edit"
+          data-idx="${idxOf(bundle)}"
+          title="Edit"
+          aria-label="${'Edit ' + bundle.provider}"
+        >${editSVG}</button>
+      </div>
     `,
   );
   wrap.appendChild(summary);
@@ -1683,8 +1737,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
           aria-haspopup="true"
         >
           ▾
-        </button>${entry.secretType === 'cookie' ? html`<button class="icon-btn sm" data-action="verify" data-idx="${idx}" title="${entry.last_verified_at ? 'Last verified ' + entry.last_verified_at : 'Never verified — open the site and confirm you are still signed in'}" aria-label="${'Mark ' + entry.provider + ' as still signed in'}" style="font-size:11px;gap:3px;">✓</button>` : html`<button class="icon-btn sm" data-action="rotate" data-idx="${idx}" title="Mark as rotated" aria-label="${'Mark ' + entry.provider + ' as rotated'}" style="font-size:11px;gap:3px;">↺</button>`}
-        <button class="icon-btn sm" data-action="timeline" data-idx="${idx}" title="Lifecycle timeline" aria-label="${'Show lifecycle timeline for ' + entry.provider}">◷</button>
+        </button>
         <button
           class="icon-btn sm${entry.pinned ? ' pin-btn active' : ' pin-btn'}"
           data-action="pin"
@@ -1711,11 +1764,12 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
         </button>
         <button
           class="icon-btn sm"
-          data-action="duplicate"
+          data-action="card-more"
           data-idx="${idx}"
-          title="Duplicate"
-          aria-label="${'Duplicate ' + entry.provider}"
-        >${dupSVG}</button>
+          title="More actions"
+          aria-label="${'More actions for ' + entry.provider}"
+          aria-haspopup="true"
+        >⋯</button>
         <button
           class="icon-btn sm"
           data-action="edit"

@@ -266,3 +266,28 @@
 .env-link-conf {
   opacity: 0.7;
 }
+
+/* Fold control for nested projects and categories. A leaf row gets a same-width spacer so
+   labels line up whether or not their siblings have children. */
+.tree-caret {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text3);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.tree-caret.folded {
+  transform: rotate(-90deg);
+}
+button.tree-caret:hover {
+  color: var(--text);
+}
+.tree-caret-spacer {
+  cursor: default;
+}

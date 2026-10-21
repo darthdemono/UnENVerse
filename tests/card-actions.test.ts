@@ -39,6 +39,15 @@ const key = (k: string, init: KeyboardEventInit = {}, target: EventTarget = docu
     new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }),
   );
 
+// Rotate, timeline and duplicate sit behind the card's "more" menu.
+const viaMenu = async (label: string, idx = 0) => {
+  await act('card-more', idx);
+  [...document.querySelectorAll<HTMLElement>('#dropdown .dropdown-item')]
+    .find((i) => i.textContent === label)!
+    .click();
+  await flush();
+};
+
 let st: Awaited<ReturnType<typeof bootApp>>['st'];
 
 beforeEach(async () => {
@@ -120,7 +129,7 @@ describe('showing and copying', { timeout: 30000 }, () => {
 describe('changing an entry', { timeout: 30000 }, () => {
   it('rotating stamps today, snapshots the old value into history and clears the compromised flag', async () => {
     st.vault.api_keys[0].compromised = true;
-    await act('rotate');
+    await viaMenu('Mark as rotated');
     const a = st.vault.api_keys[0];
     expect(a.last_rotated_at).toBe(new Date().toISOString().slice(0, 10));
     expect(a.version_history![0].value).toBe('k-a-longenough');
@@ -145,7 +154,7 @@ describe('changing an entry', { timeout: 30000 }, () => {
 
   it('duplicating makes a new entry next to the original, with its own id and no inherited history', async () => {
     st.vault.api_keys[0].version_history = [{ value: 'old', saved_at: '2026-01-01' }];
-    await act('duplicate');
+    await viaMenu('Duplicate');
     expect(st.vault.api_keys).toHaveLength(3);
     expect(st.vault.api_keys[1].id).not.toBe('a');
     expect(st.vault.api_keys[1].version_history).toBeUndefined();

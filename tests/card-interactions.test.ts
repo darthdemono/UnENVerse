@@ -128,7 +128,11 @@ describe('rotating, duplicating and deleting', { timeout: 30000 }, () => {
   });
 
   it('rotating a compromised entry says the flag was cleared', async () => {
-    await act('rotate', 1);
+    await act('card-more', 1);
+    [...document.querySelectorAll<HTMLElement>('#dropdown .dropdown-item')]
+      .find((i) => i.textContent === 'Mark as rotated')!
+      .click();
+    await flush();
     expect(toasts[toasts.length - 1][0]).toMatch(/compromised flag cleared$/);
     expect(st.vault.api_keys[1].compromised).toBe(false);
   });
