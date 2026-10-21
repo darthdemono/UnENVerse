@@ -404,6 +404,7 @@ pub fn execute(steps: &[Step], enrol: &mut dyn FnMut() -> CliResult, dry_run: bo
                     .map_err(|e| CliError::new(Code::Error, format!("{path}: {e}")))?;
             }
             Step::InstallBinary(dest) => {
+                // nosemgrep: rust.lang.security.current-exe.current-exe (the installer copies this very program to the service path; it is not used to decide trust)
                 let me = std::env::current_exe().map_err(|e| {
                     CliError::new(Code::Error, format!("cannot find this binary: {e}"))
                 })?;
