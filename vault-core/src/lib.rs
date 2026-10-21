@@ -171,13 +171,18 @@ pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
 /// mode 0700 in one step and refuses an existing one. The parent must already exist.
 /// Windows has no mode to set; the directory inherits its parent's access list.
 pub fn create_private_dir(path: &Path) -> Result<(), String> {
-    let mut builder = fs::DirBuilder::new();
     #[cfg(unix)]
     {
         use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
+        fs::DirBuilder::new()
+            .mode(0o700)
+            .create(path)
+            .map_err(|e| e.to_string())
     }
-    builder.create(path).map_err(|e| e.to_string())
+    #[cfg(not(unix))]
+    {
+        fs::create_dir(path).map_err(|e| e.to_string())
+    }
 }
 
 /// Refuse to derive a key when a database exists but its salt does not.
