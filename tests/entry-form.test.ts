@@ -512,6 +512,9 @@ describe('the name preview', { timeout: 30000 }, () => {
     // the live collision warning never appeared.
     set('f-provider', 'Existing');
     set('f-key', 'clash-key-value-12345');
+    // A new entry's role defaults to its type, so it no longer clashes with a bare name.
+    expect($('f-name-collision').hidden).toBe(true);
+    set('f-role', '');
     expect($('f-name-collision').hidden).toBe(false);
     expect($('f-name-preview').textContent).toMatch(/\S/);
     expect($('f-name-collision').textContent).toBe(
@@ -519,6 +522,29 @@ describe('the name preview', { timeout: 30000 }, () => {
     );
     set('f-provider', 'Different');
     expect($('f-name-collision').hidden).toBe(true);
+  });
+
+  // A new entry's value role used to start blank, so two entries of one provider and
+  // different types both exported as PROVIDER and silently overwrote each other.
+  it('starts a new entry on its type name, follows the type select, and stops once typed over', async () => {
+    await openAdd();
+    expect(($('f-role') as HTMLInputElement).value).toBe('api_key');
+    set('f-provider', 'Acme');
+    expect($('f-name-preview').textContent).toContain('ACME_API_KEY');
+    const type = $('f-secret-type') as HTMLSelectElement;
+    type.value = 'password';
+    type.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(($('f-role') as HTMLInputElement).value).toBe('password');
+    set('f-role', 'token');
+    type.value = 'api_key';
+    type.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(($('f-role') as HTMLInputElement).value).toBe('token');
+  });
+
+  it('leaves an existing entry on its saved role, blank included', async () => {
+    document.querySelector<HTMLElement>('#card-grid [data-action="edit"][data-idx="0"]')!.click();
+    await flush();
+    expect(($('f-role') as HTMLInputElement).value).toBe(st.vault.api_keys[0].primary_role ?? '');
   });
 
   it('flags a label that would not survive in a variable name', async () => {

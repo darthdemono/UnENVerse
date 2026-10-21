@@ -19,6 +19,7 @@ import { inTauri, invokeTauri } from './tauri';
 const THEMES = [
   { id: 'dark', label: 'Dark', bg: '#0e0e0e', accent: '#7364c9' },
   { id: 'midnight', label: 'Midnight', bg: '#09090f', accent: '#5b8dd9' },
+  { id: 'amoled', label: 'AMOLED', bg: '#000000', accent: '#7364c9' },
   { id: 'dracula', label: 'Dracula', bg: '#282a36', accent: '#bd93f9' },
   { id: 'nord', label: 'Nord', bg: '#2e3440', accent: '#88c0d0' },
   { id: 'catppuccin', label: 'Catppuccin', bg: '#1e1e2e', accent: '#cba6f7' },

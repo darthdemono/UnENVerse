@@ -104,7 +104,7 @@
 }
 
 .settings-section {
-  padding: 16px 0;
+  padding: 20px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -135,9 +135,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  min-height: 36px;
+  gap: 16px;
+  padding: 9px 0;
+  min-height: 40px;
 }
 
 .settings-label {
@@ -605,4 +605,36 @@
 }
 .settings-row-stacked .settings-label {
   margin-bottom: 6px;
+}
+
+/* A settings row with several related controls (recovery packages). Each group has its own
+   heading and a grid of fields that share the row width, with its buttons on their own line,
+   instead of one wrapping strip of forty unlabelled boxes. */
+.settings-subgroup {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.settings-subgroup-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+.settings-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.settings-fields > .form-input {
+  width: 100%;
+  min-width: 0;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
