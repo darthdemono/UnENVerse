@@ -438,7 +438,7 @@ mod tests {
         let v = vault(&OLD);
         let before = (fs::read(&v.db).unwrap().len(), fs::read(&v.salt).unwrap());
         assert_eq!(
-            rekey(&v.db, &v.salt, &format!("not the {} one", "old"), &NEW).unwrap_err(),
+            rekey(&v.db, &v.salt, &format!("{}x", &*OLD), &NEW).unwrap_err(),
             "Wrong master password"
         );
         let weak = rekey(&v.db, &v.salt, &OLD, &"x".repeat(5)).unwrap_err();
