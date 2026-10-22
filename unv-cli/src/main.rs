@@ -589,6 +589,66 @@ enum Commands {
         #[arg(long, requires = "key_file")]
         no_password: bool,
     },
+    /// Import from a secrets service: OpenBao, Infisical, Bitwarden Secrets Manager or AWS.
+    ///
+    /// Preview by default. The credential comes from the environment (`BAO_TOKEN`,
+    /// `INFISICAL_TOKEN`, `BWS_ACCESS_TOKEN`, `AWS_ACCESS_KEY_ID`) or a vault entry named with
+    /// `--token-entry` or `--identity-entry`, never from an argument. Versions and references are
+    /// kept; policies, auth methods and dynamic engines are archived, not imported. AWS is a
+    /// commercial service and needs a build with `--features aws`.
+    ImportService {
+        #[arg(value_parser = ["openbao", "infisical", "bws", "aws-sm", "aws-ssm"])]
+        service: String,
+        /// Base URL of the OpenBao or Infisical server.
+        #[arg(long)]
+        addr: Option<String>,
+        /// OpenBao KV v2 mount (default `secret`).
+        #[arg(long)]
+        mount: Option<String>,
+        /// OpenBao path prefix, or the Parameter Store path.
+        #[arg(long)]
+        path: Option<String>,
+        /// OpenBao namespace.
+        #[arg(long)]
+        namespace: Option<String>,
+        /// A vault entry whose primary value is the token.
+        #[arg(long)]
+        token_entry: Option<String>,
+        /// A vault entry holding a machine identity: the client id (or AWS access key id) in the
+        /// primary value and the client secret (or AWS secret key) in the secondary one.
+        #[arg(long)]
+        identity_entry: Option<String>,
+        /// Infisical project id, or the Bitwarden Secrets Manager project to limit to.
+        #[arg(long)]
+        project_id: Option<String>,
+        /// Infisical environment slug.
+        #[arg(long)]
+        environment: Option<String>,
+        /// Infisical secret path (default `/`).
+        #[arg(long)]
+        secret_path: Option<String>,
+        /// AWS region.
+        #[arg(long)]
+        region: Option<String>,
+        /// AWS endpoint override (a VPC endpoint).
+        #[arg(long)]
+        endpoint: Option<String>,
+        /// AWS Secrets Manager: also read the previous version as history.
+        #[arg(long)]
+        include_previous: bool,
+        /// Actually write. Without it this is a dry run.
+        #[arg(long)]
+        apply: bool,
+        /// Assign imported entries to this project.
+        #[arg(long)]
+        project: Option<String>,
+        /// Put every imported entry in this category.
+        #[arg(long)]
+        category: Option<String>,
+        /// Use the source folder or path as the category.
+        #[arg(long)]
+        keep_folders: bool,
+    },
     /// Losslessly plan and import a local configuration file.
     Migrate {
         #[command(subcommand)]
@@ -4047,6 +4107,57 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     },
                 ),
             }
+        }
+        Commands::ImportService {
+            service,
+            addr,
+            mount,
+            path,
+            namespace,
+            token_entry,
+            identity_entry,
+            project_id,
+            environment,
+            secret_path,
+            region,
+            endpoint,
+            include_previous,
+            apply,
+            project,
+            category,
+            keep_folders,
+        } => {
+            let project = scoped_project(a, project.as_deref())?;
+            let spec = unv_app::service_sources::resolve(
+                a,
+                &unv_app::service_sources::ServiceArgs {
+                    service: service.clone(),
+                    addr: addr.clone(),
+                    mount: mount.clone(),
+                    path: path.clone(),
+                    namespace: namespace.clone(),
+                    token_entry: token_entry.clone(),
+                    identity_entry: identity_entry.clone(),
+                    project_id: project_id.clone(),
+                    environment: environment.clone(),
+                    secret_path: secret_path.clone(),
+                    region: region.clone(),
+                    endpoint: endpoint.clone(),
+                    include_previous: *include_previous,
+                },
+            )?;
+            unv_app::service_sources::run(
+                a,
+                &spec,
+                &password_sources::SourceOpts {
+                    project: project.as_deref(),
+                    category: category.as_deref(),
+                    keep_folders: *keep_folders,
+                    key_file: None,
+                    no_password: false,
+                },
+                *apply,
+            )
         }
         Commands::Migrate { cmd } => match cmd {
             MigrateCmd::Plan {

@@ -14,6 +14,10 @@ path = "src/lib.rs"
 name = "unv"
 path = "src/main.rs"
 
+[features]
+# AWS Secrets Manager and Parameter Store imports: a commercial service, off by default.
+aws = ["unv-app/aws"]
+
 [dependencies]
 unv-app      = { path = "../unv-app" }
 vault-core   = { path = "../vault-core", features = ["tls", "telemetry"] }

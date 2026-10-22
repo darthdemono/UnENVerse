@@ -57,6 +57,9 @@ pub mod refs;
 pub mod render;
 pub mod reset_cmd;
 pub mod scan;
+#[cfg(feature = "aws")]
+pub mod service_aws;
+pub mod service_sources;
 pub mod session;
 pub mod session_cmd;
 pub mod shield;
