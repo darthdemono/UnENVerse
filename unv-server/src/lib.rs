@@ -1174,15 +1174,21 @@ async fn unlock(
         }
     };
 
-    let salt = match read_or_create_salt(&state.salt_path) {
-        Ok(s) => s,
-        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
-    };
+    // Finish or undo an interrupted password change first: it decides which salt is the right one.
     if let Err(e) =
         vault_core::rekey::recover_interrupted(&state.db_path, &state.salt_path, &req.password)
     {
         return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response();
     }
+    // A database whose salt is missing must say so. Minting a fresh salt here, for any caller,
+    // wrote a salt that can never open the existing vault.
+    if let Err(e) = vault_core::check_salt_pairing(&state.db_path, &state.salt_path) {
+        return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response();
+    }
+    let salt = match read_or_create_salt(&state.salt_path) {
+        Ok(s) => s,
+        Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
+    };
     let password = req.password.clone();
     let key = match run_kdf(&state, move || derive_key(&password, &salt)).await {
         Ok(k) => k,
@@ -3671,6 +3677,7 @@ impl utoipa::Modify for SecurityAddon {
 /// Unlock the vault from a password string (used by UNV_PASSWORD env var on startup).
 pub fn auto_unlock(state: &AppState, password: &str) -> Result<(), String> {
     vault_core::rekey::recover_interrupted(&state.db_path, &state.salt_path, password)?;
+    vault_core::check_salt_pairing(&state.db_path, &state.salt_path)?;
     let salt = read_or_create_salt(&state.salt_path)?;
     let key = derive_key(password, &salt)?;
     let conn = open_db(&state.db_path, &key)
