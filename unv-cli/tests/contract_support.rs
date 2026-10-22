@@ -64,24 +64,62 @@ fn the_bundle_can_be_written_to_a_file_and_read_back() {
     assert_eq!(on_disk["entries"], 1);
 }
 
+/// `unv` run directly, with a clean environment, so the test is the same on every platform.
+fn unv(v: &Vault, password: Option<&str>, args: &[&str]) -> (i32, String) {
+    let mut c = std::process::Command::new(env!("CARGO_BIN_EXE_unv"));
+    for k in [
+        "UNV_SERVER_URL",
+        "UNV_PASSWORD",
+        "UNV_PASSWORD_FILE",
+        "UNV_PASSWORD_COMMAND",
+        "UNV_TOKEN",
+        "UNV_USER",
+        "UNV_PROJECT",
+        "UNV_ENV_FILE",
+    ] {
+        c.env_remove(k);
+    }
+    c.env("HOME", v.path("home"))
+        .env("XDG_DATA_HOME", v.path("data"))
+        .env("XDG_CONFIG_HOME", v.path("config"))
+        .env("XDG_STATE_HOME", v.path("state"))
+        .env("UNV_SESSION_FILE", v.path("state/sessions.json"))
+        .env("UNV_POOL_FILE", v.path("state/pools.json"))
+        .stdin(std::process::Stdio::null());
+    if let Some(p) = password {
+        c.env("UNV_PASSWORD", p);
+    }
+    let o = c.args(args).output().unwrap();
+    (
+        o.status.code().unwrap_or(-1),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&o.stdout),
+            String::from_utf8_lossy(&o.stderr)
+        ),
+    )
+}
+
 #[test]
 fn a_demo_vault_opens_with_its_printed_password_passes_doctor_and_refuses_to_overwrite() {
     let v = Vault::new("demo-vault");
     let dir = v.path("demo");
-    let script = format!(
-        "\"$UNV\" demo-vault --out '{d}' && UNV_PASSWORD=demo-vault-password-0000 \"$UNV\" --db-path '{d}/vault.db' --json list",
-        d = dir.display()
-    );
-    let o = v.sh(&script);
-    assert_eq!(o.code, 0, "{}", o.all());
-    assert!(o.all().contains("Demo Service A"), "{}", o.all());
+    let dir = dir.to_str().unwrap();
+    let db = v.path("demo/vault.db");
+    let db = db.to_str().unwrap();
 
-    let doctor = v.sh(&format!(
-        "UNV_PASSWORD=demo-vault-password-0000 \"$UNV\" --db-path '{}/vault.db' --json doctor",
-        dir.display()
-    ));
-    assert_eq!(doctor.code, 0, "{}", doctor.all());
+    let (code, text) = unv(&v, None, &["--json", "demo-vault", "--out", dir]);
+    assert_eq!(code, 0, "{text}");
+    let made: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let password = made["data"]["password"].as_str().unwrap().to_string();
 
-    let again = v.sh(&format!("\"$UNV\" demo-vault --out '{}'", dir.display()));
-    assert_ne!(again.code, 0, "an existing vault must not be overwritten");
+    let (code, text) = unv(&v, Some(&password), &["--db-path", db, "--json", "list"]);
+    assert_eq!(code, 0, "{text}");
+    assert!(text.contains("Demo Service A"), "{text}");
+
+    let (code, text) = unv(&v, Some(&password), &["--db-path", db, "--json", "doctor"]);
+    assert_eq!(code, 0, "{text}");
+
+    let (code, _) = unv(&v, None, &["demo-vault", "--out", dir]);
+    assert_ne!(code, 0, "an existing vault must not be overwritten");
 }

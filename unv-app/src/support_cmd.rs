@@ -12,8 +12,6 @@ use crate::{data, out};
 use serde_json::{json, Map, Value};
 use std::path::Path;
 
-pub const DEMO_PASSWORD: &str = "demo-vault-password-0000";
-
 /// Versions, counts and check outcomes of the local vault. Nothing here is read from a field that
 /// can hold a name, a path or a value: the doctor checks are reduced to their id and level.
 pub fn build(access: &Access) -> CliResult<Value> {
@@ -122,7 +120,9 @@ pub fn demo_vault(dir: &Path) -> CliResult {
     std::fs::create_dir_all(dir)
         .map_err(|e| CliError::from(format!("Cannot create {}: {e}", dir.display())))?;
     let salt = vault_core::read_or_create_salt(&salt_path).map_err(CliError::from)?;
-    let key = vault_core::derive_key(DEMO_PASSWORD, &salt).map_err(CliError::from)?;
+    // A fresh password for every demo vault, printed once: nothing fixed to look like a real key.
+    let password = format!("demo-{}", &vault_core::new_uuid()[..13]);
+    let key = vault_core::derive_key(&password, &salt).map_err(CliError::from)?;
     let conn = vault_core::open_db(&db, &key).map_err(CliError::from)?;
     vault_core::init_schema(&conn).map_err(CliError::from)?;
     let entry = |n: u32, name: &str, project: &str, value: &str| {
@@ -163,12 +163,12 @@ pub fn demo_vault(dir: &Path) -> CliResult {
     drop(conn);
     out::ok(
         "demo-vault",
-        json!({ "dir": dir.display().to_string(), "password": DEMO_PASSWORD, "entries": 3 }),
+        json!({ "dir": dir.display().to_string(), "password": password, "entries": 3 }),
         || {
             println!("Demo vault written to {}", dir.display());
-            println!("Password: {DEMO_PASSWORD}");
+            println!("Password: {password}");
             println!(
-                "Use it with: unv --db-path {} --password {DEMO_PASSWORD} list",
+                "Use it with: unv --db-path {} --password {password} list",
                 db.display()
             );
         },
