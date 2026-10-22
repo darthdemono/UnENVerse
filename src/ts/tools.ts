@@ -1213,7 +1213,17 @@ export function initTools() {
 
     // provider/msg/field all embed user-controlled data (entry, project and
     // chunk names) and are injected via innerHTML — escape them.
+    const entryRow = (i: HealthIssue) =>
+      html`<div class="health-row health-${i.severity}">
+        <span class="health-sev-badge health-${i.severity}">${SEVERITY_LABEL[i.severity]}</span
+        >${i.field ? html`<span class="health-field">${i.field}</span>` : ''}
+        <span class="health-msg">${i.msg}</span>${i.action === 'delete-empty-bundle' ? html`<button type="button" class="btn btn-ghost btn-sm" data-action="health-delete-empty-bundle" data-id="${i.id ?? ''}">Delete empty bundle</button>` : ''}</div>`;
+    // Info findings are the long tail: in the all-severities view they fold shut with a count, so
+    // the critical and warning findings are what the eye lands on. Picking Info shows them.
+    const fold = _healthSeverityFilter === 'all';
     const entryGroupsHtml = groups.map((g) => {
+      const loud = fold ? g.items.filter((i) => i.severity !== 'low') : g.items;
+      const quiet = fold ? g.items.filter((i) => i.severity === 'low') : [];
       const typeLabel = secretTypeLabel(g.secretType);
       return html` <div class="health-entry-group">
         <button
@@ -1228,14 +1238,16 @@ export function initTools() {
           <span class="health-entry-count"
             >${g.items.length} finding${g.items.length === 1 ? '' : 's'}</span
           >
-        </button>${g.items.map(
-          (i) =>
-            html`<div class="health-row health-${i.severity}">
-              <span class="health-sev-badge health-${i.severity}"
-                >${SEVERITY_LABEL[i.severity]}</span
-              >${i.field ? html`<span class="health-field">${i.field}</span>` : ''}
-              <span class="health-msg">${i.msg}</span>${i.action === 'delete-empty-bundle' ? html`<button type="button" class="btn btn-ghost btn-sm" data-action="health-delete-empty-bundle" data-id="${i.id ?? ''}">Delete empty bundle</button>` : ''}</div>`,
-        )}</div>`;
+        </button>${loud.map(entryRow)}${
+          quiet.length
+            ? html`<details class="health-info-fold">
+              <summary>
+                ${quiet.length} info finding${quiet.length === 1 ? '' : 's'}
+              </summary>
+              ${quiet.map(entryRow)}
+            </details>`
+            : ''
+        }</div>`;
     });
 
     const otherHtml = other.length

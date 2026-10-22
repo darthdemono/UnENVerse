@@ -323,10 +323,19 @@
   border: 1px solid transparent;
 }
 
+/* Price is a filter, not a headline: "free" is the default and says nothing on a card, and the
+   others sit back until the card is hovered or focused. */
+.badge-price {
+  opacity: 0.7;
+}
+
+.card:hover .badge-price,
+.card:focus-within .badge-price {
+  opacity: 1;
+}
+
 .badge-price[data-price="free"] {
-  background: rgba(79, 201, 126, 0.12);
-  color: var(--price-free);
-  border-color: rgba(79, 201, 126, 0.25);
+  display: none;
 }
 
 .badge-price[data-price="local"] {
