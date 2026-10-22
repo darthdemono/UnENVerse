@@ -559,9 +559,12 @@ enum Commands {
     /// preview shows fingerprints rather than values.
     ImportVault {
         /// Which product the file came from.
-        #[arg(value_parser = ["bitwarden", "onepassword", "keepass", "proton", "nextcloud"])]
+        #[arg(value_parser = ["bitwarden", "onepassword", "keepass", "sops", "pass", "gopass", "proton", "nextcloud"])]
         vendor: String,
-        /// The source export: JSON, ZIP/.1pux, or KDBX as the selected vendor permits.
+        /// The source export: JSON, ZIP/.1pux, or KDBX as the selected vendor permits. For `sops`
+        /// a file or a folder of SOPS files, for `pass` the password-store folder, and for `gopass`
+        /// any path (the store comes from your gopass configuration). The Git sources are read
+        /// through your own `sops`, `gpg` and `gopass`, never re-implemented.
         file: PathBuf,
         /// Actually write. Without it this is a dry run.
         #[arg(long)]
@@ -767,6 +770,21 @@ enum MigrateCmd {
     Verify { migration: String },
     /// List migration summaries without source values or file contents.
     Report,
+    /// Make this vault the authority for the entries a Git-store import (SOPS, pass, gopass) created.
+    ///
+    /// Until then the source owns their secret fields: an edit here is refused, and the next
+    /// `sync` refreshes them from the source. Reversible with `uncutover` until a credential changes.
+    Cutover { migration: String },
+    /// Hand authority back to the source. Refused when a credential changed after cutover.
+    Uncutover { migration: String },
+    /// Compare a Git source, as it is now, with what was last imported. Read-only on both sides.
+    Drift { migration: String },
+    /// Refresh the vault from the source this migration read, one way. Preview unless `--apply`.
+    Sync {
+        migration: String,
+        #[arg(long)]
+        apply: bool,
+    },
     /// List or export encrypted, preserved source material.
     Archive {
         #[command(subcommand)]
@@ -4100,6 +4118,56 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     }
                 });
                 Ok(())
+            }
+            MigrateCmd::Cutover { migration } => {
+                let done = unv_app::git_sync::cutover(a, migration)?;
+                out::ok("migrate.cutover", serde_json::json!(done), || {
+                    println!(
+                        "{} entr{} now belong to this vault: {}",
+                        done.entries.len(),
+                        if done.entries.len() == 1 { "y" } else { "ies" },
+                        done.entries.join(", ")
+                    );
+                });
+                Ok(())
+            }
+            MigrateCmd::Uncutover { migration } => {
+                let done = unv_app::git_sync::uncutover(a, migration)?;
+                out::ok("migrate.uncutover", serde_json::json!(done), || {
+                    println!(
+                        "{} entr{} handed back to {}: {}",
+                        done.entries.len(),
+                        if done.entries.len() == 1 { "y" } else { "ies" },
+                        done.source_kind,
+                        done.entries.join(", ")
+                    );
+                });
+                Ok(())
+            }
+            MigrateCmd::Drift { migration } => {
+                let report = unv_app::git_sync::drift(a, migration)?;
+                out::ok("migrate.drift", serde_json::json!(report), || {
+                    println!(
+                        "{} unchanged, {} changed at the source, {} new, {} missing.",
+                        report.unchanged,
+                        report.source_drift.len(),
+                        report.new_at_source.len(),
+                        report.missing_at_source.len()
+                    );
+                    for id in &report.source_drift {
+                        println!("  changed  {id}");
+                    }
+                    for id in &report.new_at_source {
+                        println!("  new      {id}");
+                    }
+                    for id in &report.missing_at_source {
+                        println!("  missing  {id}");
+                    }
+                });
+                Ok(())
+            }
+            MigrateCmd::Sync { migration, apply } => {
+                unv_app::git_sync::sync(a, migration, *apply)
             }
             MigrateCmd::Archive { cmd } => match cmd {
                 MigrateArchiveCmd::Ls => {

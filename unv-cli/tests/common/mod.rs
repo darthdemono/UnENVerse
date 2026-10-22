@@ -171,6 +171,19 @@ impl Vault {
         Self::collect(c, None)
     }
 
+    /// Same as [`Vault::run`], with extra environment variables for the process.
+    pub fn run_env(&self, env: &[(&str, &str)], args: &[&str]) -> Out {
+        let mut c = self.base();
+        c.arg("--db-path")
+            .arg(self.db())
+            .args(["--init", "--yes", "--json"])
+            .args(args);
+        for (k, v) in env {
+            c.env(k, v);
+        }
+        Self::collect(c, None)
+    }
+
     pub fn run_stdin(&self, args: &[&str], stdin: &str) -> Out {
         let mut c = self.base();
         c.arg("--db-path")
