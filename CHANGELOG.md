@@ -7,6 +7,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 ### Added
 
 - Import from Git stores through your own tools: `unv import-vault sops`, `pass` and `gopass`. `sops decrypt`, `gpg --decrypt` and `gopass show` run with a cleared environment, a deadline, an output cap and scrubbed error text; a SOPS file becomes an entry of dotted key-path variables, a `pass` or gopass secret keeps its first line as the password and its whole body as the description, and SOPS metadata is archived as non-operational provenance.
+- `unv import-service` imports from OpenBao (KV v2, paged, with every live version as history), Infisical (expanded values and a recorded reference graph), Bitwarden Secrets Manager (through your own `bws`) and, in a build with `--features aws`, AWS Secrets Manager and Parameter Store. The credential comes from the environment or a vault entry, the whole result is built before anything is written, and policies, auth methods and dynamic engines are archived or reported, not imported.
 - After a Git-store import the source stays authoritative: editing a secret field of such an entry is refused with a message naming the source (the desktop app, the command line and the server share the rule), `unv migrate sync` refreshes the vault one way, `unv migrate drift` reports what changed at the source without importing it, and `unv migrate cutover` and `uncutover` hand authority to the vault and back, refusing to go back once a credential has changed.
 
 ## 0.57.0 (2026-10-22)
