@@ -72,10 +72,7 @@ fn openbao_previews_without_values_applies_with_history_and_a_rerun_is_a_no_op()
     let o = v.run_env(&env, &apply);
     assert_eq!(o.code, 0, "{}", o.all());
     assert_eq!(names(&v), vec!["db"]);
-    assert_eq!(
-        v.reveal_field("db", "password"),
-        "second-password-0002"
-    );
+    assert_eq!(v.reveal_field("db", "password"), "second-password-0002");
     let shown = v.ok(&["get", "db"])["entries"][0].clone();
     assert_eq!(
         shown["version_history"].as_array().map(Vec::len),
