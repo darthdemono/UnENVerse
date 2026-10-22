@@ -308,6 +308,7 @@ mod tests {
         assert!(bad("rpc/1", "rpc/2").contains("speaks"));
         assert!(bad("notifier", "root").contains("unknown capability"));
         assert!(bad("[\"notifier\"]", "[]").contains("at least one"));
+        assert!(bad("\"1.0.0\"", "\"  \"").contains("version is empty"));
         assert!(Manifest::parse("{").unwrap_err().contains("plugin.json"));
     }
 

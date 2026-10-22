@@ -43,12 +43,13 @@ pub fn retry<T>(
 /// Renames `from` over `to`. On Windows a sharing violation is retried briefly; elsewhere this is a
 /// plain rename, which is already atomic.
 pub fn replace_file(from: &Path, to: &Path) -> io::Result<()> {
-    let transient: fn(&io::Error) -> bool = if cfg!(windows) {
-        transient_windows
-    } else {
-        |_| false
-    };
-    retry(|| std::fs::rename(from, to), transient, PAUSE)
+    retry(|| std::fs::rename(from, to), is_transient, PAUSE)
+}
+
+/// Whether a rename error is worth waiting out: only on Windows, where another handle can hold the
+/// target for a moment. Elsewhere a failed rename is final.
+fn is_transient(e: &io::Error) -> bool {
+    cfg!(windows) && transient_windows(e)
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos", test))]
@@ -227,6 +228,21 @@ mod tests {
         assert!(!is_unc(Path::new("\\\\?\\C:\\v.db")));
         assert!(!is_unc(Path::new("C:\\v.db")));
         assert!(!is_unc(Path::new("/home/me")));
+    }
+
+    #[test]
+    fn a_unc_path_is_reported_as_a_share_without_asking_the_system() {
+        assert_eq!(
+            network_fs(Path::new("\\\\srv\\share\\vault.db")).as_deref(),
+            Some("a network share")
+        );
+    }
+
+    #[test]
+    fn only_windows_waits_out_a_sharing_violation() {
+        let busy = io::Error::from_raw_os_error(32);
+        assert_eq!(is_transient(&busy), cfg!(windows));
+        assert!(!is_transient(&io::Error::from(io::ErrorKind::NotFound)));
     }
 
     #[test]

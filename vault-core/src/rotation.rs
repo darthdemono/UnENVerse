@@ -786,6 +786,8 @@ pub(crate) mod fakes {
         pub roll: Fault,
         pub verify: Fault,
         pub revoke: Fault,
+        /// Reconcile cannot tell what happened.
+        pub reconcile_unknown: bool,
         pub seq: u32,
     }
 
@@ -803,6 +805,7 @@ pub(crate) mod fakes {
                 roll: Fault::None,
                 verify: Fault::None,
                 revoke: Fault::None,
+                reconcile_unknown: false,
                 seq: 0,
             }
         }
@@ -928,6 +931,9 @@ pub(crate) mod fakes {
         }
         fn reconcile(&mut self, step: &StepKind, name: &str) -> Result<Reconcile, IssuerError> {
             self.world.borrow_mut().calls.push("reconcile".into());
+            if self.reconcile_unknown {
+                return Ok(Reconcile::Unknown);
+            }
             let w = self.world.borrow();
             Ok(match step {
                 StepKind::Create | StepKind::SetValue => {
@@ -956,6 +962,7 @@ pub(crate) mod fakes {
         pub check: BTreeMap<String, Outcome>,
         pub deployed: BTreeMap<String, String>,
         pub redeployed: Vec<String>,
+        pub redeploy_fails: bool,
     }
 
     impl FakeConsumers {
@@ -966,6 +973,7 @@ pub(crate) mod fakes {
                 check: BTreeMap::new(),
                 deployed: BTreeMap::new(),
                 redeployed: Vec::new(),
+                redeploy_fails: false,
             }
         }
     }
@@ -986,6 +994,9 @@ pub(crate) mod fakes {
         }
         fn redeploy_previous(&mut self, id: &str) -> Outcome {
             self.redeployed.push(id.into());
+            if self.redeploy_fails {
+                return Outcome::Failed("cannot".into());
+            }
             self.deployed.insert(id.into(), "old-value".into());
             Outcome::Ok
         }
@@ -995,6 +1006,7 @@ pub(crate) mod fakes {
         pub current: Credential,
         pub history: Vec<Credential>,
         pub fail_commit: bool,
+        pub fail_restore: bool,
     }
 
     impl FakeEntry {
@@ -1006,6 +1018,7 @@ pub(crate) mod fakes {
                 },
                 history: Vec::new(),
                 fail_commit: false,
+                fail_restore: false,
             }
         }
     }
@@ -1023,6 +1036,9 @@ pub(crate) mod fakes {
             Ok(())
         }
         fn restore(&mut self, _old: &Credential) -> Result<(), String> {
+            if self.fail_restore {
+                return Err("read-only".into());
+            }
             if let Some(prev) = self.history.pop() {
                 self.current = prev;
             }
@@ -1291,6 +1307,220 @@ mod tests {
             "the entry now names the other role"
         );
         assert_eq!(world.borrow().revoke_calls, vec!["app_a".to_string()]);
+    }
+
+    /// Runs `run` (already placed at some step) with the given doubles and returns it.
+    fn resume(
+        mut run: Run,
+        class: Class,
+        configure: impl FnOnce(&mut FakeIssuer<'_>, &mut FakeConsumers, &mut FakeEntry, &mut MemStore),
+        consumers: &[&str],
+    ) -> (Run, RefCell<World>) {
+        let world = RefCell::new(World::default());
+        let mut cons = FakeConsumers::new(consumers);
+        let mut entry = FakeEntry::new();
+        let mut store = MemStore::default();
+        {
+            let mut issuer = FakeIssuer::new(&world, class);
+            configure(&mut issuer, &mut cons, &mut entry, &mut store);
+            let gen = || "generated".to_string();
+            Engine {
+                issuer: &mut issuer,
+                consumers: &mut cons,
+                entry: &mut entry,
+                store: &mut store,
+                generate: &gen,
+            }
+            .run(&mut run)
+            .unwrap();
+        }
+        (run, world)
+    }
+
+    fn at(step: Step, class: Class) -> Run {
+        let mut r = Run::plan("r1", "E", 2, class, Policy::default(), "old");
+        r.step = step;
+        r
+    }
+
+    #[test]
+    fn a_run_that_lost_its_new_value_stops_for_a_person_at_every_step_that_needs_it() {
+        // A run resumed after the pending value was lost (a restored backup, a cleared table) has
+        // nothing to verify, store or deploy, and must not invent a value.
+        for step in [Step::Verifying, Step::Committing, Step::Deploying] {
+            let (run, world) = resume(
+                at(step, Class::CreateOverlapping),
+                Class::CreateOverlapping,
+                |_, _, _, _| {},
+                &["web"],
+            );
+            assert!(
+                matches!(&run.status, Status::NeedsAttention(m) if m.contains("missing")),
+                "{step:?}: {:?}",
+                run.status
+            );
+            assert!(world.borrow().revoke_calls.is_empty());
+        }
+        let (run, _) = resume(
+            at(Step::Committing, Class::SetValueClientGenerated),
+            Class::SetValueClientGenerated,
+            |_, _, _, _| {},
+            &["web"],
+        );
+        assert!(
+            matches!(run.status, Status::NeedsAttention(_)),
+            "{:?}",
+            run.status
+        );
+    }
+
+    #[test]
+    fn a_run_saved_as_finished_but_still_running_is_completed_without_new_calls() {
+        let (run, world) = resume(
+            at(Step::Finished, Class::CreateOverlapping),
+            Class::CreateOverlapping,
+            |_, _, _, _| {},
+            &[],
+        );
+        assert_eq!(run.status, Status::Succeeded);
+        assert!(world.borrow().calls.is_empty());
+    }
+
+    #[test]
+    fn a_revoke_that_already_happened_is_not_repeated_when_a_run_resumes() {
+        let mut r = at(Step::Revoking, Class::CreateOverlapping);
+        r.revoked = true;
+        r.consumers.insert("web".into(), "checked".into());
+        let (run, world) = resume(r, Class::CreateOverlapping, |_, _, _, _| {}, &["web"]);
+        assert_eq!(run.status, Status::Succeeded);
+        assert!(world.borrow().revoke_calls.is_empty());
+    }
+
+    #[test]
+    fn a_consumer_that_never_reported_keeps_revocation_pending_with_a_reason() {
+        let mut r = at(Step::Revoking, Class::CreateOverlapping);
+        r.consumers.insert("web".into(), "checked".into());
+        // "worker" is required but has no state: it was added after planning.
+        let (run, world) = resume(
+            r,
+            Class::CreateOverlapping,
+            |_, _, _, _| {},
+            &["web", "worker"],
+        );
+        assert!(
+            matches!(&run.status, Status::RevocationPending(m) if m.contains("not every consumer")),
+            "{:?}",
+            run.status
+        );
+        assert!(world.borrow().revoke_calls.is_empty());
+    }
+
+    #[test]
+    fn a_connector_that_cannot_tell_what_happened_stops_the_run_instead_of_guessing() {
+        let (run, world, ..) = engine_run(
+            Class::CreateOverlapping,
+            |i, _, _| {
+                i.create = Fault::LostBefore;
+                i.reconcile_unknown = true;
+            },
+            &["web"],
+        );
+        assert!(
+            matches!(&run.status, Status::NeedsAttention(m) if m.contains("uncertain create")),
+            "{:?}",
+            run.status
+        );
+        assert!(world.borrow().revoke_calls.is_empty());
+
+        let (run, ..) = engine_run(
+            Class::SetValueClientGenerated,
+            |i, _, _| {
+                i.set_value = Fault::LostBefore;
+                i.reconcile_unknown = true;
+            },
+            &["web"],
+        );
+        assert!(
+            matches!(&run.status, Status::NeedsAttention(m) if m.contains("uncertain set_value")),
+            "{:?}",
+            run.status
+        );
+
+        let (run, world, ..) = engine_run(
+            Class::CreateOverlapping,
+            |i, _, _| {
+                i.revoke = Fault::LostAfter;
+                i.reconcile_unknown = true;
+            },
+            &["web"],
+        );
+        assert!(
+            matches!(&run.status, Status::NeedsAttention(m) if m.contains("uncertain revoke")),
+            "{:?}",
+            run.status
+        );
+        assert_eq!(world.borrow().revoke_calls.len(), 1, "never repeated");
+    }
+
+    #[test]
+    fn a_rollback_that_cannot_put_the_old_credential_back_says_so() {
+        // A consumer fails its check and putting the old credential back fails too.
+        for (redeploy_fails, fail_restore) in [(true, false), (false, true)] {
+            let (run, ..) = engine_run(
+                Class::CreateOverlapping,
+                |_, c, e| {
+                    c.check
+                        .insert("worker".into(), Outcome::Failed("503".into()));
+                    c.redeploy_fails = redeploy_fails;
+                    e.fail_restore = fail_restore;
+                },
+                &["web", "worker"],
+            );
+            assert!(
+                matches!(&run.status, Status::NeedsAttention(m) if m.contains("did not fully succeed")),
+                "{redeploy_fails} {fail_restore}: {:?}",
+                run.status
+            );
+        }
+    }
+
+    #[test]
+    fn a_rejected_verification_of_a_rolled_credential_needs_a_person_but_others_just_fail() {
+        let (run, ..) = engine_run(
+            Class::RollProviderGenerated,
+            |i, _, _| i.verify = Fault::Reject,
+            &["web"],
+        );
+        assert!(
+            matches!(&run.status, Status::NeedsAttention(m) if m.contains("rolled credential")),
+            "{:?}",
+            run.status
+        );
+        let (run, ..) = engine_run(
+            Class::CreateOverlapping,
+            |i, _, _| i.verify = Fault::Reject,
+            &["web"],
+        );
+        assert!(
+            matches!(&run.status, Status::Failed(m) if m.contains("did not verify")),
+            "{:?}",
+            run.status
+        );
+    }
+
+    #[test]
+    fn a_run_that_cannot_make_progress_is_stopped_by_the_guard() {
+        // A connector that is always "not done" for a lost create would loop for ever.
+        let (run, ..) = engine_run(
+            Class::CreateOverlapping,
+            |i, _, _| i.create = Fault::LostBefore,
+            &["web"],
+        );
+        assert!(
+            matches!(run.status, Status::NeedsAttention(_) | Status::Failed(_)),
+            "{:?}",
+            run.status
+        );
     }
 
     #[test]
