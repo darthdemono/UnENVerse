@@ -179,3 +179,4 @@
   - [0161: Git stores are read through the user's tools and stay authoritative until cutover](adr/0161-git-stores-are-read-through-the-users-tools-and-stay-authoritative-until-cutover.md)
   - [0162: Service sources use the user's credential and build the whole result first](adr/0162-service-sources-use-the-users-credential-and-build-the-whole-result-first.md)
   - [0163: Approvals gain a kind, and automation can approve a rule, never a person](adr/0163-approvals-gain-a-kind-and-automation-can-approve-a-rule-never-a-person.md)
+  - [0164: Rotation revokes last and never retries a destructive call](adr/0164-rotation-revokes-last-and-never-retries-a-destructive-call.md)
