@@ -39,6 +39,7 @@ pub mod git_sync;
 pub mod history;
 pub mod history_cmd;
 pub mod import_vaults;
+pub mod issuer_cloudflare;
 pub mod matlog;
 pub mod migrate;
 pub mod node_agent;
