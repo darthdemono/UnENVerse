@@ -74,9 +74,11 @@ tar xzf unv-<version>-linux-x86_64.tar.gz && ./unv --version
 The server as a container (`linux/amd64` and `linux/arm64`):
 
 ```sh
-docker run -d -p 8743:8743 -v unv-data:/data -e UNV_PASSWORD=... \
+docker run -d -p 127.0.0.1:8743:8743 -v unv-data:/data -e UNV_PASSWORD=... \
   ghcr.io/darthdemono/unenverse/unv-server:latest
 ```
+
+The port is published on this machine only: the server speaks plain HTTP unless it is started with `--tls`, and the master password travels in every sign-in. Add `--tls` after the image name, or put a TLS proxy in front, before publishing it to other machines.
 
 Windows: run the `-setup.exe` (x64 or Arm) or unpack the `.zip` for the command line. To build from source, see [Building from source](#building-from-source).
 
@@ -1024,7 +1026,7 @@ Since schema v2 the vault is stored one row per entry and project, and a save re
 ## Docker
 
 ```bash
-docker run -d -p 8743:8743 \
+docker run -d -p 127.0.0.1:8743:8743 \
   -v unv-data:/data \
   -e UNV_PASSWORD=... \
   ghcr.io/darthdemono/unenverse/unv-server:latest

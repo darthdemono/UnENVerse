@@ -6,7 +6,10 @@ services:
     image: unv-server:0.6.0
     container_name: unv-server
     ports:
-      - "8743:8743"
+      # This machine only. The server speaks plain HTTP unless it is started with --tls, and
+      # the master password travels in every sign-in, so publish it to other machines only
+      # with `command: ["--tls"]` below or behind a TLS proxy.
+      - "127.0.0.1:8743:8743"
     volumes:
       - ./unv:/data # bind-mount: data lives next to docker-compose.yml, easy to back up / move
     environment:
@@ -58,5 +61,5 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
-    # Pass --port here to override default 8743
-    # command: ["--port", "9000"]
+    # Pass --port here to override default 8743; add "--tls" before publishing beyond this machine.
+    # command: ["--tls"]

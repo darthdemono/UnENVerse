@@ -31,15 +31,16 @@
       <p class="small">The <code>-musl</code> archives are static: they run on Alpine and on any other Linux distribution, whatever glibc it ships.</p>
       <h2 id="docker">Docker</h2>
       <p>The server is published as a multi-architecture image for <code>linux/amd64</code> and <code>linux/arm64</code> on the GitHub container registry. Mount a volume at <code>/data</code> so the vault survives the container. Set <code>UNV_PASSWORD</code> to unlock on start-up, or leave it unset and unlock with <code>POST /api/unlock</code>:</p>
-<pre><code>docker run -d --name unv-server -p 8743:8743 \
+<pre><code>docker run -d --name unv-server -p 127.0.0.1:8743:8743 \
   -v unv-data:/data \
   -e UNV_PASSWORD=your-master-password \
   ghcr.io/darthdemono/unenverse/unv-server:{{VERSION}}</code></pre>
+      <p class="small">The port is published on this machine only: the server speaks plain HTTP unless it is started with <code>--tls</code>, and the master password travels in every sign-in. Add <code>--tls</code> after the image name, or put a TLS proxy in front, before publishing it to other machines.</p>
       <p>Or with Compose:</p>
 <pre><code>services:
   unv-server:
     image: ghcr.io/darthdemono/unenverse/unv-server:{{VERSION}}
-    ports: ["8743:8743"]
+    ports: ["127.0.0.1:8743:8743"]
     volumes: ["unv-data:/data"]
     environment:
       UNV_PASSWORD: ${UNV_PASSWORD:-}
