@@ -153,3 +153,198 @@ fn a_plugin_error_and_a_crash_and_a_non_json_line_are_told_apart() {
         matches!(p.call("die", serde_json::json!({}), t), Err(PluginError::Crashed(m)) if m.contains("exit 3"))
     );
 }
+
+const T: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// The example with extra methods spliced in before its `reconcile` branch.
+fn with_methods(tag: &str, methods: &str) -> (PathBuf, Manifest) {
+    bad(tag, |s| {
+        s.replace(
+            "            elif method == \"reconcile\":",
+            &format!("{methods}            elif method == \"reconcile\":"),
+        )
+    })
+}
+
+#[test]
+fn every_error_reads_as_its_message() {
+    for e in [
+        PluginError::Start("a".into()),
+        PluginError::Lost("b".into()),
+        PluginError::Crashed("c".into()),
+        PluginError::Protocol("d".into()),
+        PluginError::Remote("e".into()),
+    ] {
+        let text = e.to_string();
+        assert!(["a", "b", "c", "d", "e"].contains(&text.as_str()), "{text}");
+    }
+}
+
+#[test]
+fn a_program_that_cannot_start_is_a_start_error_naming_it() {
+    let (dir, mut m) = bad("nostart", |s| s.to_string());
+    m.exec = "does-not-exist".into();
+    let err = Plugin::start(&dir, &m, None, &[]).err().unwrap();
+    assert!(
+        matches!(&err, PluginError::Start(t) if t.contains("does-not-exist")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_reply_line_over_the_limit_is_a_protocol_error() {
+    let (dir, m) = with_methods(
+        "huge",
+        "            elif method == \"huge\":\n                print('x' * (1024 * 1024 + 10), flush=True)\n                continue\n",
+    );
+    let mut p = Plugin::start(&dir, &m, None, &[]).unwrap();
+    let r = p.call("huge", serde_json::json!({}), T);
+    assert!(
+        matches!(&r, Err(PluginError::Protocol(t)) if t.contains("size limit")),
+        "{r:?}"
+    );
+}
+
+#[test]
+fn a_late_answer_to_an_earlier_call_is_skipped_not_mistaken_for_this_one() {
+    let (dir, m) = with_methods(
+        "stale",
+        "            elif method == \"stale\":\n                print(json.dumps({'id': 0, 'result': {'wrong': True}}), flush=True)\n                result = {'right': True}\n",
+    );
+    let mut p = Plugin::start(&dir, &m, None, &[]).unwrap();
+    let r = p.call("stale", serde_json::json!({}), T).unwrap();
+    assert_eq!(r, serde_json::json!({"right": true}));
+}
+
+#[test]
+fn stderr_is_capped_scrubbed_and_attached_to_a_crash() {
+    let secret_looking = "A".repeat(40);
+    let (dir, m) = with_methods(
+        "stderr",
+        &format!(
+            "            elif method == \"noisy\":\n                sys.stderr.write('token {secret_looking}\\n' + 'x' * 200000)\n                sys.stderr.flush()\n                result = {{}}\n            elif method == \"die\":\n                sys.stderr.write('fatal: bad config\\n')\n                sys.stderr.flush()\n                sys.exit(3)\n"
+        ),
+    );
+    let mut p = Plugin::start(&dir, &m, None, &[]).unwrap();
+    p.call("noisy", serde_json::json!({}), T).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let shown = p.stderr();
+    assert!(!shown.contains(&secret_looking), "scrubbed");
+    assert!(
+        shown.len() <= 700,
+        "a plugin cannot flood the report: {}",
+        shown.len()
+    );
+    let mut p = Plugin::start(&dir, &m, None, &[]).unwrap();
+    let r = p.call("die", serde_json::json!({}), T);
+    assert!(
+        matches!(&r, Err(PluginError::Crashed(t)) if t.contains("exit 3") && t.contains("fatal: bad config")),
+        "{r:?}"
+    );
+}
+
+#[test]
+fn a_plugin_that_exits_before_it_is_asked_is_a_crash_not_a_hang() {
+    let (dir, m) = bad("gone", |_| "#!/bin/sh\nexit 0\n".to_string());
+    let mut p = Plugin::start(&dir, &m, None, &[]).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let r = p.call("handshake", serde_json::json!({}), T);
+    assert!(matches!(r, Err(PluginError::Crashed(_))), "{r:?}");
+}
+
+#[test]
+fn only_declared_slots_and_a_small_base_environment_reach_the_plugin() {
+    let (dir, m) = with_methods(
+        "env",
+        "            elif method == \"env\":\n                result = {k: os.environ.get(k) for k in ['UNV_SLOT_URL', 'UNV_SLOT_OTHER', 'CARGO_MANIFEST_DIR', 'PATH', 'TMPDIR']}\n",
+    );
+    let slots = vec![
+        ("url".to_string(), "https://ntfy.example/topic".to_string()),
+        ("other".to_string(), "not-declared".to_string()),
+    ];
+    let mut p = Plugin::start(&dir, &m, None, &slots).unwrap();
+    let env = p.call("env", serde_json::json!({}), T).unwrap();
+    assert_eq!(env["UNV_SLOT_URL"], "https://ntfy.example/topic");
+    assert!(
+        env["UNV_SLOT_OTHER"].is_null(),
+        "an undeclared slot is not passed"
+    );
+    assert!(
+        env["CARGO_MANIFEST_DIR"].is_null(),
+        "the parent's environment is not inherited"
+    );
+    assert!(env["PATH"].is_string());
+    assert_eq!(
+        env["TMPDIR"].as_str().map(PathBuf::from),
+        Some(p.scratch().to_path_buf())
+    );
+}
+
+#[test]
+fn a_polite_shutdown_ends_the_process_and_dropping_removes_the_scratch_directory() {
+    let dir = example();
+    let mut p = Plugin::start(&dir, &load(&dir), None, &[]).unwrap();
+    p.call("handshake", serde_json::json!({}), T).unwrap();
+    let scratch = p.scratch().to_path_buf();
+    assert!(scratch.exists());
+    assert!(
+        p.shutdown(std::time::Duration::from_secs(2)),
+        "it stopped by itself"
+    );
+    drop(p);
+    assert!(!scratch.exists());
+}
+
+#[test]
+fn conformance_names_each_way_a_plugin_can_get_the_basics_wrong() {
+    // Wrong protocol in the handshake.
+    let (dir, m) = bad("proto", |s| {
+        s.replace(
+            "\"protocol\": \"unv-plugin-rpc/1\", \"name\"",
+            "\"protocol\": \"other/9\", \"name\"",
+        )
+    });
+    assert_eq!(failed(&conformance(&dir, &m)), ["handshake"]);
+    // Wrong name.
+    let (dir, m) = bad("name", |s| {
+        s.replace("NAME = \"ntfy-notifier\"", "NAME = \"someone-else\"")
+    });
+    let checks = conformance(&dir, &m);
+    assert_eq!(failed(&checks), ["handshake"]);
+    assert!(
+        checks[0].detail.contains("someone-else"),
+        "{}",
+        checks[0].detail
+    );
+    // A plan that differs each time.
+    let (dir, m) = bad("plan2", |s| {
+        s.replace(
+            "def plan(params):\n    return {\"steps\": [{\"action\": \"post\", \"to\": \"ntfy topic\"}]}",
+            "def plan(params):\n    import time\n    return {\"steps\": [time.time_ns()]}",
+        )
+    });
+    let checks = conformance(&dir, &m);
+    assert_eq!(failed(&checks), ["plan_has_no_side_effects"]);
+    assert!(checks
+        .iter()
+        .find(|c| !c.ok)
+        .unwrap()
+        .detail
+        .contains("different answers"));
+    // A reconcile that answers something else.
+    let (dir, m) = bad("recon", |s| {
+        s.replace("return {\"state\": \"done\" if params.get(\"idempotency_key\") in done else \"unknown\"}", "return {\"state\": \"maybe\"}")
+    });
+    let checks = conformance(&dir, &m);
+    assert_eq!(failed(&checks), ["reconcile_answers"]);
+    assert!(checks
+        .iter()
+        .find(|c| !c.ok)
+        .unwrap()
+        .detail
+        .contains("maybe"));
+    // A plugin that cannot start at all fails everything and does not panic.
+    let (dir, mut m) = bad("nostart2", |s| s.to_string());
+    m.exec = "missing".into();
+    assert_eq!(conformance(&dir, &m).iter().filter(|c| !c.ok).count(), 6);
+}
