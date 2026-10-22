@@ -243,6 +243,7 @@ pub mod http {
     use std::net::TcpListener;
 
     pub struct Req {
+        pub method: String,
         pub target: String,
         pub headers: Vec<(String, String)>,
         pub body: String,
@@ -279,13 +280,9 @@ pub mod http {
                 let Some(end) = end else { continue };
                 let head = String::from_utf8_lossy(&buf[..end]).into_owned();
                 let mut lines = head.lines();
-                let target = lines
-                    .next()
-                    .unwrap_or("")
-                    .split(' ')
-                    .nth(1)
-                    .unwrap_or("")
-                    .to_string();
+                let request_line = lines.next().unwrap_or("");
+                let method = request_line.split(' ').next().unwrap_or("").to_string();
+                let target = request_line.split(' ').nth(1).unwrap_or("").to_string();
                 let headers: Vec<(String, String)> = lines
                     .filter_map(|l| l.split_once(':'))
                     .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
@@ -304,6 +301,7 @@ pub mod http {
                     body.extend_from_slice(&chunk[..n]);
                 }
                 let (status, text) = handler(&Req {
+                    method,
                     target,
                     headers,
                     body: String::from_utf8_lossy(&body).into_owned(),

@@ -358,6 +358,16 @@ enum Commands {
         #[command(subcommand)]
         cmd: CxfCmd,
     },
+    /// Rotate a credential at its issuer, store it, and revoke the old one only when safe.
+    ///
+    /// The old credential stays valid until the end. `plan` shows the steps without changing
+    /// anything, `run` does them, `status` lists runs. A run interrupted by a crash or a lock
+    /// resumes with `run --resume <id>`. A response lost after a destructive call is never
+    /// retried: the run stops as `needs_attention`.
+    Rotate {
+        #[command(subcommand)]
+        cmd: RotateCmd,
+    },
     /// List entries expiring within N days (default: 30).
     RotateCheck {
         #[arg(long, default_value_t = 30)]
@@ -806,6 +816,62 @@ enum Commands {
 }
 
 /// File-shaped credentials — the ones where the variable names a path (E17).
+#[derive(clap::Args)]
+struct RotateTarget {
+    /// The entry holding the credential.
+    entry: String,
+    /// The issuer.
+    #[arg(long, default_value = "cloudflare", value_parser = ["cloudflare"])]
+    issuer: String,
+    /// The entry field that holds the credential.
+    #[arg(long, default_value = "api_key")]
+    field: String,
+    /// The credential's id at the issuer (remembered in the entry after the first run).
+    #[arg(long)]
+    token_id: Option<String>,
+    /// Issuer API base URL (for a mock or a proxy).
+    #[arg(long)]
+    base_url: Option<String>,
+    /// Roll in place: the old value stops working at once. Not retried if the answer is lost.
+    #[arg(long)]
+    allow_roll: bool,
+    /// Revoke the old credential at the end. Without it the old one stays valid.
+    #[arg(long)]
+    revoke_now: bool,
+}
+
+fn rotate_opts<'a>(t: &'a RotateTarget, resume: Option<&'a str>) -> unv_app::rotate_cmd::Opts<'a> {
+    unv_app::rotate_cmd::Opts {
+        entry: &t.entry,
+        issuer: &t.issuer,
+        field: &t.field,
+        token_id: t.token_id.as_deref(),
+        base_url: t.base_url.as_deref(),
+        allow_roll: t.allow_roll,
+        revoke_now: t.revoke_now,
+        resume,
+    }
+}
+
+#[derive(Subcommand)]
+enum RotateCmd {
+    /// Show the steps without changing anything.
+    Plan(RotateTarget),
+    /// Rotate now.
+    Run {
+        #[command(flatten)]
+        target: RotateTarget,
+        /// Resume an interrupted run by id.
+        #[arg(long)]
+        resume: Option<String>,
+    },
+    /// List rotation runs, or show one.
+    Status {
+        /// A run id.
+        run: Option<String>,
+    },
+}
+
 #[derive(Subcommand)]
 enum MigrateCmd {
     /// Inspect a source without changing the vault.
@@ -3512,6 +3578,16 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             } => cxf_cmd::cmd_import(a, file, project.as_deref(), category.as_deref()),
             CxfCmd::Export { out, provider } => cxf_cmd::cmd_export(a, out, provider.as_deref()),
         },
+        Commands::Rotate { cmd } => {
+            let opts = rotate_opts;
+            match cmd {
+                RotateCmd::Plan(t) => unv_app::rotate_cmd::plan(a, &opts(t, None)),
+                RotateCmd::Run { target, resume } => {
+                    unv_app::rotate_cmd::run(a, &opts(target, resume.as_deref()))
+                }
+                RotateCmd::Status { run } => unv_app::rotate_cmd::status(a, run.as_deref()),
+            }
+        }
         Commands::RotateCheck { days } => {
             let list = a.expiring(*days)?;
             let safe = out::redact_entries(&list);
