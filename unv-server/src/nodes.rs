@@ -776,6 +776,31 @@ fn plan(vault: Option<&serde_json::Value>, node: &NodeRecord, targets: &[TargetR
     Plan { rendered }
 }
 
+/// The one project a node grant names. A grant is a project NAME, but `find_project_index` also
+/// matches ids and falls back to substrings, so a writer who may add projects could add one whose
+/// id equals the granted name and have the node served its content. Here the grant must match
+/// exactly one project, by id or by name; two candidates is refused, never guessed.
+fn resolve_grant(vault: &serde_json::Value, grant: &str) -> Result<usize, String> {
+    let list = unv_app::data::projects(vault);
+    let hits: Vec<usize> = list
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| {
+            p.get("id").and_then(|v| v.as_str()) == Some(grant)
+                || p.get("name").and_then(|v| v.as_str()) == Some(grant)
+        })
+        .map(|(i, _)| i)
+        .collect();
+    match hits.as_slice() {
+        [one] => Ok(*one),
+        [] => Err(format!("No project named '{grant}'")),
+        _ => Err(format!(
+            "'{grant}' names more than one project (an id and a name, or a duplicate); \
+             refusing to choose. Rename one of them."
+        )),
+    }
+}
+
 /// Renders one project for a node, after the config compiler has looked at it.
 ///
 /// The compiler's error findings are exactly "the generated config is wrong",
@@ -788,7 +813,13 @@ fn render_gated(
     exporter: &str,
 ) -> Result<Vec<u8>, String> {
     let list = unv_app::data::projects(vault);
-    let idx = unv_app::data::find_project_index(vault, project).map_err(|e| e.to_string())?;
+    let idx = resolve_grant(vault, project)?;
+    // Render by the resolved project's id, so the second lookup cannot land elsewhere.
+    let id = list[idx]
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or(project)
+        .to_string();
     let errors = vault_core::config_check::gate(&list[idx], names);
     if let Some(f) = errors.first() {
         return Err(format!(
@@ -798,7 +829,7 @@ fn render_gated(
             if errors.len() == 1 { "" } else { "s" }
         ));
     }
-    unv_app::chunks::render_project(vault, project, exporter)
+    unv_app::chunks::render_project(vault, &id, exporter)
         .map(String::into_bytes)
         .map_err(|e| e.to_string())
 }
@@ -1433,6 +1464,36 @@ mod tests {
         let d = std::env::temp_dir().join(format!("unv-nodes-srv-{tag}-{n}"));
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    fn proj(id: &str, name: &str, value: &str) -> serde_json::Value {
+        serde_json::json!({
+            "id": id, "name": name, "project_type": "generic",
+            "chunks": [{ "id": format!("c-{id}"), "name": "app.env", "chunk_type": "env_file",
+                         "fields": [{ "key": "TOKEN", "value": value }] }]
+        })
+    }
+
+    // Bug: a writer who could add projects added one whose id equalled the name a node was
+    // granted, and the node was served that project's content instead of the granted one.
+    #[test]
+    fn a_grant_that_names_two_projects_is_refused_not_guessed() {
+        let honest = serde_json::json!({ "projects": [proj("p-edge", "edge", "LEGIT")] });
+        let idx = resolve_grant(&honest, "edge").unwrap();
+        assert_eq!(idx, 0);
+        let rendered = render_gated(&honest, &[], "edge", "env").unwrap();
+        assert!(String::from_utf8(rendered).unwrap().contains("LEGIT"));
+
+        let hijacked = serde_json::json!({ "projects": [
+            proj("p-edge", "edge", "LEGIT"),
+            proj("edge", "innocuous", "ATTACKER-CONTROLLED"),
+        ] });
+        let e = render_gated(&hijacked, &[], "edge", "env").unwrap_err();
+        assert!(e.contains("more than one project"), "{e}");
+        assert!(resolve_grant(&hijacked, "missing").is_err());
+        // A duplicate id is just as ambiguous.
+        let dup = serde_json::json!({ "projects": [proj("a", "A", "1"), proj("a", "B", "2")] });
+        assert!(resolve_grant(&dup, "a").is_err());
     }
 
     const PASS: &str = "first-secret-value";
