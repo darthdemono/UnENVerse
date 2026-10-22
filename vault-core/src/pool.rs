@@ -135,7 +135,7 @@ pub fn save(state: &Value) -> Result<(), String> {
     )
     .map_err(|e| format!("Cannot write {}: {e}", tmp.display()))?;
     restrict(&tmp)?;
-    std::fs::rename(&tmp, &path).map_err(|e| {
+    crate::platform::replace_file(&tmp, &path).map_err(|e| {
         let _ = std::fs::remove_file(&tmp);
         format!("Cannot replace {}: {e}", path.display())
     })

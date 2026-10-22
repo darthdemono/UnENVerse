@@ -159,7 +159,7 @@ fn atomic_json(path: &Path, value: &impl Serialize) -> Result<(), String> {
     file.write_all(&bytes).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
     drop(file);
-    fs::rename(&tmp, path).map_err(|e| e.to_string())?;
+    vault_core::platform::replace_file(&tmp, path).map_err(|e| e.to_string())?;
     sync_dir(path.parent().unwrap_or_else(|| Path::new(".")))
 }
 

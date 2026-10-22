@@ -79,6 +79,12 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 # this simply adds bundling on top of the `sqlcipher` feature above.
 [target.'cfg(windows)'.dependencies]
 rusqlite = { version = "=0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
+# Owner-only access lists (`winacl.rs`): the one place that talks to the Windows security API.
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_Storage_FileSystem"] }
+
+# macOS ships no SQLCipher either (and Homebrew's is not on every machine), so it vendors too.
+[target.'cfg(target_os = "macos")'.dependencies]
+rusqlite = { version = "=0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 # Deny warnings, per [workspace.lints.rust] at the repo root.
 [lints]

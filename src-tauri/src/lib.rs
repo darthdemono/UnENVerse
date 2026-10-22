@@ -440,6 +440,23 @@ mod commands {
         unv_app::matlog::note("clipboard", &note, &text);
     }
 
+    /// Where this machine's approver key lives: the same directory the CLI uses, which on Windows
+    /// is the machine-local profile. A vault moved elsewhere with `--db-path` keeps its key beside it.
+    fn approver_dir<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<std::path::PathBuf, String> {
+        let beside = db_path(app)?
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .ok_or("no data directory")?;
+        match vault_core::nodes::default_approver_dir() {
+            Some(default)
+                if default.ends_with("io.unenverse") && beside.ends_with("io.unenverse") =>
+            {
+                Ok(default)
+            }
+            _ => Ok(beside),
+        }
+    }
+
     /// Phase 37.1: this machine's approver public key and fingerprint, the key made
     /// on first use. The seed never crosses this boundary; only signatures do. The
     /// CLI reads the same file (`unv node approver show`).
@@ -447,10 +464,7 @@ mod commands {
     pub fn approver_public<R: tauri::Runtime>(
         app: AppHandle<R>,
     ) -> Result<serde_json::Value, String> {
-        let dir = db_path(&app)?
-            .parent()
-            .map(std::path::Path::to_path_buf)
-            .ok_or("no data directory")?;
+        let dir = approver_dir(&app)?;
         let seed = vault_core::nodes::approver_seed(&dir)?;
         let public = vault_core::nodes::hub_public(&seed)?;
         let fingerprint = vault_core::nodes::key_fingerprint(&public)?;
@@ -468,10 +482,7 @@ mod commands {
         sha256: String,
         approval_id: String,
     ) -> Result<vault_core::nodes::SignedApproval, String> {
-        let dir = db_path(&app)?
-            .parent()
-            .map(std::path::Path::to_path_buf)
-            .ok_or("no data directory")?;
+        let dir = approver_dir(&app)?;
         let seed = vault_core::nodes::approver_seed(&dir)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

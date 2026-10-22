@@ -14,6 +14,8 @@ pub use zeroize::Zeroize;
 
 pub mod generators;
 pub mod jwks;
+#[cfg(windows)]
+mod winacl;
 pub use generators::{generate_certificate, generate_ssh_keypair};
 
 // Phase 24.3: the one Rust builder for the .ics feed — moved here from
@@ -60,6 +62,7 @@ pub mod oauth;
 pub mod ops;
 pub mod pgp;
 pub mod php_config;
+pub mod platform;
 pub mod plugin;
 pub mod recovery;
 pub mod rotation;
@@ -147,18 +150,19 @@ pub fn derive_key(password: &str, salt: &[u8]) -> Result<VaultKey, String> {
     Ok(key)
 }
 
-/// Restrict a file to its owner where the platform can express that.
-///
-/// Windows has no chmod equivalent — files inherit the directory ACL — so this
-/// is a no-op there and `unv doctor` reports the check as *not enforceable*
-/// rather than passing. A check that always passes proves nothing.
+/// Restrict a file to its owner. Unix sets mode 0600; Windows replaces the access list with a
+/// protected one that allows only the current user (`winacl`).
 pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        winacl::restrict_to_owner(path, false)?;
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = path;
     }
@@ -171,7 +175,7 @@ pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
 /// world-readable, and accepts a path an attacker pre-created in a shared temp directory
 /// (including a symlink to somewhere they control). This creates the final component with
 /// mode 0700 in one step and refuses an existing one. The parent must already exist.
-/// Windows has no mode to set; the directory inherits its parent's access list.
+/// On Windows the directory gets a protected owner-only access list that its contents inherit.
 pub fn create_private_dir(path: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
@@ -183,8 +187,25 @@ pub fn create_private_dir(path: &Path) -> Result<(), String> {
     }
     #[cfg(not(unix))]
     {
-        fs::create_dir(path).map_err(|e| e.to_string())
+        fs::create_dir(path).map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        winacl::restrict_to_owner(path, true)?;
+        Ok(())
     }
+}
+
+/// `create_dir_all` for the folder a vault lives in. On Windows a folder this call creates is made
+/// owner-only, and the files created in it (the database, the salt, the WAL sidecars) inherit that.
+/// A folder that already existed is left alone: it may be somewhere the user keeps other files.
+fn create_vault_dir(path: &Path) -> Result<(), String> {
+    #[cfg(windows)]
+    let existed = path.exists();
+    fs::create_dir_all(path).map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    if !existed {
+        winacl::restrict_to_owner(path, true)?;
+    }
+    Ok(())
 }
 
 /// Refuse to derive a key when a database exists but its salt does not.
@@ -223,7 +244,7 @@ pub fn read_or_create_salt(salt_path: &Path) -> Result<[u8; SALT_LEN], String> {
     } else {
         let s: [u8; SALT_LEN] = rand::random();
         if let Some(parent) = salt_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            create_vault_dir(parent)?;
         }
         fs::write(salt_path, s).map_err(|e| e.to_string())?;
         // The salt is half of what opens the vault. It was written with whatever
@@ -278,7 +299,7 @@ fn migrate_sqlcipher3(db_path: &Path, key: &VaultKey) -> bool {
 /// decryption failure so callers can distinguish auth errors from I/O errors.
 pub fn open_db(db_path: &Path, key: &VaultKey) -> Result<Connection, String> {
     if let Some(p) = db_path.parent() {
-        fs::create_dir_all(p).map_err(|e| e.to_string())?;
+        create_vault_dir(p)?;
     }
     let conn = Connection::open_with_flags(
         db_path,
@@ -2523,5 +2544,80 @@ mod private_dir_tests {
     fn a_missing_parent_is_an_error_not_a_silent_create_all() {
         let nested = scratch("missing").join("child");
         assert!(create_private_dir(&nested).is_err());
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_acl_tests {
+    use super::*;
+
+    /// `icacls` output for a path: one line per access entry.
+    fn entries(path: &Path) -> String {
+        let out = std::process::Command::new("icacls")
+            .arg(path)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    fn assert_owner_only(path: &Path) {
+        let text = entries(path);
+        let user = std::env::var("USERNAME").unwrap();
+        assert!(text.contains(&user), "the current user is missing: {text}");
+        for other in [
+            "Everyone",
+            "BUILTIN\\Users",
+            "Authenticated Users",
+            "BUILTIN\\Administrators",
+            "NT AUTHORITY\\SYSTEM",
+        ] {
+            assert!(!text.contains(other), "{other} still has access: {text}");
+        }
+    }
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("vc-acl-{tag}-{}", new_uuid()));
+        create_private_dir(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn a_restricted_file_allows_only_its_owner() {
+        let d = scratch("file");
+        let f = d.join("secret.bin");
+        fs::write(&f, b"x").unwrap();
+        restrict_to_owner(&f).unwrap();
+        assert_owner_only(&f);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_private_directory_and_what_is_created_in_it_are_owner_only() {
+        let d = scratch("dir");
+        assert_owner_only(&d);
+        let inner = d.join("made-later.txt");
+        fs::write(&inner, b"x").unwrap();
+        assert_owner_only(&inner);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn the_database_the_salt_and_their_folder_are_owner_only() {
+        let d = std::env::temp_dir().join(format!("vc-acl-vault-{}", new_uuid()));
+        let db = d.join("vault.db");
+        let salt = read_or_create_salt(&d.join("vault.salt")).unwrap();
+        let key = derive_key(&new_uuid(), &salt).unwrap();
+        let conn = open_db(&db, &key).unwrap();
+        init_schema(&conn).unwrap();
+        for p in [&d, &db, &d.join("vault.salt")] {
+            assert_owner_only(p);
+        }
+        drop(conn);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn restricting_a_path_that_does_not_exist_is_an_error_not_a_panic() {
+        assert!(restrict_to_owner(&std::env::temp_dir().join(new_uuid())).is_err());
     }
 }
