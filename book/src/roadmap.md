@@ -27,6 +27,13 @@ contract. Several are partial by design and say so in their ADRs (0160 to 0167):
 and node targets as rotation consumers, a plugins screen, the master-password change and `forget`
 of R20, and the desktop bridge of R18 are still to do.
 
+Release 0.59.0 adds the command-line halves of R20 and R25: `unv vault rekey` changes the master
+password crash-safely and `unv entry forget` purges old values from history (ADR-0168), plus
+`unv support bundle`, `unv demo-vault`, a tested Docker Compose secrets guide, a command reference
+generated from the code, playbooks for a leak and the format policy, and a fix that bounds the key
+derivation settings read from a backup file. The desktop actions for the password change, forget
+and the support bundle, and the desktop bridge of R18, are still to do.
+
 ## The year, by quarter
 
 ### October to December 2026: foundations
