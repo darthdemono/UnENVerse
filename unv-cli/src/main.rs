@@ -821,7 +821,7 @@ struct RotateTarget {
     /// The entry holding the credential.
     entry: String,
     /// The issuer.
-    #[arg(long, default_value = "cloudflare", value_parser = ["cloudflare"])]
+    #[arg(long, default_value = "cloudflare", value_parser = ["cloudflare", "postgres"])]
     issuer: String,
     /// The entry field that holds the credential.
     #[arg(long, default_value = "api_key")]
@@ -838,6 +838,21 @@ struct RotateTarget {
     /// Revoke the old credential at the end. Without it the old one stays valid.
     #[arg(long)]
     revoke_now: bool,
+    /// PostgreSQL: server host (the admin password is read from `UNV_PG_ADMIN_PASSWORD`).
+    #[arg(long)]
+    pg_host: Option<String>,
+    #[arg(long)]
+    pg_port: Option<String>,
+    #[arg(long)]
+    pg_database: Option<String>,
+    #[arg(long)]
+    pg_admin_user: Option<String>,
+    /// The two roles that take turns, `app_a,app_b`. --token-id names the one in use.
+    #[arg(long)]
+    pg_roles: Option<String>,
+    /// The `psql` program to run.
+    #[arg(long)]
+    pg_psql: Option<String>,
 }
 
 fn rotate_opts<'a>(t: &'a RotateTarget, resume: Option<&'a str>) -> unv_app::rotate_cmd::Opts<'a> {
@@ -850,6 +865,14 @@ fn rotate_opts<'a>(t: &'a RotateTarget, resume: Option<&'a str>) -> unv_app::rot
         allow_roll: t.allow_roll,
         revoke_now: t.revoke_now,
         resume,
+        pg: unv_app::rotate_cmd::PgOpts {
+            host: t.pg_host.as_deref(),
+            port: t.pg_port.as_deref(),
+            database: t.pg_database.as_deref(),
+            admin_user: t.pg_admin_user.as_deref(),
+            roles: t.pg_roles.as_deref(),
+            psql: t.pg_psql.as_deref(),
+        },
     }
 }
 
