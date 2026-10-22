@@ -157,3 +157,29 @@ fn the_status_in_words_names_the_role_and_warns_about_a_synced_folder() {
     let on = v.run_text(&["vault", "activate"]);
     assert!(on.stdout.contains("Active at epoch 2."), "{}", on.stdout);
 }
+
+#[test]
+fn rekey_changes_the_master_password_and_keeps_the_data() {
+    let v = Vault::new("id-rekey");
+    v.ok(&["entry", "add", "CF", "--key", "a-key-value-for-the-test"]);
+    let new_pw = "a brand new master password 9";
+    let o = v.run_env(&[("UNV_NEW_PASSWORD", new_pw)], &["vault", "rekey"]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    // The old password no longer opens it.
+    assert_ne!(v.run(&["get", "CF"]).code, 0);
+    // The new one does, and the entry is there.
+    let o = v.run_with(&["--password", new_pw], &["get", "CF"]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    // The unlock removed the kept copies.
+    assert!(!v.db().with_file_name("vault.db.pre-rekey").exists());
+}
+
+#[test]
+fn rekey_refuses_a_weak_or_unchanged_password_and_changes_nothing() {
+    let v = Vault::new("id-rekey-weak");
+    v.ok(&["entry", "add", "CF", "--key", "a-key-value-for-the-test"]);
+    let o = v.run_env(&[("UNV_NEW_PASSWORD", "short")], &["vault", "rekey"]);
+    assert_ne!(o.code, 0);
+    assert!(o.all().contains("at least 12"), "{}", o.all());
+    assert_eq!(v.run(&["get", "CF"]).code, 0, "still the old password");
+}

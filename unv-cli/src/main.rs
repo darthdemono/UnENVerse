@@ -841,6 +841,8 @@ enum VaultCmd {
     Status,
     /// Make this instance the live one (asks first; the old instance must be retired).
     Activate,
+    /// Change the master password (re-encrypts the vault; asks first).
+    Rekey,
 }
 
 #[derive(Subcommand)]
@@ -2548,6 +2550,21 @@ fn real_main() {
         finish(unv_app::reset_cmd::run(cli.yes, cli.dry_run));
         return;
     }
+    // Nor does a password change: it takes the current password itself, before any unlock.
+    if matches!(
+        &cli.command,
+        Commands::Vault {
+            cmd: VaultCmd::Rekey
+        }
+    ) {
+        access::set_paths(cli.db_path.clone(), cli.salt_path.clone());
+        finish(unv_app::vault_cmd::rekey(
+            cli.password.as_deref(),
+            cli.yes,
+            cli.dry_run,
+        ));
+        return;
+    }
     // Nor does the agent half of `node`: it runs on a host that has no vault.
     if let Commands::Node { cmd } = &cli.command {
         if let Some(r) = run_node_agent_side(cmd) {
@@ -3663,6 +3680,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
         Commands::Vault { cmd } => match cmd {
             VaultCmd::Status => unv_app::vault_cmd::status(a),
             VaultCmd::Activate => unv_app::vault_cmd::activate(a, yes),
+            VaultCmd::Rekey => Ok(()),
         },
         Commands::Plugin { cmd } => match cmd {
             PluginCmd::Ls { dir } => unv_app::plugin_cmd::ls(a, dir.as_deref()),

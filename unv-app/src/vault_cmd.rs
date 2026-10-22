@@ -80,6 +80,73 @@ pub fn activate_with(access: &Access, ask: &mut dyn FnMut(&str) -> CliResult<boo
     Ok(())
 }
 
+/// `unv vault rekey`: change the master password of the local vault. The current password comes
+/// from the global `--password` or a prompt; the new one from `UNV_NEW_PASSWORD` or a prompt
+/// typed twice (never a flag, which `ps` would show).
+pub fn rekey(current: Option<&str>, yes: bool, dry_run: bool) -> CliResult {
+    let new_env = std::env::var("UNV_NEW_PASSWORD").ok();
+    rekey_with(current, new_env.as_deref(), yes, dry_run)
+}
+
+pub fn rekey_with(
+    current: Option<&str>,
+    new_password: Option<&str>,
+    yes: bool,
+    dry_run: bool,
+) -> CliResult {
+    let db = crate::access::default_db_path();
+    let salt = crate::access::default_salt_path();
+    if !db.exists() {
+        return Err(CliError::not_found(format!(
+            "No local vault at {}",
+            db.display()
+        )));
+    }
+    if dry_run {
+        out::ok(
+            "vault.rekey",
+            json!({ "dry_run": true, "database": db.display().to_string() }),
+            || println!("would change the master password of {}", db.display()),
+        );
+        return Ok(());
+    }
+    let question = "Change the master password? Backups made earlier still need the old one.";
+    if !fmt::confirm(question, yes)? {
+        return Err(CliError::new(
+            crate::error::Code::NeedsConfirmation,
+            "Password change cancelled",
+        ));
+    }
+    let old = crate::access::get_password(current);
+    let new = match new_password {
+        Some(p) => p.to_string(),
+        None => {
+            let a = rpassword::prompt_password("New master password: ")
+                .map_err(|e| CliError::from(e.to_string()))?;
+            let b = rpassword::prompt_password("Repeat: ")
+                .map_err(|e| CliError::from(e.to_string()))?;
+            if a != b {
+                return Err(CliError::invalid("The two passwords differ"));
+            }
+            a
+        }
+    };
+    let report = vault_core::rekey::rekey(&db, &salt, &old, &new).map_err(CliError::from)?;
+    out::ok(
+        "vault.rekey",
+        json!({ "rows": report.rows, "kept_database": report.kept_database.display().to_string() }),
+        || {
+            println!(
+                "Master password changed ({} rows re-encrypted).",
+                report.rows
+            );
+            println!("The old files are kept until the next successful unlock.");
+            println!("Recovery packages are unaffected: they are encrypted to the recovery key, not to this password.");
+        },
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
