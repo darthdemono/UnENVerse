@@ -117,7 +117,9 @@ impl fmt::Display for CliError {
 /// their status, so 401/403 arrive as denials rather than nameless errors.
 impl From<String> for CliError {
     fn from(s: String) -> Self {
-        let code = if s.contains(vault_core::CONFLICT_ERR) {
+        let code = if s.contains(vault_core::CONFLICT_ERR)
+            || s.starts_with(vault_core::SOURCE_OWNED_ERR)
+        {
             Code::Conflict
         } else if s.contains("Server error 401")
             || s.contains("Server error 403")

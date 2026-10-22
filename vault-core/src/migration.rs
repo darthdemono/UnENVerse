@@ -290,6 +290,26 @@ pub fn migration(conn: &Connection, id: &str) -> Result<Option<MigrationInfo>, S
     .map_err(|e| e.to_string())
 }
 
+/// Every source id the latest record of which still describes something that was imported or
+/// skipped as unchanged, for one source kind. Archived-only items are not included: they are not
+/// entries, so there is nothing in the vault to compare.
+pub fn known_source_ids(conn: &Connection, source_kind: &str) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT source_id FROM migration_items m
+              WHERE source_kind = ?1 AND target_entry_id IS NOT NULL
+                AND rowid = (SELECT MAX(rowid) FROM migration_items
+                              WHERE source_kind = m.source_kind AND source_id = m.source_id)
+              ORDER BY source_id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([source_kind], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
 pub fn archive_bytes(conn: &Connection, id: &str) -> Result<Option<Vec<u8>>, String> {
     conn.query_row(
         "SELECT b.bytes FROM source_archives a JOIN vault_blobs b ON b.id = a.blob_id WHERE a.id = ?1",

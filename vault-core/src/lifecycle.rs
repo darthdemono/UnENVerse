@@ -231,6 +231,19 @@ fn insert_generation(
     Ok(generation)
 }
 
+/// Records one lifecycle event for an entry (a cutover, say). Public so the application layer can
+/// write events that no save diff would detect; the detail must carry no secret.
+pub fn record_event(
+    conn: &Connection,
+    entry_id: &str,
+    kind: &str,
+    at: &str,
+    source: &str,
+    detail: Value,
+) -> Result<(), String> {
+    event(conn, entry_id, kind, at, source, detail)
+}
+
 fn event(
     conn: &Connection,
     entry_id: &str,
