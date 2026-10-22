@@ -7,7 +7,7 @@
 //! stderr), so the keys stay with `sops`, `gpg` and `gopass` and the passphrase prompt stays with
 //! the user's agent. Nothing here writes to the source: the store and every file in it are only read.
 //!
-//! Each reader returns the same [`Parsed`] shape as the password-manager sources, so planning,
+//! Each reader returns the same `Parsed` shape as the password-manager sources, so planning,
 //! reconciliation, the report and the encrypted source archive are one code path.
 
 use crate::password_sources::{

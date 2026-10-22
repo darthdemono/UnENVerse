@@ -50,7 +50,7 @@ const BASE_ENV: &[&str] = &[
 pub struct ToolSpec {
     pub program: String,
     pub args: Vec<String>,
-    /// Names copied from this process's environment in addition to [`BASE_ENV`].
+    /// Names copied from this process's environment in addition to `BASE_ENV`.
     pub pass_env: Vec<&'static str>,
     /// Values set explicitly, whatever the parent has.
     pub set_env: Vec<(String, String)>,

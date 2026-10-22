@@ -1601,7 +1601,7 @@ fn print_imported(format: SourceFormat, imported: Imported) -> CliResult {
     Ok(())
 }
 
-/// [`import`], then print the result as the command line shows it.
+/// `import`, then print the result as the command line shows it.
 pub fn run(
     access: &Access,
     format: SourceFormat,
