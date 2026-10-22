@@ -894,9 +894,12 @@ project  = "edge"
 exporter = "nginx"
 mode     = "push"          # push: vault to file. pull: file to vault.
 apply    = false           # observe until you flip it
-validate = "nginx -t"      # must pass before reload
+validate = "nginx -t"      # must pass before reload (see {file} below)
 reload   = "systemctl reload nginx"
+check    = "http://127.0.0.1:8080/health"   # after reload: a command, or an http:// URL that must answer 2xx
 ```
+
+`validate` may contain `{file}`: it then runs against a temporary file beside the target (`nginx -t -c {file}`), and the target is replaced only if it passes, so the live file is never invalid. Without `{file}` it runs against the file in place, as before. `check` runs after `reload`; if it fails the previous file is put back and reloaded again. Each apply reports the steps it completed (`written`, `validated`, `reloaded`, `checked`) to the hub's audit log.
 
 Everything executable is in that file, on that host, written by you. The hub cannot add a command, a path or an `apply`. Setting it up:
 
@@ -916,6 +919,7 @@ What it guarantees, and what it does not:
 - **Heartbeats write nothing to the audit chain.** Tokens, enrollments, revocations, pulls and every apply do, attributed to `node:<name>`.
 - **A locked hub observes but pushes nothing**, and the node keeps its apply results until the hub says it recorded them.
 - **Production can require a human.** `unv node policy prod-1 --approval required` holds every push to that node: the hub records the proposed file in the config history and opens a request for those exact bytes. `unv node approvals` lists what is waiting, `unv node approve ID` shows the diff against what the node has (secrets as fingerprints) and the file's hash before it asks, and the approval lapses in an hour. The hub then sends the push with a signed approval naming the node, target and hash; a target with `require_approval = true` in the node's own config refuses anything without a valid one (wrong key, other bytes, another target, expired, replayed). If the vault changes while a request waits, the old yes does not cover the new bytes. Staging nodes can leave the policy off. Tools, Nodes has the same Review, Approve and Reject.
+- **Automation can approve, a person still can't be replaced.** A target with `accept_rule_approval = true` (and `automation_approver = "<public key>"` at the top of the node's config; `unv node automation-key` prints it) takes a push that carries a rule approval: a token the hub's automation key signed for one operation, valid for five minutes, naming the node, target, bytes, operation and rule. It cannot be combined with `require_approval`, and a rule token never satisfies a target that asks for a person. Approval tokens have a second version that adds the kind (`human`, `device`, `rule`), the operation and the policy revision, signed under its own domain (`unv-approval-v2`); version 1 tokens still verify. See ADR-0163.
 
 - **A node with a public address can listen instead of dialling.** Enroll it with `unv node enroll --listen 0.0.0.0:9443 --advertise https://node.example:9443 ...`: it generates its own TLS certificate, the hub pins that certificate at enrollment, and the hub polls the node every 30 seconds (and at once when you save) with requests it signs under a key the node learned at enrollment. The node refuses anything older than a minute, anything it has seen before, anything for another path, and offers TLS 1.3 only. What a node writes is still decided by its own config; only the direction of the connection changes. A stranger who connects and says nothing cannot keep the hub out.
 - **Approval can be signed on your own machine, so a taken-over hub cannot approve itself.** `unv node approver show` prints this machine's approver key; `unv node approver register --label laptop` tells the hub; put the key in the node's config as `approver = "..."` and set `unv node policy prod-1 --approval device`. From then on the hub's own click is refused and the node accepts only a signature from that key (`unv node approve ID` signs here; so does the app's Approve button).

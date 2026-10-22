@@ -8,7 +8,12 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 - Import from Git stores through your own tools: `unv import-vault sops`, `pass` and `gopass`. `sops decrypt`, `gpg --decrypt` and `gopass show` run with a cleared environment, a deadline, an output cap and scrubbed error text; a SOPS file becomes an entry of dotted key-path variables, a `pass` or gopass secret keeps its first line as the password and its whole body as the description, and SOPS metadata is archived as non-operational provenance.
 - `unv import-service` imports from OpenBao (KV v2, paged, with every live version as history), Infisical (expanded values and a recorded reference graph), Bitwarden Secrets Manager (through your own `bws`) and, in a build with `--features aws`, AWS Secrets Manager and Parameter Store. The credential comes from the environment or a vault entry, the whole result is built before anything is written, and policies, auth methods and dynamic engines are archived or reported, not imported.
+- Nodes: a `validate` command that contains `{file}` checks a temporary file and replaces the target only if it passes; a `check` (a command or an `http://` URL that must answer 2xx) runs after `reload` and a failure puts the previous file back and reloads it; each apply reports the steps it completed. Approval tokens have a second version (kind, operation, policy revision, its own signing domain), and a target with `accept_rule_approval = true` takes a short-lived rule approval signed by the hub's automation key (`unv node automation-key`). A rule approval never satisfies `require_approval`.
 - After a Git-store import the source stays authoritative: editing a secret field of such an entry is refused with a message naming the source (the desktop app, the command line and the server share the rule), `unv migrate sync` refreshes the vault one way, `unv migrate drift` reports what changed at the source without importing it, and `unv migrate cutover` and `uncutover` hand authority to the vault and back, refusing to go back once a credential has changed.
+
+### Fixed
+
+- A node's `validate` or `reload` command that printed more than a pipe buffer held (about 64 KB) blocked on its own output and was reported as a timeout. Both pipes are now drained while it runs.
 
 ## 0.57.0 (2026-10-22)
 
