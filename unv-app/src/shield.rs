@@ -298,7 +298,9 @@ pub fn run(access: &Access, argv: &[String]) -> CliResult<i32> {
         ));
     };
     let engine = Arc::new(Engine::from_vault(&access.load_vault()?));
-    let mut child = Command::new(program)
+    let mut command = Command::new(program);
+    crate::exec::drop_credentials(&mut command);
+    let mut child = command
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
