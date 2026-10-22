@@ -66,6 +66,7 @@ pub mod php_config;
 pub mod platform;
 pub mod plugin;
 pub mod recovery;
+pub mod rekey;
 pub mod rotation;
 pub mod session_import;
 pub mod storage;
