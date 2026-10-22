@@ -171,21 +171,24 @@ mod tests {
 
     #[test]
     fn the_verifier_has_the_shape_and_checks_postgres_expects() {
-        let v = scram_verifier("pencil", b"0123456789abcdef");
+        let password = vault_core::new_uuid();
+        let salt: [u8; 16] = rand::random();
+        let other_salt: [u8; 16] = rand::random();
+        let v = scram_verifier(&password, &salt);
         let parts: Vec<&str> = v.split(['$', ':']).collect();
         assert_eq!(parts[0], "SCRAM-SHA-256");
         assert_eq!(parts[1], "4096");
         let b64 = base64::engine::general_purpose::STANDARD;
-        assert_eq!(b64.decode(parts[2]).unwrap(), b"0123456789abcdef");
+        assert_eq!(b64.decode(parts[2]).unwrap(), salt);
         assert_eq!(b64.decode(parts[3]).unwrap().len(), 32);
         assert_eq!(b64.decode(parts[4]).unwrap().len(), 32);
-        assert!(!v.contains("pencil"));
+        assert!(!v.contains(&password));
         assert_ne!(
             v,
-            scram_verifier("pencil", b"fedcba9876543210"),
+            scram_verifier(&password, &other_salt),
             "the salt is part of it"
         );
-        assert_ne!(v, scram_verifier("penciL", b"0123456789abcdef"));
+        assert_ne!(v, scram_verifier(&format!("{password}x"), &salt));
     }
 
     #[test]
@@ -204,7 +207,7 @@ mod tests {
             port: "5432".into(),
             database: "d".into(),
             admin_user: "a".into(),
-            admin_password: "p".into(),
+            admin_password: vault_core::new_uuid(),
             roles: ("app_a".into(), "app_b".into()),
         };
         assert_eq!(pg.set_target("app_a", "run"), "app_b");
@@ -220,11 +223,11 @@ mod tests {
             port: "5432".into(),
             database: "d".into(),
             admin_user: "a".into(),
-            admin_password: "p".into(),
+            admin_password: vault_core::new_uuid(),
             roles: ("app_a".into(), "app_b".into()),
         };
         assert!(matches!(
-            pg.set_value("app_b", "x"),
+            pg.set_value("app_b", &vault_core::new_uuid()),
             Err(IssuerError::Rejected(_))
         ));
         assert_eq!(
@@ -267,7 +270,7 @@ mod tests {
         assert!(
             pg.verify(&Credential {
                 id: target.clone(),
-                value: "wrong".into()
+                value: vault_core::new_uuid()
             })
             .is_err(),
             "a wrong password is refused"
