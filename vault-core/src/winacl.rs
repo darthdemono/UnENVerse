@@ -26,6 +26,7 @@ use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken}
 /// The current user's token information, as a buffer that holds a `TOKEN_USER` (the SID it points
 /// to lives in the same buffer).
 fn token_user() -> Result<Vec<u64>, String> {
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage (Win32 token query; every pointer is a local buffer sized by the same call)
     unsafe {
         let mut token: HANDLE = std::ptr::null_mut();
         if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
@@ -54,6 +55,7 @@ fn token_user() -> Result<Vec<u64>, String> {
 /// Replaces `path`'s access list with a protected one that allows only the current user.
 pub fn restrict_to_owner(path: &Path, directory: bool) -> Result<(), String> {
     let user = token_user()?;
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage (builds one ACL in a local buffer and hands it to SetNamedSecurityInfoW)
     unsafe {
         let sid = (*user.as_ptr().cast::<TOKEN_USER>()).User.Sid;
         // Header (8) + one allow entry (up to 8 + SID) rounded up, with room to spare.
