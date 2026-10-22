@@ -2218,10 +2218,17 @@ mod tests {
     // ── Owner row ─────────────────────────────────────────────────────────────
 
     fn scratch_conn(tag: &str) -> Connection {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        // A counter beside the process id, not the clock: two tests starting within one clock tick
+        // (macOS has a coarse one) shared a directory and failed with "database is locked".
+        let nanos = {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static SEQ: AtomicU64 = AtomicU64::new(0);
+            format!(
+                "{}-{}",
+                std::process::id(),
+                SEQ.fetch_add(1, Ordering::SeqCst)
+            )
+        };
         let dir = std::env::temp_dir().join(format!("unenverse-users-{tag}-{nanos}"));
         std::fs::create_dir_all(&dir).unwrap();
         let key = crate::derive_key("pw", b"0123456789abcdef").unwrap();

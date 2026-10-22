@@ -4054,10 +4054,17 @@ mod tests {
     }
 
     fn scratch(tag: &str) -> PathBuf {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        // A counter beside the process id, not the clock: two tests starting within one clock tick
+        // (macOS has a coarse one) shared a directory and failed with "database is locked".
+        let nanos = {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static SEQ: AtomicU64 = AtomicU64::new(0);
+            format!(
+                "{}-{}",
+                std::process::id(),
+                SEQ.fetch_add(1, Ordering::SeqCst)
+            )
+        };
         let d = std::env::temp_dir().join(format!("unv-server-test-{tag}-{nanos}"));
         std::fs::create_dir_all(&d).unwrap();
         d
