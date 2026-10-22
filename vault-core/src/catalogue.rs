@@ -33,7 +33,7 @@ pub const DEFAULT_URL: &str = "https://darthdemono.github.io/EnvVault/catalogue/
 
 /// Ed25519 public key the catalogue must be signed with. The private half is
 /// the `CATALOGUE_SIGNING_KEY` Actions secret; rotating it means a release.
-pub const PINNED_KEY_HEX: &str = "12d80743bd61b75e2a355ff299e64a8cfb46da855ad1be3f669156d6cd89ba9a";
+pub const PINNED_KEY_HEX: &str = "b3df5624668f28f6a3e3c3280951902d9d2ebfd32c60b4bdcd7388ae54cad19d";
 
 fn pinned_key() -> [u8; 32] {
     let mut k = [0u8; 32];
