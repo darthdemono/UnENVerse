@@ -51,6 +51,7 @@ pub fn replace_file(from: &Path, to: &Path) -> io::Result<()> {
     retry(|| std::fs::rename(from, to), transient, PAUSE)
 }
 
+#[cfg(any(target_os = "linux", target_os = "macos", test))]
 const NETWORK_TYPES: &[&str] = &[
     "nfs",
     "nfs4",
@@ -71,6 +72,7 @@ const NETWORK_TYPES: &[&str] = &[
     "fuse.gcsfuse",
 ];
 
+#[cfg(any(target_os = "linux", target_os = "macos", test))]
 fn is_network_type(fstype: &str) -> bool {
     NETWORK_TYPES.contains(&fstype.to_ascii_lowercase().as_str())
 }
