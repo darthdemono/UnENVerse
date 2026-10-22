@@ -57,6 +57,7 @@ pub mod recovery_ops;
 pub mod refs;
 pub mod render;
 pub mod reset_cmd;
+pub mod rotate_cmd;
 pub mod scan;
 #[cfg(feature = "aws")]
 pub mod service_aws;

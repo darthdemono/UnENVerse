@@ -1018,6 +1018,19 @@
       "tauri": [],
       "note": "R11 OpenBao, Infisical, Bitwarden Secrets Manager and AWS imports read a service with the user's credential and write through import-vault's single local SQLCipher transaction, so they are CLI-only for the same reason; the desktop shows the imported entries and their provenance.",
       "cli_flags": []
+    },
+    {
+      "id": "credential-rotation",
+      "status": "exempt",
+      "cli": [
+        "unv rotate plan",
+        "unv rotate run",
+        "unv rotate status"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R13 rotation drives an issuer with the credential under rotation and reads and writes the local vault through one engine; the review screen is a later slice, so the CLI is the surface until then.",
+      "cli_flags": []
     }
   ]
 }
