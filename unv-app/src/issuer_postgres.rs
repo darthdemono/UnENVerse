@@ -32,7 +32,12 @@ pub struct Postgres {
     pub admin_password: String,
     /// The two role names that take turns.
     pub roles: (String, String),
+    /// How long one `psql` call may take before it is killed and counted as lost.
+    pub timeout: Duration,
 }
+
+/// The default for [`Postgres::timeout`].
+pub const PSQL_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// The SCRAM-SHA-256 verifier PostgreSQL stores for a password, built from a given salt.
 pub fn scram_verifier(password: &str, salt: &[u8]) -> String {
@@ -88,7 +93,7 @@ impl Postgres {
                 "-",
             ],
         )
-        .timeout(Duration::from_secs(30));
+        .timeout(self.timeout);
         spec.stdin = Some(sql.as_bytes().to_vec());
         spec.set_env.push(("PGPASSWORD".into(), password.into()));
         spec.set_env.push(("PGCONNECT_TIMEOUT".into(), "10".into()));
@@ -209,6 +214,7 @@ mod tests {
             admin_user: "a".into(),
             admin_password: vault_core::new_uuid(),
             roles: ("app_a".into(), "app_b".into()),
+            timeout: PSQL_TIMEOUT,
         };
         assert_eq!(pg.set_target("app_a", "run"), "app_b");
         assert_eq!(pg.set_target("app_b", "run"), "app_a");
@@ -225,6 +231,7 @@ mod tests {
             admin_user: "a".into(),
             admin_password: vault_core::new_uuid(),
             roles: ("app_a".into(), "app_b".into()),
+            timeout: PSQL_TIMEOUT,
         };
         assert!(matches!(
             pg.set_value("app_b", &vault_core::new_uuid()),
@@ -234,6 +241,232 @@ mod tests {
             pg.reconcile(&StepKind::SetValue, "app_b"),
             Ok(Reconcile::NotDone)
         );
+    }
+
+    /// A `psql` stand-in that records what it was given and behaves as told, so the connector's
+    /// handling of arguments, environment, input, failure and silence is tested without a server.
+    #[cfg(unix)]
+    mod fake_psql {
+        use super::*;
+        use std::os::unix::fs::PermissionsExt;
+        use std::path::{Path, PathBuf};
+
+        pub struct Fake {
+            pub dir: PathBuf,
+            pub pg: Postgres,
+            pub admin_password: String,
+        }
+
+        impl Fake {
+            /// `body` runs after the recording; it decides the exit code and output.
+            pub fn new(tag: &str, body: &str) -> Self {
+                let dir = std::env::temp_dir()
+                    .join(format!("unv-fakepsql-{tag}-{}", vault_core::new_uuid()));
+                std::fs::create_dir_all(&dir).unwrap();
+                let program = dir.join("psql");
+                let script = format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/argv'\ncat > '{d}/stdin'\nprintf '%s' \"$PGPASSWORD\" > '{d}/password'\nenv | grep -c '^UNV_' > '{d}/unv_env' || true\n{body}\n",
+                    d = dir.display()
+                );
+                std::fs::write(&program, script).unwrap();
+                std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+                let admin_password = vault_core::new_uuid();
+                let pg = Postgres {
+                    psql: program.to_string_lossy().into_owned(),
+                    host: "db.internal".into(),
+                    port: "6432".into(),
+                    database: "appdb".into(),
+                    admin_user: "adminuser".into(),
+                    admin_password: admin_password.clone(),
+                    roles: ("app_a".into(), "app_b".into()),
+                    timeout: Duration::from_secs(5),
+                };
+                Self {
+                    dir,
+                    pg,
+                    admin_password,
+                }
+            }
+            pub fn read(&self, name: &str) -> String {
+                std::fs::read_to_string(self.dir.join(name)).unwrap_or_default()
+            }
+        }
+
+        impl Drop for Fake {
+            fn drop(&mut self) {
+                let _: &Path = &self.dir;
+                let _ = std::fs::remove_dir_all(&self.dir);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn setting_a_password_sends_a_verifier_through_stdin_as_the_admin_and_never_the_plaintext() {
+        let mut f = fake_psql::Fake::new("set", "exit 0");
+        let plaintext = vault_core::new_uuid();
+        f.pg.set_value("app_b", &plaintext).unwrap();
+        let sql = f.read("stdin");
+        assert!(
+            sql.starts_with("ALTER ROLE \"app_b\" WITH LOGIN PASSWORD 'SCRAM-SHA-256$4096:"),
+            "{sql}"
+        );
+        assert!(
+            !sql.contains(&plaintext),
+            "the plaintext must not reach psql"
+        );
+        let argv = f.read("argv");
+        for want in [
+            "-h",
+            "db.internal",
+            "-p",
+            "6432",
+            "-U",
+            "adminuser",
+            "-d",
+            "appdb",
+            "-w",
+            "ON_ERROR_STOP=1",
+        ] {
+            assert!(argv.lines().any(|l| l == want), "{want} in {argv}");
+        }
+        assert!(
+            !argv.contains(&plaintext) && !argv.contains(&f.admin_password),
+            "no secret in argv"
+        );
+        assert_eq!(
+            f.read("password"),
+            f.admin_password,
+            "the admin password travels by environment"
+        );
+        assert_eq!(
+            f.read("unv_env").trim(),
+            "0",
+            "no UNV_ variable leaks into psql"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn verifying_logs_in_as_the_role_with_its_own_password() {
+        let mut f = fake_psql::Fake::new("verify", "exit 0");
+        let value = vault_core::new_uuid();
+        f.pg.verify(&Credential {
+            id: "app_b".into(),
+            value: value.clone(),
+        })
+        .unwrap();
+        assert!(f
+            .read("argv")
+            .lines()
+            .zip(f.read("argv").lines().skip(1))
+            .any(|(a, b)| a == "-U" && b == "app_b"));
+        assert_eq!(f.read("password"), value);
+        assert_eq!(f.read("stdin").trim(), "SELECT 1;");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn revoking_clears_the_old_roles_password_and_nothing_else() {
+        let mut f = fake_psql::Fake::new("revoke", "exit 0");
+        f.pg.revoke(&Credential {
+            id: "app_a".into(),
+            value: String::new(),
+        })
+        .unwrap();
+        assert_eq!(
+            f.read("stdin").trim(),
+            "ALTER ROLE \"app_a\" WITH PASSWORD NULL;"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_server_that_says_no_is_a_refusal_with_its_message_and_a_silent_one_is_a_lost_answer() {
+        let mut f = fake_psql::Fake::new("no", "echo 'role \"app_b\" does not exist' >&2; exit 2");
+        match f.pg.set_value("app_b", &vault_core::new_uuid()) {
+            Err(IssuerError::Rejected(m)) => assert!(m.contains("does not exist"), "{m}"),
+            other => panic!("{other:?}"),
+        }
+        assert!(matches!(
+            f.pg.verify(&Credential {
+                id: "app_b".into(),
+                value: vault_core::new_uuid()
+            }),
+            Err(IssuerError::Rejected(_))
+        ));
+        assert!(matches!(
+            f.pg.revoke(&Credential {
+                id: "app_a".into(),
+                value: String::new()
+            }),
+            Err(IssuerError::Rejected(_))
+        ));
+
+        let mut slow = fake_psql::Fake::new("slow", "sleep 5");
+        slow.pg.timeout = Duration::from_millis(300);
+        assert!(matches!(
+            slow.pg.set_value("app_b", &vault_core::new_uuid()),
+            Err(IssuerError::Lost(_))
+        ));
+        assert!(matches!(
+            slow.pg.verify(&Credential {
+                id: "app_b".into(),
+                value: vault_core::new_uuid()
+            }),
+            Err(IssuerError::Lost(_))
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_role_name_that_could_carry_sql_never_reaches_psql() {
+        let mut f = fake_psql::Fake::new("inject", "exit 0");
+        assert!(f.pg.set_value("app\"; DROP ROLE x; --", "x").is_err());
+        assert!(f
+            .pg
+            .revoke(&Credential {
+                id: "a b".into(),
+                value: String::new()
+            })
+            .is_err());
+        assert!(f
+            .pg
+            .verify(&Credential {
+                id: "".into(),
+                value: "x".into()
+            })
+            .is_err());
+        assert_eq!(f.read("argv"), "", "psql was never started");
+    }
+
+    #[test]
+    fn creating_or_rolling_is_refused_and_reconcile_knows_what_is_safe_to_repeat() {
+        let mut pg = Postgres {
+            psql: "psql".into(),
+            host: "h".into(),
+            port: "1".into(),
+            database: "d".into(),
+            admin_user: "a".into(),
+            admin_password: vault_core::new_uuid(),
+            roles: ("app_a".into(), "app_b".into()),
+            timeout: PSQL_TIMEOUT,
+        };
+        assert!(matches!(pg.create("n"), Err(IssuerError::Rejected(_))));
+        assert!(matches!(
+            pg.roll(&Credential {
+                id: "app_a".into(),
+                value: String::new()
+            }),
+            Err(IssuerError::Rejected(_))
+        ));
+        assert_eq!(pg.capabilities(), vec![Class::SetValueClientGenerated]);
+        assert_eq!(
+            pg.reconcile(&StepKind::Revoke, "app_a"),
+            Ok(Reconcile::NotDone)
+        );
+        assert_eq!(pg.reconcile(&StepKind::Create, "x"), Ok(Reconcile::Unknown));
+        assert_eq!(pg.reconcile(&StepKind::Roll, "x"), Ok(Reconcile::Unknown));
     }
 
     /// Against a real server. Set `UNV_TEST_PSQL` (a `psql` or a wrapper), `UNV_TEST_PG_HOST` and
@@ -252,6 +485,7 @@ mod tests {
             admin_user: "postgres".into(),
             admin_password: var("UNV_TEST_PG_ADMIN_PASSWORD"),
             roles: ("app_a".into(), "app_b".into()),
+            timeout: PSQL_TIMEOUT,
         };
         let old = Credential {
             id: "app_a".into(),

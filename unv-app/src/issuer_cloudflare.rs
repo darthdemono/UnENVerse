@@ -225,6 +225,8 @@ mod tests {
         /// "METHOD /path-prefix" -> drop the connection after (true) or before (false) acting.
         lose_after: Vec<String>,
         lose_before: Vec<String>,
+        /// "METHOD /path-prefix" -> answer this status and raw body whatever the state.
+        forced: Vec<(String, u16, String)>,
         log: Vec<String>,
     }
 
@@ -251,6 +253,19 @@ mod tests {
                 st.log.push(key.clone());
                 if st.lose_before.iter().any(|k| key.starts_with(k.as_str())) {
                     continue; // close without answering
+                }
+                if let Some((_, code, raw)) = st
+                    .forced
+                    .iter()
+                    .find(|(k, _, _)| key.starts_with(k.as_str()))
+                    .cloned()
+                {
+                    let _ = write!(
+                        s,
+                        "HTTP/1.1 {code} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{raw}",
+                        raw.len()
+                    );
+                    continue;
                 }
                 let valid = |st: &Server, v: &str| st.tokens.values().any(|(_, val)| val == v);
                 let (code, body) = if !valid(&st, &bearer) {
@@ -483,6 +498,180 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    /// A connector pointed at a server that has the old token and the given quirks.
+    fn connector(
+        configure: impl FnOnce(&mut Server),
+    ) -> (Cloudflare, Arc<Mutex<Server>>, Credential) {
+        let state = Arc::new(Mutex::new(Server::default()));
+        let old_value = format!("cf-old-{}", vault_core::new_uuid());
+        state
+            .lock()
+            .unwrap()
+            .tokens
+            .insert("old".into(), ("old".into(), old_value.clone()));
+        configure(&mut state.lock().unwrap());
+        let base = serve(state.clone());
+        let old = Credential {
+            id: "old".into(),
+            value: old_value,
+        };
+        (
+            Cloudflare::new(&base, old.clone(), true).unwrap(),
+            state,
+            old,
+        )
+    }
+
+    fn forced(prefix: &str, code: u16, body: &str) -> impl FnOnce(&mut Server) {
+        let f = (prefix.to_string(), code, body.to_string());
+        move |s: &mut Server| s.forced.push(f)
+    }
+
+    #[test]
+    fn verification_distinguishes_inactive_refused_and_unreachable() {
+        let (mut cf, _, old) = connector(forced(
+            "GET /user/tokens/verify",
+            200,
+            r#"{"success":true,"result":{"status":"disabled"}}"#,
+        ));
+        assert!(
+            matches!(cf.verify(&old), Err(IssuerError::Rejected(m)) if m.contains("not active"))
+        );
+        let (mut cf, _, old) = connector(forced("GET /user/tokens/verify", 500, "{}"));
+        assert!(matches!(cf.verify(&old), Err(IssuerError::Rejected(m)) if m.contains("500")));
+        let (mut cf, _, old) = connector(|s| s.lose_before.push("GET /user/tokens/verify".into()));
+        assert!(matches!(cf.verify(&old), Err(IssuerError::Lost(_))));
+        // A 200 that is not the API's answer is not trusted as success, and not as a refusal either.
+        let (mut cf, _, old) =
+            connector(forced("GET /user/tokens/verify", 200, "<html>proxy</html>"));
+        assert!(matches!(cf.verify(&old), Err(IssuerError::Lost(_))));
+        let (mut cf, _, old) = connector(forced(
+            "GET /user/tokens/verify",
+            200,
+            r#"{"success":false}"#,
+        ));
+        assert!(matches!(cf.verify(&old), Err(IssuerError::Rejected(_))));
+    }
+
+    #[test]
+    fn creation_fails_safely_when_the_old_token_cannot_be_read_or_the_answer_is_unusable() {
+        // Reading the old token's policies: gone, refused, or the connection drops. Nothing is
+        // created in any case, so these are refusals, not lost answers.
+        for forcing in [
+            forced("GET /user/tokens/old", 404, "{}"),
+            forced("GET /user/tokens/old", 403, "{}"),
+        ] {
+            let (mut cf, state, _) = connector(forcing);
+            assert!(matches!(cf.create("n"), Err(IssuerError::Rejected(_))));
+            assert!(!state
+                .lock()
+                .unwrap()
+                .log
+                .iter()
+                .any(|l| l.starts_with("POST")));
+        }
+        let (mut cf, state, _) = connector(|s| s.lose_before.push("GET /user/tokens/old".into()));
+        assert!(
+            matches!(cf.create("n"), Err(IssuerError::Rejected(m)) if m.contains("reading the old token"))
+        );
+        assert!(!state
+            .lock()
+            .unwrap()
+            .log
+            .iter()
+            .any(|l| l.starts_with("POST")));
+        // The create itself: refused, or an answer without a token (maybe it was made).
+        let (mut cf, _, _) = connector(forced("POST /user/tokens", 403, "{}"));
+        assert!(matches!(cf.create("n"), Err(IssuerError::Rejected(m)) if m.contains("403")));
+        let (mut cf, _, _) = connector(forced(
+            "POST /user/tokens",
+            200,
+            r#"{"success":true,"result":{"id":"x"}}"#,
+        ));
+        assert!(matches!(cf.create("n"), Err(IssuerError::Lost(m)) if m.contains("no token")));
+    }
+
+    #[test]
+    fn rolling_and_deleting_report_refusals_and_lost_answers_apart() {
+        let cred = Credential {
+            id: "old".into(),
+            value: "ignored".into(),
+        };
+        let (mut cf, _, _) = connector(forced("PUT ", 403, "{}"));
+        assert!(matches!(cf.roll(&cred), Err(IssuerError::Rejected(_))));
+        let (mut cf, _, _) = connector(forced(
+            "PUT ",
+            200,
+            r#"{"success":true,"result":{"not":"a string"}}"#,
+        ));
+        assert!(matches!(cf.roll(&cred), Err(IssuerError::Lost(m)) if m.contains("no value")));
+        let (mut cf, _, _) = connector(|s| s.lose_before.push("PUT ".into()));
+        assert!(matches!(cf.roll(&cred), Err(IssuerError::Lost(_))));
+        let (mut cf, _, _) = connector(forced("DELETE ", 403, "{}"));
+        assert!(matches!(cf.revoke(&cred), Err(IssuerError::Rejected(_))));
+        let (mut cf, _, _) = connector(|s| s.lose_before.push("DELETE ".into()));
+        assert!(matches!(cf.revoke(&cred), Err(IssuerError::Lost(_))));
+    }
+
+    #[test]
+    fn reconcile_reads_the_issuer_and_says_unknown_when_it_cannot() {
+        // Create: the token with this name is there, absent, or the list cannot be read.
+        let (mut cf, _, _) = connector(|_| {});
+        assert_eq!(cf.reconcile(&StepKind::Create, "old"), Ok(Reconcile::Done));
+        assert_eq!(
+            cf.reconcile(&StepKind::Create, "never-made"),
+            Ok(Reconcile::NotDone)
+        );
+        let (mut cf, _, _) = connector(forced("GET /user/tokens?", 500, "{}"));
+        assert_eq!(
+            cf.reconcile(&StepKind::Create, "old"),
+            Ok(Reconcile::Unknown)
+        );
+        // Revoke: still there (not done), gone (done, as 404 or 400), or unreadable.
+        let (mut cf, _, _) = connector(|_| {});
+        assert_eq!(
+            cf.reconcile(&StepKind::Revoke, "old"),
+            Ok(Reconcile::NotDone)
+        );
+        let (mut cf, _, _) = connector(|_| {});
+        assert_eq!(cf.reconcile(&StepKind::Revoke, "gone"), Ok(Reconcile::Done));
+        let (mut cf, _, _) = connector(forced("GET /user/tokens/old", 400, "{}"));
+        assert_eq!(cf.reconcile(&StepKind::Revoke, "old"), Ok(Reconcile::Done));
+        let (mut cf, _, _) = connector(forced("GET /user/tokens/old", 500, "{}"));
+        assert_eq!(
+            cf.reconcile(&StepKind::Revoke, "old"),
+            Ok(Reconcile::Unknown)
+        );
+        // Nothing can be reconciled for a value the issuer chose or one a person must supply.
+        assert_eq!(
+            cf.reconcile(&StepKind::SetValue, "x"),
+            Ok(Reconcile::Unknown)
+        );
+        assert_eq!(cf.reconcile(&StepKind::Roll, "x"), Ok(Reconcile::Unknown));
+    }
+
+    #[test]
+    fn a_resumed_run_reconciles_a_revoke_with_the_token_that_replaced_the_old_one() {
+        // The old token is deleted, so only its successor can still ask whether it is gone.
+        let (cf, state, old) = connector(|_| {});
+        let successor = Credential {
+            id: "new".into(),
+            value: "cf-new-secret".into(),
+        };
+        state
+            .lock()
+            .unwrap()
+            .tokens
+            .insert("new".into(), ("new".into(), successor.value.clone()));
+        state.lock().unwrap().tokens.remove("old");
+        let mut cf = cf.with_successor(successor);
+        assert_eq!(
+            cf.reconcile(&StepKind::Revoke, &old.id),
+            Ok(Reconcile::Done)
+        );
+        let _ = old;
     }
 
     #[test]

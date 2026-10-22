@@ -144,3 +144,209 @@ fn postgres_roles_take_turns_through_the_binary() {
     let again = v.run(&["rotate", "plan", "CF", "--issuer", "postgres"]);
     assert_eq!(again.json()["data"]["token_id"], "app_b");
 }
+
+fn steps(o: &common::Out) -> Vec<String> {
+    o.json()["data"]["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_string())
+        .collect()
+}
+
+#[test]
+fn a_plan_describes_each_class_and_the_revoke_choice_without_calling_anyone() {
+    let v = setup("rotate-plan", "cf-old-plan-value");
+    let base = [
+        "rotate",
+        "plan",
+        "CF",
+        "--token-id",
+        "tok",
+        "--base-url",
+        "http://127.0.0.1:9",
+    ];
+    let overlap = v.run(&base);
+    assert_eq!(overlap.json()["data"]["class"], "create_overlapping");
+    let s = steps(&overlap);
+    assert!(
+        s[0].contains("old one stays valid") && s.last().unwrap().contains("--revoke-now"),
+        "{s:?}"
+    );
+
+    let revoke = v.run(&[&base[..], &["--revoke-now"]].concat());
+    assert!(steps(&revoke)
+        .last()
+        .unwrap()
+        .starts_with("revoke the old credential"));
+
+    let roll = v.run(&[&base[..], &["--allow-roll"]].concat());
+    assert_eq!(roll.json()["data"]["class"], "roll_provider_generated");
+    assert!(steps(&roll)[0].contains("not retried if the answer is lost"));
+
+    let pg = v.run(&[&base[..], &["--issuer", "postgres"]].concat());
+    assert_eq!(pg.json()["data"]["class"], "set_value_client_generated");
+    let s = steps(&pg);
+    assert!(
+        s[0].contains("SCRAM verifier, never as plaintext")
+            && s[1].contains("other role can log in"),
+        "{s:?}"
+    );
+
+    let text = v.run_text(&base);
+    assert!(
+        text.stdout.contains("Rotating 'CF' at cloudflare") && text.stdout.contains("  1. "),
+        "{}",
+        text.stdout
+    );
+}
+
+#[test]
+fn a_refused_creation_ends_the_run_as_failed_and_it_cannot_be_resumed() {
+    let old = format!("cf-old-refuse-{}", std::process::id());
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let base = http::serve({
+        let old = old.clone();
+        let log = log.clone();
+        move |req| {
+            log.lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.target));
+            if req.header("authorization") != Some(format!("Bearer {old}").as_str()) {
+                return (401, r#"{"success":false}"#.into());
+            }
+            match (req.method.as_str(), req.target.as_str()) {
+                ("GET", "/user/tokens/old-id") => {
+                    (200, r#"{"success":true,"result":{"policies":[]}}"#.into())
+                }
+                _ => (403, r#"{"success":false}"#.into()),
+            }
+        }
+    });
+    let v = setup("rotate-refuse2", &old);
+    let o = v.run(&[
+        "rotate",
+        "run",
+        "CF",
+        "--token-id",
+        "old-id",
+        "--base-url",
+        base.as_str(),
+    ]);
+    assert_eq!(o.code, 6, "a refusal is a conflict: {}", o.all());
+    assert!(o.all().contains("403"), "{}", o.all());
+    assert_eq!(
+        v.reveal_field("CF", "api_key"),
+        old,
+        "the entry is untouched"
+    );
+    assert!(
+        !log.lock().unwrap().iter().any(|l| l.starts_with("DELETE")),
+        "nothing was deleted"
+    );
+
+    let list = v.run(&["rotate", "status"]);
+    let runs = list.json()["data"]["runs"].as_array().unwrap().clone();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0]["status"]["status"], "failed");
+    let id = runs[0]["run"].as_str().unwrap().to_string();
+
+    let one = v.run(&["rotate", "status", &id]);
+    assert_eq!(one.json()["data"]["runs"][0]["run"], id.as_str());
+    let text = v.run_text(&["rotate", "status"]);
+    assert!(
+        text.stdout.contains(&id) && text.stdout.contains("Failed"),
+        "{}",
+        text.stdout
+    );
+    assert!(v.run(&["rotate", "status", "nope"]).code == 3);
+
+    let again = v.run(&[
+        "rotate",
+        "run",
+        "CF",
+        "--base-url",
+        base.as_str(),
+        "--resume",
+        &id,
+    ]);
+    assert_eq!(again.code, 6, "{}", again.all());
+    assert!(again.all().contains("already finished"), "{}", again.all());
+}
+
+#[test]
+fn status_with_no_runs_says_so_and_a_successful_run_prints_its_outcome() {
+    let old = format!("cf-old-text-{}", std::process::id());
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let base = cloudflare(log, old.clone());
+    let v = setup("rotate-text", &old);
+    assert!(v
+        .run_text(&["rotate", "status"])
+        .stdout
+        .contains("No rotation runs."));
+    let o = v.run_text(&[
+        "rotate",
+        "run",
+        "CF",
+        "--token-id",
+        "old-id",
+        "--base-url",
+        base.as_str(),
+    ]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert!(
+        o.stdout.contains("Run ") && o.stdout.contains("RevocationPending"),
+        "{}",
+        o.stdout
+    );
+}
+
+#[test]
+fn rolling_in_place_stores_the_provider_value_and_deletes_nothing() {
+    let old = format!("cf-old-roll-{}", std::process::id());
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let base = http::serve({
+        let old = old.clone();
+        let log = log.clone();
+        move |req| {
+            let path = req.target.split('?').next().unwrap_or("").to_string();
+            log.lock().unwrap().push(format!("{} {path}", req.method));
+            let rolled = "cf-rolled-value";
+            let auth = req.header("authorization").unwrap_or("");
+            if auth != format!("Bearer {old}") && auth != format!("Bearer {rolled}") {
+                return (401, r#"{"success":false}"#.into());
+            }
+            match (req.method.as_str(), path.as_str()) {
+                ("PUT", "/user/tokens/tok/value") => {
+                    (200, format!(r#"{{"success":true,"result":"{rolled}"}}"#))
+                }
+                ("GET", "/user/tokens/verify") => (
+                    200,
+                    r#"{"success":true,"result":{"status":"active"}}"#.into(),
+                ),
+                _ => (404, r#"{"success":false}"#.into()),
+            }
+        }
+    });
+    let v = setup("rotate-roll", &old);
+    let o = v.run(&[
+        "rotate",
+        "run",
+        "CF",
+        "--token-id",
+        "tok",
+        "--base-url",
+        base.as_str(),
+        "--allow-roll",
+        "--revoke-now",
+    ]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(o.json()["data"]["status"]["status"], "succeeded");
+    assert_eq!(v.reveal_field("CF", "api_key"), "cf-rolled-value");
+    let calls = log.lock().unwrap().clone();
+    assert!(
+        !calls.iter().any(|c| c.starts_with("DELETE")),
+        "a rolled token keeps its id and is never deleted: {calls:?}"
+    );
+    assert_eq!(calls.iter().filter(|c| c.starts_with("PUT")).count(), 1);
+}

@@ -46,12 +46,26 @@ pub struct PgOpts<'a> {
     pub psql: Option<&'a str>,
 }
 
-struct VaultEntry<'a> {
+/// The vault entry being rotated, as the engine sees it: a credential in one field, whose id at the
+/// issuer is remembered in `rotation.token_id`.
+pub struct VaultEntry<'a> {
     access: &'a Access,
     query: String,
     field: String,
     token_id: String,
     previous: Option<Credential>,
+}
+
+impl<'a> VaultEntry<'a> {
+    pub fn new(access: &'a Access, query: &str, field: &str, token_id: &str) -> Self {
+        Self {
+            access,
+            query: query.into(),
+            field: field.into(),
+            token_id: token_id.into(),
+            previous: None,
+        }
+    }
 }
 
 impl VaultEntry<'_> {
@@ -132,7 +146,7 @@ impl Consumers for NoConsumers {
     }
 }
 
-fn connector(o: &Opts<'_>, manager: Credential) -> CliResult<Box<dyn IssuerConnector>> {
+pub fn connector(o: &Opts<'_>, manager: Credential) -> CliResult<Box<dyn IssuerConnector>> {
     match o.issuer {
         "cloudflare" => Ok(Box::new(
             Cloudflare::new(o.base_url.unwrap_or(CLOUDFLARE_BASE), manager, o.allow_roll)
@@ -157,6 +171,7 @@ fn connector(o: &Opts<'_>, manager: Credential) -> CliResult<Box<dyn IssuerConne
                 admin_user: o.pg.admin_user.unwrap_or("postgres").into(),
                 admin_password,
                 roles: (a.into(), b.into()),
+                timeout: crate::issuer_postgres::PSQL_TIMEOUT,
             }))
         }
         other => Err(CliError::invalid(format!(
@@ -249,7 +264,20 @@ pub fn run(access: &Access, o: &Opts<'_>) -> CliResult {
     let vault = access.load_vault()?;
     let idx = data::find_entry_index(&vault, o.entry)?;
     let entry = &data::entries(&vault)[idx];
-    let id = token_id(&vault, idx, o)?;
+    // A resumed run already knows which credential it is replacing; a new one asks the entry or
+    // the caller.
+    let resumed = match o.resume {
+        Some(rid) => Some(
+            rotation::load_run(&conn, rid)
+                .map_err(CliError::from)?
+                .ok_or_else(|| CliError::not_found(format!("No rotation run {rid}")))?,
+        ),
+        None => None,
+    };
+    let id = match &resumed {
+        Some(r) => r.old_id.clone(),
+        None => token_id(&vault, idx, o)?,
+    };
     let provider = data::provider_of(entry).to_string();
     let value = entry
         .get(o.field)
@@ -265,10 +293,8 @@ pub fn run(access: &Access, o: &Opts<'_>) -> CliResult {
     let generation = entry["version_history"]
         .as_array()
         .map_or(1, |h| h.len() as u64 + 2);
-    let mut run = match o.resume {
-        Some(rid) => rotation::load_run(&conn, rid)
-            .map_err(CliError::from)?
-            .ok_or_else(|| CliError::not_found(format!("No rotation run {rid}")))?,
+    let mut run = match resumed {
+        Some(run) => run,
         None => Run::plan(
             &vault_core::new_uuid()[..8],
             &provider,
@@ -296,13 +322,7 @@ pub fn run(access: &Access, o: &Opts<'_>) -> CliResult {
         value,
     };
     let mut issuer = connector(o, manager)?;
-    let mut store_entry = VaultEntry {
-        access,
-        query: o.entry.to_string(),
-        field: o.field.to_string(),
-        token_id: id,
-        previous: None,
-    };
+    let mut store_entry = VaultEntry::new(access, o.entry, o.field, &id);
     let mut store = SqlStore { conn: &conn };
     let gen = || {
         use base64::Engine as _;
