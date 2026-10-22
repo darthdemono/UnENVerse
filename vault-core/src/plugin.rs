@@ -67,12 +67,20 @@ impl Manifest {
         if self.version.trim().is_empty() {
             return Err("plugin version is empty".into());
         }
+        // A rooted path ("/bin/sh", "\\x", "C:\\x") or a ".." step leaves the plugin's directory; on
+        // Windows "/bin/sh" is not `is_absolute()` (no drive), so look at the components instead.
         let exec = Path::new(&self.exec);
         if self.exec.is_empty()
             || exec.is_absolute()
-            || exec
-                .components()
-                .any(|c| matches!(c, std::path::Component::ParentDir))
+            || self.exec.starts_with(['/', '\\'])
+            || exec.components().any(|c| {
+                matches!(
+                    c,
+                    std::path::Component::ParentDir
+                        | std::path::Component::RootDir
+                        | std::path::Component::Prefix(_)
+                )
+            })
         {
             return Err("plugin exec must be a path inside the plugin's own directory".into());
         }

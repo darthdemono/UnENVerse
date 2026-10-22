@@ -102,7 +102,14 @@ fn a_standby_instance_runs_no_operations_until_it_is_activated() {
     v.ok(&["entry", "add", "Seed", "--key", "seed-secret-123456"]);
     let dest = v.path("dest");
     std::fs::create_dir_all(&dest).unwrap();
-    v.ok(&["backup", "dest", "add", "local", "main", dest.to_str().unwrap()]);
+    v.ok(&[
+        "backup",
+        "dest",
+        "add",
+        "local",
+        "main",
+        dest.to_str().unwrap(),
+    ]);
     v.ok(&["backup", "recovery-key"]);
 
     std::fs::write(v.db().with_file_name("vault.restored"), "").unwrap();

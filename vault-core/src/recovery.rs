@@ -602,6 +602,7 @@ mod tests {
         // Opening again does not change it.
         crate::init_schema(&c).unwrap();
         assert_eq!(crate::identity::ensure(&c).unwrap(), after);
+        drop(c); // Windows will not delete a database that is still open
         fs::remove_dir_all(dir).unwrap();
     }
 
