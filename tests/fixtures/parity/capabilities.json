@@ -1070,6 +1070,17 @@
       "tauri": [],
       "note": "R20 master-password change re-encrypts the whole vault and swaps two files, so it ships first as a command-line act that asks first; the desktop Change master password action is a later slice and will call the same vault_core::rekey.",
       "cli_flags": []
+    },
+    {
+      "id": "entry-forget",
+      "status": "exempt",
+      "cli": [
+        "unv entry forget"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R20 forget purges old values from history and stored config copies and cannot be undone, so it ships first as a command that asks first and prints what it cannot reach; the desktop action is a later slice and will call the same vault_core::forget.",
+      "cli_flags": []
     }
   ]
 }

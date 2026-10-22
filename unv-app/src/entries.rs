@@ -1115,7 +1115,13 @@ pub fn cmd_rm(access: &Access, query: &str, yes: bool) -> CliResult {
     let mut vault = access.load_vault()?;
     let idx = find_entry_index(&vault, query)?;
     let provider = data::provider_of(&data::entries(&vault)[idx]).to_string();
-    if !confirm(&format!("Delete entry '{provider}'?"), yes)? {
+    if !confirm(
+        &format!(
+            "Delete entry '{provider}'? The credential itself still works at its provider (revoke it there); \
+             its old values stay in history and backups until you run `unv entry forget`."
+        ),
+        yes,
+    )? {
         println!("Cancelled.");
         return Ok(());
     }
@@ -1125,6 +1131,60 @@ pub fn cmd_rm(access: &Access, query: &str, yes: bool) -> CliResult {
         "entry.rm",
         json!({ "provider": provider, "deleted": true }),
         || println!("Deleted '{provider}'"),
+    );
+    Ok(())
+}
+
+/// `unv entry forget NAME`: purge the entry's old values from this vault's history
+/// (`vault_core::forget`). The current value stays; replaced values and stored config
+/// copies that held them go. Local vault only.
+pub fn cmd_forget(access: &Access, query: &str, yes: bool, dry_run: bool) -> CliResult {
+    let vault = access.load_vault()?;
+    let idx = find_entry_index(&vault, query)?;
+    let entry = &data::entries(&vault)[idx];
+    let provider = data::provider_of(entry).to_string();
+    let id = entry
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| CliError::invalid("The entry has no id"))?
+        .to_string();
+    let conn = access.local_conn()?.ok_or_else(|| {
+        CliError::invalid(
+            "Forgetting history works on the local vault; it cannot run in remote mode",
+        )
+    })?;
+    if dry_run {
+        out::ok(
+            "entry.forget",
+            json!({ "provider": provider, "dry_run": true }),
+            || println!("would purge the old values of '{provider}' from history"),
+        );
+        return Ok(());
+    }
+    let question = format!(
+        "Permanently remove the old values of '{provider}' from this vault's history and stored config copies? \
+         The current value stays. This cannot be undone."
+    );
+    if !confirm(&question, yes)? {
+        println!("Cancelled.");
+        return Ok(());
+    }
+    let report =
+        vault_core::forget::forget_entry(&conn, &id, &provider, None).map_err(CliError::from)?;
+    out::ok(
+        "entry.forget",
+        json!({ "provider": provider, "report": report }),
+        || {
+            println!(
+                "Forgot {} old value(s) and {} stored config copy(ies) of '{provider}'.",
+                report.history_versions, report.snapshots
+            );
+            println!("Not reachable from here:");
+            for line in &report.unreachable {
+                println!("  - {line}");
+            }
+            println!("Rotate the credential at its provider if the old value was ever exposed.");
+        },
     );
     Ok(())
 }
