@@ -5,6 +5,7 @@
 - [CLI guide](cli.md)
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
+- [Plugins](plugins.md)
 - [Phases](phases/index.md)
   - [Phases 1 to 20: foundations](phases/foundations-1-20.md)
   - [Phases 21 to 24.5: references, authenticators, credentials](phases/credentials-21-24-5.md)
@@ -180,3 +181,4 @@
   - [0162: Service sources use the user's credential and build the whole result first](adr/0162-service-sources-use-the-users-credential-and-build-the-whole-result-first.md)
   - [0163: Approvals gain a kind, and automation can approve a rule, never a person](adr/0163-approvals-gain-a-kind-and-automation-can-approve-a-rule-never-a-person.md)
   - [0164: Rotation revokes last and never retries a destructive call](adr/0164-rotation-revokes-last-and-never-retries-a-destructive-call.md)
+  - [0165: Plugins are supervised programs speaking a frozen line protocol](adr/0165-plugins-are-supervised-programs-with-a-frozen-line-protocol.md)
