@@ -711,7 +711,8 @@
         "unv node approver show",
         "unv node approver register",
         "unv node approver ls",
-        "unv node approver rm"
+        "unv node approver rm",
+        "unv node automation-key"
       ],
       "ui": [
         "tool:nodes"

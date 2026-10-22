@@ -430,6 +430,7 @@ impl Agent {
                 sha256: sha,
                 state,
                 error,
+                accept_rule_approval: t.accept_rule_approval,
             });
         }
         out
@@ -570,38 +571,70 @@ impl Agent {
         }
     }
 
-    /// Verifies the signed approval a push carries. Returns its nonce.
+    /// Verifies the signed approval a push carries and returns its nonce.
+    ///
+    /// What counts depends on the target, and on this host's own config alone:
+    ///
+    /// - `require_approval`: a person. A version 1 token or a version 2 `human` or `device` token,
+    ///   signed by the device key (`approver`) or, without one, the hub's pinned key. A `rule` token
+    ///   never satisfies it, however well signed.
+    /// - `accept_rule_approval`: a `rule` token signed by `automation_approver`, or a person's
+    ///   approval as above (a person is the stronger yes).
     fn check_approval(
         &self,
         approval: Option<&vault_core::nodes::SignedApproval>,
-        target: &str,
+        target: &Target,
         sha256: &str,
     ) -> Result<String, String> {
         let signed = approval.ok_or("the push carries no approval")?;
-        // With `approver` in this node's own config, only a signature from that
-        // device counts: the hub's key (pinned or not) is not consulted, so a hub
-        // someone else controls cannot approve its own pushes.
-        let key = match self.cfg.approver.as_deref() {
-            Some(device) => device,
-            None => self.state.hub_pubkey.as_deref().ok_or(
-                "this node has not yet seen the hub's approval key; it learns it from the next beat",
-            )?,
-        };
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_secs() as i64);
-        let tok = vault_core::nodes::verify_approval(
-            key,
-            signed,
-            &self.state.node_id,
-            target,
-            sha256,
-            now,
-        )?;
-        if self.seen_nonces().contains(&tok.nonce) {
+        let node_id = &self.state.node_id;
+        // With `approver` in this node's own config, only a signature from that device counts as a
+        // person: the hub's key (pinned or not) is not consulted, so a hub someone else controls
+        // cannot approve its own pushes.
+        let person_key = match self.cfg.approver.as_deref() {
+            Some(device) => Some(device),
+            None => self.state.hub_pubkey.as_deref(),
+        };
+        let by_person = person_key.ok_or_else(|| {
+            "this node has not yet seen the hub's approval key; it learns it from the next beat"
+                .to_string()
+        });
+        let person = by_person.and_then(|key| {
+            vault_core::nodes::verify_approval_any(key, signed, node_id, &target.id, sha256, now)
+        });
+        let verified = if target.require_approval {
+            let v = person?;
+            if !v.kind.is_person() {
+                return Err(
+                    "a person's approval is required here; a rule approval does not satisfy it"
+                        .into(),
+                );
+            }
+            v
+        } else if target.accept_rule_approval {
+            let automation = self.cfg.automation_approver.as_deref().ok_or(
+                "this node has no automation_approver, so it cannot accept a rule approval",
+            )?;
+            match vault_core::nodes::verify_approval_any(
+                automation, signed, node_id, &target.id, sha256, now,
+            ) {
+                Ok(v) if v.kind == vault_core::nodes::ApprovalKind::Rule => v,
+                Ok(_) => return Err("the automation key signs rule approvals only".into()),
+                Err(rule_err) => match person {
+                    Ok(v) if v.kind.is_person() => v,
+                    _ => return Err(rule_err),
+                },
+            }
+        } else {
+            return Err("this target does not take an approval".into());
+        };
+        if self.seen_nonces().contains(&verified.nonce) {
             return Err("this approval was already used".into());
         }
-        Ok(tok.nonce)
+        Ok(verified.nonce)
     }
 
     fn target(&self, id: &str) -> Option<&Target> {
@@ -609,6 +642,10 @@ impl Agent {
     }
 
     fn fail(&mut self, target: &str, sha: &str, error: String) {
+        self.fail_with(target, sha, error, Vec::new());
+    }
+
+    fn fail_with(&mut self, target: &str, sha: &str, error: String, phases: Vec<String>) {
         self.last
             .insert(target.to_string(), ("failed".into(), Some(error.clone())));
         push_capped(
@@ -619,6 +656,7 @@ impl Agent {
                 sha256: sha.to_string(),
                 ok: false,
                 error: Some(error),
+                phases,
             },
         );
     }
@@ -645,8 +683,8 @@ impl Agent {
                     // hub's signed yes for exactly these bytes. That setting is in
                     // this host's own config, so the hub cannot turn it off.
                     let mut nonce = None;
-                    if t.require_approval {
-                        match self.check_approval(approval.as_ref(), target, sha256) {
+                    if t.require_approval || t.accept_rule_approval {
+                        match self.check_approval(approval.as_ref(), &t, sha256) {
                             Ok(n) => nonce = Some(n),
                             Err(e) => {
                                 self.fail(target, sha256, format!("approval required: {e}"));
@@ -662,7 +700,10 @@ impl Agent {
                             continue;
                         }
                     };
-                    match nodes_apply::apply(&t, &bytes, sha256, &self.dir) {
+                    let (outcome, phases) =
+                        nodes_apply::apply_with_phases(&t, &bytes, sha256, &self.dir);
+                    let phases: Vec<String> = phases.iter().map(|p| (*p).to_string()).collect();
+                    match outcome {
                         Ok(applied) => {
                             // Unchanged is success without a result row: nothing
                             // happened, so there is nothing to audit.
@@ -681,11 +722,12 @@ impl Agent {
                                         sha256: sha256.clone(),
                                         ok: true,
                                         error: None,
+                                        phases,
                                     },
                                 );
                             }
                         }
-                        Err(e) => self.fail(target, sha256, e),
+                        Err(e) => self.fail_with(target, sha256, e, phases),
                     }
                 }
                 Action::Upload { target } => {

@@ -1138,6 +1138,12 @@ enum NodeCmd {
         #[command(subcommand)]
         cmd: ApproverCmd,
     },
+    /// Show the hub's automation public key for a node's `automation_approver`.
+    ///
+    /// A node that sets `accept_rule_approval` on a push target accepts a short-lived token the
+    /// hub's automation key signs for one operation. A target with `require_approval` still needs a
+    /// person: a rule approval never satisfies it.
+    AutomationKey,
     /// Pushes waiting for a human, with `--all` the decided ones too.
     Approvals {
         node: Option<String>,
@@ -3488,6 +3494,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 ApproverCmd::Ls => node_cmd::approver_ls(a),
                 ApproverCmd::Rm { device } => node_cmd::approver_rm(a, device, yes),
             },
+            NodeCmd::AutomationKey => node_cmd::automation_key(a),
             NodeCmd::Approvals { node, all } => node_cmd::approvals(a, node.as_deref(), *all),
             NodeCmd::Approve { approval } => node_cmd::decide(a, approval, true, yes),
             NodeCmd::Reject { approval } => node_cmd::decide(a, approval, false, yes),

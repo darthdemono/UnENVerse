@@ -499,6 +499,28 @@ pub fn approver_show() -> CliResult {
     Ok(())
 }
 
+/// `unv node automation-key`: the public key a node puts in `automation_approver` to accept the
+/// hub's rule approvals. The signing seed stays in the vault.
+pub fn automation_key(a: &Access) -> CliResult {
+    let c = hub(a)?;
+    let r = c.send_json(Method::GET, "/api/node-automation-key", None)?;
+    let public = r["public_key"].as_str().unwrap_or("").to_string();
+    out::ok("node.automation_key", r.clone(), || {
+        println!("Automation public key: {public}");
+        println!(
+            "Fingerprint:           {}",
+            r["fingerprint"].as_str().unwrap_or("")
+        );
+        println!("\nIn a node's config, on a push target that should take an automated approval:");
+        println!("  automation_approver = \"{public}\"   # top level");
+        println!("  accept_rule_approval = true          # on the target");
+        println!(
+            "A target with require_approval = true still needs a person; a rule never counts."
+        );
+    });
+    Ok(())
+}
+
 /// `unv node approver register`.
 pub fn approver_register(a: &Access, label: &str) -> CliResult {
     let c = hub(a)?;
