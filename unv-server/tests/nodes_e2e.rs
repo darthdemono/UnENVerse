@@ -1885,3 +1885,141 @@ async fn a_rule_approval_never_satisfies_a_person_and_is_checked_where_it_is_acc
         }
     }
 }
+
+fn hub_conn(h: &Hub) -> vault_core::SqlConnection {
+    vault_core::open_db(&h.db, &h.key).unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_node_remembers_the_highest_hub_epoch_and_refuses_an_older_instance() {
+    let h = start().await;
+    let dir = scratch("agent-epoch");
+    enroll(&h, &dir, "vps-epoch").await;
+    let out = dir.join("app.env");
+    let cfg = config(
+        &dir,
+        &format!(
+            "[[target]]\nid=\"env-main\"\npath='{}'\nproject=\"edge\"\nexporter=\"env\"\n",
+            out.display()
+        ),
+    );
+    let (d2, c2) = (dir.clone(), cfg);
+    let mut agent = blocking(move || Agent::new(&d2, &c2)).await.unwrap();
+
+    // First beat: the node learns the vault and its epoch.
+    let (a, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    agent = a;
+    let reply = r.unwrap();
+    let first = reply
+        .hub_epoch
+        .clone()
+        .expect("the hub says which instance it is");
+    assert_eq!(first.epoch, 1);
+    assert_eq!(agent.state().hub_epoch.as_ref(), Some(&first));
+
+    // The owner activates this instance again (a newer epoch): the node follows.
+    vault_core::identity::activate(&hub_conn(&h)).unwrap();
+    let (a, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    agent = a;
+    assert_eq!(r.unwrap().hub_epoch.unwrap().epoch, 2);
+    assert_eq!(agent.state().hub_epoch.as_ref().unwrap().epoch, 2);
+
+    // An older instance (epoch 1 again) answers: refused, and the node's memory is unchanged.
+    hub_conn(&h)
+        .execute(
+            "UPDATE vault_meta SET value = '1' WHERE key = 'instance_epoch'",
+            [],
+        )
+        .unwrap();
+    let (a, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    agent = a;
+    let err = r.unwrap_err().message;
+    assert!(
+        err.contains("older instance") && err.contains("unv vault activate"),
+        "{err}"
+    );
+    assert_eq!(agent.state().hub_epoch.as_ref().unwrap().epoch, 2);
+
+    // A hub for another vault is refused whatever its epoch.
+    hub_conn(&h)
+        .execute(
+            "UPDATE vault_meta SET value = '5' WHERE key = 'instance_epoch'",
+            [],
+        )
+        .unwrap();
+    hub_conn(&h)
+        .execute(
+            "UPDATE vault_meta SET value = 'another-vault' WHERE key = 'vault_id'",
+            [],
+        )
+        .unwrap();
+    let (a, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    agent = a;
+    let err = r.unwrap_err().message;
+    assert!(err.contains("different vault"), "{err}");
+
+    // What the node remembers is on disk: a restarted agent still holds epoch 2.
+    drop(agent);
+    let (d3, c3) = (dir.clone(), dir.join("node.toml"));
+    let restarted = blocking(move || Agent::new(&d3, &c3)).await.unwrap();
+    assert_eq!(restarted.state().hub_epoch.as_ref().unwrap().epoch, 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_standby_hub_pushes_nothing_and_says_it_is_locked() {
+    let h = start().await;
+    let dir = scratch("agent-standby");
+    let out = dir.join("app.env");
+    enroll(&h, &dir, "vps-standby").await;
+    let cfg = config(
+        &dir,
+        &format!(
+            "[[target]]\nid=\"env-main\"\npath='{}'\nproject=\"edge\"\nexporter=\"env\"\napply=true\n",
+            out.display()
+        ),
+    );
+    vault_core::identity::become_standby(&hub_conn(&h)).unwrap();
+    let (d2, c2) = (dir.clone(), cfg.clone());
+    let mut agent = blocking(move || Agent::new(&d2, &c2)).await.unwrap();
+    let (a, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    agent = a;
+    let reply = r.unwrap();
+    assert!(reply.hub_locked, "a standby hub reads as locked");
+    assert!(reply.actions.is_empty());
+    assert!(
+        !reply.results_ack,
+        "it records nothing, so the node keeps its results"
+    );
+    assert!(!out.exists());
+
+    // Activated, the same hub serves the node again.
+    vault_core::identity::activate(&hub_conn(&h)).unwrap();
+    let (_, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    let reply = r.unwrap();
+    assert!(!reply.hub_locked);
+    assert!(reply.hub_epoch.unwrap().epoch >= 2);
+}

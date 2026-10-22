@@ -42,6 +42,10 @@ pub struct NodeState {
     /// over this pinned channel (Phase 37). A different key later is refused.
     #[serde(default)]
     pub hub_pubkey: Option<String>,
+    /// The highest `(vault_id, epoch)` a hub has claimed (R19). A hub with a lower epoch for the
+    /// same vault is an older instance that should have been retired, and is refused.
+    #[serde(default)]
+    pub hub_epoch: Option<vault_core::nodes::HubEpoch>,
     /// Set when this node listens and the hub dials it (Phase 34.1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listen: Option<ListenState>,
@@ -316,6 +320,7 @@ pub fn enroll(
         seed,
         hub_fingerprint: fingerprint.map(vault_core::tls::normalize_fingerprint),
         hub_pubkey: None,
+        hub_epoch: None,
         listen: listen_state,
     };
     save_state(dir, &st)?;
@@ -473,6 +478,8 @@ impl Agent {
     /// Takes the hub's answer to a heartbeat: forgets what it kept, pins its key
     /// and carries out what this node's own config allows.
     pub(crate) fn accept_reply(&mut self, reply: &BeatReply) -> CliResult {
+        // First: an older hub instance gets nothing from this node, not even an acknowledgement.
+        self.check_hub_epoch(reply)?;
         // Reported once the hub says it kept them; before that they stay, so a
         // locked hub does not lose the record of an apply.
         self.events.clear();
@@ -525,6 +532,29 @@ impl Agent {
             .map_err(|e| CliError::from(format!("Unreadable beat reply: {e}")))?;
         self.accept_reply(&reply)?;
         Ok(reply)
+    }
+
+    /// Remembers the highest hub epoch for the vault and refuses a lower one. A hub for a different
+    /// vault is refused too: this node was enrolled with one.
+    fn check_hub_epoch(&mut self, reply: &BeatReply) -> CliResult {
+        let Some(claim) = &reply.hub_epoch else {
+            return Ok(()); // a hub that predates epochs; nothing to compare
+        };
+        match &self.state.hub_epoch {
+            Some(seen) if seen.vault_id != claim.vault_id => Err(CliError::denied(
+                "This hub serves a different vault than the one this node was enrolled with.",
+            )),
+            Some(seen) if claim.epoch < seen.epoch => Err(CliError::denied(format!(
+                "This hub is an older instance of the vault (epoch {}, this node has seen {}). \
+                 If it should be the live one, run `unv vault activate` on it.",
+                claim.epoch, seen.epoch
+            ))),
+            Some(seen) if claim.epoch == seen.epoch => Ok(()),
+            _ => {
+                self.state.hub_epoch = Some(claim.clone());
+                save_state(&self.dir, &self.state)
+            }
+        }
     }
 
     /// Pins the hub's approval key on first sight, and refuses a different one.
