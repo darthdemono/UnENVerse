@@ -40,3 +40,8 @@ body:
       label: What you expected, and what happened instead
     validations:
       required: true
+  - type: textarea
+    id: bundle
+    attributes:
+      label: Support bundle
+      description: Paste the output of `unv support bundle` (versions, counts and check results only; read it first). A reproduction on a vault from `unv demo-vault --out DIR` helps most.
