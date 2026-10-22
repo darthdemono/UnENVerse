@@ -203,6 +203,31 @@ jobs:
           read -ra pkgs <<< "$CRATES"
           cargo test "${pkgs[@]}" --locked --no-fail-fast
 
+  # macOS: informational like arm64, deliberately not in `ci-ok`'s needs. The vault vendors
+  # SQLCipher there (no system copy to rely on), so this is the job that proves it builds and that
+  # an old vault opens. Promote it into `ci-ok` once it has been green for a while.
+  test-macos:
+    name: Test (macos)
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust-setup
+        with:
+          cache-key: test-macos
+          components: ""
+      - name: Test
+        shell: bash
+        env:
+          CRATES: ${{ needs.changes.outputs.crates }}
+        run: |
+          read -ra pkgs <<< "$CRATES"
+          cargo test "${pkgs[@]}" --locked --no-fail-fast
+
   lint:
     name: Lint (${{ matrix.os }})
     needs: changes

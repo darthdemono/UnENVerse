@@ -220,6 +220,31 @@ fn check_salt(access: Option<&Access>) -> Finding {
 /// Reports "not enforceable" on Windows rather than passing: NTFS inherits the
 /// directory ACL and there is no chmod equivalent, so claiming 0600 there would
 /// be a check that always passes and proves nothing.
+/// The vault on a network filesystem. SQLite's WAL mode needs shared memory and locks that NFS and
+/// SMB do not give reliably, so a vault there can be corrupted by two writers or a dropped
+/// connection.
+fn check_network_fs() -> Finding {
+    network_finding(
+        &crate::access::default_db_path(),
+        vault_core::platform::network_fs,
+    )
+}
+
+fn network_finding(
+    db: &std::path::Path,
+    detect: impl Fn(&std::path::Path) -> Option<String>,
+) -> Finding {
+    match detect(db) {
+        Some(kind) => Finding::at(
+            "network-filesystem",
+            Level::Warn,
+            format!("The vault is on {kind}; SQLite's write-ahead log is not reliable there"),
+            "Keep vault.db on a local disk and sync backups instead.",
+        ),
+        None => Finding::ok("network-filesystem", "The vault is on a local filesystem"),
+    }
+}
+
 fn check_permissions() -> Vec<Finding> {
     let paths = [
         ("vault database", crate::access::default_db_path()),
@@ -270,14 +295,75 @@ fn check_permissions() -> Vec<Finding> {
     }
     #[cfg(not(unix))]
     {
-        let _ = (paths, pool);
-        vec![Finding::at(
-            "permissions",
-            Level::Note,
-            "Not enforceable on this platform — files inherit the directory ACL",
-            "Keep the UnENVerse data directory out of shared locations.",
-        )]
+        let mut all: Vec<(&str, std::path::PathBuf)> = paths.to_vec();
+        if let Some(p) = pool {
+            all.push(("pool state", p));
+        }
+        let mut out = Vec::new();
+        for (label, path) in all {
+            if !path.exists() {
+                continue;
+            }
+            #[cfg(windows)]
+            {
+                let listing = std::process::Command::new("icacls")
+                    .arg(&path)
+                    .output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).into_owned());
+                match listing {
+                    Ok(text) => {
+                        let broad = broad_principals(&text);
+                        if !broad.is_empty() {
+                            out.push(Finding::at(
+                                "permissions",
+                                Level::Warn,
+                                format!("{label} is readable by {}", broad.join(", ")),
+                                format!("Open the vault once with a current build, or run: icacls \"{}\" /inheritance:r /grant:r \"%USERNAME%:F\"", path.display()),
+                            ));
+                        }
+                    }
+                    Err(e) => out.push(Finding::at(
+                        "permissions",
+                        Level::Note,
+                        format!("Cannot read the access list of {label}: {e}"),
+                        "",
+                    )),
+                }
+            }
+            #[cfg(not(windows))]
+            let _ = (label, path);
+        }
+        if out.is_empty() {
+            #[cfg(windows)]
+            out.push(Finding::ok(
+                "permissions",
+                "Vault, salt, session and pool files allow only your account",
+            ));
+            #[cfg(not(windows))]
+            out.push(Finding::at(
+                "permissions",
+                Level::Note,
+                "Not enforceable on this platform",
+                "Keep the UnENVerse data directory out of shared locations.",
+            ));
+        }
+        out
     }
+}
+
+/// Group-wide principals in `icacls` output: names that mean "more than one account".
+pub fn broad_principals(icacls: &str) -> Vec<String> {
+    const BROAD: &[&str] = &[
+        "Everyone",
+        "BUILTIN\\Users",
+        "Authenticated Users",
+        "NT AUTHORITY\\INTERACTIVE",
+    ];
+    BROAD
+        .iter()
+        .filter(|name| icacls.contains(*name))
+        .map(|n| (*n).to_string())
+        .collect()
 }
 
 /// Pool state parses, and every member still names an entry that exists.
@@ -554,6 +640,7 @@ pub fn file_findings(access: &Access) -> Vec<Value> {
         check_salt(Some(access)),
     ];
     all.extend(check_permissions());
+    all.push(check_network_fs());
     all.push(check_audit(access));
     all.iter().map(Finding::to_json).collect()
 }
@@ -581,6 +668,7 @@ pub fn run(access: Option<&Access>, open_error: Option<String>, fix: bool) -> Cl
     // nothing opens.
     findings.push(check_salt(access));
     findings.extend(check_permissions());
+    findings.push(check_network_fs());
 
     let Some(access) = access else {
         findings.push(Finding::at(
@@ -691,5 +779,32 @@ mod tests {
         assert!(vault["api_keys"][0].get("bundle_id").is_none());
         assert!(vault["api_keys"][0].get("bundle_slot").is_none());
         assert_eq!(vault["api_keys"][2]["bundle_id"], "bundle");
+    }
+}
+
+#[cfg(test)]
+mod network_tests {
+    use super::*;
+
+    #[test]
+    fn a_vault_on_a_network_share_is_a_warning_and_a_local_one_is_ok() {
+        let db = std::path::Path::new("/mnt/nas/vault.db");
+        let warn = network_finding(db, |_| Some("nfs4".into())).to_json();
+        assert_eq!(warn["level"], "warn");
+        assert!(warn["message"].as_str().unwrap().contains("nfs4"));
+        let ok = network_finding(db, |_| None).to_json();
+        assert_eq!(ok["level"], "ok");
+    }
+}
+
+#[cfg(test)]
+mod acl_tests {
+    use super::broad_principals;
+
+    #[test]
+    fn names_the_group_wide_principals_in_an_access_list() {
+        let open = "C:\\v\\vault.db BUILTIN\\Users:(I)(R)\\n Everyone:(R)\\n PC\\me:(F)";
+        assert_eq!(broad_principals(open), ["Everyone", "BUILTIN\\Users"]);
+        assert!(broad_principals("C:\\v\\vault.db PC\\me:(F)").is_empty());
     }
 }
