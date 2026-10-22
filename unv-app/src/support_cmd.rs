@@ -161,14 +161,20 @@ pub fn demo_vault(dir: &Path) -> CliResult {
     .map_err(CliError::from)?;
     vault_core::ensure_owner_user(&conn).map_err(CliError::from)?;
     drop(conn);
+    // The password goes to a file beside the vault, not to the terminal or a log.
+    let pw_file = dir.join("demo-password.txt");
+    std::fs::write(&pw_file, password.as_bytes())
+        .map_err(|e| CliError::from(format!("Cannot write {}: {e}", pw_file.display())))?;
+    vault_core::restrict_to_owner(&pw_file).map_err(CliError::from)?;
     out::ok(
         "demo-vault",
-        json!({ "dir": dir.display().to_string(), "password": password, "entries": 3 }),
+        json!({ "dir": dir.display().to_string(), "password_file": pw_file.display().to_string(), "entries": 3 }),
         || {
             println!("Demo vault written to {}", dir.display());
-            println!("Password: {password}");
+            println!("Its password is in {}", pw_file.display());
             println!(
-                "Use it with: unv --db-path {} --password {password} list",
+                "Use it with: UNV_PASSWORD=\"$(cat {})\" unv --db-path {} list",
+                pw_file.display(),
                 db.display()
             );
         },
