@@ -71,6 +71,23 @@ impl Vault {
 
     fn base(&self) -> Command {
         let mut c = Command::new(env!("CARGO_BIN_EXE_unv"));
+        self.environment(&mut c);
+        c
+    }
+
+    /// A shell script run in the same clean environment as `unv` itself, with `$UNV` naming the
+    /// binary and `$VAULT` the database: a recipe that pipes or redirects.
+    #[cfg(unix)]
+    pub fn sh(&self, script: &str) -> Out {
+        let mut c = Command::new("sh");
+        self.environment(&mut c);
+        c.args(["-c", script])
+            .env("UNV", env!("CARGO_BIN_EXE_unv"))
+            .env("VAULT", self.db());
+        Self::collect(c, None)
+    }
+
+    fn environment(&self, c: &mut Command) {
         for v in [
             "UNV_SERVER_URL",
             "UNV_ENV_FILE",
@@ -95,8 +112,7 @@ impl Vault {
             // with this variable set must not have tests touch the real ones.
             .env("XDG_STATE_HOME", self.dir.join("state"))
             .stdin(Stdio::null());
-        pin_state_files(&mut c, &self.dir);
-        c
+        pin_state_files(c, &self.dir);
     }
 
     fn collect(mut c: Command, stdin: Option<&str>) -> Out {
