@@ -422,7 +422,10 @@ mod tests {
     #[test]
     fn a_role_name_that_could_carry_sql_never_reaches_psql() {
         let mut f = fake_psql::Fake::new("inject", "exit 0");
-        assert!(f.pg.set_value("app\"; DROP ROLE x; --", "x").is_err());
+        assert!(f
+            .pg
+            .set_value("app\"; DROP ROLE x; --", &vault_core::new_uuid())
+            .is_err());
         assert!(f
             .pg
             .revoke(&Credential {
@@ -434,7 +437,7 @@ mod tests {
             .pg
             .verify(&Credential {
                 id: "".into(),
-                value: "x".into()
+                value: vault_core::new_uuid()
             })
             .is_err());
         assert_eq!(f.read("argv"), "", "psql was never started");

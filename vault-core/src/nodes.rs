@@ -3055,7 +3055,7 @@ reload = "systemctl reload nginx"
             );
         }
         #[cfg(windows)]
-        if let Some(appdata) = std::env::var_os("APPDATA") {
+        if let Some(appdata) = std::env::var_os("LOCALAPPDATA") {
             assert_eq!(
                 default_approver_dir(),
                 Some(PathBuf::from(appdata).join("io.unenverse"))
