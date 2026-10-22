@@ -195,18 +195,16 @@ pub fn create_private_dir(path: &Path) -> Result<(), String> {
     }
 }
 
-/// `create_dir_all` for the folder a vault lives in. On Windows a folder this call creates is made
-/// owner-only, and the files created in it (the database, the salt, the WAL sidecars) inherit that.
-/// A folder that already existed is left alone: it may be somewhere the user keeps other files.
-fn create_vault_dir(path: &Path) -> Result<(), String> {
-    #[cfg(windows)]
-    let existed = path.exists();
-    fs::create_dir_all(path).map_err(|e| e.to_string())?;
-    #[cfg(windows)]
-    if !existed {
-        winacl::restrict_to_owner(path, true)?;
+/// On Windows, makes a vault folder this program just created owner-only, so the files created in
+/// it (the database, the salt, the WAL sidecars) inherit that. A folder that already existed is left
+/// alone: it may be somewhere the user keeps other files. Elsewhere there is nothing to do: the
+/// files carry their own mode.
+#[cfg(windows)]
+fn secure_new_vault_dir(path: &Path, existed: bool) -> Result<(), String> {
+    if existed {
+        return Ok(());
     }
-    Ok(())
+    winacl::restrict_to_owner(path, true)
 }
 
 /// Refuse to derive a key when a database exists but its salt does not.
@@ -245,7 +243,11 @@ pub fn read_or_create_salt(salt_path: &Path) -> Result<[u8; SALT_LEN], String> {
     } else {
         let s: [u8; SALT_LEN] = rand::random();
         if let Some(parent) = salt_path.parent() {
-            create_vault_dir(parent)?;
+            #[cfg(windows)]
+            let existed = parent.exists();
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            #[cfg(windows)]
+            secure_new_vault_dir(parent, existed)?;
         }
         fs::write(salt_path, s).map_err(|e| e.to_string())?;
         // The salt is half of what opens the vault. It was written with whatever
@@ -300,7 +302,11 @@ fn migrate_sqlcipher3(db_path: &Path, key: &VaultKey) -> bool {
 /// decryption failure so callers can distinguish auth errors from I/O errors.
 pub fn open_db(db_path: &Path, key: &VaultKey) -> Result<Connection, String> {
     if let Some(p) = db_path.parent() {
-        create_vault_dir(p)?;
+        #[cfg(windows)]
+        let existed = p.exists();
+        fs::create_dir_all(p).map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        secure_new_vault_dir(p, existed)?;
     }
     let conn = Connection::open_with_flags(
         db_path,
