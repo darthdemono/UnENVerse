@@ -121,6 +121,7 @@ import { EXPORT_FORMATS, runTotpExport, runTotpImport } from './totp-io';
 import { runCxfImport, runCxfExport } from './cxf-io';
 import { setHtml } from './html';
 import { openProjectMenu } from './assign-project';
+import { openPalette, isPaletteOpen, closePalette } from './palette';
 
 // Wire the global render callback so all modules can call triggerRender()
 setRenderFn(render);
@@ -1010,6 +1011,12 @@ async function init() {
     const inInput = ['INPUT', 'SELECT', 'TEXTAREA'].includes(
       (document.activeElement as HTMLElement)?.tagName,
     );
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+      e.preventDefault();
+      if (isPaletteOpen()) closePalette();
+      else openPalette();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
       (document.getElementById('search') as HTMLInputElement).focus();

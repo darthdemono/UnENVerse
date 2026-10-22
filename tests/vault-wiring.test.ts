@@ -405,6 +405,13 @@ describe('lock, undo and the overlays', { timeout: 30000 }, () => {
     expect($('undo-bar').classList.contains('visible')).toBe(true);
   });
 
+  it('Ctrl+Shift+P opens the command palette and the same keys close it again', () => {
+    key('p', { ctrlKey: true, shiftKey: true });
+    expect(document.getElementById('palette-overlay')!.classList.contains('open')).toBe(true);
+    key('P', { metaKey: true, shiftKey: true });
+    expect(document.getElementById('palette-overlay')!.classList.contains('open')).toBe(false);
+  });
+
   it('the shortcuts overlay opens from its button and closes from its button, a backdrop click and Escape', () => {
     const ov = $('shortcuts-overlay');
     $('shortcuts-btn').click();
