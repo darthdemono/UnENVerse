@@ -19,7 +19,11 @@ fn scratch(tag: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let d = std::env::temp_dir().join(format!("unv-nodes-e2e-{tag}-{n}"));
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let d = std::env::temp_dir().join(format!(
+        "unv-nodes-e2e-{tag}-{n}-{seq}",
+        seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     std::fs::create_dir_all(&d).unwrap();
     d
 }
