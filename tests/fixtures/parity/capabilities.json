@@ -1081,6 +1081,28 @@
       "tauri": [],
       "note": "R20 forget purges old values from history and stored config copies and cannot be undone, so it ships first as a command that asks first and prints what it cannot reach; the desktop action is a later slice and will call the same vault_core::forget.",
       "cli_flags": []
+    },
+    {
+      "id": "support-bundle",
+      "status": "exempt",
+      "cli": [
+        "unv support bundle"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R25 support bundle reads versions, counts and doctor outcomes only; a Settings, Help button that calls the same vault-side builder is a later slice.",
+      "cli_flags": []
+    },
+    {
+      "id": "demo-vault",
+      "status": "exempt",
+      "cli": [
+        "unv demo-vault"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "A demo vault is a file generator for bug reports and needs no unlocked vault, so it has no place in the app.",
+      "cli_flags": []
     }
   ]
 }

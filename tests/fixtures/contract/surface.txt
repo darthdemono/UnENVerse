@@ -50,6 +50,7 @@ unv cookie txt <provider> --out=
 unv curl <provider> [url] --out=
 unv cxf export --out= --provider=
 unv cxf import <file> --category= --project=
+unv demo-vault --out=
 unv describe
 unv diff <a> <b>
 unv doctor --fix
@@ -172,6 +173,7 @@ unv scan --exposed= --json --out= --severity=
 unv sessions
 unv shield <argv>
 unv status
+unv support bundle --out= --print
 unv tags
 unv template ls
 unv template show <id>

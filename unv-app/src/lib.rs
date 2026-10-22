@@ -69,6 +69,7 @@ pub mod session;
 pub mod session_cmd;
 pub mod shield;
 pub mod starters;
+pub mod support_cmd;
 pub mod template_cmd;
 pub mod tls;
 pub mod tool_exec;
