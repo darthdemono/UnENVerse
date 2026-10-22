@@ -264,6 +264,16 @@ fn current_request_id() -> Option<String> {
 /// and filtered rather than trusted verbatim: this value is echoed into a
 /// response header and a log line, and neither is a place to put 4 KB of
 /// attacker-chosen bytes.
+/// The request path as it may appear in a log. A calendar feed's credential is its URL, so
+/// `/ics/<token>.ics` is logged without the token: a rejected or rate-limited feed fetch used to
+/// write the live credential at WARN.
+fn loggable_path(path: &str) -> String {
+    match path.strip_prefix("/ics/") {
+        Some(_) => "/ics/<redacted>".to_string(),
+        None => path.to_string(),
+    }
+}
+
 async fn request_context(
     req: axum::extract::Request,
     next: axum::middleware::Next,
@@ -282,7 +292,7 @@ async fn request_context(
 
     let id = inbound.unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string());
     let method = req.method().clone();
-    let path = req.uri().path().to_string();
+    let path = loggable_path(req.uri().path());
 
     let span = tracing::info_span!("request", %method, path = %path, request_id = %id);
     let started = Instant::now();
@@ -2047,6 +2057,21 @@ async fn list_users_handler(
     }
 }
 
+/// The shortest password a named user may be given. The per-address limiter is the only other
+/// defence of a named account, and an empty or one-letter password used to be accepted.
+const MIN_USER_PASSWORD_CHARS: usize = 12;
+
+fn check_user_password(password: Option<&str>) -> Result<(), axum::response::Response> {
+    match password {
+        Some(p) if p.chars().count() < MIN_USER_PASSWORD_CHARS => Err(err_json(
+            StatusCode::BAD_REQUEST,
+            &format!("A password must be at least {MIN_USER_PASSWORD_CHARS} characters"),
+        )
+        .into_response()),
+        _ => Ok(()),
+    }
+}
+
 async fn create_user_handler(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -2063,6 +2088,9 @@ async fn create_user_handler(
     let (_, mu, _, _) = actor_authority(&conn, &session);
     if !(session.is_owner || mu) {
         return forbidden("Requires the manage-users capability");
+    }
+    if let Err(e) = check_user_password(req.password.as_deref()) {
+        return e;
     }
     // New user starts with no class (tier 0) — strictly below any creator. Safe.
     // Hashing the new password is Argon2: off the runtime, like login.
@@ -2436,6 +2464,9 @@ async fn set_password_handler(
         return e;
     }
     if let Err(e) = guard_no_takeover(&conn, &session, &user_id) {
+        return e;
+    }
+    if let Err(e) = check_user_password(req.password.as_deref()) {
         return e;
     }
     let password = req.password.clone();
@@ -3978,6 +4009,25 @@ mod chaos_tests;
 
 #[cfg(test)]
 mod tests {
+    // Bug: `POST /api/users {"password": ""}` created a user who could sign in with "".
+    #[test]
+    fn a_named_users_password_has_a_minimum_length() {
+        assert!(check_user_password(Some("")).is_err());
+        assert!(check_user_password(Some("short")).is_err());
+        assert!(check_user_password(Some("long-enough-12")).is_ok());
+        assert!(
+            check_user_password(None).is_ok(),
+            "removing a password stays possible"
+        );
+    }
+
+    // Bug: a rejected feed fetch logged `/ics/<live token>.ics` at WARN.
+    #[test]
+    fn a_feed_token_is_never_part_of_a_logged_path() {
+        assert_eq!(loggable_path("/ics/abc123secret.ics"), "/ics/<redacted>");
+        assert_eq!(loggable_path("/api/vault"), "/api/vault");
+    }
+
     // Bug: the generated TLS private key was written with the default mode, readable by every
     // local user.
     #[cfg(unix)]
@@ -4751,7 +4801,7 @@ mod tests {
             "POST",
             "/api/users",
             Some(&owner),
-            Some(serde_json::json!({"username":"reader","password":"before"})),
+            Some(serde_json::json!({"username":"reader","password":"before-password-12"})),
         )
         .await;
         assert_eq!(created.status(), StatusCode::CREATED);
@@ -4768,7 +4818,7 @@ mod tests {
             "POST",
             "/api/auth",
             None,
-            Some(serde_json::json!({"username":"reader","password":"before"})),
+            Some(serde_json::json!({"username":"reader","password":"before-password-12"})),
         )
         .await;
         assert_eq!(auth.status(), StatusCode::OK);
@@ -4980,7 +5030,7 @@ mod tests {
                 "PUT",
                 &format!("/api/users/{user_id}/password"),
                 Some(&owner),
-                Some(serde_json::json!({"password":"after"}))
+                Some(serde_json::json!({"password":"after-password-12"}))
             )
             .await
             .status(),
