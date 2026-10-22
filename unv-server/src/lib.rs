@@ -357,7 +357,8 @@ fn generate_self_signed_cert(
 
     let cert = params.self_signed(&key_pair).map_err(|e| e.to_string())?;
     std::fs::write(&cert_path, cert.pem()).map_err(|e| format!("write cert: {e}"))?;
-    std::fs::write(&key_path, key_pair.serialize_pem()).map_err(|e| format!("write key: {e}"))?;
+    vault_core::write_private(&key_path, key_pair.serialize_pem().as_bytes())
+        .map_err(|e| format!("write key: {e}"))?;
 
     let fingerprint = hex::encode(Sha256::digest(cert.der()));
     Ok((cert_path, key_path, fingerprint))
@@ -892,6 +893,64 @@ fn guard_manage_user(
     Ok(())
 }
 
+/// Acting as another account (a new password, a token, a reset second factor) is being that account.
+/// So the actor's own data scope must cover the target's: a delegate with a narrow scope must not
+/// be able to take over, or widen, an account that reads more than they do. The owner is exempt.
+/// `guard_manage_user` checks authority tier only, which says nothing about data scope.
+fn guard_no_takeover(
+    conn: &vault_core::SqlConnection,
+    session: &Session,
+    target: &str,
+) -> Result<(), axum::response::Response> {
+    if session.is_owner {
+        return Ok(());
+    }
+    for kind in ["read", "write"] {
+        let theirs = vault_core::effective_permission_expr(conn, target, kind)
+            .ok()
+            .flatten();
+        let Some(theirs) = theirs else {
+            continue; // they hold nothing of this kind
+        };
+        let own = vault_core::effective_permission_expr(conn, &session.user_id, kind)
+            .ok()
+            .flatten();
+        if !own.is_some_and(|own| vault_core::permex::covers(&own, &theirs)) {
+            return Err(forbidden(
+                "That account can reach more than you can; ask the owner",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Runs `op`, then refuses (and undoes it) if it left `target` able to reach more than the actor.
+/// Checking before the change misses the case where the change itself is the widening: clearing a
+/// user's individual restriction leaves their wider class.
+fn apply_within_own(
+    conn: &vault_core::SqlConnection,
+    session: &Session,
+    target: &str,
+    op: impl FnOnce() -> Result<(), String>,
+) -> Result<(), axum::response::Response> {
+    let bad_request = |e: String| err_json(StatusCode::BAD_REQUEST, &e).into_response();
+    if session.is_owner {
+        return op().map_err(bad_request);
+    }
+    conn.execute_batch("SAVEPOINT within_own")
+        .map_err(|e| err_json(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response())?;
+    if let Err(e) = op() {
+        let _ = conn.execute_batch("ROLLBACK TO within_own; RELEASE within_own");
+        return Err(bad_request(e));
+    }
+    if let Err(refusal) = guard_no_takeover(conn, session, target) {
+        let _ = conn.execute_batch("ROLLBACK TO within_own; RELEASE within_own");
+        return Err(refusal);
+    }
+    conn.execute_batch("RELEASE within_own")
+        .map_err(|e| err_json(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response())
+}
+
 /// Guard for a user's own second factor. Looking at it, starting an enrolment and
 /// confirming one are open to the user themselves: switching a factor ON can only
 /// strengthen the account. Replacing a factor that is already enabled resets it to
@@ -913,7 +972,8 @@ fn guard_own_totp(
         }
         return Ok(());
     }
-    guard_manage_user(conn, session, target)
+    guard_manage_user(conn, session, target)?;
+    guard_no_takeover(conn, session, target)
 }
 
 /// Error envelope. Every failure the server emits goes through here, so every
@@ -2082,6 +2142,9 @@ async fn create_token_handler(
     if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
         return e;
     }
+    if let Err(e) = guard_no_takeover(&conn, &session, &user_id) {
+        return e;
+    }
     // `expires_at` is compared as text against the current time, so it has to be a real
     // UTC timestamp in one shape: "never" or "tomorrow" sorted after every date and never
     // expired, and a bare date expired at the start of that day.
@@ -2261,12 +2324,14 @@ async fn set_permissions_handler(
     }
     // set_permission_expr parses before storing, so a malformed rule is a 400
     // rather than a silently-denies-everything grant.
-    match store_exprs(&conn, "user", &user_id, &exprs) {
+    match apply_within_own(&conn, &session, &user_id, || {
+        store_exprs(&conn, "user", &user_id, &exprs)
+    }) {
         Ok(()) => {
             bump_perm_epoch(&state);
             StatusCode::NO_CONTENT.into_response()
         }
-        Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Err(e) => e,
     }
 }
 
@@ -2364,6 +2429,9 @@ async fn set_password_handler(
     if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
         return e;
     }
+    if let Err(e) = guard_no_takeover(&conn, &session, &user_id) {
+        return e;
+    }
     let password = req.password.clone();
     let target = user_id.clone();
     let changed = run_kdf(&state, move || {
@@ -2414,12 +2482,14 @@ async fn assign_class_handler(
             Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
         }
     }
-    match vault_core::assign_user_class(&conn, &user_id, req.class_id.as_deref()) {
+    match apply_within_own(&conn, &session, &user_id, || {
+        vault_core::assign_user_class(&conn, &user_id, req.class_id.as_deref())
+    }) {
         Ok(()) => {
             bump_perm_epoch(&state);
             StatusCode::NO_CONTENT.into_response()
         }
-        Err(e) => err_json(StatusCode::BAD_REQUEST, &e).into_response(),
+        Err(e) => e,
     }
 }
 
@@ -2520,6 +2590,9 @@ async fn totp_disable_handler(
         Err(e) => return err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     };
     if let Err(e) = guard_manage_user(&conn, &session, &user_id) {
+        return e;
+    }
+    if let Err(e) = guard_no_takeover(&conn, &session, &user_id) {
         return e;
     }
     match vault_core::users::totp_disable(&conn, &user_id) {
@@ -3898,6 +3971,22 @@ mod chaos_tests;
 
 #[cfg(test)]
 mod tests {
+    // Bug: the generated TLS private key was written with the default mode, readable by every
+    // local user.
+    #[cfg(unix)]
+    #[test]
+    fn the_generated_tls_private_key_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("unv-tls-key-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (_, key, _) = generate_self_signed_cert(&dir).unwrap();
+        assert_eq!(
+            std::fs::metadata(&key).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     use super::*;
 
     #[test]
