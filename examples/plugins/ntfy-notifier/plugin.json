@@ -1,0 +1,9 @@
+{
+  "name": "ntfy-notifier",
+  "version": "1.0.0",
+  "protocol": "unv-plugin-rpc/1",
+  "exec": "plugin.py",
+  "capabilities": ["notifier"],
+  "slots": ["url"],
+  "description": "Posts a message to an ntfy topic. The topic URL is the credential slot 'url'."
+}
