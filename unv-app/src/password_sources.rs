@@ -33,6 +33,12 @@ pub enum SourceFormat {
     Sops,
     Pass,
     Gopass,
+    /// Secrets services, read over their APIs (or `bws`) with the user's own credential.
+    OpenBao,
+    Infisical,
+    Bws,
+    AwsSm,
+    AwsSsm,
 }
 
 impl SourceFormat {
@@ -44,6 +50,11 @@ impl SourceFormat {
             "sops" => Ok(Self::Sops),
             "pass" | "password-store" => Ok(Self::Pass),
             "gopass" => Ok(Self::Gopass),
+            "openbao" | "vault" => Ok(Self::OpenBao),
+            "infisical" => Ok(Self::Infisical),
+            "bws" => Ok(Self::Bws),
+            "aws-sm" => Ok(Self::AwsSm),
+            "aws-ssm" => Ok(Self::AwsSsm),
             _ => Err("source must be bitwarden, onepassword, keepass, sops, pass or gopass".into()),
         }
     }
@@ -56,6 +67,11 @@ impl SourceFormat {
             Self::Sops => "sops",
             Self::Pass => "pass",
             Self::Gopass => "gopass",
+            Self::OpenBao => "openbao",
+            Self::Infisical => "infisical",
+            Self::Bws => "bws",
+            Self::AwsSm => "aws-sm",
+            Self::AwsSsm => "aws-ssm",
         }
     }
 }
@@ -1153,10 +1169,18 @@ fn parse_keepass(
 }
 
 fn parse_source(format: SourceFormat, file: &Path, options: &SourceOpts<'_>) -> CliResult<Parsed> {
-    if matches!(
+    if !matches!(
         format,
-        SourceFormat::Sops | SourceFormat::Pass | SourceFormat::Gopass
+        SourceFormat::Bitwarden | SourceFormat::OnePassword | SourceFormat::KeePass
     ) {
+        if !matches!(
+            format,
+            SourceFormat::Sops | SourceFormat::Pass | SourceFormat::Gopass
+        ) {
+            return Err(CliError::invalid(
+                "service sources are read with `unv import-service`, not from a file",
+            ));
+        }
         // These sources are files and folders read through the user's own tool, not one blob.
         return crate::git_sources::parse(format, file, &crate::git_sources::Tools::default())
             .map_err(CliError::invalid);
@@ -1170,9 +1194,7 @@ fn parse_source(format: SourceFormat, file: &Path, options: &SourceOpts<'_>) -> 
         SourceFormat::KeePass => {
             parse_keepass(label, source_bytes, options.key_file, options.no_password)
         }
-        SourceFormat::Sops | SourceFormat::Pass | SourceFormat::Gopass => {
-            unreachable!("handled before the file is read")
-        }
+        _ => unreachable!("handled before the file is read"),
     }
     .map_err(CliError::invalid)
 }
@@ -1425,6 +1447,16 @@ pub(crate) fn import(
     apply: bool,
 ) -> CliResult<Imported> {
     let parsed = parse_source(format, file, options)?;
+    import_parsed(access, parsed, options, apply)
+}
+
+/// The same, for a source a caller already read (a service API rather than a file).
+pub(crate) fn import_parsed(
+    access: &Access,
+    parsed: Parsed,
+    options: &SourceOpts<'_>,
+    apply: bool,
+) -> CliResult<Imported> {
     let plan = plan(access, parsed, options)?;
     if !apply {
         return Ok(Imported {
@@ -1541,15 +1573,18 @@ pub(crate) fn import(
     })
 }
 
-/// [`import`], then print the result as the command line shows it.
-pub fn run(
+/// [`import_parsed`], then print the result as the command line shows it.
+pub(crate) fn run_parsed(
     access: &Access,
-    format: SourceFormat,
-    file: &Path,
+    parsed: Parsed,
     options: &SourceOpts<'_>,
     apply: bool,
 ) -> CliResult {
-    let imported = import(access, format, file, options, apply)?;
+    let format = parsed.format;
+    print_imported(format, import_parsed(access, parsed, options, apply)?)
+}
+
+fn print_imported(format: SourceFormat, imported: Imported) -> CliResult {
     let preview = &imported.preview;
     let show = |applied: bool| {
         crate::out::ok(
@@ -1564,6 +1599,17 @@ pub fn run(
         ImportMode::Nothing | ImportMode::Written => show(true),
     }
     Ok(())
+}
+
+/// [`import`], then print the result as the command line shows it.
+pub fn run(
+    access: &Access,
+    format: SourceFormat,
+    file: &Path,
+    options: &SourceOpts<'_>,
+    apply: bool,
+) -> CliResult {
+    print_imported(format, import(access, format, file, options, apply)?)
 }
 
 fn print_preview(preview: &Preview, applied: bool) {

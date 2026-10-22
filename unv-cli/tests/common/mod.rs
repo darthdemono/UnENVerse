@@ -235,3 +235,88 @@ pub fn pin_state_files(c: &mut Command, dir: &Path) {
             .env("UNV_POOL_FILE", state.join("pools.json"));
     }
 }
+
+/// A small HTTP/1.1 server for tests of commands that talk to a service: each request is answered
+/// by a closure that sees `(target, header lookup, body)`.
+pub mod http {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    pub struct Req {
+        pub target: String,
+        pub headers: Vec<(String, String)>,
+        pub body: String,
+    }
+
+    impl Req {
+        pub fn header(&self, name: &str) -> Option<&str> {
+            self.headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.as_str())
+        }
+    }
+
+    /// Starts the server on a free local port and returns its base URL.
+    pub fn serve(handler: impl Fn(&Req) -> (u16, String) + Send + Sync + 'static) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 4096];
+                let end = loop {
+                    let n = stream.read(&mut chunk).unwrap_or(0);
+                    if n == 0 {
+                        break None;
+                    }
+                    buf.extend_from_slice(&chunk[..n]);
+                    if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break Some(i);
+                    }
+                };
+                let Some(end) = end else { continue };
+                let head = String::from_utf8_lossy(&buf[..end]).into_owned();
+                let mut lines = head.lines();
+                let target = lines
+                    .next()
+                    .unwrap_or("")
+                    .split(' ')
+                    .nth(1)
+                    .unwrap_or("")
+                    .to_string();
+                let headers: Vec<(String, String)> = lines
+                    .filter_map(|l| l.split_once(':'))
+                    .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
+                    .collect();
+                let length: usize = headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("content-length"))
+                    .and_then(|(_, v)| v.parse().ok())
+                    .unwrap_or(0);
+                let mut body = buf[end + 4..].to_vec();
+                while body.len() < length {
+                    let n = stream.read(&mut chunk).unwrap_or(0);
+                    if n == 0 {
+                        break;
+                    }
+                    body.extend_from_slice(&chunk[..n]);
+                }
+                let (status, text) = handler(&Req {
+                    target,
+                    headers,
+                    body: String::from_utf8_lossy(&body).into_owned(),
+                });
+                let _ = stream.write_all(
+                    format!(
+                        "HTTP/1.1 {status} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{text}",
+                        text.len()
+                    )
+                    .as_bytes(),
+                );
+            }
+        });
+        base
+    }
+}

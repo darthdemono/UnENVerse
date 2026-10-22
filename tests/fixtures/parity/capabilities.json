@@ -1006,6 +1006,17 @@
       "tauri": [],
       "note": "R10 Git-store sources (SOPS, pass, gopass) run the user's own tools and keep authority with the source until cutover. They share import-vault's single local SQLCipher transaction and are CLI-only for the same reason; the desktop shows the authority on the entry but does not drive a sync.",
       "cli_flags": []
+    },
+    {
+      "id": "service-sources",
+      "status": "exempt",
+      "cli": [
+        "unv import-service"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R11 OpenBao, Infisical, Bitwarden Secrets Manager and AWS imports read a service with the user's credential and write through import-vault's single local SQLCipher transaction, so they are CLI-only for the same reason; the desktop shows the imported entries and their provenance.",
+      "cli_flags": []
     }
   ]
 }
