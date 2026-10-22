@@ -161,7 +161,19 @@ pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
     }
     #[cfg(windows)]
     {
-        winacl::restrict_to_owner(path, false)?;
+        // Every open of the database comes through here for the file and its two sidecars; the
+        // access list only needs setting once per path per process, and setting it on every open
+        // took the security lock often enough to stall concurrent opens.
+        use std::collections::HashSet;
+        use std::sync::{Mutex, OnceLock};
+        static DONE: OnceLock<Mutex<HashSet<std::path::PathBuf>>> = OnceLock::new();
+        let done = DONE.get_or_init(|| Mutex::new(HashSet::new()));
+        if !done.lock().is_ok_and(|d| d.contains(path)) {
+            winacl::restrict_to_owner(path, false)?;
+            if let Ok(mut d) = done.lock() {
+                d.insert(path.to_path_buf());
+            }
+        }
     }
     #[cfg(not(any(unix, windows)))]
     {
