@@ -2,6 +2,12 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## Unreleased
+
+### Security
+
+- Encrypted backups: the key-derivation settings in a backup file are now validated before use, in the command line and in the desktop app. Only PBKDF2 with SHA-256 and a whole-number iteration count from 100,000 to 5,000,000 are accepted. Before, a hostile file could name a huge count and hang the import, a tiny one to weaken the key, or a count that wrapped around; `unv backup import` and archive restore now refuse such files with a clear message and change nothing.
+
 ## 0.58.0 (2026-10-22)
 
 ### Added
