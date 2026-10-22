@@ -68,13 +68,23 @@ describe('refusing a bad backup', () => {
     expect(st.vault.api_keys.map((e) => e.id)).toEqual(['keep']);
   });
 
-  it('an envelope whose recorded iteration count is junk falls back to the default and still opens', async () => {
+  // Bug: the count was taken from the file unchecked, so 4e9 hung the importer and 1 weakened the key.
+  it('an envelope with a hostile iteration count or KDF is refused and the vault is untouched', async () => {
     const { env } = await envelopeFor({});
-    const junk = { ...env, kdf: { ...env.kdf, iters: -5 } };
-    await importEncryptedBackup(JSON.stringify(junk), PW);
-    await vi.waitFor(() => expect(toasts.some(([m]) => m.startsWith('Restored'))).toBe(true), {
-      timeout: 20000,
-    });
+    const variants = [
+      { ...env.kdf, iters: -5 },
+      { ...env.kdf, iters: 0 },
+      { ...env.kdf, iters: 99_999 },
+      { ...env.kdf, iters: 4_000_000_000 },
+      { ...env.kdf, iters: 1.5 },
+      { ...env.kdf, name: 'scrypt' },
+      { ...env.kdf, hash: 'SHA-1' },
+    ];
+    for (const kdf of variants) {
+      await importEncryptedBackup(JSON.stringify({ ...env, kdf }), PW);
+      expect(toasts[toasts.length - 1][0]).toContain('Decryption failed');
+    }
+    expect(st.vault.api_keys.map((e) => e.id)).toEqual(['keep']);
   });
 
   it('a wrong password is "wrong password or corrupt file"', async () => {
