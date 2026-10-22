@@ -1060,11 +1060,7 @@ mod tests {
             .warnings
             .iter()
             .any(|w| w.contains("OpenBao/Vault 2.1.0")));
-        assert!(
-            parsed.warnings.iter().any(|w| w.contains("db/(database)")),
-            "{:?}",
-            parsed.warnings
-        );
+        assert!(parsed.warnings.iter().any(|w| w.contains("db/(database)")));
         assert!(parsed.archived.iter().any(|a| a.source_id == "sys/mounts"));
     }
 
