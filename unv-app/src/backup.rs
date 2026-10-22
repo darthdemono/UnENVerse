@@ -25,6 +25,30 @@ fn b64() -> base64::engine::general_purpose::GeneralPurpose {
     base64::engine::general_purpose::STANDARD
 }
 
+const MIN_ITERS: u64 = 100_000;
+const MAX_ITERS: u64 = 5_000_000;
+
+/// The envelope is untrusted input: a huge count hangs the importer, a tiny one
+/// weakens the key, and `as u32` would silently wrap. Absent `kdf` means the default.
+fn validate_kdf(env: &Value) -> CliResult<u32> {
+    let Some(kdf) = env.get("kdf") else {
+        return Ok(PBKDF2_ITERS);
+    };
+    if kdf.get("name").and_then(|v| v.as_str()) != Some("PBKDF2")
+        || kdf.get("hash").and_then(|v| v.as_str()) != Some("SHA-256")
+    {
+        return Err(CliError::invalid(
+            "Unsupported key derivation (need PBKDF2 with SHA-256)",
+        ));
+    }
+    match kdf.get("iters").and_then(|v| v.as_u64()) {
+        Some(n) if (MIN_ITERS..=MAX_ITERS).contains(&n) => Ok(n as u32),
+        _ => Err(CliError::invalid(format!(
+            "Unsupported iteration count (need an integer from {MIN_ITERS} to {MAX_ITERS})"
+        ))),
+    }
+}
+
 fn derive(password: &str, salt: &[u8], iters: u32) -> [u8; 32] {
     pbkdf2::pbkdf2_hmac_array::<sha2::Sha256, 32>(password.as_bytes(), salt, iters)
 }
@@ -119,16 +143,7 @@ pub fn import(
     let salt = dec("salt")?;
     let iv = dec("iv")?;
     let ct = dec("ct")?;
-    // Honour the iteration count recorded in the envelope — a backup written with
-    // any other count would otherwise fail to decrypt and be reported as a wrong
-    // password.
-    let iters = env
-        .get("kdf")
-        .and_then(|k| k.get("iters"))
-        .and_then(|v| v.as_u64())
-        .filter(|n| *n > 0)
-        .map(|n| n as u32)
-        .unwrap_or(PBKDF2_ITERS);
+    let iters = validate_kdf(&env)?;
 
     let key = derive(&pw, &salt, iters);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
@@ -367,11 +382,7 @@ pub fn open_archive(raw: &str, pw: &str) -> CliResult<(Vec<u8>, Vec<u8>)> {
     let kdf_salt = dec("salt")?;
     let iv = dec("iv")?;
     let ct = dec("ct")?;
-    let iters = env
-        .get("kdf")
-        .and_then(|k| k.get("iters"))
-        .and_then(|i| i.as_u64())
-        .unwrap_or(PBKDF2_ITERS as u64) as u32;
+    let iters = validate_kdf(&env)?;
     let key = derive(pw, &kdf_salt, iters);
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| CliError::from(e.to_string()))?;
     let nonce =
@@ -445,5 +456,44 @@ mod archive_tests {
             "password length floor"
         );
         assert!(open_archive("{\"magic\":\"nope\"}", "x").is_err());
+    }
+}
+
+#[cfg(test)]
+mod kdf_tests {
+    use super::*;
+
+    fn env(iters: Value) -> Value {
+        json!({ "kdf": { "name": "PBKDF2", "hash": "SHA-256", "iters": iters } })
+    }
+
+    // Bug: iters was read with no cap and `as u32`, so a hostile backup could hang
+    // the importer (4e9) or wrap to a tiny count (2^32 + 1); 0 was accepted by the
+    // archive path; name and hash were ignored.
+    #[test]
+    fn rejects_hostile_kdf() {
+        for bad in [
+            json!(0),
+            json!(99_999),
+            json!(5_000_001),
+            json!(4_294_967_297u64),
+            json!(1.5),
+            json!("600000"),
+        ] {
+            assert!(validate_kdf(&env(bad.clone())).is_err(), "{bad}");
+        }
+        let mut e = env(json!(600_000));
+        e["kdf"]["name"] = json!("scrypt");
+        assert!(validate_kdf(&e).is_err());
+        e = env(json!(600_000));
+        e["kdf"]["hash"] = json!("SHA-1");
+        assert!(validate_kdf(&e).is_err());
+    }
+
+    #[test]
+    fn accepts_valid_and_absent() {
+        assert_eq!(validate_kdf(&env(json!(100_000))).unwrap(), 100_000);
+        assert_eq!(validate_kdf(&env(json!(5_000_000))).unwrap(), 5_000_000);
+        assert_eq!(validate_kdf(&json!({})).unwrap(), PBKDF2_ITERS);
     }
 }
