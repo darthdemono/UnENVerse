@@ -51,3 +51,4 @@ vault-core/tests/fixtures/
 
 # Compiled from the development notes; not hand-formatted.
 CHANGELOG.md
+book/src/cli-reference.md

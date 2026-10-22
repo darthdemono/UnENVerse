@@ -101,3 +101,66 @@ fn the_described_surface_matches_the_committed_snapshot() {
         );
     }
 }
+
+/// The command reference page, written from the same description. A command added, renamed or
+/// re-described in code changes this page, and the test fails until the page is regenerated.
+fn reference_rows(node: &Value, rows: &mut Vec<(String, String)>) {
+    let subs = node["subcommands"].as_array().cloned().unwrap_or_default();
+    if subs.is_empty() {
+        let mut parts = vec![node["path"].as_str().unwrap_or("").to_string()];
+        for a in node["args"].as_array().cloned().unwrap_or_default() {
+            let id = a["id"].as_str().unwrap_or("");
+            if a["kind"] == "positional" {
+                parts.push(if a["required"].as_bool().unwrap_or(false) {
+                    format!("<{id}>")
+                } else {
+                    format!("[{id}]")
+                });
+            }
+        }
+        let about = node["about"]
+            .as_str()
+            .unwrap_or("")
+            .lines()
+            .next()
+            .unwrap_or("")
+            .replace('|', "\\|");
+        rows.push((parts.join(" "), about));
+    }
+    for s in &subs {
+        reference_rows(s, rows);
+    }
+}
+
+#[test]
+fn the_command_reference_page_matches_the_described_commands() {
+    let v = Vault::new("reference");
+    let doc = v.run(&["describe"]).json();
+    let mut rows = Vec::new();
+    reference_rows(&doc["command"], &mut rows);
+    rows.sort();
+    let mut text = String::from(
+        "# Command reference\n\n\
+         Written from `unv describe` by `unv-cli/tests/contract_surface.rs`; do not edit it by hand. \
+         A command added or renamed in code changes this page, and the test fails until it is regenerated \
+         (`UNV_UPDATE_CONTRACT=1 cargo test -p unv-cli --test contract_surface`). Run `unv <command> --help` \
+         for the flags of one command.\n\n",
+    );
+    text.push_str(&format!(
+        "Contract version {}.\n\n| Command | What it does |\n| --- | --- |\n",
+        doc["contract_version"]
+    ));
+    for (cmd, about) in &rows {
+        text.push_str(&format!("| `{cmd}` | {about} |\n"));
+    }
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../book/src/cli-reference.md");
+    if std::env::var_os("UNV_UPDATE_CONTRACT").is_some() {
+        std::fs::write(&path, &text).unwrap();
+        return;
+    }
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap_or_default(),
+        text,
+        "book/src/cli-reference.md is stale: regenerate it (see the page header)"
+    );
+}
