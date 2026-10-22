@@ -110,6 +110,15 @@ pub fn install(access: &Access, dir: Option<&Path>, name: &str) -> CliResult {
 }
 
 pub fn enable(access: &Access, name: &str, yes: bool) -> CliResult {
+    enable_with(access, name, &mut |question| fmt::confirm(question, yes))
+}
+
+/// [`enable`] with the question put to `ask`, so a "no" is as testable as a "yes".
+pub fn enable_with(
+    access: &Access,
+    name: &str,
+    ask: &mut dyn FnMut(&str) -> CliResult<bool>,
+) -> CliResult {
     let c = conn(access)?;
     let row = plugin::get(&c, name)
         .map_err(CliError::from)?
@@ -125,7 +134,7 @@ pub fn enable(access: &Access, name: &str, yes: bool) -> CliResult {
             row.slots.join(", ")
         }
     );
-    if !fmt::confirm(&question, yes)? {
+    if !ask(&question)? {
         return Err(CliError::invalid("Not enabled"));
     }
     if !crate::out::dry_run() {
