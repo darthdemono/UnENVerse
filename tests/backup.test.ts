@@ -183,7 +183,7 @@ describe('rejecting bad input', () => {
     // count decrypted as "wrong password".
     const env = JSON.parse((await exportAndCapture(GOOD_PW))!);
     expect(env.kdf.iters).toBeGreaterThan(0);
-    env.kdf.iters = 1; // claim a count that does not match
+    env.kdf.iters = 100_000; // valid, but not the count used
     st.vault = makeVault();
     await importEncryptedBackup(JSON.stringify(env), GOOD_PW);
     // Deriving with the declared count now genuinely fails to decrypt, rather

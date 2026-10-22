@@ -60,6 +60,15 @@ export function copyAll(fmt: string) {
   );
 }
 
+export function backupIters(kdf: Record<string, unknown>): number {
+  const n = kdf.iters;
+  if (kdf.name !== 'PBKDF2' || kdf.hash !== 'SHA-256')
+    throw new Error('Unsupported key derivation (need PBKDF2 with SHA-256)');
+  if (!Number.isInteger(n) || (n as number) < 100_000 || (n as number) > 5_000_000)
+    throw new Error('Unsupported iteration count (need an integer from 100000 to 5000000)');
+  return n as number;
+}
+
 export async function exportAs(fmt: string) {
   const keys = st.vault.api_keys;
   const content =
@@ -267,11 +276,8 @@ export async function importEncryptedBackup(text: string, password: string) {
     const salt = fromB64(env.salt);
     const iv = fromB64(env.iv);
     const kdf = objectRecord(env.kdf);
-    // Honour the iteration count recorded in the envelope. It was written but
-    // never read, so a backup made with any other count would fail to decrypt
-    // and be reported as a wrong password.
-    const iters =
-      Number.isInteger(kdf.iters) && Number(kdf.iters) > 0 ? Number(kdf.iters) : PBKDF2_ITERS;
+    // The envelope is untrusted: bound the count so a hostile file cannot hang or weaken the key.
+    const iters = env.kdf === undefined ? PBKDF2_ITERS : backupIters(kdf);
     const key = await deriveBackupKey(password, salt, iters);
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, fromB64(env.ct));
     const data = backupData(JSON.parse(new TextDecoder().decode(plain)) as unknown);
