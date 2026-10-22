@@ -121,3 +121,39 @@ fn a_standby_instance_runs_no_operations_until_it_is_activated() {
     let ran = v.run(&["ops", "run", "--dest", "main"]);
     assert_eq!(ran.code, 0, "{}", ran.all());
 }
+
+#[test]
+fn the_status_in_words_names_the_role_and_warns_about_a_synced_folder() {
+    let v = Vault::new("id-words");
+    let active = v.run_text(&["vault", "status"]);
+    assert!(
+        active.stdout.contains("role       active"),
+        "{}",
+        active.stdout
+    );
+    assert!(
+        active.stdout.contains("instance   ") && active.stdout.contains("(epoch 1)"),
+        "{}",
+        active.stdout
+    );
+    assert!(!active.stdout.contains("warning"), "{}", active.stdout);
+
+    std::fs::write(v.db().with_file_name("vault.restored"), "").unwrap();
+    std::fs::create_dir_all(v.db().parent().unwrap().join(".stfolder")).unwrap();
+    let standby = v.run_text(&["vault", "status"]);
+    assert!(
+        standby.stdout.contains("standby: restored or copied"),
+        "{}",
+        standby.stdout
+    );
+    assert!(
+        standby
+            .stdout
+            .contains("warning    the vault is inside a Syncthing folder"),
+        "{}",
+        standby.stdout
+    );
+
+    let on = v.run_text(&["vault", "activate"]);
+    assert!(on.stdout.contains("Active at epoch 2."), "{}", on.stdout);
+}
