@@ -1921,6 +1921,15 @@ async fn a_node_remembers_the_highest_hub_epoch_and_refuses_an_older_instance() 
     assert_eq!(first.epoch, 1);
     assert_eq!(agent.state().hub_epoch.as_ref(), Some(&first));
 
+    // The same epoch again is simply accepted.
+    let (a, r) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    agent = a;
+    assert_eq!(r.unwrap().hub_epoch.as_ref(), Some(&first));
+
     // The owner activates this instance again (a newer epoch): the node follows.
     vault_core::identity::activate(&hub_conn(&h)).unwrap();
     let (a, r) = blocking(move || {

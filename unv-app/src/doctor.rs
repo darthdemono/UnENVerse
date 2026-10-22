@@ -272,19 +272,26 @@ fn sync_finding(
 
 /// A standby instance does not push or run schedules; say so, so it is not a mystery.
 fn check_instance(access: &Access) -> Finding {
-    let Ok(Some(conn)) = access.local_conn() else {
-        return Finding::at(
+    let local = match access.local_conn() {
+        Ok(Some(conn)) => Some(identity::ensure(&conn)),
+        Ok(None) => None,
+        Err(e) => Some(Err(e.to_string())),
+    };
+    instance_finding(local)
+}
+
+fn instance_finding(local: Option<Result<identity::Identity, String>>) -> Finding {
+    match local {
+        None => Finding::at(
             "instance",
             Level::Note,
             "Skipped: the database lives on the server",
             "",
-        );
-    };
-    match identity::ensure(&conn) {
-        Ok(id) if id.role == identity::Role::Active => {
+        ),
+        Some(Ok(id)) if id.role == identity::Role::Active => {
             Finding::ok("instance", format!("Active instance, epoch {}", id.epoch))
         }
-        Ok(id) => Finding::at(
+        Some(Ok(id)) => Finding::at(
             "instance",
             Level::Warn,
             format!(
@@ -293,7 +300,7 @@ fn check_instance(access: &Access) -> Finding {
             ),
             "Once the other instance is retired, run: unv vault activate",
         ),
-        Err(e) => Finding::at("instance", Level::Fail, e, ""),
+        Some(Err(e)) => Finding::at("instance", Level::Fail, e, ""),
     }
 }
 
@@ -841,6 +848,33 @@ mod tests {
 #[cfg(test)]
 mod network_tests {
     use super::*;
+
+    #[test]
+    fn the_instance_finding_reads_each_role_and_each_way_it_cannot_be_read() {
+        let id = |role| identity::Identity {
+            vault_id: "v".into(),
+            instance_id: "i".into(),
+            epoch: 3,
+            role,
+        };
+        let active = instance_finding(Some(Ok(id(identity::Role::Active)))).to_json();
+        assert_eq!(
+            (active["level"].as_str(), active["message"].as_str()),
+            (Some("ok"), Some("Active instance, epoch 3"))
+        );
+        let standby = instance_finding(Some(Ok(id(identity::Role::Standby)))).to_json();
+        assert_eq!(standby["level"], "warn");
+        assert!(standby["remedy"]
+            .as_str()
+            .unwrap()
+            .contains("unv vault activate"));
+        assert_eq!(instance_finding(None).to_json()["level"], "note");
+        let failed = instance_finding(Some(Err("disk".into()))).to_json();
+        assert_eq!(
+            (failed["level"].as_str(), failed["message"].as_str()),
+            (Some("fail"), Some("disk"))
+        );
+    }
 
     #[test]
     fn a_vault_in_a_sync_folder_is_a_warning_that_names_the_client() {
