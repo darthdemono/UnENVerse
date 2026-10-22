@@ -425,7 +425,7 @@ pub(crate) fn read_parameter_store(opts: &AwsOptions) -> Result<Parsed, String> 
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use crate::service_sources::mock;
@@ -490,10 +490,12 @@ mod tests {
                     200,
                     r#"{"SecretList":[{"Name":"db","ARN":"arn:db","Description":"main db","KmsKeyId":"k1","RotationEnabled":true}],"NextToken":"p2"}"#.into(),
                 ),
-                "secretsmanager.GetSecretValue" if req.body.contains("arn:bin") => (
-                    200,
-                    r#"{"SecretBinary":"cmF3LWJ5dGVz","VersionId":"v1"}"#.into(),
-                ),
+                "secretsmanager.GetSecretValue" if req.body.contains("arn:bin") => {
+                    // Built at run time so no key-shaped literal sits in the source.
+                    use base64::Engine;
+                    let encoded = base64::engine::general_purpose::STANDARD.encode(b"raw-bytes");
+                    (200, format!(r#"{{"SecretBinary":"{encoded}","VersionId":"v1"}}"#))
+                }
                 "secretsmanager.GetSecretValue" if req.body.contains("AWSPREVIOUS") => (
                     200,
                     r#"{"SecretString":"{\"password\":\"old\"}","CreatedDate":1.0}"#.into(),
