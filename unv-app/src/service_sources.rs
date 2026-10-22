@@ -878,7 +878,7 @@ pub fn resolve(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(crate) mod mock {
     //! A small HTTP/1.1 server for the service tests: every request is answered by a closure that
     //! sees the method, the path with its query string, and the headers.
