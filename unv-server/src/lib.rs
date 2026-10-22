@@ -1695,6 +1695,9 @@ async fn put_vault(
             Err(e) if e.starts_with(vault_core::CONFLICT_ERR) => {
                 err_json(StatusCode::CONFLICT, &conflict_message(&e)).into_response()
             }
+            Err(e) if e.starts_with(vault_core::SOURCE_OWNED_ERR) => {
+                err_json(StatusCode::CONFLICT, &e).into_response()
+            }
             Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
         };
     }
@@ -1766,6 +1769,9 @@ async fn put_vault(
         }
         Err(e) if e.starts_with(vault_core::CONFLICT_ERR) => {
             err_json(StatusCode::CONFLICT, &conflict_message(&e)).into_response()
+        }
+        Err(e) if e.starts_with(vault_core::SOURCE_OWNED_ERR) => {
+            err_json(StatusCode::CONFLICT, &e).into_response()
         }
         Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     }
@@ -1873,6 +1879,9 @@ async fn patch_vault(
         }
         Err(e) if e.starts_with(vault_core::CONFLICT_ERR) => {
             err_json(StatusCode::CONFLICT, &conflict_message(&e)).into_response()
+        }
+        Err(e) if e.starts_with(vault_core::SOURCE_OWNED_ERR) => {
+            err_json(StatusCode::CONFLICT, &e).into_response()
         }
         Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
     }

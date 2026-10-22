@@ -486,6 +486,11 @@ pub fn load_vault_lite(conn: &Connection) -> Result<Option<serde_json::Value>, S
 /// Callers match on this to tell "someone else wrote first" from a real failure.
 pub const CONFLICT_ERR: &str = "VAULT_CONFLICT";
 
+/// Starts the error for an edit to a secret field of an entry whose source owns it (a SOPS, pass
+/// or gopass import that has not been cut over). Callers map it to a conflict, like
+/// [`CONFLICT_ERR`], and show the text, which names the source and what to do.
+pub const SOURCE_OWNED_ERR: &str = "Managed by its source:";
+
 /// Who is writing, and what they believe the vault currently is.
 ///
 /// A struct rather than two positional `Option<&str>` arguments: silently
@@ -709,7 +714,7 @@ pub fn save_vault(
 ) -> Result<String, String> {
     conn.execute_batch("BEGIN IMMEDIATE")
         .map_err(|e| e.to_string())?;
-    match save_vault_txn(conn, data, ctx) {
+    match save_vault_txn(conn, data, ctx, false) {
         Ok(hash) => {
             commit(conn)?;
             Ok(hash)
@@ -734,7 +739,8 @@ pub fn save_vault_with_migration(
 ) -> Result<String, String> {
     conn.execute_batch("BEGIN IMMEDIATE")
         .map_err(|e| e.to_string())?;
-    match save_vault_txn(conn, data, ctx).and_then(|hash| {
+    // A migration is the source speaking, so it may rewrite what the source owns.
+    match save_vault_txn(conn, data, ctx, true).and_then(|hash| {
         migration::record_txn(conn, migration)?;
         Ok(hash)
     }) {
@@ -749,6 +755,73 @@ pub fn save_vault_with_migration(
     }
 }
 
+/// The fields of an entry that hold a secret, as one comparable string.
+pub fn secret_digest(entry: &serde_json::Value) -> String {
+    let mut parts = Vec::new();
+    for key in [
+        "api_key",
+        "api_secret",
+        "totp_secret",
+        "certificate_data",
+        "cert_key_data",
+        "blob_ref",
+    ] {
+        parts.push(entry.get(key).cloned().unwrap_or(serde_json::Value::Null));
+    }
+    parts.push(
+        entry
+            .get("extra_vars")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+    );
+    serde_json::to_string(&parts).unwrap_or_default()
+}
+
+/// Refuses a change to a secret field of an entry whose source owns it.
+///
+/// An entry imported from a Git store (SOPS, pass, gopass) records `authority.owner = "source"`.
+/// Until the migration is cut over, the source is where the value is changed and the import
+/// refreshes it; an edit here would be overwritten by the next sync, or worse, silently diverge.
+/// Everything that is not a secret (tags, notes, categories, projects) stays editable.
+fn refuse_source_owned_edit(
+    old: &serde_json::Value,
+    new: &serde_json::Value,
+) -> Result<(), String> {
+    let authority = old.get("authority");
+    let owner = authority
+        .and_then(|a| a.get("owner"))
+        .and_then(|o| o.as_str());
+    // Only the Git stores stay authoritative after an import. A password-manager migration (a
+    // Bitwarden, 1Password or KeePass export) is a move: the vault holds the record afterwards,
+    // and an edit that disagrees with the export is reported as a conflict at the next import.
+    let kind = authority
+        .and_then(|a| a.get("source_kind"))
+        .and_then(|k| k.as_str());
+    if owner != Some("source")
+        || !matches!(kind, Some("sops" | "pass" | "gopass"))
+        || secret_digest(old) == secret_digest(new)
+    {
+        return Ok(());
+    }
+    let text = |key: &str| {
+        authority
+            .and_then(|a| a.get(key))
+            .and_then(|v| v.as_str())
+            .unwrap_or("its source")
+            .to_string()
+    };
+    let provider = old
+        .get("provider")
+        .and_then(|p| p.as_str())
+        .unwrap_or("this entry");
+    Err(format!(
+        "{SOURCE_OWNED_ERR} '{provider}' belongs to {} (source {}). Change its secret there and \
+         import again, or take it over with `unv migrate cutover`.",
+        text("source_kind"),
+        text("source_id"),
+    ))
+}
+
 /// Body of [`save_vault`]. Must only be called inside a write transaction.
 ///
 /// Phase 30: the document is split into rows, a stale writer is merged with what
@@ -758,6 +831,7 @@ fn save_vault_txn(
     conn: &Connection,
     data: serde_json::Value,
     ctx: SaveCtx<'_>,
+    source_sync: bool,
 ) -> Result<String, String> {
     let actor = ctx.actor;
     let now_str = iso_now();
@@ -821,6 +895,9 @@ fn save_vault_txn(
                 };
                 let old_e = old.full();
                 let mut entry = ent.full();
+                if !source_sync {
+                    refuse_source_owned_edit(&old_e, &entry)?;
+                }
                 let provider = ent.provider();
                 let entry = &mut entry;
                 // The writer's copy of the history may be older than what is stored
@@ -2315,6 +2392,91 @@ mod commit_tests {
             "the failed transaction was rolled back"
         );
         conn.execute_batch("BEGIN IMMEDIATE; COMMIT;").unwrap();
+    }
+}
+
+#[cfg(test)]
+mod source_owned_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn owned_vault(owner: &str) -> serde_json::Value {
+        json!({ "api_keys": [{
+            "id": "e1", "provider": "Mail", "api_key": "old-secret", "description": "a",
+            "authority": { "owner": owner, "source_kind": "pass", "source_id": "email/gmail" }
+        }]})
+    }
+
+    fn open(tag: &str) -> (Connection, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("vc-srcown-{tag}-{}", new_uuid()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let key = derive_key("correct horse battery staple", b"0123456789abcdef").unwrap();
+        let conn = open_db(&dir.join("vault.db"), &key).unwrap();
+        init_schema(&conn).unwrap();
+        (conn, dir)
+    }
+
+    /// An entry imported from a Git store, until it is cut over, belongs to that store: a secret
+    /// edited here would be overwritten by the next sync, so the write is refused and names where
+    /// to change it. Notes and tags are not secrets and stay editable.
+    #[test]
+    fn a_secret_edit_to_a_source_owned_entry_is_refused_and_a_note_edit_is_not() {
+        let (conn, dir) = open("refuse");
+        save_vault(&conn, owned_vault("source"), SaveCtx::default()).unwrap();
+
+        let mut changed = owned_vault("source");
+        changed["api_keys"][0]["api_key"] = json!("new-secret");
+        let err = save_vault(&conn, changed, SaveCtx::default()).unwrap_err();
+        assert!(err.starts_with(SOURCE_OWNED_ERR), "{err}");
+        assert!(err.contains("pass") && err.contains("email/gmail"), "{err}");
+        assert!(err.contains("migrate cutover"), "{err}");
+        assert_eq!(
+            load_vault(&conn).unwrap().unwrap()["api_keys"][0]["api_key"],
+            "old-secret",
+            "the refused write changed nothing"
+        );
+
+        let mut note = owned_vault("source");
+        note["api_keys"][0]["description"] = json!("edited note");
+        save_vault(&conn, note, SaveCtx::default()).unwrap();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn an_entry_owned_by_the_vault_or_another_party_is_editable() {
+        for owner in ["unenverse", "platform"] {
+            let (conn, dir) = open(owner);
+            save_vault(&conn, owned_vault(owner), SaveCtx::default()).unwrap();
+            let mut changed = owned_vault(owner);
+            changed["api_keys"][0]["api_key"] = json!("new-secret");
+            save_vault(&conn, changed, SaveCtx::default()).unwrap();
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
+    /// A password-manager export is a one-time move, so its entries stay editable.
+    #[test]
+    fn a_password_manager_import_is_not_source_owned_after_the_move() {
+        let (conn, dir) = open("bitwarden");
+        let mut v = owned_vault("source");
+        v["api_keys"][0]["authority"]["source_kind"] = json!("bitwarden");
+        save_vault(&conn, v.clone(), SaveCtx::default()).unwrap();
+        v["api_keys"][0]["api_key"] = json!("new-secret");
+        save_vault(&conn, v, SaveCtx::default()).unwrap();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn extra_variables_count_as_secrets() {
+        let (conn, dir) = open("extra");
+        let mut v = owned_vault("source");
+        v["api_keys"][0]["extra_vars"] = json!([{ "key": "A", "value": "1" }]);
+        save_vault(&conn, v.clone(), SaveCtx::default()).unwrap();
+        v["api_keys"][0]["extra_vars"] = json!([{ "key": "A", "value": "2" }]);
+        assert!(save_vault(&conn, v, SaveCtx::default())
+            .unwrap_err()
+            .starts_with(SOURCE_OWNED_ERR));
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
 
