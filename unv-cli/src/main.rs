@@ -358,6 +358,15 @@ enum Commands {
         #[command(subcommand)]
         cmd: CxfCmd,
     },
+    /// Manage plugins (`unv-plugin-rpc/1`): programs that add destinations, notifiers or issuers.
+    ///
+    /// A plugin is a directory with a `plugin.json` and a program. It runs with your rights, not in
+    /// a sandbox: installing records its hash and enables nothing, and enabling shows what it
+    /// declares. `test` runs the conformance suite on a directory without installing it.
+    Plugin {
+        #[command(subcommand)]
+        cmd: PluginCmd,
+    },
     /// Rotate a credential at its issuer, store it, and revoke the old one only when safe.
     ///
     /// The old credential stays valid until the end. `plan` shows the steps without changing
@@ -816,6 +825,30 @@ enum Commands {
 }
 
 /// File-shaped credentials — the ones where the variable names a path (E17).
+#[derive(Subcommand)]
+enum PluginCmd {
+    /// List installed plugins and the ones found in the plugins directory.
+    Ls {
+        /// Plugins directory (default: `plugins` beside the vault).
+        #[arg(long)]
+        dir: Option<PathBuf>,
+    },
+    /// Record a plugin found in the plugins directory (disabled).
+    Install {
+        name: String,
+        #[arg(long)]
+        dir: Option<PathBuf>,
+    },
+    /// Allow a plugin to be called, after showing what it declares.
+    Enable { name: String },
+    /// Stop a plugin being called.
+    Disable { name: String },
+    /// Forget an installed plugin (its files stay on disk).
+    Rm { name: String },
+    /// Run the conformance suite on a plugin directory.
+    Test { path: PathBuf },
+}
+
 #[derive(clap::Args)]
 struct RotateTarget {
     /// The entry holding the credential.
@@ -2504,6 +2537,14 @@ fn real_main() {
             return;
         }
     }
+    // Nor does testing a plugin: it runs the conformance suite on a directory.
+    if let Commands::Plugin {
+        cmd: PluginCmd::Test { path },
+    } = &cli.command
+    {
+        finish(unv_app::plugin_cmd::test(path));
+        return;
+    }
     // Nor does the catalogue: public reference data, no vault involved.
     if let Commands::Catalogue { cmd } = &cli.command {
         finish(unv_app::catalogue_cmd::run(cmd));
@@ -3600,6 +3641,16 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 category,
             } => cxf_cmd::cmd_import(a, file, project.as_deref(), category.as_deref()),
             CxfCmd::Export { out, provider } => cxf_cmd::cmd_export(a, out, provider.as_deref()),
+        },
+        Commands::Plugin { cmd } => match cmd {
+            PluginCmd::Ls { dir } => unv_app::plugin_cmd::ls(a, dir.as_deref()),
+            PluginCmd::Install { name, dir } => {
+                unv_app::plugin_cmd::install(a, dir.as_deref(), name)
+            }
+            PluginCmd::Enable { name } => unv_app::plugin_cmd::enable(a, name, yes),
+            PluginCmd::Disable { name } => unv_app::plugin_cmd::disable(a, name),
+            PluginCmd::Rm { name } => unv_app::plugin_cmd::rm(a, name),
+            PluginCmd::Test { path } => unv_app::plugin_cmd::test(path),
         },
         Commands::Rotate { cmd } => {
             let opts = rotate_opts;

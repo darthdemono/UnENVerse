@@ -1031,6 +1031,22 @@
       "tauri": [],
       "note": "R13 rotation drives an issuer with the credential under rotation and reads and writes the local vault through one engine; the review screen is a later slice, so the CLI is the surface until then.",
       "cli_flags": []
+    },
+    {
+      "id": "plugins",
+      "status": "exempt",
+      "cli": [
+        "unv plugin ls",
+        "unv plugin install",
+        "unv plugin enable",
+        "unv plugin disable",
+        "unv plugin rm",
+        "unv plugin test"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Plugins run with the user's rights, so installing and enabling one is a deliberate command-line act with a written warning; the conformance suite needs a directory, not a vault. A read-only Settings, Plugins list is a later UI slice.",
+      "cli_flags": []
     }
   ]
 }
