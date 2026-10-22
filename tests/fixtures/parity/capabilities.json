@@ -992,6 +992,20 @@
       "tauri": [],
       "cli_flags": [],
       "note": "JWT decoding of pasted text and a reference table of key formats; neither reads vault data. The format table is the provider catalogue (unv catalogue show)."
+    },
+    {
+      "id": "git-store-sync",
+      "status": "exempt",
+      "cli": [
+        "unv migrate cutover",
+        "unv migrate uncutover",
+        "unv migrate drift",
+        "unv migrate sync"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R10 Git-store sources (SOPS, pass, gopass) run the user's own tools and keep authority with the source until cutover. They share import-vault's single local SQLCipher transaction and are CLI-only for the same reason; the desktop shows the authority on the entry but does not drive a sync.",
+      "cli_flags": []
     }
   ]
 }

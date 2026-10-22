@@ -29,6 +29,10 @@ pub enum SourceFormat {
     Bitwarden,
     OnePassword,
     KeePass,
+    /// Git-based stores, read through the user's own tools (`sops`, `gpg`, `gopass`).
+    Sops,
+    Pass,
+    Gopass,
 }
 
 impl SourceFormat {
@@ -37,15 +41,21 @@ impl SourceFormat {
             "bitwarden" => Ok(Self::Bitwarden),
             "onepassword" => Ok(Self::OnePassword),
             "keepass" | "keepassxc" | "kdbx" => Ok(Self::KeePass),
-            _ => Err("source must be bitwarden, onepassword or keepass".into()),
+            "sops" => Ok(Self::Sops),
+            "pass" | "password-store" => Ok(Self::Pass),
+            "gopass" => Ok(Self::Gopass),
+            _ => Err("source must be bitwarden, onepassword, keepass, sops, pass or gopass".into()),
         }
     }
 
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Bitwarden => "bitwarden",
             Self::OnePassword => "onepassword",
             Self::KeePass => "keepass",
+            Self::Sops => "sops",
+            Self::Pass => "pass",
+            Self::Gopass => "gopass",
         }
     }
 }
@@ -61,43 +71,43 @@ pub struct SourceOpts<'a> {
 }
 
 #[derive(Debug, Clone)]
-struct Archive {
-    source_id: Option<String>,
-    reason: String,
-    media_type: String,
-    bytes: Vec<u8>,
+pub(crate) struct Archive {
+    pub(crate) source_id: Option<String>,
+    pub(crate) reason: String,
+    pub(crate) media_type: String,
+    pub(crate) bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
-struct Item {
-    source_id: String,
-    source_hash: String,
+pub(crate) struct Item {
+    pub(crate) source_id: String,
+    pub(crate) source_hash: String,
     /// The complete source record is held only while planning so a change in
     /// an unsupported source field still reaches reconciliation.
-    source: Value,
-    name: String,
-    entry: Value,
-    archives: Vec<Archive>,
-    reports: Vec<String>,
+    pub(crate) source: Value,
+    pub(crate) name: String,
+    pub(crate) entry: Value,
+    pub(crate) archives: Vec<Archive>,
+    pub(crate) reports: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
-struct ArchivedItem {
-    source_id: String,
-    source_hash: String,
-    name: String,
-    archive: Archive,
+pub(crate) struct ArchivedItem {
+    pub(crate) source_id: String,
+    pub(crate) source_hash: String,
+    pub(crate) name: String,
+    pub(crate) archive: Archive,
 }
 
 #[derive(Debug)]
-struct Parsed {
-    format: SourceFormat,
-    label: String,
-    source_bytes: Vec<u8>,
-    items: Vec<Item>,
-    archived: Vec<ArchivedItem>,
-    warnings: Vec<String>,
-    missing_at_source: Vec<String>,
+pub(crate) struct Parsed {
+    pub(crate) format: SourceFormat,
+    pub(crate) label: String,
+    pub(crate) source_bytes: Vec<u8>,
+    pub(crate) items: Vec<Item>,
+    pub(crate) archived: Vec<ArchivedItem>,
+    pub(crate) warnings: Vec<String>,
+    pub(crate) missing_at_source: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -149,17 +159,17 @@ struct Plan {
     preview: Preview,
 }
 
-fn hash(bytes: &[u8]) -> String {
+pub(crate) fn hash(bytes: &[u8]) -> String {
     let mut digest = Sha256::new();
     digest.update(bytes);
     hex::encode(digest.finalize())
 }
 
-fn source_hash(value: &Value) -> String {
+pub(crate) fn source_hash(value: &Value) -> String {
     hash(&serde_json::to_vec(value).unwrap_or_default())
 }
 
-fn item_source_hash(source: &Value, archives: &[Archive]) -> String {
+pub(crate) fn item_source_hash(source: &Value, archives: &[Archive]) -> String {
     let mut attachments: Vec<_> = archives
         .iter()
         .map(|archive| {
@@ -180,7 +190,7 @@ fn refresh_item_hash(item: &mut Item) {
     item.source_hash = item_source_hash(&item.source, &item.archives);
 }
 
-fn text(value: Option<&Value>) -> Option<String> {
+pub(crate) fn text(value: Option<&Value>) -> Option<String> {
     value
         .and_then(Value::as_str)
         .map(str::trim)
@@ -188,7 +198,7 @@ fn text(value: Option<&Value>) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn scalar(value: &Value) -> Option<String> {
+pub(crate) fn scalar(value: &Value) -> Option<String> {
     match value {
         Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
         Value::Bool(value) => Some(value.to_string()),
@@ -197,11 +207,11 @@ fn scalar(value: &Value) -> Option<String> {
     }
 }
 
-fn extra(key: impl Into<String>, value: impl Into<String>, public: bool) -> Value {
+pub(crate) fn extra(key: impl Into<String>, value: impl Into<String>, public: bool) -> Value {
     json!({ "key": key.into(), "value": value.into(), "public": public })
 }
 
-fn base_entry(name: String, secret: String, secret_type: &str) -> Value {
+pub(crate) fn base_entry(name: String, secret: String, secret_type: &str) -> Value {
     json!({
         "provider": name,
         "api_key": secret,
@@ -213,7 +223,7 @@ fn base_entry(name: String, secret: String, secret_type: &str) -> Value {
     })
 }
 
-fn classify(secret: &str) -> &'static str {
+pub(crate) fn classify(secret: &str) -> &'static str {
     let secret = secret.trim();
     if secret.starts_with("-----BEGIN") {
         return if secret.contains("CERTIFICATE") {
@@ -274,7 +284,7 @@ fn apply_item_metadata(
     }
 }
 
-fn add_totp(entry: &mut Value, totp: Option<String>, reports: &mut Vec<String>) {
+pub(crate) fn add_totp(entry: &mut Value, totp: Option<String>, reports: &mut Vec<String>) {
     let Some(totp) = totp else { return };
     match vault_core::totp::parse_seed(&totp) {
         Ok(stored) => vault_core::totp_import::write_fields(entry, &stored),
@@ -284,7 +294,7 @@ fn add_totp(entry: &mut Value, totp: Option<String>, reports: &mut Vec<String>) 
     }
 }
 
-fn source_item(
+pub(crate) fn source_item(
     source_id: String,
     name: String,
     source: Value,
@@ -1143,6 +1153,14 @@ fn parse_keepass(
 }
 
 fn parse_source(format: SourceFormat, file: &Path, options: &SourceOpts<'_>) -> CliResult<Parsed> {
+    if matches!(
+        format,
+        SourceFormat::Sops | SourceFormat::Pass | SourceFormat::Gopass
+    ) {
+        // These sources are files and folders read through the user's own tool, not one blob.
+        return crate::git_sources::parse(format, file, &crate::git_sources::Tools::default())
+            .map_err(CliError::invalid);
+    }
     let source_bytes = std::fs::read(file)
         .map_err(|error| CliError::not_found(format!("Cannot read {}: {error}", file.display())))?;
     let label = file.to_string_lossy().into_owned();
@@ -1152,8 +1170,32 @@ fn parse_source(format: SourceFormat, file: &Path, options: &SourceOpts<'_>) -> 
         SourceFormat::KeePass => {
             parse_keepass(label, source_bytes, options.key_file, options.no_password)
         }
+        SourceFormat::Sops | SourceFormat::Pass | SourceFormat::Gopass => {
+            unreachable!("handled before the file is read")
+        }
     }
     .map_err(CliError::invalid)
+}
+
+/// `(source id, source hash)` for every item the source holds right now, read-only. The drift
+/// check compares these with what the vault last imported.
+pub fn source_state(
+    format: SourceFormat,
+    file: &Path,
+    options: &SourceOpts<'_>,
+) -> CliResult<Vec<(String, String)>> {
+    let parsed = parse_source(format, file, options)?;
+    Ok(parsed
+        .items
+        .iter()
+        .map(|i| (i.source_id.clone(), i.source_hash.clone()))
+        .chain(
+            parsed
+                .archived
+                .iter()
+                .map(|a| (a.source_id.clone(), a.source_hash.clone())),
+        )
+        .collect())
 }
 
 /// Exercises the untrusted JSON and ZIP reader boundaries from cargo-fuzz.
@@ -1345,7 +1387,7 @@ fn record_item(
     }
 }
 
-fn source_archive(bytes: Vec<u8>) -> Archive {
+pub(crate) fn source_archive(bytes: Vec<u8>) -> Archive {
     Archive {
         source_id: None,
         reason: "original source retained for provenance and future parser compatibility".into(),
@@ -1354,25 +1396,41 @@ fn source_archive(bytes: Vec<u8>) -> Archive {
     }
 }
 
-/// Imports one full-fidelity password-manager source.  Preview is the default;
-/// the caller chooses application by setting `apply` and this routine then saves
-/// the vault, source identities and blobs in one transaction.
-pub fn run(
+/// What [`import`] did, so a caller can print it ([`run`]) or just record it (the scheduler).
+pub(crate) struct Imported {
+    pub(crate) preview: Preview,
+    pub(crate) mode: ImportMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ImportMode {
+    /// `apply` was not set: nothing was written.
+    Preview,
+    /// `--dry-run`: the write was stopped at the write point.
+    DryRun,
+    /// Applied, but the source held nothing new.
+    Nothing,
+    /// Applied and written.
+    Written,
+}
+
+/// Imports one full-fidelity source.  Preview is the default; the caller chooses application by
+/// setting `apply` and this routine then saves the vault, source identities and blobs in one
+/// transaction. It prints nothing.
+pub(crate) fn import(
     access: &Access,
     format: SourceFormat,
     file: &Path,
     options: &SourceOpts<'_>,
     apply: bool,
-) -> CliResult {
+) -> CliResult<Imported> {
     let parsed = parse_source(format, file, options)?;
     let plan = plan(access, parsed, options)?;
     if !apply {
-        crate::out::ok(
-            &format!("import.{}", format.as_str()),
-            serde_json::to_value(&plan.preview).unwrap_or_default(),
-            || print_preview(&plan.preview, false),
-        );
-        return Ok(());
+        return Ok(Imported {
+            preview: plan.preview,
+            mode: ImportMode::Preview,
+        });
     }
     if plan.preview.counts.conflicts > 0 {
         return Err(CliError::conflict(format!(
@@ -1381,7 +1439,10 @@ pub fn run(
         )));
     }
     if crate::out::dry_run() {
-        return Ok(());
+        return Ok(Imported {
+            preview: plan.preview,
+            mode: ImportMode::DryRun,
+        });
     }
     if !plan
         .planned
@@ -1389,12 +1450,10 @@ pub fn run(
         .any(|item| matches!(item.status.as_str(), "imported" | "updated"))
         && !plan.archived.iter().any(|(_, status)| status == "archived")
     {
-        crate::out::ok(
-            &format!("import.{}", format.as_str()),
-            serde_json::to_value(&plan.preview).unwrap_or_default(),
-            || print_preview(&plan.preview, true),
-        );
-        return Ok(());
+        return Ok(Imported {
+            preview: plan.preview,
+            mode: ImportMode::Nothing,
+        });
     }
     let mut vault = access.load_vault_or_empty()?;
     let entries = vault
@@ -1459,6 +1518,8 @@ pub fn run(
             "counts": plan.preview.counts, "format_verification": "implemented from published format, not verified against a real export",
             "source_sha256": hash(&plan.parsed.source_bytes), "warnings": plan.preview.warnings,
             "missing_at_source": plan.preview.missing_at_source,
+            // What the user chose, so a later sync from this source places entries the same way.
+            "options": { "project": options.project, "category": options.category, "keep_folders": options.keep_folders },
         }),
         items: records,
         archives: archives
@@ -1474,11 +1535,34 @@ pub fn run(
             .collect(),
     };
     access.save_migration(&vault, &record)?;
-    crate::out::ok(
-        &format!("import.{}", format.as_str()),
-        serde_json::to_value(&plan.preview).unwrap_or_default(),
-        || print_preview(&plan.preview, true),
-    );
+    Ok(Imported {
+        preview: plan.preview,
+        mode: ImportMode::Written,
+    })
+}
+
+/// [`import`], then print the result as the command line shows it.
+pub fn run(
+    access: &Access,
+    format: SourceFormat,
+    file: &Path,
+    options: &SourceOpts<'_>,
+    apply: bool,
+) -> CliResult {
+    let imported = import(access, format, file, options, apply)?;
+    let preview = &imported.preview;
+    let show = |applied: bool| {
+        crate::out::ok(
+            &format!("import.{}", format.as_str()),
+            serde_json::to_value(preview).unwrap_or_default(),
+            || print_preview(preview, applied),
+        )
+    };
+    match imported.mode {
+        ImportMode::DryRun => {}
+        ImportMode::Preview => show(false),
+        ImportMode::Nothing | ImportMode::Written => show(true),
+    }
     Ok(())
 }
 
