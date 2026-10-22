@@ -322,3 +322,17 @@ describe('the add/edit form carries the kind and the counter', () => {
     expect(document.getElementById('f-totp-status')!.textContent).toContain('5 characters');
   });
 });
+
+// Bug: the ticker's interval fired after the DOM was torn down and threw "document is not
+// defined" as an unhandled rejection, failing a whole test run.
+describe('tickTotp without a document', () => {
+  it('does nothing instead of throwing', async () => {
+    const { tickTotp } = await import('../src/ts/totp');
+    vi.stubGlobal('document', undefined);
+    try {
+      await expect(tickTotp()).resolves.toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
