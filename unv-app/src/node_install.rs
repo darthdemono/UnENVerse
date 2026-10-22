@@ -227,6 +227,32 @@ pub fn service_unit(o: &Options) -> String {
     )
 }
 
+/// A launchd job for macOS (`/Library/LaunchDaemons/io.unenverse.node.plist`): the same agent the
+/// systemd unit runs, restarted if it exits. Written by hand for now (see the Nodes page); `unv node
+/// install` does not yet install it, because the rest of that command (a service user, directories
+/// and permissions) is Linux-specific.
+pub fn launchd_plist(config: &str, state_dir: &str, bin: &str) -> String {
+    let esc = |s: &str| {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+    };
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+         <plist version=\"1.0\">\n<dict>\n\
+         \t<key>Label</key>\n\t<string>io.unenverse.node</string>\n\
+         \t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>{}</string>\n\t\t<string>node</string>\n\t\t<string>run</string>\n\t\t<string>--config</string>\n\t\t<string>{}</string>\n\t</array>\n\
+         \t<key>EnvironmentVariables</key>\n\t<dict>\n\t\t<key>UNV_NODE_DIR</key>\n\t\t<string>{}</string>\n\t</dict>\n\
+         \t<key>RunAtLoad</key>\n\t<true/>\n\
+         \t<key>KeepAlive</key>\n\t<true/>\n\
+         </dict>\n</plist>\n",
+        esc(bin),
+        esc(config),
+        esc(state_dir)
+    )
+}
+
 /// A root-owned pair: when the file changes, reload exactly one unit.
 pub fn reload_units(t: &TargetSpec, unit: &str) -> (String, String) {
     let name = unit_name(t);
@@ -435,6 +461,28 @@ pub fn execute(_: &[Step], _: &mut dyn FnMut() -> CliResult, _: bool) -> CliResu
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_launchd_job_runs_the_same_agent_and_escapes_what_it_embeds() {
+        let plist = launchd_plist(
+            "/usr/local/etc/unv-node/node.toml",
+            "/usr/local/var/unv-node",
+            "/usr/local/bin/unv",
+        );
+        for part in [
+            "<string>io.unenverse.node</string>",
+            "<string>/usr/local/bin/unv</string>",
+            "<string>node</string>",
+            "<string>/usr/local/etc/unv-node/node.toml</string>",
+            "<key>KeepAlive</key>",
+            "<key>UNV_NODE_DIR</key>",
+        ] {
+            assert!(plist.contains(part), "{part}");
+        }
+        let odd = launchd_plist("/etc/a&b<c>.toml", "/s", "/b");
+        assert!(odd.contains("/etc/a&amp;b&lt;c&gt;.toml"));
+        assert!(!odd.contains("a&b"));
+    }
+
     use super::*;
     use vault_core::nodes::NodeConfig;
 
