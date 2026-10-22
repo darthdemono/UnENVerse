@@ -1,6 +1,6 @@
 # ── Build stage ───────────────────────────────────────────────────────────────
 # 1.85 stopped building once the lockfile moved to crates needing rustc 1.88 (found by actually building the image, 2026-10-09).
-FROM rust:1.90-bookworm@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f AS builder
+FROM rust:1.98-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e AS builder
 
 # A failing stage of a pipe must fail the build, not just the last command.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
