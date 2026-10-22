@@ -19,6 +19,14 @@ for Linux and Windows, static musl archives for Alpine and other distributions, 
 multi-architecture server image, a redesigned card footer and bundle cards, an
 AMOLED theme and a product site with a changelog, features page and FAQ.
 
+Release 0.58.0 lands the first slices of phases 57 to 66 and R21: imports from Git stores and
+secrets services, approval version 2 and rule approvals for nodes, the rotation engine with
+Cloudflare and PostgreSQL connectors, external-process plugins with a conformance suite, a command
+palette, Windows owner-only access lists, vault identity with standby restores, and the scripting
+contract. Several are partial by design and say so in their ADRs (0160 to 0167): the desktop hub
+and node targets as rotation consumers, a plugins screen, the master-password change and `forget`
+of R20, and the desktop bridge of R18 are still to do.
+
 ## The year, by quarter
 
 ### October to December 2026: foundations
