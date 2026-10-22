@@ -22,7 +22,7 @@ fn transient_windows(e: &io::Error) -> bool {
     matches!(e.raw_os_error(), Some(5 | 32 | 33))
 }
 
-/// Runs `op`, repeating up to [`ATTEMPTS`] times while `transient` says the error will pass.
+/// Runs `op`, repeating up to `ATTEMPTS` times while `transient` says the error will pass.
 pub fn retry<T>(
     mut op: impl FnMut() -> io::Result<T>,
     transient: impl Fn(&io::Error) -> bool,
