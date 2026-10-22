@@ -206,6 +206,8 @@ unv user totp confirm <user> <code>
 unv user totp disable <user>
 unv user totp enroll <user> --out=
 unv user totp status <user>
+unv vault activate
+unv vault status
 unv watch <file> --category= --project=
 unv whoami
 exit 0 ok

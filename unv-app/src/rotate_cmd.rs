@@ -244,6 +244,8 @@ pub fn plan(access: &Access, o: &Opts<'_>) -> CliResult {
 pub fn run(access: &Access, o: &Opts<'_>) -> CliResult {
     let conn = access.conn()?;
     rotation::init_schema(&conn).map_err(CliError::from)?;
+    vault_core::identity::require_active(&conn, "rotate credentials")
+        .map_err(CliError::conflict)?;
     let vault = access.load_vault()?;
     let idx = data::find_entry_index(&vault, o.entry)?;
     let entry = &data::entries(&vault)[idx];

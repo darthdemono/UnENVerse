@@ -358,6 +358,16 @@ enum Commands {
         #[command(subcommand)]
         cmd: CxfCmd,
     },
+    /// Which instance of the vault this is, and making a restored one the live one.
+    ///
+    /// A vault restored from a recovery package, or copied by a sync folder, starts as a standby
+    /// instance: it can be read and verified, but it does not push to nodes or run schedules.
+    /// `activate` is the explicit step that makes it the live instance and raises its epoch, so
+    /// nodes refuse the instance it replaces.
+    Vault {
+        #[command(subcommand)]
+        cmd: VaultCmd,
+    },
     /// Manage plugins (`unv-plugin-rpc/1`): programs that add destinations, notifiers or issuers.
     ///
     /// A plugin is a directory with a `plugin.json` and a program. It runs with your rights, not in
@@ -825,6 +835,14 @@ enum Commands {
 }
 
 /// File-shaped credentials — the ones where the variable names a path (E17).
+#[derive(Subcommand)]
+enum VaultCmd {
+    /// Show the vault id, the instance id, its epoch and role.
+    Status,
+    /// Make this instance the live one (asks first; the old instance must be retired).
+    Activate,
+}
+
 #[derive(Subcommand)]
 enum PluginCmd {
     /// List installed plugins and the ones found in the plugins directory.
@@ -3641,6 +3659,10 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 category,
             } => cxf_cmd::cmd_import(a, file, project.as_deref(), category.as_deref()),
             CxfCmd::Export { out, provider } => cxf_cmd::cmd_export(a, out, provider.as_deref()),
+        },
+        Commands::Vault { cmd } => match cmd {
+            VaultCmd::Status => unv_app::vault_cmd::status(a),
+            VaultCmd::Activate => unv_app::vault_cmd::activate(a, yes),
         },
         Commands::Plugin { cmd } => match cmd {
             PluginCmd::Ls { dir } => unv_app::plugin_cmd::ls(a, dir.as_deref()),

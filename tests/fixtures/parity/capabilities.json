@@ -1047,6 +1047,18 @@
       "tauri": [],
       "note": "Plugins run with the user's rights, so installing and enabling one is a deliberate command-line act with a written warning; the conformance suite needs a directory, not a vault. A read-only Settings, Plugins list is a later UI slice.",
       "cli_flags": []
+    },
+    {
+      "id": "vault-instance",
+      "status": "exempt",
+      "cli": [
+        "unv vault status",
+        "unv vault activate"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Activating an instance changes which copy of the vault nodes obey, so it is a deliberate command-line act that asks whether the old instance is retired; the desktop shows nothing for it yet.",
+      "cli_flags": []
     }
   ]
 }

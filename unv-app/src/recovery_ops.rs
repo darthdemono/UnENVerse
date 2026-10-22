@@ -1021,6 +1021,8 @@ fn execute_run(
     epoch: Option<i64>,
     stop: Option<&AtomicBool>,
 ) -> Result<Run, String> {
+    // A standby copy (a restore, a forgotten clone) must not act as the vault's executor.
+    vault_core::identity::require_active(conn, "run scheduled operations")?;
     let id = vault_core::new_uuid();
     match epoch {
         Some(epoch) => ops::create_run_fenced(conn, &id, schedule, missed, epoch)?,
@@ -1157,6 +1159,10 @@ fn run_due(
     now: jiff::Timestamp,
     stop: &AtomicBool,
 ) -> Result<(), String> {
+    // Due schedules wait quietly on a standby copy; activating it lets them run.
+    if vault_core::identity::require_active(conn, "run scheduled operations").is_err() {
+        return Ok(());
+    }
     for schedule in ops::list_schedules(conn)? {
         if stop.load(Ordering::Acquire) {
             return Ok(());
