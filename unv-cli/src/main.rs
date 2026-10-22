@@ -1567,8 +1567,10 @@ enum EntryCmd {
     },
     /// Rename an entry, rewriting every ${ref} that points at it.
     Rename { provider: String, new_name: String },
-    /// Delete an entry.
+    /// Delete an entry (its credential keeps working at the provider; revoke it there).
     Rm { provider: String },
+    /// Purge the entry's old values from this vault's history and stored config copies.
+    Forget { provider: String },
     /// Add or remove tags.
     Tag {
         provider: String,
@@ -3917,6 +3919,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             } => entries::cmd_set(a, provider, fields, *create),
             EntryCmd::Rename { provider, new_name } => entries::cmd_rename(a, provider, new_name),
             EntryCmd::Rm { provider } => entries::cmd_rm(a, provider, yes),
+            EntryCmd::Forget { provider } => entries::cmd_forget(a, provider, yes, cli.dry_run),
             EntryCmd::Tag {
                 provider,
                 add,
