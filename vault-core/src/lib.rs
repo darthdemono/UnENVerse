@@ -60,6 +60,7 @@ pub mod oauth;
 pub mod ops;
 pub mod pgp;
 pub mod php_config;
+pub mod plugin;
 pub mod recovery;
 pub mod rotation;
 pub mod session_import;
