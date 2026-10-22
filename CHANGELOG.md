@@ -14,10 +14,11 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - Plugins (`unv plugin ls|install|enable|disable|rm|test`): external programs that speak `unv-plugin-rpc/1` over stdin and stdout, run with a cleared environment, deadlines, output caps and scrubbed stderr, and are refused if their program changed since install. `unv plugin test` runs a conformance suite (handshake, no side effects in plan, idempotent execute, reconcile, shutdown deadline, no secrets on stderr); `examples/plugins/ntfy-notifier` passes it and faulty copies fail the matching check (ADR-0165).
 - A command palette (Ctrl+Shift+P) for navigation and the top actions; Info findings in the health scan fold behind a count; the price badge on a card is quiet (hidden for free, dimmed otherwise until the card is hovered).
 - Windows: the vault folder, database, salt, recovery files and scratch directories get an owner-only access list, `unv doctor` checks it, and the device approval key lives in the machine-local profile (an old roaming key is adopted, never deleted). A rename over a file another program holds open is retried briefly. `unv doctor` warns when the vault is on a network filesystem. macOS builds with vendored SQLCipher and is tested in an informational CI job (ADR-0166).
+- Vault identity: every vault has an id and every copy an instance, an epoch and a role. A restored vault starts as standby (it reads and verifies but does not push, run schedules or rotate); `unv vault status` shows it and `unv vault activate` makes it live. Hubs send `(vault id, epoch)` to nodes, and a node refuses a hub with a lower epoch or for another vault. Upgrade nodes before the hub. `unv doctor` warns about a vault inside a cloud-sync folder (ADR-0167).
 
 ### Contract
 
-- `unv describe` carries `contract_version` (the old `contract` key stays). A committed snapshot of every command, positional and flag name and every exit code fails a test when one is removed or renamed. The scripting contract is written down in the book with recipes that a test runs (`book/src/contract.md`).
+- `unv vault status|activate` are new. `unv describe` carries `contract_version` (the old `contract` key stays). A committed snapshot of every command, positional and flag name and every exit code fails a test when one is removed or renamed. The scripting contract is written down in the book with recipes that a test runs (`book/src/contract.md`).
 
 ### Fixed
 

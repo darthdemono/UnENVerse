@@ -820,6 +820,10 @@ Mounted SMB/NFS paths remain local destinations: mount them before the executor 
 
 `unv recover inspect PACKAGE.unvpkg` reads only non-secret envelope metadata. `unv recover restore PACKAGE.unvpkg --to EMPTY_DIR --identity IDENTITY_FILE` stages and verifies every encrypted member before installing it. `unv recover verify EMPTY_DIR` additionally checks SQLCipher, storage and audit chains, configuration history, entry count and vault version. `unv backup schedule` creates interval, IANA-time-zone daily and monthly drill work; it executes only while the desktop app stays open and unlocked. `unv ops` lists, shows, cancels and records durable package and drill results.
 
+### One live copy
+
+A vault has one live instance. A vault restored from a package starts as a **standby**: it can be read and verified, but it does not push to nodes, run schedules or rotate until `unv vault activate` makes it the live one and raises its epoch, after which nodes refuse the instance it replaced. `unv vault status` shows which copy you have, and `unv doctor` warns when `vault.db` sits in a Dropbox, OneDrive, Google Drive, iCloud, Nextcloud or Syncthing folder or on a network share. See [Using UnENVerse on two computers](https://unenverse.darthdemono.com/book/two-computers.html). Upgrade nodes before the hub.
+
 ### Credential lifecycle
 
 Every saved secret now has a vault-local credential generation. Its fingerprint is an HMAC under a per-vault key, so two vaults holding the same value cannot be compared from their metadata. Older vaults receive generation one with an explicitly unknown issue date, never an invented timestamp. `unv entry timeline NAME` and the card-level Timeline action show import, creation, rotation and verification events without printing secret material.
