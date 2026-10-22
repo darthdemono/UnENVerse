@@ -1449,7 +1449,7 @@ mod tests {
 
     fn open_scratch(tag: &str) -> (Connection, std::path::PathBuf) {
         let dir = scratch(tag);
-        let key = derive_key("correct horse battery staple", b"0123456789abcdef").unwrap();
+        let key = derive_key(&new_uuid(), &new_uuid().as_bytes()[..16]).unwrap();
         let conn = open_db(&dir.join("vault.db"), &key).unwrap();
         init_schema(&conn).unwrap();
         (conn, dir)
@@ -2411,7 +2411,7 @@ mod source_owned_tests {
     fn open(tag: &str) -> (Connection, std::path::PathBuf) {
         let dir = std::env::temp_dir().join(format!("vc-srcown-{tag}-{}", new_uuid()));
         std::fs::create_dir_all(&dir).unwrap();
-        let key = derive_key("correct horse battery staple", b"0123456789abcdef").unwrap();
+        let key = derive_key(&new_uuid(), &new_uuid().as_bytes()[..16]).unwrap();
         let conn = open_db(&dir.join("vault.db"), &key).unwrap();
         init_schema(&conn).unwrap();
         (conn, dir)

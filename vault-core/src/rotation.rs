@@ -1529,7 +1529,8 @@ mod tests {
     fn runs_and_the_pending_value_are_persisted_in_the_vault_database() {
         let dir = std::env::temp_dir().join(format!("vc-rot-{}", crate::new_uuid()));
         std::fs::create_dir_all(&dir).unwrap();
-        let key = crate::derive_key("correct horse battery staple", b"0123456789abcdef").unwrap();
+        let key =
+            crate::derive_key(&crate::new_uuid(), &crate::new_uuid().as_bytes()[..16]).unwrap();
         let conn = crate::open_db(&dir.join("vault.db"), &key).unwrap();
         crate::init_schema(&conn).unwrap();
         init_schema(&conn).unwrap();
