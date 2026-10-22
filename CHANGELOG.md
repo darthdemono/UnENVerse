@@ -6,6 +6,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
+- `unv entry forget NAME` purges an entry's old values from this vault: its version history and the stored content of every config-history snapshot that held it. The snapshot stays on the timeline with its hash, so the history chain still verifies; the current value is untouched, a running rotation refuses it, and an audit row records the count, never a value. It prints what it cannot reach (backups, nodes, the import source, disk blocks). The delete prompt now says the credential keeps working at its provider.
 - `unv vault rekey` changes the master password: the vault is re-encrypted into a new file under a new salt, checked row by row, and swapped in; a crash at any step leaves a vault that opens with the old or the new password, and the next unlock finishes or undoes an interrupted change. The old files are kept until the next successful unlock. Backups made before the change still open with the old password; recovery packages are not affected (ADR-0168). New book pages: "If something leaks" and "Formats we read".
 
 ### Security

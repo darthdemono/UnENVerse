@@ -15,3 +15,7 @@ A stop at any step leaves a vault that opens with the old password or the new on
 ## Consequences
 
 Backups made before the change still open with the old password; that is what a backup is, and the documentation says so. Recovery packages are encrypted to an age recipient, not to the password, and are unaffected. The old password remains valid for the kept copy until the next unlock, and for any file copy anyone already took. Changing the password does not make old copies safe; the compromise playbooks say what to do then. The desktop has no Change master password action yet.
+
+## Forget (same phase)
+
+`unv entry forget NAME` (module `vault_core::forget`) deletes the entry's `vault_history` row and blanks the stored content of each config-history snapshot that lists the entry as exposed, marking it `forgotten`. The snapshot keeps its hash and chain link, and `verify` hashes the stored `sha256` for such a row, so the chain still verifies and an edit to the kept hash still breaks it. `config_history::get` refuses a forgotten snapshot, so a restore can never write an empty file. The save log tables hold hashes only and need no purge. It refuses while a rotation of the entry runs, and an `entry.forget` audit row records counts, never values. The current value is deliberately left alone: a live credential is rotated or deleted, not forgotten.
