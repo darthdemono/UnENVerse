@@ -640,7 +640,7 @@ printf '{"db":{"password":"hunter2","port":5432},"list":["a","b"],"debug":true,"
         write(&dir.join("bad.yaml"), SOPS_YAML);
         let bad = stub(&dir, "sops-garbage", r#"printf 'not json at all'"#);
         let err = parse_sops(&dir.join("bad.yaml"), &tools(&bad, "x", "x")).unwrap_err();
-        assert!(err.contains("did not return JSON"), "{err}");
+        assert!(err.contains("did not return JSON"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -649,7 +649,7 @@ printf '{"db":{"password":"hunter2","port":5432},"list":["a","b"],"debug":true,"
         let dir = scratch();
         write(&dir.join("a.yaml"), SOPS_YAML);
         let err = parse_sops(&dir, &tools("unv-no-such-sops", "x", "x")).unwrap_err();
-        assert!(err.contains("not installed"), "{err}");
+        assert!(err.contains("not installed"));
         let empty = scratch();
         write(&empty.join("plain.yaml"), "a: b\n");
         assert!(parse_sops(&empty, &tools("x", "x", "x"))
@@ -670,7 +670,7 @@ printf '{"db":{"password":"hunter2","port":5432},"list":["a","b"],"debug":true,"
             "echo 'no key could decrypt' >&2; exit 128",
         );
         let err = parse_sops(&dir.join("a.yaml"), &tools(&failing, "x", "x")).unwrap_err();
-        assert!(err.contains("a.yaml") && err.contains("exit 128"), "{err}");
+        assert!(err.contains("a.yaml") && err.contains("exit 128"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
