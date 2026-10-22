@@ -1059,6 +1059,17 @@
       "tauri": [],
       "note": "Activating an instance changes which copy of the vault nodes obey, so it is a deliberate command-line act that asks whether the old instance is retired; the desktop shows nothing for it yet.",
       "cli_flags": []
+    },
+    {
+      "id": "vault-rekey",
+      "status": "exempt",
+      "cli": [
+        "unv vault rekey"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R20 master-password change re-encrypts the whole vault and swaps two files, so it ships first as a command-line act that asks first; the desktop Change master password action is a later slice and will call the same vault_core::rekey.",
+      "cli_flags": []
     }
   ]
 }

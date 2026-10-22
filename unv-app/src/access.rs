@@ -123,6 +123,8 @@ pub fn get_password_for(provided: Option<&str>, user: Option<&str>) -> String {
 
 fn local_key(password: &str) -> CliResult<VaultKey> {
     let salt_path = default_salt_path();
+    // A password change that a crash interrupted is finished or undone first.
+    vault_core::rekey::recover_interrupted(&default_db_path(), &salt_path, password)?;
     // Before deriving anything: a database with no salt must be reported as
     // exactly that, not silently given a fresh salt that will never open it.
     vault_core::check_salt_pairing(&default_db_path(), &salt_path)?;
@@ -131,6 +133,8 @@ fn local_key(password: &str) -> CliResult<VaultKey> {
     // Verify: opening with the wrong key fails here rather than at the first read.
     let conn = open_db(&default_db_path(), &key)?;
     vault_core::init_schema(&conn)?;
+    // The new pair opened, so the copies kept from a password change are no longer needed.
+    vault_core::rekey::cleanup_after_unlock(&default_db_path(), &salt_path);
     Ok(key)
 }
 
