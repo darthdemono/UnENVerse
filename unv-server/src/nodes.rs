@@ -1457,11 +1457,13 @@ mod tests {
     use vault_core::nodes::{generate_identity, sign_request, HostInfo};
 
     fn scratch(tag: &str) -> PathBuf {
-        let n = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let d = std::env::temp_dir().join(format!("unv-nodes-srv-{tag}-{n}"));
+        // A counter, not the clock: two tests starting within one clock tick (macOS has a coarse
+        // one) shared a directory, and the second open of its database failed with "locked".
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static N: AtomicU64 = AtomicU64::new(0);
+        let n = N.fetch_add(1, Ordering::SeqCst);
+        let d =
+            std::env::temp_dir().join(format!("unv-nodes-srv-{tag}-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
         d
     }

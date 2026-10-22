@@ -1352,10 +1352,17 @@ mod tests {
     use serde_json::json;
 
     fn open(tag: &str) -> (Connection, std::path::PathBuf) {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        // A counter beside the process id, not the clock: two tests starting within one clock tick
+        // (macOS has a coarse one) shared a directory and failed with "database is locked".
+        let nanos = {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static SEQ: AtomicU64 = AtomicU64::new(0);
+            format!(
+                "{}-{}",
+                std::process::id(),
+                SEQ.fetch_add(1, Ordering::SeqCst)
+            )
+        };
         let dir =
             std::env::temp_dir().join(format!("vc-storage-{tag}-{}-{nanos}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

@@ -870,10 +870,17 @@ mod tests {
 
     #[test]
     fn concurrent_writers_never_fork_the_chain() {
-        let n = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        // A counter beside the process id, not the clock: two tests starting within one clock tick
+        // (macOS has a coarse one) shared a directory and failed with "database is locked".
+        let n = {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static SEQ: AtomicU64 = AtomicU64::new(0);
+            format!(
+                "{}-{}",
+                std::process::id(),
+                SEQ.fetch_add(1, Ordering::SeqCst)
+            )
+        };
         let path = std::env::temp_dir().join(format!("unv-hist-conc-{n}.db"));
         {
             let c = Connection::open(&path).unwrap();
