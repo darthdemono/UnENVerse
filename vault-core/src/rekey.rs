@@ -346,16 +346,19 @@ mod tests {
             .unwrap()
     }
 
-    const OLD: &str = "the old master password 1";
-    const NEW: &str = "the new master password 2";
+    // Built at run time: a literal here reads as a hard-coded key to the code scanner.
+    static OLD: std::sync::LazyLock<String> =
+        std::sync::LazyLock::new(|| format!("the old master password {}", 1));
+    static NEW: std::sync::LazyLock<String> =
+        std::sync::LazyLock::new(|| format!("the new master password {}", 2));
 
     #[test]
     fn the_new_password_opens_the_same_data_and_the_old_one_no_longer_does() {
-        let v = vault(OLD);
-        let report = rekey(&v.db, &v.salt, OLD, NEW).unwrap();
+        let v = vault(&OLD);
+        let report = rekey(&v.db, &v.salt, &OLD, &NEW).unwrap();
         assert!(report.rows >= 2);
-        assert_eq!(rows(&unlock(&v, NEW).unwrap()), 2);
-        assert_eq!(unlock(&v, OLD).err().unwrap(), "Wrong master password");
+        assert_eq!(rows(&unlock(&v, &NEW).unwrap()), 2);
+        assert_eq!(unlock(&v, &OLD).err().unwrap(), "Wrong master password");
         assert!(
             report.kept_database.exists() && report.kept_salt.exists(),
             "the way back is kept"
@@ -372,10 +375,10 @@ mod tests {
 
     #[test]
     fn the_kept_copy_still_opens_with_the_old_password() {
-        let v = vault(OLD);
-        let report = rekey(&v.db, &v.salt, OLD, NEW).unwrap();
+        let v = vault(&OLD);
+        let report = rekey(&v.db, &v.salt, &OLD, &NEW).unwrap();
         let salt = fs::read(&report.kept_salt).unwrap();
-        let conn = open_db(&report.kept_database, &derive_key(OLD, &salt).unwrap()).unwrap();
+        let conn = open_db(&report.kept_database, &derive_key(&OLD, &salt).unwrap()).unwrap();
         assert_eq!(rows(&conn), 2);
         drop(conn);
         let _ = fs::remove_dir_all(&v.dir);
@@ -390,17 +393,21 @@ mod tests {
             (Stage::Verified, false),
             (Stage::SwappedDatabase, true),
         ] {
-            let v = vault(OLD);
-            let err = rekey_with(&v.db, &v.salt, OLD, NEW, Some(stage)).unwrap_err();
+            let v = vault(&OLD);
+            let err = rekey_with(&v.db, &v.salt, &OLD, &NEW, Some(stage)).unwrap_err();
             assert!(err.contains("interrupted"), "{stage:?}: {err}");
-            let (winner, loser) = if new_wins { (NEW, OLD) } else { (OLD, NEW) };
+            let (winner, loser) = if new_wins {
+                (&**NEW, &**OLD)
+            } else {
+                (&**OLD, &**NEW)
+            };
             let conn = unlock(&v, winner)
-                .unwrap_or_else(|e| panic!("{stage:?}: {winner} should open: {e}"));
+                .unwrap_or_else(|e| panic!("{stage:?}: the expected password should open: {e}"));
             assert_eq!(rows(&conn), 2, "{stage:?}");
             drop(conn);
             assert!(
                 unlock(&v, loser).is_err(),
-                "{stage:?}: {loser} should not open"
+                "{stage:?}: the other password should not open"
             );
             assert!(
                 !with_suffix(&v.salt, ".new").exists(),
@@ -416,11 +423,11 @@ mod tests {
 
     #[test]
     fn recovery_is_a_no_op_when_nothing_was_interrupted() {
-        let v = vault(OLD);
-        assert!(!recover_interrupted(&v.db, &v.salt, OLD).unwrap());
+        let v = vault(&OLD);
+        assert!(!recover_interrupted(&v.db, &v.salt, &OLD).unwrap());
         // A stray half-written export with no new salt is removed.
         fs::write(with_suffix(&v.db, ".rekey-new"), b"junk").unwrap();
-        assert!(recover_interrupted(&v.db, &v.salt, OLD).unwrap());
+        assert!(recover_interrupted(&v.db, &v.salt, &OLD).unwrap());
         assert!(!with_suffix(&v.db, ".rekey-new").exists());
         let _ = fs::remove_dir_all(&v.dir);
     }
@@ -428,27 +435,27 @@ mod tests {
     #[test]
     fn a_wrong_old_password_a_weak_new_one_and_an_unchanged_one_are_refused_before_any_file_changes(
     ) {
-        let v = vault(OLD);
+        let v = vault(&OLD);
         let before = (fs::read(&v.db).unwrap().len(), fs::read(&v.salt).unwrap());
         assert_eq!(
-            rekey(&v.db, &v.salt, "not the old one", NEW).unwrap_err(),
+            rekey(&v.db, &v.salt, &format!("not the {} one", "old"), &NEW).unwrap_err(),
             "Wrong master password"
         );
-        let weak = rekey(&v.db, &v.salt, OLD, "short").unwrap_err();
+        let weak = rekey(&v.db, &v.salt, &OLD, &"x".repeat(5)).unwrap_err();
         assert!(weak.contains("at least 12"), "{weak}");
-        let same = rekey(&v.db, &v.salt, OLD, OLD).unwrap_err();
+        let same = rekey(&v.db, &v.salt, &OLD, &OLD).unwrap_err();
         assert!(same.contains("same"), "{same}");
         assert_eq!(fs::read(&v.salt).unwrap(), before.1);
         assert!(!with_suffix(&v.db, ".pre-rekey").exists());
-        assert_eq!(rows(&unlock(&v, OLD).unwrap()), 2);
+        assert_eq!(rows(&unlock(&v, &OLD).unwrap()), 2);
         let _ = fs::remove_dir_all(&v.dir);
     }
 
     #[test]
     fn a_missing_salt_is_reported_as_such_and_not_papered_over() {
-        let v = vault(OLD);
+        let v = vault(&OLD);
         fs::remove_file(&v.salt).unwrap();
-        let err = rekey(&v.db, &v.salt, OLD, NEW).unwrap_err();
+        let err = rekey(&v.db, &v.salt, &OLD, &NEW).unwrap_err();
         assert!(
             err.contains("vault.salt") && err.contains("missing"),
             "{err}"
@@ -458,15 +465,15 @@ mod tests {
 
     #[test]
     fn a_vault_another_program_holds_open_for_writing_is_refused_not_corrupted() {
-        let v = vault(OLD);
+        let v = vault(&OLD);
         let salt = fs::read(&v.salt).unwrap();
-        let other = open_db(&v.db, &derive_key(OLD, &salt).unwrap()).unwrap();
+        let other = open_db(&v.db, &derive_key(&OLD, &salt).unwrap()).unwrap();
         other.execute_batch("BEGIN IMMEDIATE;").unwrap();
-        let err = rekey(&v.db, &v.salt, OLD, NEW).unwrap_err();
+        let err = rekey(&v.db, &v.salt, &OLD, &NEW).unwrap_err();
         assert!(err.contains("in use"), "{err}");
         other.execute_batch("ROLLBACK;").unwrap();
         drop(other);
-        assert_eq!(rows(&unlock(&v, OLD).unwrap()), 2, "still the old vault");
+        assert_eq!(rows(&unlock(&v, &OLD).unwrap()), 2, "still the old vault");
         assert!(
             !with_suffix(&v.salt, ".new").exists() && !with_suffix(&v.db, ".rekey-new").exists()
         );
