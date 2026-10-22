@@ -1,6 +1,36 @@
 <img src="src-tauri/icons/128x128.png" width="150" align="right" alt="UnENVerse logo" />
 
-# UnENVerse [![Latest release](https://img.shields.io/github/v/release/darthdemono/UnENVerse?label=release)](https://github.com/darthdemono/UnENVerse/releases/latest) [![Build and tests](https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&label=build)](https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse)
+# UnENVerse <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse"><img src="https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Scorecard%20%28out%20of%2010%29" alt="OpenSSF Scorecard"></a>
+
+<p align="center">
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Build%20and%20tests" alt="Build and tests"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/codeql.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=CodeQL%20code%20scanning" alt="CodeQL code scanning"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/releases/latest"><img src="https://img.shields.io/github/v/release/darthdemono/UnENVerse?display_name=tag&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Latest%20release" alt="Latest release"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/releases"><img src="https://img.shields.io/github/downloads/darthdemono/UnENVerse/total?style=for-the-badge&labelColor=323330&logoColor=white&label=Downloads" alt="Downloads"></a>
+</p>
+
+<p align="center">
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20all%20code" alt="Test coverage of all code"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=typescript"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=typescript&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20TypeScript%20%28app%20UI%29" alt="Test coverage of the TypeScript interface"></a>
+  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=rust"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=rust&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20Rust%20%28core%2C%20CLI%2C%20server%29" alt="Test coverage of the Rust core, CLI and server"></a>
+</p>
+
+<p align="center">
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/cii/level/15623?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Best%20Practices%20level" alt="OpenSSF Best Practices level"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_1&suffix=%25%20done&label=Best%20Practices%20Silver&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices silver progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_2&suffix=%25%20done&label=Best%20Practices%20Gold&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices gold progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_1&suffix=%25%20done&label=Baseline%201&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 1 progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_2&suffix=%25%20done&label=Baseline%202&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 2 progress"></a>
+  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_3&suffix=%25%20done&label=Baseline%203&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 3 progress"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
+  <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
+  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
+  <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
+</p>
 
 A self-hosted secrets manager for people who run their own infrastructure: a desktop app, the `unv` command-line tool and an optional server over one encrypted vault.
 
@@ -1282,37 +1312,6 @@ Every job carries a control case. If the validator accepts deliberate nonsense, 
   <a href="https://codecov.io/gh/darthdemono/UnENVerse">Coverage</a> ·
   <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse">OpenSSF Scorecard</a> ·
   <a href="https://www.bestpractices.dev/projects/15623">OpenSSF Best Practices</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/ci.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Build%20and%20tests" alt="Build and tests"></a>
-  <a href="https://github.com/darthdemono/UnENVerse/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/darthdemono/UnENVerse/codeql.yml?branch=main&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=CodeQL%20code%20scanning" alt="CodeQL code scanning"></a>
-  <a href="https://github.com/darthdemono/UnENVerse/releases/latest"><img src="https://img.shields.io/github/v/release/darthdemono/UnENVerse?display_name=tag&style=for-the-badge&labelColor=323330&logoColor=white&logo=github&label=Latest%20release" alt="Latest release"></a>
-  <a href="https://github.com/darthdemono/UnENVerse/releases"><img src="https://img.shields.io/github/downloads/darthdemono/UnENVerse/total?style=for-the-badge&labelColor=323330&logoColor=white&label=Downloads" alt="Downloads"></a>
-</p>
-
-<p align="center">
-  <a href="https://codecov.io/gh/darthdemono/UnENVerse"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20all%20code" alt="Test coverage of all code"></a>
-  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=typescript"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=typescript&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20TypeScript%20%28app%20UI%29" alt="Test coverage of the TypeScript interface"></a>
-  <a href="https://codecov.io/gh/darthdemono/UnENVerse?flags%5B0%5D=rust"><img src="https://img.shields.io/codecov/c/github/darthdemono/UnENVerse?flag=rust&style=for-the-badge&labelColor=323330&logoColor=white&logo=codecov&label=Coverage%2C%20Rust%20%28core%2C%20CLI%2C%20server%29" alt="Test coverage of the Rust core, CLI and server"></a>
-</p>
-
-<p align="center">
-  <a href="https://scorecard.dev/viewer/?uri=github.com/darthdemono/UnENVerse"><img src="https://img.shields.io/ossf-scorecard/github.com/darthdemono/UnENVerse?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Scorecard%20%28out%20of%2010%29" alt="OpenSSF Scorecard"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/cii/level/15623?style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf&label=Best%20Practices%20level" alt="OpenSSF Best Practices level"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_1&suffix=%25%20done&label=Best%20Practices%20Silver&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices silver progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_2&suffix=%25%20done&label=Best%20Practices%20Gold&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Best Practices gold progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_1&suffix=%25%20done&label=Baseline%201&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 1 progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_2&suffix=%25%20done&label=Baseline%202&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 2 progress"></a>
-  <a href="https://www.bestpractices.dev/projects/15623"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A//www.bestpractices.dev/projects/15623.json&query=%24.badge_percentage_baseline_3&suffix=%25%20done&label=Baseline%203&style=for-the-badge&labelColor=323330&logoColor=white&logo=openssf" alt="OpenSSF Baseline level 3 progress"></a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
-  <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
-  <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
-  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
-  <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
 </p>
 
 ## License
