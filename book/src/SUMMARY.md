@@ -2,6 +2,7 @@
 
 - [UnENVerse](README.md)
 - [Security model](security.md)
+- [Command reference](cli-reference.md)
 - [Use UnENVerse with Docker Compose secrets](compose-secrets.md)
 - [If something leaks](compromise.md)
 - [Formats we read](format-policy.md)
