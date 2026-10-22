@@ -3,6 +3,7 @@
 - [UnENVerse](README.md)
 - [Security model](security.md)
 - [CLI guide](cli.md)
+- [The scripting contract](contract.md)
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
 - [Plugins](plugins.md)
