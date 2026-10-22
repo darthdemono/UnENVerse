@@ -11,7 +11,7 @@ use crate::access::Access;
 use crate::error::{CliError, CliResult};
 use crate::out;
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use vault_core::cxf;
 
 /// `unv cxf import FILE [--project …] [--category …]`
@@ -128,7 +128,7 @@ pub fn cmd_import(
 /// only way it leaves. Unlike `unv totp export`, there is no `--reveal`
 /// escape to stdout — a CXF document does not have TOTP's thirty-second decay
 /// to fall back on, and nothing here is safe to print in a transcript.
-pub fn cmd_export(access: &Access, out_path: &PathBuf, only: Option<&str>) -> CliResult {
+pub fn cmd_export(access: &Access, out_path: &std::path::Path, only: Option<&str>) -> CliResult {
     let vault = access.load_vault_or_empty()?;
     let needle = only.map(|s| s.to_lowercase());
     let filtered: Vec<Value> = crate::data::entries(&vault)
@@ -147,9 +147,8 @@ pub fn cmd_export(access: &Access, out_path: &PathBuf, only: Option<&str>) -> Cl
     let count = doc.items.len();
     let text = serde_json::to_string_pretty(&doc).map_err(|e| CliError::from(e.to_string()))?;
 
-    std::fs::write(out_path, &text)
+    vault_core::write_private(out_path, text.as_bytes())
         .map_err(|e| CliError::from(format!("Cannot write {}: {e}", out_path.display())))?;
-    vault_core::restrict_to_owner(out_path).map_err(CliError::from)?;
 
     out::ok(
         "cxf.export",

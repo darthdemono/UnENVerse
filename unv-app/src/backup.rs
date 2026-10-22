@@ -258,6 +258,16 @@ pub fn restore_archive(
     force: bool,
     assume_yes: bool,
 ) -> CliResult {
+    restore_archive_with(path, password, force, &mut |q| confirm(q, assume_yes))
+}
+
+/// [`restore_archive`] with the question put to `ask`, so a "no" is as testable as a "yes".
+pub fn restore_archive_with(
+    path: &std::path::Path,
+    password: Option<&str>,
+    force: bool,
+    ask: &mut dyn FnMut(&str) -> CliResult<bool>,
+) -> CliResult {
     let raw = std::fs::read_to_string(path)
         .map_err(|e| CliError::not_found(format!("Cannot read {}: {e}", path.display())))?;
     let pw = ask_password(password, false)?;
@@ -275,11 +285,12 @@ pub fn restore_archive(
             db_path.display()
         )));
     }
-    if db_path.exists() && !assume_yes {
-        confirm(
-            &format!("Replace the vault at {}?", db_path.display()),
-            false,
-        )?;
+    // Bug: the answer was discarded, so "n" still overwrote the vault.
+    if db_path.exists() && !ask(&format!("Replace the vault at {}?", db_path.display()))? {
+        return Err(CliError::new(
+            crate::error::Code::NeedsConfirmation,
+            "Restore cancelled; the vault was not changed",
+        ));
     }
     if let Some(dir) = db_path.parent() {
         std::fs::create_dir_all(dir)

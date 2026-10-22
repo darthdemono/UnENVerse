@@ -48,9 +48,8 @@ pub fn emit(
     }
     match out_path {
         Some(p) => {
-            std::fs::write(p, &text)
+            vault_core::write_private(p, text.as_bytes())
                 .map_err(|e| CliError::from(format!("Cannot write {}: {e}", p.display())))?;
-            vault_core::restrict_to_owner(p).map_err(CliError::from)?;
             out::ok(
                 "emit",
                 json!({ "format": format, "written": p.display().to_string() }),

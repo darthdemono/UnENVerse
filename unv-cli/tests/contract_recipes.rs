@@ -130,3 +130,31 @@ fn the_failure_modes_the_page_promises_have_their_exit_codes() {
         shown(phrase);
     }
 }
+
+// Bug: without `--clean`, `unv exec` handed the child UNV_PASSWORD, the master password.
+#[test]
+fn exec_does_not_pass_the_master_password_to_the_child() {
+    let v = seeded("exec-no-password");
+    for args in [
+        vec![
+            "exec",
+            "--entry",
+            "GitHub=T",
+            "--",
+            "sh",
+            "-c",
+            "printf %s \"${UNV_PASSWORD-absent}\"",
+        ],
+        vec![
+            "shield",
+            "--",
+            "sh",
+            "-c",
+            "printf %s \"${UNV_PASSWORD-absent}\"",
+        ],
+    ] {
+        let o = v.run_text(&args);
+        assert_eq!(o.code, 0, "{}", o.all());
+        assert_eq!(o.stdout, "absent", "{args:?}");
+    }
+}

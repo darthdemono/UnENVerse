@@ -39,6 +39,24 @@ pub struct ExecOpts<'a> {
     pub clean: bool,
 }
 
+/// Variables that carry the way into this vault. A child process the user runs under `exec` or
+/// `shield` has no business holding the master password, so they are dropped from what it inherits.
+pub const CREDENTIAL_ENV: &[&str] = &[
+    "UNV_PASSWORD",
+    "UNV_NEW_PASSWORD",
+    "UNV_PASSWORD_FILE",
+    "UNV_PASSWORD_COMMAND",
+    "UNV_TOKEN",
+    "UNV_TOTP",
+];
+
+/// Removes [`CREDENTIAL_ENV`] from a child's inherited environment.
+pub fn drop_credentials(cmd: &mut std::process::Command) {
+    for k in CREDENTIAL_ENV {
+        cmd.env_remove(k);
+    }
+}
+
 /// Build the variable set without running anything.
 pub fn build_env(access: &Access, opts: &ExecOpts<'_>) -> CliResult<BTreeMap<String, String>> {
     let (env, files) = build_env_and_files(access, opts)?;
@@ -270,6 +288,8 @@ pub fn run(access: &Access, opts: &ExecOpts<'_>, argv: &[String]) -> CliResult<i
             }
         }
     }
+    // Bug: without `--clean` the child inherited UNV_PASSWORD, the master password.
+    drop_credentials(&mut cmd);
     for (k, v) in &env {
         cmd.env(k, v);
     }
