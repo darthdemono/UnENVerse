@@ -22,7 +22,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Fixed
 
-- The signed provider catalogue is fetched from `https://unenverse.darthdemono.com/catalogue/catalogue.json`; the old `github.io/EnvVault` address answers 404.
+- The catalogue signing key was replaced (the old private half was lost); builds from this one pin the new public key, older builds keep using the catalogue built into the binary. The signed provider catalogue is fetched from `https://unenverse.darthdemono.com/catalogue/catalogue.json`; the old `github.io/EnvVault` address answers 404.
 - A node's `validate` or `reload` command that printed more than a pipe buffer held (about 64 KB) blocked on its own output and was reported as a timeout. Both pipes are now drained while it runs.
 
 ## 0.57.0 (2026-10-22)
