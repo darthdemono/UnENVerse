@@ -706,7 +706,7 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     f.write_all(bytes).map_err(|e| e.to_string())?;
     f.sync_all().map_err(|e| e.to_string())?;
     drop(f);
-    std::fs::rename(&tmp, path).map_err(|e| e.to_string())
+    crate::platform::replace_file(&tmp, path).map_err(|e| e.to_string())
 }
 
 /// Prefix of the refusal when the file changed after the owner fetched it.
@@ -1534,8 +1534,13 @@ pub fn approver_seed(dir: &Path) -> Result<String, String> {
         hub_public(&t).map_err(|e| format!("{}: {e}", path.display()))?;
         return Ok(t);
     }
-    let seed = generate_hub_seed();
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    // On Windows the key used to live under the roaming profile; adopt it rather than make a
+    // second device identity that no node trusts.
+    let seed = match legacy_approver_dir().and_then(|old| adopt_legacy_key(&old).ok().flatten()) {
+        Some(adopted) => adopted,
+        None => generate_hub_seed(),
+    };
     // Written through the same private-file path as the registry.
     let tmp = path.with_extension("key.tmp");
     {
@@ -1557,13 +1562,47 @@ pub fn approver_seed(dir: &Path) -> Result<String, String> {
         let _ = std::fs::remove_file(&tmp);
         return approver_seed(dir);
     }
-    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+    crate::platform::replace_file(&tmp, &path).map_err(|e| e.to_string())?;
     Ok(seed)
 }
 
-/// Where the CLI keeps the device key: the directory the desktop app uses too.
+/// Where the CLI keeps the device key: the directory the desktop app uses too. On Windows that is
+/// the machine-local profile, not the roaming one, so a device key never follows the user to
+/// another computer (a roaming copy would make two machines the same approver).
 pub fn default_approver_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        return dirs::data_local_dir().map(|d| d.join("io.unenverse"));
+    }
+    #[cfg(not(windows))]
     dirs::data_dir().map(|d| d.join("io.unenverse"))
+}
+
+/// The roaming-profile directory an older Windows build kept the device key in, when it differs
+/// from where the key lives now.
+fn legacy_approver_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        return dirs::data_dir()
+            .map(|d| d.join("io.unenverse"))
+            .filter(|old| Some(old) != default_approver_dir().as_ref());
+    }
+    #[cfg(not(windows))]
+    None
+}
+
+/// Reads a valid `approver.key` from `legacy` so the caller can write it to the new place. The old
+/// file is never touched: an interrupted move leaves the old key working. A missing, unreadable or invalid old key adopts nothing.
+fn adopt_legacy_key(legacy: &Path) -> Result<Option<String>, String> {
+    let old = legacy.join("approver.key");
+    let Ok(text) = std::fs::read_to_string(&old) else {
+        return Ok(None);
+    };
+    let seed = text.trim().to_string();
+    if hub_public(&seed).is_err() {
+        return Ok(None);
+    }
+    Ok(Some(seed))
 }
 
 /// Signs an approval on the owner's device for exactly one request. The lifetime
@@ -3006,6 +3045,46 @@ reload = "systemctl reload nginx"
                 default_approver_dir(),
                 Some(PathBuf::from(appdata).join("io.unenverse"))
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod legacy_key_tests {
+    use super::*;
+
+    fn dir(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("vc-key-{tag}-{}", crate::new_uuid()));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn a_valid_old_key_is_adopted_and_the_old_file_stays() {
+        let old = dir("old");
+        let seed = generate_hub_seed();
+        std::fs::write(old.join("approver.key"), &seed).unwrap();
+        assert_eq!(
+            adopt_legacy_key(&old).unwrap().as_deref(),
+            Some(seed.as_str())
+        );
+        assert!(old.join("approver.key").exists(), "the old key is kept");
+    }
+
+    #[test]
+    fn a_missing_or_damaged_old_key_adopts_nothing() {
+        let old = dir("o2");
+        assert_eq!(adopt_legacy_key(&old).unwrap(), None);
+        std::fs::write(old.join("approver.key"), "not a key").unwrap();
+        assert_eq!(adopt_legacy_key(&old).unwrap(), None);
+    }
+
+    #[test]
+    fn on_this_platform_the_old_directory_is_only_set_where_it_differs() {
+        if cfg!(windows) {
+            assert_ne!(legacy_approver_dir(), default_approver_dir());
+        } else {
+            assert_eq!(legacy_approver_dir(), None);
         }
     }
 }

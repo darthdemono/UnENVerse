@@ -136,7 +136,7 @@ pub fn append(path: &Path, rec: &Record) -> Result<(), String> {
         }
         out.sync_all().map_err(|e| e.to_string())?;
         drop(out);
-        std::fs::rename(&tmp, path).map_err(|e| e.to_string())?;
+        vault_core::platform::replace_file(&tmp, path).map_err(|e| e.to_string())?;
     }
     Ok(())
 }

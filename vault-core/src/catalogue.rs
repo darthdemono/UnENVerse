@@ -218,7 +218,7 @@ fn store_with(raw: &[u8], key: &[u8; 32]) -> Result<Catalogue, String> {
         std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))
             .map_err(|e| e.to_string())?;
     }
-    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+    crate::platform::replace_file(&tmp, &path).map_err(|e| e.to_string())?;
     Ok(c)
 }
 

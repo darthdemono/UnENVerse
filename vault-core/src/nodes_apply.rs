@@ -203,7 +203,7 @@ fn write_atomic(
     f.write_all(bytes).map_err(|e| e.to_string())?;
     f.sync_all().map_err(|e| e.to_string())?;
     drop(f);
-    std::fs::rename(&tmp, path).map_err(|e| {
+    crate::platform::replace_file(&tmp, path).map_err(|e| {
         let _ = std::fs::remove_file(&tmp);
         format!("cannot replace {}: {e}", path.display())
     })?;

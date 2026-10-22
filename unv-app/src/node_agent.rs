@@ -133,7 +133,7 @@ pub(crate) fn save_state(dir: &Path, st: &NodeState) -> CliResult {
     .map_err(|e| CliError::from(e.to_string()))?;
     f.sync_all().map_err(|e| CliError::from(e.to_string()))?;
     drop(f);
-    std::fs::rename(&tmp, &p).map_err(|e| CliError::from(e.to_string()))
+    vault_core::platform::replace_file(&tmp, &p).map_err(|e| CliError::from(e.to_string()))
 }
 
 /// Plain HTTP is allowed to the loopback only. A node is sent rendered config,
