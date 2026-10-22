@@ -1,0 +1,221 @@
+unv audit --limit= --verify
+unv backup archive <file> --backup-password=
+unv backup dest add local <id> <path>
+unv backup dest add sftp <id> --auth= --credential= --host-key= --host= --path= --port= --username=
+unv backup dest ls
+unv backup dest rm <id>
+unv backup drill --dest=
+unv backup export <file> --backup-password=
+unv backup import <file> --backup-password=
+unv backup package --dest=
+unv backup recovery-key
+unv backup restore-archive <file> --backup-password= --force
+unv backup schedule add --daily= --dest= --interval= --max-lateness= --time-zone=
+unv backup schedule drill --at= --day= --dest= --max-lateness= --time-zone=
+unv backup schedule ls
+unv blast-radius --host= --since=
+unv bundle add <bundle> <entry> --slot=
+unv bundle delete <bundle>
+unv bundle dissolve <bundle>
+unv bundle ls
+unv bundle new <name> --import= --member=
+unv bundle remove <bundle> <slot>
+unv calendar export --kind= --name= --out= --project=
+unv calendar feed ls
+unv calendar feed new --include-account-names --kind= --name= --out=
+unv calendar feed revoke <id> --yes
+unv catalogue diff
+unv catalogue export
+unv catalogue show
+unv catalogue sign <input> --key-file= --out=
+unv catalogue update --file= --url=
+unv category add <name>
+unv category ls
+unv category rename <name> <new_name>
+unv category rm <name>
+unv check [project] --all-projects --fail-on= --json
+unv class add <name> --delete-projects --desc= --manage-classes --manage-users
+unv class ls --json
+unv class rm <class>
+unv class set <class> --delete-projects --desc= --manage-classes --manage-users --name=
+unv codes next <entry>
+unv codes status <entry>
+unv codes use <entry> [code]
+unv completions <shell>
+unv cookie curl <provider> --out=
+unv cookie header <provider> --out=
+unv cookie import <file> --create --entry= --from= --host= --origin=
+unv cookie json <provider> --out=
+unv cookie txt <provider> --out=
+unv curl <provider> [url] --out=
+unv cxf export --out= --provider=
+unv cxf import <file> --category= --project=
+unv describe
+unv diff <a> <b>
+unv doctor --fix
+unv emit <entry> --as= --out=
+unv enrich --apply --force --online --only= --timeout=
+unv entry add <provider> --account= --auth-param= --auth-scheme= --auth-template= --blob-file= --blob-ref= --callback-url= --categories= --cert-issuer= --cert-key= --cert= --composite-kind= --desc= --details= --email= --env-prefixes= --env-subtype= --env= --expires= --generate --generate-bytes= --generate-format= --icon-file= --icon= --if-missing --key-id= --key-stdin --key= --label= --mount-path= --no-public --no-secret-public --notes= --pgp-public= --pool= --preset= --price= --projects= --public --purpose= --rate-limit-count= --rate-limit-period= --rate-limit= --role= --rotation-days= --scopes= --secret-public --secret-role= --secret= --tags= --template= --totp-algorithm= --totp-counter= --totp-digits= --totp-kind= --totp-period= --totp-stdin --totp= --type= --url= --user-agent= --username= --var=
+unv entry compromise <provider> --off
+unv entry get <provider> --field=
+unv entry history <provider>
+unv entry ls --category= --env= --json --project= --search= --tag= --type=
+unv entry pin <provider> --off
+unv entry rename <provider> <new_name>
+unv entry restore <provider>
+unv entry rm <provider>
+unv entry rotate <provider> --generate --key= --stdin
+unv entry set <provider> --account= --auth-param= --auth-scheme= --auth-template= --blob-file= --blob-ref= --callback-url= --categories= --cert-issuer= --cert-key= --cert= --composite-kind= --create --desc= --details= --email= --env-prefixes= --env-subtype= --env= --expires= --generate --generate-bytes= --generate-format= --icon-file= --icon= --key-id= --key-stdin --key= --label= --mount-path= --no-public --no-secret-public --notes= --pgp-public= --pool= --price= --projects= --public --purpose= --rate-limit-count= --rate-limit-period= --rate-limit= --role= --rotation-days= --scopes= --secret-public --secret-role= --secret= --tags= --template= --totp-algorithm= --totp-counter= --totp-digits= --totp-kind= --totp-period= --totp-stdin --totp= --type= --url= --user-agent= --username= --var=
+unv entry tag <provider> --add= --remove=
+unv entry timeline <provider>
+unv entry verify <provider> --off
+unv env <project> --out=
+unv exec <argv> --clean --entry= --pool= --prefix= --project=
+unv export --format= --metadata= --name= --out= --profile= --project=
+unv file write <provider> --out=
+unv gen cert <common_name> --days= --save-as=
+unv gen password --length= --no-ambiguous --no-digits --no-lower --no-upper --symbols
+unv gen secret --bytes= --format=
+unv gen sources
+unv gen ssh --comment= --save-as=
+unv get [provider] --field= --metadata= --out= --pool= --profile=
+unv history diff [project] --exporter= --from= --out= --to=
+unv history diff-file <file> [project] --exporter= --seq=
+unv history ls [project] --exporter= --limit= --since=
+unv history policy --days= --disable --enable --keep=
+unv history prune --days= --keep=
+unv history show <seq> --out=
+unv history snapshot [project]
+unv history stats
+unv history verify
+unv history where <sha256>
+unv import <file> --allow-duplicates --category= --env= --json --price= --project=
+unv import-service <service> --addr= --apply --category= --endpoint= --environment= --identity-entry= --include-previous --keep-folders --mount= --namespace= --path= --project-id= --project= --region= --secret-path= --token-entry=
+unv import-vault <vendor> <file> --apply --category= --force --keep-folders --key-file= --no-password --project=
+unv list --category= --env= --json --project= --search= --tag= --type=
+unv login
+unv logout --all
+unv migrate apply <format> <file> --template
+unv migrate archive export <id> --out=
+unv migrate archive ls
+unv migrate cutover <migration>
+unv migrate drift <migration>
+unv migrate plan <format> <file> --template
+unv migrate report
+unv migrate sync <migration> --apply
+unv migrate uncutover <migration>
+unv migrate verify <migration>
+unv node accept <node> <target> --sha256=
+unv node approvals [node] --all
+unv node approve <approval>
+unv node approver ls
+unv node approver register --label=
+unv node approver rm <device>
+unv node approver show
+unv node automation-key
+unv node check --config=
+unv node enroll --advertise= --force --hub-fingerprint= --hub= --listen= --state-dir= --tofu --token-file= --token-stdin
+unv node install --advertise= --approver= --force --hub-fingerprint= --hub= --interval= --listen= --plan --relay= --target= --token-file= --token-stdin
+unv node ls
+unv node policy <node> --approval=
+unv node pull <node> <target> --apply --into-chunk= --out= --timeout=
+unv node reject <approval>
+unv node revoke <node>
+unv node run --config= --once --state-dir=
+unv node show <node>
+unv node token new <name> --out= --project= --ttl=
+unv oauth refresh <entry>
+unv ops cancel <id>
+unv ops ls
+unv ops run --dest=
+unv ops show <id>
+unv perm check <expression>
+unv perm set <kind> <subject> --read= --write=
+unv perm show <kind> <subject>
+unv plugin disable <name>
+unv plugin enable <name>
+unv plugin install <name> --dir=
+unv plugin ls --dir=
+unv plugin rm <name>
+unv plugin test <path>
+unv pool ls
+unv pool next <pool> --field=
+unv pool report <pool> [member] --for= --limited --ok
+unv pool reset <pool>
+unv pool show <pool>
+unv project add <name> --desc= --experimental --if-missing --slug= --type=
+unv project chunk add <project> <name> --type=
+unv project chunk disable <project> <chunk>
+unv project chunk enable <project> <chunk>
+unv project chunk ls <project>
+unv project chunk rename <project> <chunk> <new_name>
+unv project chunk rm <project> <chunk>
+unv project chunk set <project> <chunk> [pairs] --append --field-type= --secret
+unv project chunk show <project> <chunk> --raw
+unv project chunk unset <project> <chunk> [keys]
+unv project export <project> --format= --out=
+unv project ls --json
+unv project rename <project> [new_name] --slug=
+unv project rm <project>
+unv project show <project>
+unv recover inspect <package>
+unv recover restore <package> --identity= --to=
+unv recover verify <directory>
+unv render [template] --out= --strict
+unv reset-vault
+unv rotate plan <entry> --allow-roll --base-url= --field= --issuer= --pg-admin-user= --pg-database= --pg-host= --pg-port= --pg-psql= --pg-roles= --revoke-now --token-id=
+unv rotate run <entry> --allow-roll --base-url= --field= --issuer= --pg-admin-user= --pg-database= --pg-host= --pg-port= --pg-psql= --pg-roles= --resume= --revoke-now --token-id=
+unv rotate status [run]
+unv rotate-check --days=
+unv scan --exposed= --json --out= --severity=
+unv sessions
+unv shield <argv>
+unv status
+unv tags
+unv template ls
+unv template show <id>
+unv totp add <name> --account= --counter= --kind= --seed-stdin --seed=
+unv totp advance <provider> --by= --yes
+unv totp code <provider> --next
+unv totp export --format= --only= --out=
+unv totp import <file> --category= --force --format= --project=
+unv totp ls
+unv totp rm <provider>
+unv totp uri <provider> --out=
+unv uid check [values] --normalise=
+unv uid lookup <value> --normalise=
+unv uid mint --generator= --length= --namespace=
+unv uid prune <before> --actor= --dry-run --generator= --namespace= --yes
+unv uid register [values] --generator= --namespace= --normalise= --note=
+unv uid stats
+unv update check --manifest= --url=
+unv update install --archive= --manifest= --url=
+unv update sign --asset= --base-url= --key-file= --notes-file= --out=
+unv use [project] --clear --env= --show
+unv user add <username> --no-password --user-password=
+unv user class <user> [class] --none
+unv user ls --json
+unv user passwd <user> --clear
+unv user rename <user> <new_name>
+unv user rm <user>
+unv user strict-write <user> --off
+unv user token ls <user>
+unv user token new <user> --desc= --expires= --out=
+unv user token revoke <user> <token_id>
+unv user totp confirm <user> <code>
+unv user totp disable <user>
+unv user totp enroll <user> --out=
+unv user totp status <user>
+unv watch <file> --category= --project=
+unv whoami
+exit 0 ok
+exit 1 error
+exit 10 invalid
+exit 2 usage
+exit 3 not_found
+exit 4 ambiguous
+exit 5 denied
+exit 6 conflict
+exit 7 unavailable
+exit 8 needs_confirmation
+exit 9 redacted
