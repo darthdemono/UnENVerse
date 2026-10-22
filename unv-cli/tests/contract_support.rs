@@ -64,6 +64,10 @@ fn the_bundle_can_be_written_to_a_file_and_read_back() {
     assert_eq!(on_disk["entries"], 1);
 }
 
+fn dir_pw(v: &Vault) -> std::path::PathBuf {
+    v.path("demo/demo-password.txt")
+}
+
 /// `unv` run directly, with a clean environment, so the test is the same on every platform.
 fn unv(v: &Vault, password: Option<&str>, args: &[&str]) -> (i32, String) {
     let mut c = std::process::Command::new(env!("CARGO_BIN_EXE_unv"));
@@ -110,8 +114,11 @@ fn a_demo_vault_opens_with_its_printed_password_passes_doctor_and_refuses_to_ove
 
     let (code, text) = unv(&v, None, &["--json", "demo-vault", "--out", dir]);
     assert_eq!(code, 0, "{text}");
-    let made: serde_json::Value = serde_json::from_str(&text).unwrap();
-    let password = made["data"]["password"].as_str().unwrap().to_string();
+    assert!(
+        !text.contains("demo-password-"),
+        "the password must not be printed: {text}"
+    );
+    let password = std::fs::read_to_string(dir_pw(&v)).unwrap();
 
     let (code, text) = unv(&v, Some(&password), &["--db-path", db, "--json", "list"]);
     assert_eq!(code, 0, "{text}");
