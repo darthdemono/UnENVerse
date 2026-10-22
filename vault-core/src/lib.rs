@@ -61,6 +61,7 @@ pub mod ops;
 pub mod pgp;
 pub mod php_config;
 pub mod recovery;
+pub mod rotation;
 pub mod session_import;
 pub mod storage;
 pub mod templates;
