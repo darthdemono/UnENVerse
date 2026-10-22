@@ -153,6 +153,24 @@ pub fn derive_key(password: &str, salt: &[u8]) -> Result<VaultKey, String> {
     Ok(key)
 }
 
+/// Writes `bytes` to `path` so that no other user can read them at any moment: on Unix the file is
+/// created with mode 0600 (not written world-readable and tightened afterwards), and on every
+/// platform `restrict_to_owner` then settles an existing file's mode or access list.
+pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let mut opts = fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    opts.open(path)
+        .and_then(|mut f| f.write_all(bytes))
+        .map_err(|e| e.to_string())?;
+    restrict_to_owner(path)
+}
+
 /// Restrict a file to its owner. Unix sets mode 0600; Windows replaces the access list with a
 /// protected one that allows only the current user (`winacl`).
 pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
@@ -2645,5 +2663,33 @@ mod windows_acl_tests {
     #[test]
     fn restricting_a_path_that_does_not_exist_is_an_error_not_a_panic() {
         assert!(restrict_to_owner(&std::env::temp_dir().join(new_uuid())).is_err());
+    }
+}
+
+#[cfg(all(test, unix))]
+mod write_private_tests {
+    use super::*;
+
+    // Bug: credential files were written with the default mode and chmodded afterwards, and the
+    // server's TLS private key was left readable by every local user.
+    #[test]
+    fn write_private_creates_the_file_owner_only_even_over_a_loose_one() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("vc-private-{}", new_uuid()));
+        fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("k");
+        write_private(&f, b"one").unwrap();
+        assert_eq!(
+            fs::metadata(&f).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        fs::set_permissions(&f, fs::Permissions::from_mode(0o644)).unwrap();
+        write_private(&f, b"two").unwrap();
+        assert_eq!(fs::read(&f).unwrap(), b"two");
+        assert_eq!(
+            fs::metadata(&f).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 }
