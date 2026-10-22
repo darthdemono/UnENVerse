@@ -81,6 +81,12 @@ pub trait IssuerConnector {
     /// Overlapping: make a new credential called `name` (the name carries the entry, generation and
     /// run id, so it can be found again).
     fn create(&mut self, name: &str) -> Result<Credential, IssuerError>;
+    /// Client-generated: what the new credential is called at the issuer. The default is the run's
+    /// name; a connector with fixed identities (two database roles taking turns) returns the one
+    /// that is not `current_id`.
+    fn set_target(&self, _current_id: &str, run_name: &str) -> String {
+        run_name.to_string()
+    }
     /// Client-generated: tell the issuer to use `value` for `name`. Idempotent.
     fn set_value(&mut self, name: &str, value: &str) -> Result<(), IssuerError>;
     /// Provider-generated: roll `current` in place. The old value stops working.
@@ -336,7 +342,7 @@ impl Engine<'_> {
                 .store
                 .pending(&run.id)
                 .map(|value| Credential {
-                    id: run.name.clone(),
+                    id: run.new_id.clone().unwrap_or_else(|| run.name.clone()),
                     value,
                 })
                 .or_else(|| {
@@ -397,16 +403,17 @@ impl Engine<'_> {
                         v
                     }
                 };
-                match self.issuer.set_value(&run.name, &value) {
+                let target = self.issuer.set_target(&run.old_id, &run.name);
+                match self.issuer.set_value(&target, &value) {
                     Ok(()) => {
-                        run.new_id = Some(run.name.clone());
+                        run.new_id = Some(target.clone());
                         run.step = Step::Verifying;
                     }
                     Err(IssuerError::Rejected(e)) => stop(run, Status::Failed(e)),
                     Err(IssuerError::Lost(e)) => {
-                        match self.issuer.reconcile(&StepKind::SetValue, &run.name) {
+                        match self.issuer.reconcile(&StepKind::SetValue, &target) {
                             Ok(Reconcile::Done) => {
-                                run.new_id = Some(run.name.clone());
+                                run.new_id = Some(target.clone());
                                 run.step = Step::Verifying;
                             }
                             Ok(Reconcile::NotDone) => {} // repeat: set_value is idempotent
@@ -1222,6 +1229,68 @@ mod tests {
         assert_eq!(entry.current.value, "rolled-1");
         assert_eq!(cons.deployed["web"], "rolled-1");
         assert!(world.borrow().revoke_calls.is_empty());
+    }
+
+    #[test]
+    fn a_connector_with_fixed_identities_names_the_other_one_as_the_new_credential() {
+        struct Roles<'a>(&'a RefCell<World>);
+        impl IssuerConnector for Roles<'_> {
+            fn capabilities(&self) -> Vec<Class> {
+                vec![Class::SetValueClientGenerated]
+            }
+            fn verify(&mut self, _: &Credential) -> Result<(), IssuerError> {
+                Ok(())
+            }
+            fn create(&mut self, _: &str) -> Result<Credential, IssuerError> {
+                Err(IssuerError::Rejected("no".into()))
+            }
+            fn set_target(&self, current: &str, _: &str) -> String {
+                if current == "app_a" { "app_b" } else { "app_a" }.into()
+            }
+            fn set_value(&mut self, name: &str, value: &str) -> Result<(), IssuerError> {
+                self.0.borrow_mut().issuer.insert(name.into(), value.into());
+                Ok(())
+            }
+            fn roll(&mut self, _: &Credential) -> Result<Credential, IssuerError> {
+                Err(IssuerError::Rejected("no".into()))
+            }
+            fn revoke(&mut self, c: &Credential) -> Result<(), IssuerError> {
+                self.0.borrow_mut().revoke_calls.push(c.id.clone());
+                Ok(())
+            }
+            fn reconcile(&mut self, _: &StepKind, _: &str) -> Result<Reconcile, IssuerError> {
+                Ok(Reconcile::NotDone)
+            }
+        }
+        let world = RefCell::new(World::default());
+        let mut issuer = Roles(&world);
+        let mut run = Run::plan(
+            "r1",
+            "Db",
+            2,
+            Class::SetValueClientGenerated,
+            Policy::default(),
+            "app_a",
+        );
+        let mut cons = FakeConsumers::new(&["web"]);
+        let mut entry = FakeEntry::new();
+        let mut store = MemStore::default();
+        let gen = || "fresh-password".to_string();
+        Engine {
+            issuer: &mut issuer,
+            consumers: &mut cons,
+            entry: &mut entry,
+            store: &mut store,
+            generate: &gen,
+        }
+        .run(&mut run)
+        .unwrap();
+        assert_eq!(run.status, Status::Succeeded, "{:?}", run.status);
+        assert_eq!(
+            entry.current.id, "app_b",
+            "the entry now names the other role"
+        );
+        assert_eq!(world.borrow().revoke_calls, vec!["app_a".to_string()]);
     }
 
     #[test]
