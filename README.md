@@ -332,12 +332,17 @@ Four importers, all of them preview-first (the vendor ones are also in the app, 
 | `unv import-vault onepassword` | A 1Password JSON or `.1pux` export                        |
 | `unv import-vault keepass`     | A KeePassXC or KeePass KDBX3/KDBX4 database               |
 | `unv import-vault proton`      | A Proton Pass JSON export                                 |
+| `unv import-vault sops`        | A SOPS file, or a folder of them, through your `sops`     |
+| `unv import-vault pass`        | A `pass` store, through your `gpg`                        |
+| `unv import-vault gopass`      | The gopass store your `gopass` is configured for          |
 
 Bitwarden, 1Password and KeePass are durable source migrations. The CLI plans first, then, with `--apply`, writes entry rows, source identities and encrypted source archives in one transaction. Re-importing an unchanged source is a no-op; a changed source and a separately changed vault entry produce a named conflict. Attachments, documents, unsupported records and the original source stay encrypted in the vault archive, so an import never claims that it silently dropped them.
 
 The readers preserve Bitwarden cipher types 1 through 8, password history, every login URL, TOTP seeds and ZIP attachments; 1Password fields, OTPs and `.1pux` documents; and KeePass group metadata, history, protected custom fields, TOTP and KDBX attachments. Bitwarden encrypted or password-protected exports are refused by name under ADR-0093. KeePass prompts for its database password in memory; use `--key-file` for a key component and `--no-password --key-file <path>` for a key-file-only database.
 
 These three readers are implemented from their published formats and are not yet verified against sanitized current-product exports. The desktop Tools pane names that limitation and directs to the CLI because its former quick import could not atomically retain source identities and binary archives. Bitwarden individual exports omit organization-owned and trashed items; 1Password `.1pux` exports do not represent passkeys. Both are named as missing at source in the report.
+
+**Git stores (SOPS, pass, gopass)** are read through your own tools, never reimplemented: `unv` runs `sops decrypt`, `gpg --decrypt` or `gopass show` with a cleared environment, a deadline and an output cap, so your keys and passphrase prompt stay with those tools. A SOPS file becomes one entry whose variables are the dotted key paths (`db.password`); a `pass` or gopass secret takes its first line as the password, `user:`, `url:` and `otpauth://` lines as fields and the whole body as the description. SOPS metadata and the creation rules are kept as non-operational provenance. After an import the source stays authoritative: editing a secret field in the vault is refused, naming the source, and `unv migrate sync MIGRATION --apply` refreshes the values one way. `unv migrate drift MIGRATION` reports what changed at the source without importing it, and `unv migrate cutover MIGRATION` makes the vault the authority (reversible with `uncutover` until a credential changes). See ADR-0161.
 
 `unv watch FILE` keeps a `.env` in sync with the vault as you edit it. It upserts by provider, because the first version appended unconditionally and added a full copy of the file to the vault on every save.
 

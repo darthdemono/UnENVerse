@@ -176,3 +176,4 @@
   - [0158: The CLI updates itself only from a separately signed manifest](adr/0158-the-cli-updates-itself-only-from-a-separately-signed-manifest.md)
   - [0159: Main is protected by a ruleset and builds follow what changed](adr/0159-main-is-protected-by-a-ruleset-and-builds-follow-what-changed.md)
   - [0160: Releases cover arm64 and static musl builds](adr/0160-releases-cover-arm64-and-static-musl-builds.md)
+  - [0161: Git stores are read through the user's tools and stay authoritative until cutover](adr/0161-git-stores-are-read-through-the-users-tools-and-stay-authoritative-until-cutover.md)
