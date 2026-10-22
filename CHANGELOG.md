@@ -2,6 +2,13 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## Unreleased
+
+### Added
+
+- Import from Git stores through your own tools: `unv import-vault sops`, `pass` and `gopass`. `sops decrypt`, `gpg --decrypt` and `gopass show` run with a cleared environment, a deadline, an output cap and scrubbed error text; a SOPS file becomes an entry of dotted key-path variables, a `pass` or gopass secret keeps its first line as the password and its whole body as the description, and SOPS metadata is archived as non-operational provenance.
+- After a Git-store import the source stays authoritative: editing a secret field of such an entry is refused with a message naming the source (the desktop app, the command line and the server share the rule), `unv migrate sync` refreshes the vault one way, `unv migrate drift` reports what changed at the source without importing it, and `unv migrate cutover` and `uncutover` hand authority to the vault and back, refusing to go back once a credential has changed.
+
 ## 0.57.0 (2026-10-22)
 
 ### Added
