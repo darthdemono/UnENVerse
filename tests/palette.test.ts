@@ -3,6 +3,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadRealIndexHtml } from './helpers';
+vi.mock('../src/ts/lock', () => ({ lockVault: vi.fn() }));
+
+import { lockVault } from '../src/ts/lock';
 import {
   closePalette,
   filterCommands,
@@ -92,6 +95,8 @@ describe('the palette', () => {
     input.dispatchEvent(new Event('input'));
     expect(document.querySelector('.palette-empty')?.textContent).toBe('No matching command');
     expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+    key(input, 'x'); // an ordinary key is left for the input
+    expect(isPaletteOpen()).toBe(true);
     key(input, 'ArrowDown'); // nothing to move through
     key(input, 'Enter'); // nothing to run, stays open
     expect(isPaletteOpen()).toBe(true);
@@ -165,5 +170,37 @@ describe('the built-in commands', () => {
     run('clear-filters');
     run('go-tools');
     expect(document.getElementById('tools-panel')).not.toBeNull();
+  });
+
+  it('navigation commands switch the panel the activity bar would', () => {
+    const list = paletteCommands();
+    for (const [id, tab] of [
+      ['go-tools', 'activity-tab-tools'],
+      ['go-remote', 'activity-tab-remote'],
+      ['go-users', 'activity-tab-users'],
+      ['go-auth', 'activity-tab-auth'],
+      ['go-secrets', 'activity-tab-secrets'],
+    ] as const) {
+      list.find((c) => c.id === id)!.run();
+      expect(document.getElementById(tab)!.getAttribute('aria-selected'), id).toBe('true');
+    }
+  });
+
+  it('add, settings and lock call what their buttons call', () => {
+    const list = paletteCommands();
+    list.find((c) => c.id === 'add')!.run();
+    expect(document.getElementById('modal-overlay')!.classList.contains('open')).toBe(true);
+    list.find((c) => c.id === 'settings')!.run();
+    expect(document.getElementById('settings-overlay')!.classList.contains('open')).toBe(true);
+    list.find((c) => c.id === 'lock')!.run();
+    expect(lockVault).toHaveBeenCalledOnce();
+  });
+
+  it('search and sidebar commands tolerate a page without those controls', () => {
+    document.getElementById('search')!.remove();
+    document.getElementById('sidebar-toggle')!.remove();
+    const list = paletteCommands();
+    expect(() => list.find((c) => c.id === 'search')!.run()).not.toThrow();
+    expect(() => list.find((c) => c.id === 'sidebar')!.run()).not.toThrow();
   });
 });
