@@ -2,6 +2,25 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.60.0 (2026-10-22)
+
+### Security
+
+An external source-code audit of 0.58.0 found two high and several medium issues. All of them, and several low ones, are fixed here, each with a regression test.
+
+- A node grant names a project, and a user with any write permission could add a project whose id equalled that name, so the hub rendered the attacker's project for the node. The hub now resolves a grant to exactly one project and refuses an ambiguous one.
+- A `manage-users` delegate with a narrow data scope could reset the password of, mint a token for, or reset the second factor of a lower-tier user who could read more, and could widen a subordinate by clearing their individual restriction or changing their class. Acting on an account now also requires the actor's own scope to cover that account's, and a change that would leave the target wider than the actor is undone.
+- Restoring a recovery package wrote members named `../x` or an absolute path outside its staging directory. Member names must now be plain relative paths.
+- A permission expression of a few thousand nested parentheses crashed the server with a stack overflow. Expressions are limited to 256 tokens.
+- `unv exec` and `unv shield` passed `UNV_PASSWORD`, the master password, to the child process unless `--clean` was given. The credential variables are now removed from what a child inherits.
+- `unv backup restore-archive --force` replaced the vault even when you answered no.
+- The container compose file and the documented `docker run` published the plain-HTTP port on every interface. They now bind to 127.0.0.1 and say how to serve other machines over TLS.
+- The generated TLS private key and credential files written by `unv emit`, `unv cxf export`, `unv user token new --out`, the session file, feed URLs, migration archives and archive restores were created with the default mode and tightened afterwards. They are now created owner-only.
+- The server minted a new salt for an existing vault whose salt file was missing, for any caller of `/api/unlock`. It now reports the missing salt. An interrupted password change is recovered before the salt is read.
+- Calendar feed tokens were written to the log when a fetch was rejected; named users could be given an empty password (twelve characters are now required).
+
+Not changed, by decision: the unauthenticated `/api/stats` counters, the first caller initialising an empty server, display fingerprints of weak secrets, and key material lingering in memory after lock. They are recorded for a later release.
+
 ## 0.59.0 (2026-10-22)
 
 ### Added

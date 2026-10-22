@@ -34,6 +34,12 @@ generated from the code, playbooks for a leak and the format policy, and a fix t
 derivation settings read from a backup file. The desktop actions for the password change, forget
 and the support bundle, and the desktop bridge of R18, are still to do.
 
+Release 0.60.0 is a security release: it fixes the issues an external audit of 0.58.0 found (node
+grants, delegated user management, recovery package paths, permission expression depth, the master
+password reaching child processes, the restore confirmation, container exposure and file modes).
+Four low findings are recorded and left for later: the public counters, first-caller
+initialisation, display fingerprints of weak secrets and key residue after lock.
+
 ## The year, by quarter
 
 ### October to December 2026: foundations
