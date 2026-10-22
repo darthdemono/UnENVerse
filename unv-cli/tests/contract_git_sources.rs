@@ -347,3 +347,98 @@ fn uncutover_hands_authority_back_while_nothing_changed() {
     ]);
     assert_eq!(refused.code, 6, "{}", refused.all());
 }
+
+fn have(tool: &str) -> bool {
+    std::process::Command::new(tool)
+        .arg("--version")
+        .output()
+        .is_ok_and(|o| o.status.success())
+}
+
+/// The same import with a real `gpg`: a throwaway key in a temporary GNUPGHOME (no passphrase, so
+/// no pinentry), a real encrypted `.gpg` file in a pass-shaped store, and the real `unv` reading it.
+/// The stub tests above prove the plumbing; this proves the plumbing meets a real tool.
+#[test]
+fn a_real_gpg_decrypts_a_pass_store_through_unv() {
+    if !have("gpg") {
+        eprintln!("gpg is not installed; skipping the real-tool test");
+        return;
+    }
+    let v = Vault::new("realgpg");
+    // GnuPG sockets live under GNUPGHOME and the path is limited to about 100 bytes.
+    let home = std::path::PathBuf::from(format!("/tmp/unvg-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::set_permissions(&home, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let gpg = |args: &[&str]| {
+        let o = std::process::Command::new("gpg")
+            .env("GNUPGHOME", &home)
+            .args(["--batch", "--yes", "--pinentry-mode", "loopback"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            o.status.success(),
+            "gpg {args:?}: {}",
+            String::from_utf8_lossy(&o.stderr)
+        );
+        o
+    };
+    gpg(&[
+        "--passphrase",
+        "",
+        "--quick-generate-key",
+        "unv test <unv-test@example.test>",
+        "ed25519",
+        "sign",
+        "never",
+    ]);
+    let listing = gpg(&["--list-keys", "--with-colons", "unv-test@example.test"]);
+    let fpr = String::from_utf8_lossy(&listing.stdout)
+        .lines()
+        .find(|l| l.starts_with("fpr:"))
+        .and_then(|l| l.split(':').nth(9))
+        .unwrap()
+        .to_string();
+    gpg(&[
+        "--passphrase",
+        "",
+        "--quick-add-key",
+        &fpr,
+        "cv25519",
+        "encr",
+        "never",
+    ]);
+
+    let store = v.path("store");
+    std::fs::create_dir_all(store.join("work")).unwrap();
+    std::fs::write(store.join(".gpg-id"), "unv-test@example.test\n").unwrap();
+    let plain = v.path("plain.txt");
+    std::fs::write(
+        &plain,
+        format!("{SECRET}\nuser: alice\nurl: https://work.example.test\n"),
+    )
+    .unwrap();
+    gpg(&[
+        "--trust-model",
+        "always",
+        "-r",
+        "unv-test@example.test",
+        "-e",
+        "-o",
+        store.join("work/vpn.gpg").to_str().unwrap(),
+        plain.to_str().unwrap(),
+    ]);
+
+    let home_str = home.to_string_lossy().into_owned();
+    let env = [("GNUPGHOME", home_str.as_str())];
+    let o = v.run_env(
+        &env,
+        &["import-vault", "pass", store.to_str().unwrap(), "--apply"],
+    );
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(names(&v), vec!["work/vpn"]);
+    assert_eq!(v.reveal_field("work/vpn", "api_key"), SECRET);
+    let shown = v.ok(&["get", "work/vpn"])["entries"][0].clone();
+    assert_eq!(shown["username"], "alice", "{shown}");
+    let _ = std::fs::remove_dir_all(&home);
+}
