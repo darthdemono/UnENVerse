@@ -345,15 +345,13 @@ impl Engine<'_> {
                     (run.step > Step::Committing).then_some(current)
                 }),
             _ => {
-                let current = self.entry.current();
-                if run.new_id.as_deref() == Some(current.id.as_str()) {
-                    Some(current)
-                } else {
-                    self.store
-                        .pending(&run.id)
-                        .zip(run.new_id.clone())
-                        .map(|(value, id)| Credential { id, value })
+                // The pending value wins while it exists: a rolled credential keeps its id, so the
+                // entry's current credential has the same id as the new one until it is committed.
+                if let Some((value, id)) = self.store.pending(&run.id).zip(run.new_id.clone()) {
+                    return Some(Credential { id, value });
                 }
+                let current = self.entry.current();
+                (run.new_id.as_deref() == Some(current.id.as_str())).then_some(current)
             }
         }
     }
@@ -595,6 +593,14 @@ impl Engine<'_> {
             return;
         }
         if run.revoked {
+            run.step = Step::Finished;
+            run.status = Status::Succeeded;
+            return;
+        }
+        if run.class == Class::RollProviderGenerated {
+            // A roll replaced the value under the same id: the old value died when the new one was
+            // issued, and a revoke by id would delete the credential just rotated.
+            run.revoked = true;
             run.step = Step::Finished;
             run.status = Status::Succeeded;
             return;
@@ -1204,6 +1210,18 @@ mod tests {
         );
         assert!(world.borrow().revoke_calls.is_empty());
         assert_eq!(entry.current.value, "old-value");
+    }
+
+    #[test]
+    fn a_successful_roll_deploys_the_rolled_value_and_never_revokes_by_id() {
+        // Bug: a rolled credential keeps its id, so the engine verified and deployed the entry's
+        // old value (same id) and then revoked the credential it had just rotated.
+        let (run, world, cons, entry, _) =
+            engine_run(Class::RollProviderGenerated, |_, _, _| {}, &["web"]);
+        assert_eq!(run.status, Status::Succeeded, "{:?}", run.status);
+        assert_eq!(entry.current.value, "rolled-1");
+        assert_eq!(cons.deployed["web"], "rolled-1");
+        assert!(world.borrow().revoke_calls.is_empty());
     }
 
     #[test]
