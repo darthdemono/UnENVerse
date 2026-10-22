@@ -605,6 +605,8 @@ export function stopTotpTicker(): void {
  * fraction of the period remaining; `.totp-secs` is the number of seconds.
  */
 export async function tickTotp(): Promise<void> {
+  // The 1 s interval can fire after a window is torn down; there is nothing to paint then.
+  if (typeof document === 'undefined') return;
   const slots = [...document.querySelectorAll<HTMLElement>('[data-totp-for]')];
   if (!slots.length) return;
   for (const slot of slots) {
