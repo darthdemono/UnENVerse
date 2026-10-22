@@ -2435,11 +2435,15 @@ mod export_file_tests {
     use std::path::PathBuf;
 
     fn scratch() -> PathBuf {
+        // A counter as well as the clock: macOS's clock ticks in microseconds, so two tests
+        // running in parallel could share a directory and one would delete the other's.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("unenverse-export-test-{nanos}"));
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("unenverse-export-test-{nanos}-{n}"));
         fs::create_dir_all(&path).unwrap();
         path
     }
