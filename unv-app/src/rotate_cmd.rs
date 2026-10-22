@@ -13,6 +13,7 @@ use crate::access::Access;
 use crate::data;
 use crate::error::{CliError, CliResult};
 use crate::issuer_cloudflare::Cloudflare;
+use crate::issuer_postgres::Postgres;
 use crate::out;
 use serde_json::{json, Value};
 use vault_core::rotation::{
@@ -31,6 +32,18 @@ pub struct Opts<'a> {
     pub allow_roll: bool,
     pub revoke_now: bool,
     pub resume: Option<&'a str>,
+    pub pg: PgOpts<'a>,
+}
+
+/// PostgreSQL settings; the admin password comes from `UNV_PG_ADMIN_PASSWORD`, never an argument.
+#[derive(Default, Clone, Copy)]
+pub struct PgOpts<'a> {
+    pub host: Option<&'a str>,
+    pub port: Option<&'a str>,
+    pub database: Option<&'a str>,
+    pub admin_user: Option<&'a str>,
+    pub roles: Option<&'a str>,
+    pub psql: Option<&'a str>,
 }
 
 struct VaultEntry<'a> {
@@ -125,14 +138,37 @@ fn connector(o: &Opts<'_>, manager: Credential) -> CliResult<Box<dyn IssuerConne
             Cloudflare::new(o.base_url.unwrap_or(CLOUDFLARE_BASE), manager, o.allow_roll)
                 .map_err(CliError::invalid)?,
         )),
+        "postgres" => {
+            let roles = o.pg.roles.unwrap_or("app_a,app_b");
+            let (a, b) = roles
+                .split_once(',')
+                .filter(|(a, b)| !a.is_empty() && !b.is_empty() && a != b)
+                .ok_or_else(|| {
+                    CliError::invalid("--pg-roles takes two different names: app_a,app_b")
+                })?;
+            let admin_password = std::env::var("UNV_PG_ADMIN_PASSWORD").map_err(|_| {
+                CliError::invalid("Set UNV_PG_ADMIN_PASSWORD to the admin role's password")
+            })?;
+            Ok(Box::new(Postgres {
+                psql: o.pg.psql.unwrap_or("psql").into(),
+                host: o.pg.host.unwrap_or("localhost").into(),
+                port: o.pg.port.unwrap_or("5432").into(),
+                database: o.pg.database.unwrap_or("postgres").into(),
+                admin_user: o.pg.admin_user.unwrap_or("postgres").into(),
+                admin_password,
+                roles: (a.into(), b.into()),
+            }))
+        }
         other => Err(CliError::invalid(format!(
-            "Unknown issuer '{other}' (available: cloudflare)"
+            "Unknown issuer '{other}' (available: cloudflare, postgres)"
         ))),
     }
 }
 
 fn class_of(o: &Opts<'_>) -> Class {
-    if o.allow_roll {
+    if o.issuer == "postgres" {
+        Class::SetValueClientGenerated
+    } else if o.allow_roll {
         Class::RollProviderGenerated
     } else {
         Class::CreateOverlapping
@@ -180,8 +216,12 @@ pub fn plan(access: &Access, o: &Opts<'_>) -> CliResult {
         "store it in the entry as the next generation",
         "deploy to each consumer, then check each",
     ];
+    if class == Class::SetValueClientGenerated {
+        steps[0] = "generate a password and set it on the other role (sent as a SCRAM verifier, never as plaintext)";
+        steps[1] = "verify the other role can log in with it";
+    }
     steps.push(if o.revoke_now {
-        "revoke the old credential"
+        "revoke the old credential (clear the old role's password)"
     } else {
         "leave the old credential valid (pass --revoke-now once nothing else uses it)"
     });
@@ -262,7 +302,11 @@ pub fn run(access: &Access, o: &Opts<'_>) -> CliResult {
         previous: None,
     };
     let mut store = SqlStore { conn: &conn };
-    let gen = || String::new();
+    let gen = || {
+        use base64::Engine as _;
+        let bytes: [u8; 32] = rand::random();
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+    };
     Engine {
         issuer: issuer.as_mut(),
         consumers: &mut NoConsumers,

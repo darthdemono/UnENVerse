@@ -110,3 +110,37 @@ fn an_unknown_issuer_and_a_missing_token_id_are_refused_before_any_call() {
     assert_ne!(o.code, 0);
     assert!(o.all().contains("--token-id"), "{}", o.all());
 }
+
+/// Against a real PostgreSQL (see `issuer_postgres::tests`): the binary rotates `app_a` to `app_b`,
+/// stores the generated password, remembers the role, and clears the old role last.
+/// Needs `UNV_TEST_PSQL`, `UNV_TEST_PG_HOST`, `UNV_TEST_PG_ADMIN_PASSWORD` and `UNV_TEST_PG_A`.
+#[test]
+#[ignore = "needs a PostgreSQL server"]
+fn postgres_roles_take_turns_through_the_binary() {
+    let var = |k: &str| std::env::var(k).unwrap_or_else(|_| panic!("{k} is not set"));
+    let v = setup("rotate-pg", &var("UNV_TEST_PG_A"));
+    let host = var("UNV_TEST_PG_HOST");
+    let psql = var("UNV_TEST_PSQL");
+    let env = [("UNV_PG_ADMIN_PASSWORD", var("UNV_TEST_PG_ADMIN_PASSWORD"))];
+    let env: Vec<(&str, &str)> = env.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let args = [
+        "rotate",
+        "run",
+        "CF",
+        "--issuer",
+        "postgres",
+        "--token-id",
+        "app_a",
+        "--pg-host",
+        host.as_str(),
+        "--pg-psql",
+        psql.as_str(),
+        "--revoke-now",
+    ];
+    let o = v.run_env(&env, &args);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(o.json()["data"]["status"]["status"], "succeeded");
+    assert_ne!(v.reveal_field("CF", "api_key"), var("UNV_TEST_PG_A"));
+    let again = v.run(&["rotate", "plan", "CF", "--issuer", "postgres"]);
+    assert_eq!(again.json()["data"]["token_id"], "app_b");
+}
