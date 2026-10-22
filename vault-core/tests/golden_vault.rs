@@ -88,7 +88,7 @@ fn old_vault_opens_and_verifies() {
         .unwrap()
         .map(|row| row.unwrap())
         .collect();
-    assert_eq!(migrations, vec![1, 2, 3, 4]);
+    assert_eq!(migrations, vec![1, 2, 3, 4, 5]);
     let v = vault_core::load_vault(&conn).unwrap().unwrap();
     assert_eq!(v["api_keys"].as_array().unwrap().len(), 3);
     let proj = &v["projects"][0];
@@ -330,5 +330,25 @@ fn generate() {
     std::fs::create_dir_all(&out).unwrap();
     std::fs::copy(&db, out.join("vault.db")).unwrap();
     std::fs::copy(tmp.join("vault.salt"), out.join("vault.salt")).unwrap();
+    let _ = std::fs::remove_dir_all(tmp);
+}
+
+#[test]
+fn an_old_vault_gets_an_identity_on_first_open_and_keeps_it() {
+    let (tmp, db, _salt) = copy_to_temp("identity");
+    let key = derive_key(PW, &SALT).unwrap();
+    let conn = open_db(&db, &key).unwrap();
+    vault_core::init_schema(&conn).unwrap();
+    let first = vault_core::identity::ensure(&conn).unwrap();
+    assert_eq!(first.epoch, 1);
+    assert_eq!(first.role, vault_core::identity::Role::Active);
+    drop(conn);
+    let conn = open_db(&db, &key).unwrap();
+    vault_core::init_schema(&conn).unwrap();
+    assert_eq!(
+        vault_core::identity::ensure(&conn).unwrap(),
+        first,
+        "stable across opens"
+    );
     let _ = std::fs::remove_dir_all(tmp);
 }

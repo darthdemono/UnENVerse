@@ -456,6 +456,10 @@ pub fn restore_package_with_identity(
     } else {
         fs::rename(&stage, target).map_err(|e| err("install restored vault", e))?;
     }
+    // The restored vault must not believe it is the one that was backed up: its first open makes
+    // it a new, standby instance (see `identity`).
+    fs::write(target.join(crate::identity::RESTORED_MARKER), b"")
+        .map_err(|e| err("mark the restored vault as a new instance", e))?;
     Ok(manifest)
 }
 
@@ -569,6 +573,35 @@ mod tests {
         let target = dir.join("restored");
         restore_package(&package, &target, &identity).unwrap();
         assert_eq!(verify_restored(&target, &password).unwrap().entry_count, 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_restored_vault_opens_as_a_new_standby_instance_of_the_same_vault() {
+        let dir = scratch("standby");
+        let (package, password, identity) = package_fixture(&dir);
+        let target = dir.join("restored");
+        restore_package(&package, &target, &identity).unwrap();
+        assert!(target.join(crate::identity::RESTORED_MARKER).exists());
+        // The marker is not part of the manifest, so verification is unaffected by it.
+        verify_restored(&target, &password).unwrap();
+        let salt = fs::read(target.join("vault.salt")).unwrap();
+        let key = crate::derive_key(&password, &salt).unwrap();
+        let before = {
+            let c = crate::open_db(&target.join("vault.db"), &key).unwrap();
+            crate::identity::ensure(&c).unwrap()
+        };
+        // The first full open (schema init) consumes the marker.
+        let c = crate::open_db(&target.join("vault.db"), &key).unwrap();
+        crate::init_schema(&c).unwrap();
+        let after = crate::identity::ensure(&c).unwrap();
+        assert_eq!(after.vault_id, before.vault_id);
+        assert_ne!(after.instance_id, before.instance_id);
+        assert_eq!(after.role, crate::identity::Role::Standby);
+        assert!(!target.join(crate::identity::RESTORED_MARKER).exists());
+        // Opening again does not change it.
+        crate::init_schema(&c).unwrap();
+        assert_eq!(crate::identity::ensure(&c).unwrap(), after);
         fs::remove_dir_all(dir).unwrap();
     }
 

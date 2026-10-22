@@ -13,6 +13,7 @@ use std::path::Path;
 pub use zeroize::Zeroize;
 
 pub mod generators;
+pub mod identity;
 pub mod jwks;
 #[cfg(windows)]
 mod winacl;
@@ -354,7 +355,12 @@ pub fn open_db(db_path: &Path, key: &VaultKey) -> Result<Connection, String> {
 /// All schema changes now run through numbered, recorded migrations. Keeping
 /// this compatibility entry point prevents older callers from bypassing them.
 pub fn init_schema(conn: &Connection) -> Result<(), String> {
-    migrate_schema::migrate_schema(conn)
+    migrate_schema::migrate_schema(conn)?;
+    // A restore leaves a marker beside the database: this open is the first of a new instance.
+    if let Some(path) = conn.path().filter(|p| !p.is_empty()) {
+        identity::on_open(conn, Path::new(path))?;
+    }
+    Ok(())
 }
 
 // ── Entry identity ────────────────────────────────────────────────────────────
