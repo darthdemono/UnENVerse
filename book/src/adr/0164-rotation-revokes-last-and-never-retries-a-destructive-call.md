@@ -14,4 +14,4 @@ The old credential is revoked last, and only when every required consumer was de
 
 ## Consequences
 
-The Cloudflare connector (`create` by default, `roll` only with `--allow-roll`) is the first issuer and `unv rotate plan|run|status` drives it. Without consumers a run ends `revocation_pending` unless `--revoke-now` says nothing else uses the old token. PostgreSQL, node targets as consumers, and a review screen are still to come.
+The Cloudflare connector (`create` by default, `roll` only with `--allow-roll`) is the first issuer and `unv rotate plan|run|status` drives it. Without consumers a run ends `revocation_pending` unless `--revoke-now` says nothing else uses the old token. The PostgreSQL connector uses two roles that take turns (`--issuer postgres`): the new password goes to the role not in use as a SCRAM-SHA-256 verifier computed here, so no statement or server log holds the plaintext (checked against a real server with `log_statement = all`), and the old role's password is cleared last. Both writes are idempotent, so a lost answer is repeated. Node targets as consumers and a review screen are still to come.
