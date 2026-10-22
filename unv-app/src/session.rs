@@ -83,9 +83,14 @@ fn write_all(v: &Value) -> CliResult {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| CliError::from(e.to_string()))?;
     }
-    std::fs::write(&path, serde_json::to_string_pretty(v).unwrap_or_default())
-        .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
-    restrict(&path)
+    vault_core::write_private(
+        &path,
+        serde_json::to_string_pretty(v)
+            .unwrap_or_default()
+            .as_bytes(),
+    )
+    .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
+    Ok(())
 }
 
 /// Restrict the session file to its owner.

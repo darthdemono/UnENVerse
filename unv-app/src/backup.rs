@@ -226,12 +226,10 @@ pub fn archive(path: &std::path::Path, password: Option<&str>) -> CliResult {
         .map_err(|e| CliError::unavailable(format!("Cannot read {}: {e}", salt_path.display())))?;
 
     let (envelope_text, manifest) = build_archive(&db, &salt, &pw)?;
-    std::fs::write(path, envelope_text)
+    // The archive is the vault. Anything that can read it can open the vault with the archive
+    // password alone, so it is created owner-only, not written and tightened afterwards.
+    vault_core::write_private(path, envelope_text.as_bytes())
         .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
-    // The archive is the vault. Anything that can read it can open the vault
-    // with the archive password alone, so it gets the same mode as the session
-    // file rather than whatever the umask happened to be.
-    crate::session::restrict(path)?;
 
     crate::out::ok(
         "backup archive",
@@ -298,12 +296,10 @@ pub fn restore_archive_with(
     }
     // Salt first. If writing the database then fails, a salt without a database
     // is recoverable — you restore again. A database without its salt is not.
-    std::fs::write(&salt_path, &salt)
+    vault_core::write_private(&salt_path, &salt)
         .map_err(|e| CliError::from(format!("Cannot write {}: {e}", salt_path.display())))?;
-    crate::session::restrict(&salt_path)?;
-    std::fs::write(&db_path, &db)
+    vault_core::write_private(&db_path, &db)
         .map_err(|e| CliError::from(format!("Cannot write {}: {e}", db_path.display())))?;
-    crate::session::restrict(&db_path)?;
 
     crate::out::ok(
         "backup restore-archive",
