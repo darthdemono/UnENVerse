@@ -15,8 +15,13 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - A command palette (Ctrl+Shift+P) for navigation and the top actions; Info findings in the health scan fold behind a count; the price badge on a card is quiet (hidden for free, dimmed otherwise until the card is hovered).
 - Windows: the vault folder, database, salt, recovery files and scratch directories get an owner-only access list, `unv doctor` checks it, and the device approval key lives in the machine-local profile (an old roaming key is adopted, never deleted). A rename over a file another program holds open is retried briefly. `unv doctor` warns when the vault is on a network filesystem. macOS builds with vendored SQLCipher and is tested in an informational CI job (ADR-0166).
 
+### Contract
+
+- `unv describe` carries `contract_version` (the old `contract` key stays). A committed snapshot of every command, positional and flag name and every exit code fails a test when one is removed or renamed. The scripting contract is written down in the book with recipes that a test runs (`book/src/contract.md`).
+
 ### Fixed
 
+- The signed provider catalogue is fetched from `https://unenverse.darthdemono.com/catalogue/catalogue.json`; the old `github.io/EnvVault` address answers 404.
 - A node's `validate` or `reload` command that printed more than a pipe buffer held (about 64 KB) blocked on its own output and was reported as a timeout. Both pipes are now drained while it runs.
 
 ## 0.57.0 (2026-10-22)

@@ -27,9 +27,12 @@ use std::path::PathBuf;
 
 pub const SCHEMA: u32 = 1;
 
-/// Where the scheduled `docs.yml` run publishes the signed catalogue. Not yet
-/// verified against a live Pages deployment.
-pub const DEFAULT_URL: &str = "https://darthdemono.github.io/EnvVault/catalogue/catalogue.json";
+/// Where the scheduled `docs.yml` run publishes the signed catalogue: the project's own domain, which
+/// is what the old `github.io/EnvVault` and `github.io/UnENVerse` addresses redirect to (the first no
+/// longer answers at all, so there is no fallback to keep). The file is only there once the
+/// `CATALOGUE_SIGNING_KEY` Actions secret exists; until then a client gets a 404 and uses the
+/// catalogue built into the binary.
+pub const DEFAULT_URL: &str = "https://unenverse.darthdemono.com/catalogue/catalogue.json";
 
 /// Ed25519 public key the catalogue must be signed with. The private half is
 /// the `CATALOGUE_SIGNING_KEY` Actions secret; rotating it means a release.
@@ -228,6 +231,13 @@ fn load_cached_with(key: &[u8; 32]) -> Option<Catalogue> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_default_url_is_https_on_the_project_domain() {
+        // The old github.io address answers 404, so a catalogue fetched from it was never found.
+        assert!(DEFAULT_URL.starts_with("https://unenverse.darthdemono.com/"));
+        assert!(DEFAULT_URL.ends_with("/catalogue/catalogue.json"));
+    }
+
     use super::*;
 
     const SEED: [u8; 32] = [7; 32];
