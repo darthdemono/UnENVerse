@@ -2,6 +2,8 @@
 
 - [UnENVerse](README.md)
 - [Security model](security.md)
+- [If something leaks](compromise.md)
+- [Formats we read](format-policy.md)
 - [CLI guide](cli.md)
 - [The scripting contract](contract.md)
 - [Roadmap](roadmap.md)
@@ -187,3 +189,4 @@
   - [0165: Plugins are supervised programs speaking a frozen line protocol](adr/0165-plugins-are-supervised-programs-with-a-frozen-line-protocol.md)
   - [0166: Windows owner-only access lists and a device key that does not roam](adr/0166-windows-owner-only-access-lists-and-a-device-key-that-does-not-roam.md)
   - [0167: One live instance per vault, with an epoch that nodes remember](adr/0167-one-live-instance-per-vault-with-an-epoch-that-nodes-remember.md)
+  - [0168: Master password change by export, verify and a two-step swap](adr/0168-master-password-change-by-export-verify-and-two-step-swap.md)

@@ -4,6 +4,10 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Added
+
+- `unv vault rekey` changes the master password: the vault is re-encrypted into a new file under a new salt, checked row by row, and swapped in; a crash at any step leaves a vault that opens with the old or the new password, and the next unlock finishes or undoes an interrupted change. The old files are kept until the next successful unlock. Backups made before the change still open with the old password; recovery packages are not affected (ADR-0168). New book pages: "If something leaks" and "Formats we read".
+
 ### Security
 
 - Encrypted backups: the key-derivation settings in a backup file are now validated before use, in the command line and in the desktop app. Only PBKDF2 with SHA-256 and a whole-number iteration count from 100,000 to 5,000,000 are accepted. Before, a hostile file could name a huge count and hang the import, a tiny one to weaken the key, or a count that wrapped around; `unv backup import` and archive restore now refuse such files with a clear message and change nothing.
