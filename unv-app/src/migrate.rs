@@ -771,8 +771,7 @@ pub fn export_archive(access: &Access, id: &str, out: &Path) -> CliResult {
     let bytes = vault_core::migration::archive_bytes(&conn, id)
         .map_err(CliError::from)?
         .ok_or_else(|| CliError::not_found(format!("No migration archive {id}")))?;
-    std::fs::write(out, &bytes).map_err(|e| CliError::from(e.to_string()))?;
-    vault_core::restrict_to_owner(out).map_err(CliError::from)
+    vault_core::write_private(out, &bytes).map_err(CliError::from)
 }
 
 #[cfg(test)]

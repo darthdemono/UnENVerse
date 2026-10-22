@@ -49,9 +49,8 @@ pub fn new(
     let url = format!("{}{}", c.base, path);
 
     if let Some(p) = out_path {
-        std::fs::write(p, format!("{url}\n"))
+        vault_core::write_private(p, format!("{url}\n").as_bytes())
             .map_err(|e| CliError::from(format!("Cannot write {}: {e}", p.display())))?;
-        vault_core::restrict_to_owner(p).map_err(CliError::from)?;
     }
 
     out::ok(

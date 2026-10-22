@@ -429,17 +429,8 @@ pub fn token_new(
     // `--out` writes the token to a 0600 file so a provisioning run can hand it
     // to a machine without it passing through an orchestrator's transcript.
     if let Some(path) = out_path {
-        std::fs::write(path, format!("{plaintext}\n"))
+        vault_core::write_private(path, format!("{plaintext}\n").as_bytes())
             .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(path)
-                .map_err(|e| CliError::from(e.to_string()))?
-                .permissions();
-            perms.set_mode(0o600);
-            std::fs::set_permissions(path, perms).map_err(|e| CliError::from(e.to_string()))?;
-        }
         crate::out::ok(
             "user.token.new",
             json!({
