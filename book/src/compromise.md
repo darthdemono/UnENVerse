@@ -6,7 +6,7 @@ What to do for each kind of compromise, in order. Changing a password or key her
 
 1. Rotate it at the provider first (`unv rotate` where an issuer exists, otherwise the provider's console). The old value is dead only when the provider says so.
 2. Store the new value (`unv entry set`). The old one stays in the entry's history.
-3. Remove the old value from local history with `unv entry forget` once that command is available; until then history is part of the vault, which is encrypted.
+3. Remove the old value from local history with `unv entry forget NAME`. It cannot reach backups, nodes or the import source; it prints that list.
 4. Redeploy to nodes, and read the audit log for use of the old value.
 
 ## The master password leaked
