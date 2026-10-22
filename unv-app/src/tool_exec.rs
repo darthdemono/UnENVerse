@@ -26,7 +26,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 /// Environment variables every child gets, because most tools break without them.
-const BASE_ENV: &[&str] = &[
+pub(crate) const BASE_ENV: &[&str] = &[
     "PATH",
     "HOME",
     "USER",
