@@ -1,0 +1,2 @@
+# Test fixture string in an earlier commit; the literal was removed in a later commit
+90e98830ba94708c8d61fe9cbe704f5f06d90bbc:unv-app/src/service_aws.rs:generic-api-key:495
