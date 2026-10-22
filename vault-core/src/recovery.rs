@@ -207,7 +207,7 @@ pub fn write_package<W: Write>(input: PackageInput<'_>, mut output: W) -> Result
         let mut seen = BTreeSet::new();
         let mut files = Vec::new();
         for (name, path) in &sources {
-            if !seen.insert(name.clone()) || name.starts_with('/') || name.contains("..") {
+            if !seen.insert(name.clone()) || !is_safe_member_name(name) {
                 return Err(format!("Invalid recovery package file name `{name}`"));
             }
             let (sha256, size) = hash_file(path)?;
@@ -300,7 +300,26 @@ fn stage_path(target: &Path) -> Result<PathBuf, String> {
     Ok(parent.join(format!(".{name}.restore-{}", crate::new_uuid())))
 }
 
+/// A member name is a relative path of plain components. The manifest is not authenticated, and an
+/// age package can be made by anyone who knows the recipient, so a name like `../x` or `/etc/x`
+/// must never reach `Path::join`.
+fn is_safe_member_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.contains('\\')
+        && !name.contains('\0')
+        && !name.contains(':')
+        && Path::new(name)
+            .components()
+            .all(|c| matches!(c, std::path::Component::Normal(_)))
+        && !name.starts_with('/')
+        && !name.ends_with('/')
+        && !name.contains("//")
+}
+
 fn verify_member_name(name: &str, expected: &BTreeMap<String, PackageFile>) -> Result<(), String> {
+    if !is_safe_member_name(name) {
+        return Err(format!("Unsafe recovery package member name `{name}`"));
+    }
     if name == "manifest.json" || expected.contains_key(name) {
         Ok(())
     } else {

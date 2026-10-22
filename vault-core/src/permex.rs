@@ -404,6 +404,9 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
     Ok(out)
 }
 
+/// The longest expression accepted, in tokens (a predicate, operator or parenthesis each count one).
+pub const MAX_TOKENS: usize = 256;
+
 // ── Parser ────────────────────────────────────────────────────────────────────
 
 struct Parser {
@@ -475,6 +478,14 @@ pub fn parse(src: &str) -> Result<Expr, String> {
     let toks = lex(src)?;
     if toks.is_empty() {
         return Err("empty expression".to_string());
+    }
+    // The parser, the evaluator and `Drop` all recurse once per nesting level or chained operator,
+    // and an expression arrives over the network. Bounding the token count bounds the stack.
+    if toks.len() > MAX_TOKENS {
+        return Err(format!(
+            "expression is too long ({} tokens; the limit is {MAX_TOKENS})",
+            toks.len()
+        ));
     }
     let mut p = Parser { toks, pos: 0 };
     let expr = p.parse_or()?;
@@ -741,6 +752,20 @@ mod tests {
         ] {
             assert!(parse(bad).is_err(), "expected {bad:?} to be rejected");
         }
+    }
+
+    // Bug: a 10 KB expression (5,000 nested parentheses or chained ORs) overflowed the stack of
+    // the real server, because parse, eval and drop all recurse once per level.
+    #[test]
+    fn very_long_expressions_are_refused_not_recursed_into() {
+        let parens = format!("{}vault:*{}", "(".repeat(5_000), ")".repeat(5_000));
+        assert!(parse(&parens).unwrap_err().contains("too long"));
+        let ors = format!("{}vault:*", "vault:* OR ".repeat(5_000));
+        assert!(parse(&ors).unwrap_err().contains("too long"));
+        let nots = format!("{}vault:*", "NOT ".repeat(5_000));
+        assert!(parse(&nots).is_err());
+        let ok = format!("{}vault:*", "vault:* OR ".repeat(100));
+        assert!(parse(&ok).is_ok());
     }
 
     #[test]
