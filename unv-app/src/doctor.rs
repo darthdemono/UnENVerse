@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 
 use crate::access::Access;
 use crate::error::{CliError, CliResult};
+use vault_core::identity;
 
 /// How bad a finding is. Determines the exit code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -242,6 +243,57 @@ fn network_finding(
             "Keep vault.db on a local disk and sync backups instead.",
         ),
         None => Finding::ok("network-filesystem", "The vault is on a local filesystem"),
+    }
+}
+
+/// A vault inside a cloud-sync folder: two machines can open one synced file at once, which
+/// corrupts it or forks it into two vaults that both believe they are the only one.
+fn check_sync_folder() -> Finding {
+    sync_finding(
+        &crate::access::default_db_path(),
+        identity::sync_folder_on_disk,
+    )
+}
+
+fn sync_finding(
+    db: &std::path::Path,
+    detect: impl Fn(&std::path::Path) -> Option<&'static str>,
+) -> Finding {
+    match detect(db) {
+        Some(name) => Finding::at(
+            "sync-folder",
+            Level::Warn,
+            format!("The vault is inside a {name} folder"),
+            "Keep vault.db outside synced folders. Use `unv recover package` for copies and a remote vault for a second computer.",
+        ),
+        None => Finding::ok("sync-folder", "The vault is not in a cloud-sync folder"),
+    }
+}
+
+/// A standby instance does not push or run schedules; say so, so it is not a mystery.
+fn check_instance(access: &Access) -> Finding {
+    let Ok(Some(conn)) = access.local_conn() else {
+        return Finding::at(
+            "instance",
+            Level::Note,
+            "Skipped: the database lives on the server",
+            "",
+        );
+    };
+    match identity::ensure(&conn) {
+        Ok(id) if id.role == identity::Role::Active => {
+            Finding::ok("instance", format!("Active instance, epoch {}", id.epoch))
+        }
+        Ok(id) => Finding::at(
+            "instance",
+            Level::Warn,
+            format!(
+                "Standby instance (epoch {}): it will not push to nodes or run schedules",
+                id.epoch
+            ),
+            "Once the other instance is retired, run: unv vault activate",
+        ),
+        Err(e) => Finding::at("instance", Level::Fail, e, ""),
     }
 }
 
@@ -641,6 +693,8 @@ pub fn file_findings(access: &Access) -> Vec<Value> {
     ];
     all.extend(check_permissions());
     all.push(check_network_fs());
+    all.push(check_sync_folder());
+    all.push(check_instance(access));
     all.push(check_audit(access));
     all.iter().map(Finding::to_json).collect()
 }
@@ -669,6 +723,7 @@ pub fn run(access: Option<&Access>, open_error: Option<String>, fix: bool) -> Cl
     findings.push(check_salt(access));
     findings.extend(check_permissions());
     findings.push(check_network_fs());
+    findings.push(check_sync_folder());
 
     let Some(access) = access else {
         findings.push(Finding::at(
@@ -712,6 +767,7 @@ pub fn run(access: Option<&Access>, open_error: Option<String>, fix: bool) -> Cl
 
     findings.insert(0, check_integrity(access));
     findings.insert(1, check_storage(access));
+    findings.push(check_instance(access));
     findings.push(check_schema(&vault));
     findings.push(check_entry_ids(&vault));
     findings.push(check_bundle_membership(&vault));
@@ -785,6 +841,15 @@ mod tests {
 #[cfg(test)]
 mod network_tests {
     use super::*;
+
+    #[test]
+    fn a_vault_in_a_sync_folder_is_a_warning_that_names_the_client() {
+        let db = std::path::Path::new("/home/me/Dropbox/vault.db");
+        let warn = sync_finding(db, |_| Some("Dropbox")).to_json();
+        assert_eq!(warn["level"], "warn");
+        assert!(warn["message"].as_str().unwrap().contains("Dropbox"));
+        assert_eq!(sync_finding(db, |_| None).to_json()["level"], "ok");
+    }
 
     #[test]
     fn a_vault_on_a_network_share_is_a_warning_and_a_local_one_is_ok() {
