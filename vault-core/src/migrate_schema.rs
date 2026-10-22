@@ -84,6 +84,11 @@ fn migration_0004(conn: &Connection) -> Result<(), String> {
     migration::init_schema(conn)
 }
 
+/// A vault gets its `vault_id`, an `instance_id`, an epoch and a role (see `identity`).
+fn migration_0005(conn: &Connection) -> Result<(), String> {
+    crate::identity::ensure(conn).map(|_| ())
+}
+
 /// Applies every pending migration in one immediate transaction.
 pub fn migrate_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch("BEGIN IMMEDIATE;")
@@ -118,6 +123,11 @@ pub fn migrate_schema(conn: &Connection) -> Result<(), String> {
                 4_i64,
                 "migration_core",
                 migration_0004 as fn(&Connection) -> Result<(), String>,
+            ),
+            (
+                5_i64,
+                "vault_identity",
+                migration_0005 as fn(&Connection) -> Result<(), String>,
             ),
         ] {
             let done: Option<i64> = conn
