@@ -376,6 +376,18 @@ pub struct BeatReply {
     /// one it sees over its pinned TLS channel and refuses a different one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hub_pubkey: Option<String>,
+    /// Which vault this hub serves and which instance of it this is (R19). A node remembers the
+    /// highest epoch it has seen for the vault and refuses a lower one, so a forgotten second hub
+    /// cannot push over the live one. Absent from a hub that predates it; an old node ignores it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_epoch: Option<HubEpoch>,
+}
+
+/// A hub's claim about itself: the vault and the instance epoch it speaks for.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HubEpoch {
+    pub vault_id: String,
+    pub epoch: u64,
 }
 
 // ── The node's own config ─────────────────────────────────────────────────────

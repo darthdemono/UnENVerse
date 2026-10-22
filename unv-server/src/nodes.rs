@@ -840,9 +840,25 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
         actions: Vec::new(),
         pending: Vec::new(),
         hub_pubkey: None,
+        hub_epoch: None,
     };
 
     let conn = key.as_ref().and_then(|k| open_db(&state.db_path, k).ok());
+    // Which instance of the vault this hub is (R19). A standby copy does not push, does not write
+    // the audit chain and tells the node it is locked; the node keeps observing and tries again.
+    if let Some(id) = conn
+        .as_ref()
+        .and_then(|c| vault_core::identity::ensure(c).ok())
+    {
+        reply.hub_epoch = Some(vault_core::nodes::HubEpoch {
+            vault_id: id.vault_id,
+            epoch: id.epoch,
+        });
+        if id.role == vault_core::identity::Role::Standby {
+            reply.hub_locked = true;
+            return reply;
+        }
+    }
     // The hub's approval-signing key lives in the vault's own (encrypted) meta
     // table, so it exists only while the vault is open, like the push it signs.
     let hub_seed = conn
