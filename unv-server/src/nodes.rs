@@ -345,6 +345,38 @@ pub(crate) async fn list_approvers(
     }
 }
 
+/// The public half of the hub's automation key, for a node's `automation_approver`. Owner only;
+/// the seed never leaves the vault.
+pub(crate) async fn automation_key(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> axum::response::Response {
+    if !state.nodes_enabled {
+        return disabled();
+    }
+    let (_, session) = match extract_session(&headers, &state) {
+        Ok(s) => s,
+        Err(e) => return e.into_response(),
+    };
+    if let Err(e) = require_owner(&session) {
+        return e.into_response();
+    }
+    let Some(key) = owner_vault_key(&state) else {
+        return err_json(StatusCode::SERVICE_UNAVAILABLE, "the vault is locked").into_response();
+    };
+    let result = open_db(&state.db_path, &key)
+        .map_err(|e| e.to_string())
+        .and_then(|c| vault_core::nodes::automation_seed(&c))
+        .and_then(|seed| vault_core::nodes::hub_public(&seed))
+        .and_then(|public| vault_core::nodes::key_fingerprint(&public).map(|fp| (public, fp)));
+    match result {
+        Ok((public, fp)) => {
+            Json(serde_json::json!({ "public_key": public, "fingerprint": fp })).into_response()
+        }
+        Err(e) => err_json(StatusCode::INTERNAL_SERVER_ERROR, &e).into_response(),
+    }
+}
+
 /// Registers a device whose signature counts as the owner's approval.
 pub(crate) async fn add_approver(
     headers: HeaderMap,
@@ -783,6 +815,7 @@ fn record_results(state: &AppState, key: &VaultKey, node: &NodeRecord, results: 
             "sha256": short(&r.sha256, 64),
             "ok": r.ok,
             "error": r.error.as_deref().map(|e| short(e, 400)),
+            "phases": r.phases.iter().take(8).map(|p| short(p, 16)).collect::<Vec<_>>(),
         })
         .to_string();
         // The node resends a result until the hub acknowledges it; when that reply is lost
@@ -818,6 +851,11 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
     reply.hub_pubkey = hub_seed
         .as_deref()
         .and_then(|s| vault_core::nodes::hub_public(s).ok());
+    // The key that signs rule approvals (R12). Its public half is what an operator puts in a node's
+    // `automation_approver`; it never signs for a node that needs a person.
+    let automation_seed = conn
+        .as_ref()
+        .and_then(|c| vault_core::nodes::automation_seed(c).ok());
     // Read the policy now, not from the clone taken when the request arrived: a
     // held beat that is woken by an approval must see what the owner set.
     let requires_approval = with_store(state, |s| s.get(&node.id))
@@ -1022,6 +1060,32 @@ fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> Bea
                             nonce: a.id.clone(),
                         };
                         vault_core::nodes::sign_approval(seed, &token).ok()
+                    } else if t.accept_rule_approval {
+                        // A node that asked for an automation rule gets one: short-lived, for
+                        // exactly these bytes and this operation, signed by the automation key.
+                        automation_seed.as_deref().and_then(|seed| {
+                            let now = now_secs();
+                            vault_core::nodes::sign_approval_v2(
+                                seed,
+                                &vault_core::nodes::ApprovalTokenV2 {
+                                    v: 2,
+                                    kind: "rule".into(),
+                                    node_id: node.id.clone(),
+                                    target: t.id.clone(),
+                                    sha256: sha.clone(),
+                                    approval_id: vault_core::new_uuid(),
+                                    operation_id: vault_core::new_uuid(),
+                                    credential_generation: None,
+                                    policy_rev: 1,
+                                    rule_id: Some("node-push".into()),
+                                    approved_by: "rule:node-push".into(),
+                                    approved_at: vault_core::iso_now(),
+                                    expires_secs: now + vault_core::nodes::RULE_APPROVAL_TTL_SECS,
+                                    nonce: vault_core::new_uuid(),
+                                },
+                            )
+                            .ok()
+                        })
                     } else {
                         None
                     };
@@ -1512,6 +1576,7 @@ mod tests {
             sha256: sha,
             state: "ok".into(),
             error: None,
+            accept_rule_approval: false,
         }
     }
 
@@ -1700,6 +1765,7 @@ mod tests {
             sha256: "aa".into(),
             ok: true,
             error: None,
+            phases: Vec::new(),
         };
         let (st, reply) = do_beat(
             &a,
@@ -1734,6 +1800,7 @@ mod tests {
             sha256: rendered_sha(PASS),
             ok: false,
             error: Some("validate failed".into()),
+            phases: Vec::new(),
         };
         let (_, reply) = do_beat(&a, &n, beat_body(vec![], vec![res], 0)).await;
         assert_eq!(reply["results_ack"], true);
@@ -2598,6 +2665,7 @@ mod tests {
             sha256: "abc".into(),
             ok: true,
             error: None,
+            phases: Vec::new(),
         };
         let body = || beat_body(vec![], vec![result.clone()], 0);
         do_beat(&a, &n, body()).await;

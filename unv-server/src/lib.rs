@@ -3770,6 +3770,7 @@ pub fn build_router(state: AppState, port: u16) -> Router {
             "/api/node-approvers/{fp}",
             axum::routing::delete(nodes::remove_approver),
         )
+        .route("/api/node-automation-key", get(nodes::automation_key))
         .route("/api/nodes/{id}/accept", post(nodes::accept_pull))
         .route("/api/nodes/{id}/content/{target}", get(nodes::fetch_content))
         .with_state(state);

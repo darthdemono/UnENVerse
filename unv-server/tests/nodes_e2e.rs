@@ -1330,6 +1330,7 @@ async fn the_hub_ignores_a_beat_that_the_enrolled_node_did_not_sign() {
             sha256: None,
             state: "missing".into(),
             error: None,
+            accept_rule_approval: false,
         }],
         ..Default::default()
     })
@@ -1696,4 +1697,191 @@ async fn a_stalled_stranger_cannot_lock_the_hub_out_of_a_listening_node() {
     );
     drop(held);
     drop(node);
+}
+
+fn rule_config(dir: &Path, out: &Path, automation_public: &str, extra: &str) -> PathBuf {
+    config(
+        dir,
+        &format!(
+            "automation_approver = \"{automation_public}\"\n[[target]]\nid=\"env-main\"\npath='{}'\nproject=\"edge\"\nexporter=\"env\"\napply=true\n{extra}\n",
+            out.display()
+        ),
+    )
+}
+
+/// R12: a push to a target that accepts rule approvals carries a short-lived token the hub's
+/// automation key signed, and the node writes it. No human is asked.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_node_that_accepts_rule_approvals_takes_the_hubs_automation_token() {
+    let h = start().await;
+    let dir = scratch("agent-rule");
+    let out = dir.join("app.env");
+    enroll(&h, &dir, "auto-1").await;
+    let (st, key) = h
+        .owner("GET", "/api/node-automation-key", serde_json::json!({}))
+        .await;
+    assert_eq!(st, 200, "{key}");
+    let public = key["public_key"].as_str().unwrap().to_string();
+    assert_eq!(public.len(), 64);
+    let cfg = rule_config(&dir, &out, &public, "accept_rule_approval=true");
+    let (d2, c2) = (dir.clone(), cfg);
+    let mut agent = blocking(move || Agent::new(&d2, &c2)).await.unwrap();
+    // First beat: the node tells the hub it accepts rule approvals; the next carries the push.
+    for _ in 0..2 {
+        let (a, _) = blocking(move || {
+            let r = agent.beat_once(0);
+            (agent, r)
+        })
+        .await;
+        agent = a;
+    }
+    assert!(
+        std::fs::read_to_string(&out)
+            .unwrap()
+            .contains("TOKEN=first"),
+        "the push with a rule approval was not applied"
+    );
+    // The reported result names the steps, and the audit row carries them.
+    let (a, _) = blocking(move || {
+        let r = agent.beat_once(0);
+        (agent, r)
+    })
+    .await;
+    drop(a);
+    let rows: Vec<String> = h
+        .audit()
+        .iter()
+        .filter(|r| r.action == "node.apply")
+        .map(|r| r.details.clone().unwrap_or_default())
+        .collect();
+    assert!(
+        rows.iter().any(|d| d.contains("\"phases\":[\"written\"")),
+        "{rows:?}"
+    );
+}
+
+/// A rule token never satisfies a target that asks for a person; on an opted-in target expiry,
+/// other bytes and replay are refused. A target that takes no approval at all applies a hub push
+/// as it always did and never consults a token.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_rule_approval_never_satisfies_a_person_and_is_checked_where_it_is_accepted() {
+    use base64::Engine;
+    use vault_core::nodes::{sign_approval_v2, ApprovalTokenV2, SignedApproval};
+    let h = start().await;
+    let content = b"TOKEN=rule\n".to_vec();
+    let sha = vault_core::nodes_apply::sha256_hex(&content);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let conn = vault_core::open_db(&h.db, &h.key).unwrap();
+    let hub_seed = vault_core::nodes::hub_seed(&conn).unwrap();
+    let automation_seed = vault_core::nodes::automation_seed(&conn).unwrap();
+    let automation_public = vault_core::nodes::hub_public(&automation_seed).unwrap();
+
+    // Three nodes: one needs a person, one never opted in, one accepts rules.
+    let mut cases: Vec<(&str, String, String, PathBuf, &str)> = Vec::new();
+    for (name, extra, label) in [
+        ("rule-person", "require_approval=true", "person"),
+        ("rule-none", "", "none"),
+        ("rule-opt", "accept_rule_approval=true", "opt-in"),
+    ] {
+        let dir = scratch(&format!("agent-{name}"));
+        let out = dir.join("app.env");
+        enroll(&h, &dir, name).await;
+        let cfg = rule_config(&dir, &out, &automation_public, extra);
+        let state_path = node_agent::state_path(&dir);
+        let mut st: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&state_path).unwrap()).unwrap();
+        st["hub_pubkey"] = serde_json::json!(vault_core::nodes::hub_public(&hub_seed).unwrap());
+        std::fs::write(&state_path, st.to_string()).unwrap();
+        let node_id = st["node_id"].as_str().unwrap().to_string();
+        cases.push((label, node_id, String::new(), out, ""));
+        cases.last_mut().unwrap().2 = dir.to_string_lossy().into_owned();
+        let _ = cfg;
+    }
+    let token = |node: &str, sha: &str, exp: i64, nonce: &str| -> SignedApproval {
+        sign_approval_v2(
+            &automation_seed,
+            &ApprovalTokenV2 {
+                v: 2,
+                kind: "rule".into(),
+                node_id: node.into(),
+                target: "env-main".into(),
+                sha256: sha.into(),
+                approval_id: "a".into(),
+                operation_id: "op".into(),
+                credential_generation: None,
+                policy_rev: 1,
+                rule_id: Some("r".into()),
+                approved_by: "rule:r".into(),
+                approved_at: "t".into(),
+                expires_secs: exp,
+                nonce: nonce.into(),
+            },
+        )
+        .unwrap()
+    };
+    for (label, node_id, dir, out, _) in cases {
+        let dir = PathBuf::from(dir);
+        let (extra, cfg) = match label {
+            "person" => ("require_approval=true", dir.join("node.toml")),
+            "none" => ("", dir.join("node.toml")),
+            _ => ("accept_rule_approval=true", dir.join("node.toml")),
+        };
+        let _ = extra;
+        let push = |approval: Option<SignedApproval>| vault_core::nodes::BeatReply {
+            actions: vec![vault_core::nodes::Action::Push {
+                target: "env-main".into(),
+                sha256: sha.clone(),
+                content_b64: base64::engine::general_purpose::STANDARD.encode(&content),
+                approval,
+            }],
+            ..Default::default()
+        };
+        let (d2, c2) = (dir.clone(), cfg);
+        let mut agent = blocking(move || Agent::new(&d2, &c2)).await.unwrap();
+        let valid = token(&node_id, &sha, now + 300, &format!("nonce-{label}"));
+        let reply = push(Some(valid.clone()));
+        agent = blocking(move || {
+            agent.act(&reply);
+            agent
+        })
+        .await;
+        match label {
+            "opt-in" => {
+                assert_eq!(
+                    std::fs::read(&out).unwrap(),
+                    content,
+                    "the opted-in node took a valid rule approval"
+                );
+                std::fs::remove_file(&out).unwrap();
+                // Replay, expiry and other bytes are refused.
+                for (why, approval) in [
+                    ("a replayed token", valid.clone()),
+                    ("an expired token", token(&node_id, &sha, now - 1, "n-exp")),
+                    (
+                        "other bytes",
+                        token(&node_id, "deadbeef", now + 300, "n-bytes"),
+                    ),
+                ] {
+                    let reply = push(Some(approval));
+                    agent = blocking(move || {
+                        agent.act(&reply);
+                        agent
+                    })
+                    .await;
+                    assert!(!out.exists(), "wrote on {why}");
+                }
+            }
+            "none" => assert!(
+                out.exists(),
+                "a target that takes no approval applies a hub push as it always did; the token is not consulted"
+            ),
+            _ => assert!(
+                !out.exists(),
+                "a {label} node wrote on a rule approval: it must refuse"
+            ),
+        }
+    }
 }
