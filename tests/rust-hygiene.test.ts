@@ -26,7 +26,7 @@ describe('temporary files in production code', () => {
     for (const crate of ['vault-core', 'unv-app', 'unv-cli', 'unv-server', 'src-tauri']) {
       for (const f of rustFiles(path.join(root, crate, 'src'))) {
         const text = fs.readFileSync(f, 'utf8');
-        const cut = text.indexOf('#[cfg(test)]');
+        const cut = text.search(/#\[cfg\((all\()?test\b/);
         const prod = cut < 0 ? text : text.slice(0, cut);
         if (prod.includes('temp_dir()') && !SAFE_HELPERS.test(prod))
           bad.push(path.relative(root, f));
