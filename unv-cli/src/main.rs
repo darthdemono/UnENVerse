@@ -500,6 +500,18 @@ enum Commands {
     /// confirmation, refuses without a terminal unless `--yes`, and honours
     /// `--dry-run`. A `.v1.bak` backup is left alone.
     ResetVault,
+    /// Write a synthetic vault with invented values into an empty directory, for bug reports.
+    /// Needs no password; the vault's own password is printed.
+    DemoVault {
+        /// An empty directory to create the vault in.
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Support: a small, readable file for a bug report.
+    Support {
+        #[command(subcommand)]
+        cmd: SupportCmd,
+    },
     /// The signed provider catalogue `enrich` reads before its compiled table.
     Catalogue {
         #[command(subcommand)]
@@ -835,6 +847,19 @@ enum Commands {
 }
 
 /// File-shaped credentials — the ones where the variable names a path (E17).
+#[derive(Subcommand)]
+enum SupportCmd {
+    /// Versions, counts and check results of the local vault: no values, names, paths or hosts.
+    Bundle {
+        /// Write the JSON here (otherwise it is printed).
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Also print it, to read before sending.
+        #[arg(long)]
+        print: bool,
+    },
+}
+
 #[derive(Subcommand)]
 enum VaultCmd {
     /// Show the vault id, the instance id, its epoch and role.
@@ -2552,6 +2577,11 @@ fn real_main() {
         finish(unv_app::reset_cmd::run(cli.yes, cli.dry_run));
         return;
     }
+    // Nor does making a demo vault: it creates a new one elsewhere.
+    if let Commands::DemoVault { out } = &cli.command {
+        finish(unv_app::support_cmd::demo_vault(out));
+        return;
+    }
     // Nor does a password change: it takes the current password itself, before any unlock.
     if matches!(
         &cli.command,
@@ -3384,6 +3414,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
         | Commands::Catalogue { .. }
         | Commands::Update { .. }
         | Commands::ResetVault
+        | Commands::DemoVault { .. }
         | Commands::Template { .. }
         | Commands::Login
         | Commands::Whoami
@@ -3679,6 +3710,12 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             } => cxf_cmd::cmd_import(a, file, project.as_deref(), category.as_deref()),
             CxfCmd::Export { out, provider } => cxf_cmd::cmd_export(a, out, provider.as_deref()),
         },
+        Commands::Support { cmd } => match cmd {
+            SupportCmd::Bundle { out, print } => {
+                unv_app::support_cmd::bundle(a, out.as_deref(), *print)
+            }
+        },
+
         Commands::Vault { cmd } => match cmd {
             VaultCmd::Status => unv_app::vault_cmd::status(a),
             VaultCmd::Activate => unv_app::vault_cmd::activate(a, yes),
