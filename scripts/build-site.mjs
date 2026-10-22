@@ -574,7 +574,14 @@ export function build({ src, out, release, sums, today = new Date().toISOString(
 async function latestRelease() {
   const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'unenverse-site-build' };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers });
+  // `releases/latest` answers 404 for a minute or so after a release is published, and the docs
+  // workflow starts on the same push that starts the release build, so retry before failing.
+  let r;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers });
+    if (r.ok || (r.status !== 404 && r.status < 500) || attempt === 5) break;
+    await new Promise((resolve) => setTimeout(resolve, 30_000));
+  }
   if (!r.ok) throw new Error(`GitHub release lookup failed: HTTP ${r.status}`);
   const release = await r.json();
   const sumsAsset = release.assets.find((a) => a.name === 'SHA256SUMS');
