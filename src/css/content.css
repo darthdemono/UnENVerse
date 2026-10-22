@@ -109,3 +109,14 @@
   color: var(--accent);
   font-size: 12px;
 }
+
+.health-info-fold {
+  margin: 2px 0 6px;
+}
+
+.health-info-fold > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text2);
+  padding: 4px 12px;
+}

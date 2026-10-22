@@ -278,6 +278,22 @@ describe('presentation', () => {
     expect($('health-results').textContent).toContain('No findings match this filter');
   });
 
+  it('folds Info findings behind a count in the all view and shows them when Info is picked', () => {
+    scan([sound({ provider: 'Quiet', description: undefined, compromised: true })]);
+    const fold = document.querySelector<HTMLDetailsElement>('.health-info-fold');
+    expect(fold).not.toBeNull();
+    expect(fold!.open).toBe(false);
+    expect(fold!.querySelector('summary')!.textContent).toMatch(/\d+ info finding/);
+    expect(fold!.querySelector('.health-low')).not.toBeNull();
+    expect(document.querySelector('.health-entry-group > .health-row.health-high')).not.toBeNull();
+    expect(document.querySelector('.health-entry-group > .health-row.health-low')).toBeNull();
+    const sev = $('health-filter-severity') as HTMLSelectElement;
+    sev.value = 'low';
+    sev.dispatchEvent(new Event('change'));
+    expect(document.querySelector('.health-info-fold')).toBeNull();
+    expect(document.querySelector('.health-entry-group > .health-row.health-low')).not.toBeNull();
+  });
+
   it('puts findings about a project or chunk, not an entry, under Other', () => {
     const out = scan(
       [sound()],
