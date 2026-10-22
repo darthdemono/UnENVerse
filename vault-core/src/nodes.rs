@@ -280,6 +280,10 @@ pub struct TargetReport {
     /// `ok`, `missing`, `unreadable`, `applied`, `failed`.
     pub state: String,
     pub error: Option<String>,
+    /// Whether the node's own config accepts a rule approval for this target (R12). Declared by the
+    /// operator; the hub only reads it to know which kind of token to send.
+    #[serde(default)]
+    pub accept_rule_approval: bool,
 }
 
 /// A change the node saw between two beats (hub down, or locked).
@@ -300,6 +304,10 @@ pub struct ApplyResult {
     pub sha256: String,
     pub ok: bool,
     pub error: Option<String>,
+    /// The steps that completed, in order (`written`, `validated`, `reloaded`, `checked`). Absent
+    /// from an older node, so a report without it says nothing about the steps.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub phases: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -386,8 +394,19 @@ pub struct Target {
     /// Observe until deliberately flipped.
     #[serde(default)]
     pub apply: bool,
+    /// A command run after the bytes are written. If it contains `{file}` it runs against a
+    /// temporary file first and the target is replaced only when it passes.
     pub validate: Option<String>,
     pub reload: Option<String>,
+    /// A health check run after `reload`: a command, or an `http://host:port/path` URL that must
+    /// answer 2xx. A failure puts the previous file back and reloads it.
+    #[serde(default)]
+    pub check: Option<String>,
+    /// Accept a push that carries a rule approval: a short-lived token signed by this node's
+    /// `automation_approver` key, bound to this node, target, bytes and operation. Needs
+    /// `automation_approver`; cannot be combined with `require_approval`, which asks for a human.
+    #[serde(default)]
+    pub accept_rule_approval: bool,
     /// Refuse any push that does not carry the hub's signed approval of exactly
     /// these bytes (Phase 37). Set here, on the host, so a hub bug or a hub
     /// policy change cannot turn it off.
@@ -412,6 +431,11 @@ pub struct NodeConfig {
     /// hub that has been taken over cannot approve its own pushes.
     #[serde(default)]
     pub approver: Option<String>,
+    /// The public key (hex) whose signature counts as a rule approval (R12): a token the hub's
+    /// automation key signed for one operation, valid for minutes. It never satisfies
+    /// `require_approval`, which always needs a human or a device.
+    #[serde(default)]
+    pub automation_approver: Option<String>,
 }
 
 /// `^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`
@@ -449,6 +473,18 @@ impl NodeConfig {
                     .is_some_and(|b| VerifyingKey::from_bytes(&b).is_ok());
             if !ok {
                 return Err("approver must be a 64-character hex Ed25519 public key".into());
+            }
+        }
+        if let Some(a) = &self.automation_approver {
+            let ok = a.len() == 64
+                && hex::decode(a)
+                    .ok()
+                    .and_then(|b| <[u8; 32]>::try_from(b).ok())
+                    .is_some_and(|b| VerifyingKey::from_bytes(&b).is_ok());
+            if !ok {
+                return Err(
+                    "automation_approver must be a 64-character hex Ed25519 public key".into(),
+                );
             }
         }
         if self.targets.len() > MAX_TARGETS {
@@ -504,7 +540,31 @@ impl NodeConfig {
                     t.id
                 ));
             }
-            for (name, v) in [("validate", &t.validate), ("reload", &t.reload)] {
+            if t.accept_rule_approval {
+                if t.mode != "push" {
+                    return Err(format!(
+                        "target '{}': accept_rule_approval only applies to a push target",
+                        t.id
+                    ));
+                }
+                if t.require_approval {
+                    return Err(format!(
+                        "target '{}': require_approval asks for a human and accept_rule_approval for an automation rule; choose one",
+                        t.id
+                    ));
+                }
+                if self.automation_approver.is_none() {
+                    return Err(format!(
+                        "target '{}': accept_rule_approval needs automation_approver (the public key shown in Settings)",
+                        t.id
+                    ));
+                }
+            }
+            for (name, v) in [
+                ("validate", &t.validate),
+                ("reload", &t.reload),
+                ("check", &t.check),
+            ] {
                 if let Some(c) = v {
                     if !valid_command(c) {
                         return Err(format!("target '{}': {name} is empty or too long", t.id));
@@ -1196,6 +1256,202 @@ pub struct ApprovalToken {
     pub nonce: String,
 }
 
+/// What may sign an approval and what it means (R12). `human` and `device` are people; `rule` is an
+/// automation key acting under a written rule, never a person.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalKind {
+    Human,
+    Device,
+    Rule,
+}
+
+impl ApprovalKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Human => "human",
+            Self::Device => "device",
+            Self::Rule => "rule",
+        }
+    }
+
+    pub fn is_person(self) -> bool {
+        !matches!(self, Self::Rule)
+    }
+}
+
+/// The signing domain of a version 2 token. A signature made for one domain never verifies in the
+/// other, so a v1 token cannot be replayed as v2 or the reverse.
+pub const APPROVAL_V2_DOMAIN: &str = "unv-approval-v2";
+/// A rule approval lives minutes, not an hour: it exists for one automated operation.
+pub const RULE_APPROVAL_TTL_SECS: i64 = 300;
+
+/// Version 2: adds the approval's kind and ties it to one operation and the policy it was made
+/// under. Signed as `unv-approval-v2\n<json>`; version 1 tokens still verify.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ApprovalTokenV2 {
+    pub v: u8,
+    /// `human`, `device` or `rule`.
+    pub kind: String,
+    pub node_id: String,
+    pub target: String,
+    pub sha256: String,
+    pub approval_id: String,
+    /// The operation this approval belongs to; an approval for one deployment is not valid for
+    /// another.
+    pub operation_id: String,
+    /// The credential generation the rendered file was made from, when known.
+    #[serde(default)]
+    pub credential_generation: Option<u64>,
+    /// The revision of the policy under which the approval was given.
+    pub policy_rev: u64,
+    /// For `rule`: the rule that allowed it.
+    #[serde(default)]
+    pub rule_id: Option<String>,
+    pub approved_by: String,
+    pub approved_at: String,
+    pub expires_secs: i64,
+    pub nonce: String,
+}
+
+/// What a node learns from a verified approval of either version.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Verified {
+    pub version: u8,
+    pub kind: ApprovalKind,
+    pub nonce: String,
+    pub operation_id: Option<String>,
+    pub rule_id: Option<String>,
+}
+
+fn v2_input(token_json: &str) -> Vec<u8> {
+    format!("{APPROVAL_V2_DOMAIN}\n{token_json}").into_bytes()
+}
+
+pub fn sign_approval_v2(seed_hex: &str, token: &ApprovalTokenV2) -> Result<SignedApproval, String> {
+    let seed: [u8; 32] = hex::decode(seed_hex)
+        .map_err(|_| "signing key is not hex".to_string())?
+        .try_into()
+        .map_err(|_| "signing key must be 32 bytes".to_string())?;
+    let json = serde_json::to_string(token).map_err(|e| e.to_string())?;
+    let sig = SigningKey::from_bytes(&seed).sign(&v2_input(&json));
+    Ok(SignedApproval {
+        token: json,
+        sig: hex::encode(sig.to_bytes()),
+    })
+}
+
+/// Checks a version 1 or version 2 approval the way a node does before it writes. `public_hex` is
+/// the key the caller trusts for this decision: a node passes the human/device key for a target
+/// that needs a person and the automation key for a rule approval, so a token signed by the wrong
+/// kind of key fails here before its claims are read.
+pub fn verify_approval_any(
+    public_hex: &str,
+    signed: &SignedApproval,
+    node_id: &str,
+    target: &str,
+    sha256: &str,
+    now_secs: i64,
+) -> Result<Verified, String> {
+    let version = serde_json::from_str::<serde_json::Value>(&signed.token)
+        .ok()
+        .and_then(|v| v.get("v").and_then(|v| v.as_u64()))
+        .ok_or("approval is unreadable")?;
+    match version {
+        1 => {
+            let t = verify_approval(public_hex, signed, node_id, target, sha256, now_secs)?;
+            Ok(Verified {
+                version: 1,
+                kind: if t.approved_by.starts_with("device:") {
+                    ApprovalKind::Device
+                } else {
+                    ApprovalKind::Human
+                },
+                nonce: t.nonce,
+                operation_id: None,
+                rule_id: None,
+            })
+        }
+        2 => {
+            let pk: [u8; 32] = hex::decode(public_hex)
+                .map_err(|_| "approval key is not hex".to_string())?
+                .try_into()
+                .map_err(|_| "approval key must be 32 bytes".to_string())?;
+            let vk = VerifyingKey::from_bytes(&pk)
+                .map_err(|_| "approval key is not a valid Ed25519 key")?;
+            let sig: [u8; 64] = hex::decode(&signed.sig)
+                .map_err(|_| "approval signature is not hex".to_string())?
+                .try_into()
+                .map_err(|_| "approval signature has the wrong length".to_string())?;
+            vk.verify(&v2_input(&signed.token), &Signature::from_bytes(&sig))
+                .map_err(|_| "approval signature does not verify")?;
+            let t: ApprovalTokenV2 = serde_json::from_str(&signed.token)
+                .map_err(|e| format!("approval is unreadable: {e}"))?;
+            let kind = match t.kind.as_str() {
+                "human" => ApprovalKind::Human,
+                "device" => ApprovalKind::Device,
+                "rule" => ApprovalKind::Rule,
+                _ => return Err("approval has an unknown kind".into()),
+            };
+            if kind == ApprovalKind::Rule && t.rule_id.as_deref().unwrap_or("").is_empty() {
+                return Err("a rule approval must name its rule".into());
+            }
+            if t.operation_id.is_empty() {
+                return Err("approval names no operation".into());
+            }
+            if t.node_id != node_id {
+                return Err("approval is for a different node".into());
+            }
+            if t.target != target {
+                return Err("approval is for a different target".into());
+            }
+            if t.sha256 != sha256 {
+                return Err("approval is for different bytes than the ones sent".into());
+            }
+            if now_secs >= t.expires_secs {
+                return Err("approval has expired".into());
+            }
+            Ok(Verified {
+                version: 2,
+                kind,
+                nonce: t.nonce,
+                operation_id: Some(t.operation_id),
+                rule_id: t.rule_id,
+            })
+        }
+        _ => Err("unknown approval version".into()),
+    }
+}
+
+/// The hub's automation signing seed (R12), created on first use in the vault's own encrypted
+/// `vault_meta`, separate from the approval key so each can be rotated and pinned on its own. Its
+/// public half goes into a node's `automation_approver`.
+pub fn automation_seed(conn: &rusqlite::Connection) -> Result<String, String> {
+    use rusqlite::OptionalExtension;
+    let have: Option<String> = conn
+        .query_row(
+            "SELECT value FROM vault_meta WHERE key = 'node_automation_seed'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if let Some(s) = have {
+        return Ok(s);
+    }
+    let seed = generate_hub_seed();
+    conn.execute(
+        "INSERT OR IGNORE INTO vault_meta (key, value) VALUES ('node_automation_seed', ?1)",
+        [&seed],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.query_row(
+        "SELECT value FROM vault_meta WHERE key = 'node_automation_seed'",
+        [],
+        |r| r.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedApproval {
     /// The token as JSON text; the signature covers exactly these bytes.
@@ -1751,6 +2007,7 @@ mod tests {
             sha256: sha.map(String::from),
             state: "ok".into(),
             error: None,
+            accept_rule_approval: false,
         }
     }
 
@@ -2115,6 +2372,7 @@ reload = "systemctl reload nginx"
                 sha256: "v1".into(),
                 ok: true,
                 error: None,
+                phases: Vec::new(),
             }],
             ..Default::default()
         };
@@ -2127,6 +2385,167 @@ reload = "systemctl reload nginx"
         assert!(s
             .usable_approval(&n.id, "nginx-main", "v1", 1_002)
             .is_none());
+    }
+
+    fn v2(kind: &str, node: &str, target: &str, sha: &str, expires: i64) -> ApprovalTokenV2 {
+        ApprovalTokenV2 {
+            v: 2,
+            kind: kind.into(),
+            node_id: node.into(),
+            target: target.into(),
+            sha256: sha.into(),
+            approval_id: "a1".into(),
+            operation_id: "op1".into(),
+            credential_generation: Some(4),
+            policy_rev: 7,
+            rule_id: (kind == "rule").then(|| "node-push".into()),
+            approved_by: "someone".into(),
+            approved_at: "t".into(),
+            expires_secs: expires,
+            nonce: "n-1".into(),
+        }
+    }
+
+    /// Version 2 carries its kind and the operation it belongs to, and each kind verifies only
+    /// for the node, target and bytes it names, before its expiry.
+    #[test]
+    fn a_version_2_approval_names_its_kind_operation_and_the_bytes_and_lapses() {
+        let seed = generate_hub_seed();
+        let public = hub_public(&seed).unwrap();
+        for kind in ["human", "device", "rule"] {
+            let signed = sign_approval_v2(&seed, &v2(kind, "n1", "nginx", "abc", 2_000)).unwrap();
+            let v = verify_approval_any(&public, &signed, "n1", "nginx", "abc", 1_000).unwrap();
+            assert_eq!(v.version, 2);
+            assert_eq!(v.kind.as_str(), kind);
+            assert_eq!(v.operation_id.as_deref(), Some("op1"));
+            assert_eq!(v.rule_id.is_some(), kind == "rule");
+            let err = |node, target, sha, now| {
+                verify_approval_any(&public, &signed, node, target, sha, now).unwrap_err()
+            };
+            assert!(err("other", "nginx", "abc", 1_000).contains("different node"));
+            assert!(err("n1", "wg", "abc", 1_000).contains("different target"));
+            assert!(err("n1", "nginx", "abd", 1_000).contains("different bytes"));
+            assert!(err("n1", "nginx", "abc", 2_000).contains("expired"));
+        }
+    }
+
+    #[test]
+    fn a_rule_approval_must_name_its_rule_and_an_operation_and_cannot_be_forged() {
+        let seed = generate_hub_seed();
+        let public = hub_public(&seed).unwrap();
+        let mut no_rule = v2("rule", "n1", "nginx", "abc", 2_000);
+        no_rule.rule_id = None;
+        let signed = sign_approval_v2(&seed, &no_rule).unwrap();
+        assert!(
+            verify_approval_any(&public, &signed, "n1", "nginx", "abc", 1)
+                .unwrap_err()
+                .contains("name its rule")
+        );
+        let mut no_op = v2("human", "n1", "nginx", "abc", 2_000);
+        no_op.operation_id.clear();
+        let signed = sign_approval_v2(&seed, &no_op).unwrap();
+        assert!(
+            verify_approval_any(&public, &signed, "n1", "nginx", "abc", 1)
+                .unwrap_err()
+                .contains("no operation")
+        );
+        let mut bad_kind = v2("human", "n1", "nginx", "abc", 2_000);
+        bad_kind.kind = "root".into();
+        let signed = sign_approval_v2(&seed, &bad_kind).unwrap();
+        assert!(
+            verify_approval_any(&public, &signed, "n1", "nginx", "abc", 1)
+                .unwrap_err()
+                .contains("unknown kind")
+        );
+        // A different key's signature, and a tampered token, do not verify.
+        let other = hub_public(&generate_hub_seed()).unwrap();
+        let ok = sign_approval_v2(&seed, &v2("rule", "n1", "nginx", "abc", 2_000)).unwrap();
+        assert!(verify_approval_any(&other, &ok, "n1", "nginx", "abc", 1).is_err());
+        let tampered = SignedApproval {
+            token: ok.token.replace("\"rule\"", "\"human\""),
+            sig: ok.sig.clone(),
+        };
+        assert!(verify_approval_any(&public, &tampered, "n1", "nginx", "abc", 1).is_err());
+    }
+
+    /// The two versions sign under different domains, so a version 1 signature cannot be passed off
+    /// as version 2 (or the reverse), and version 1 tokens still verify through the shared path.
+    #[test]
+    fn the_two_versions_cannot_be_swapped_and_version_1_still_verifies() {
+        let seed = generate_hub_seed();
+        let public = hub_public(&seed).unwrap();
+        let v1 = sign_approval(&seed, &token("n1", "nginx", "abc", 2_000)).unwrap();
+        let verified = verify_approval_any(&public, &v1, "n1", "nginx", "abc", 1_000).unwrap();
+        assert_eq!(verified.version, 1);
+        assert_eq!(verified.kind, ApprovalKind::Human);
+        assert!(verified.operation_id.is_none());
+        let device = sign_approval(
+            &seed,
+            &ApprovalToken {
+                approved_by: "device:abcdef012345".into(),
+                ..token("n1", "nginx", "abc", 2_000)
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            verify_approval_any(&public, &device, "n1", "nginx", "abc", 1_000)
+                .unwrap()
+                .kind,
+            ApprovalKind::Device
+        );
+        // A v2 token body under a v1 signature (and the reverse) fails.
+        let v2_signed = sign_approval_v2(&seed, &v2("human", "n1", "nginx", "abc", 2_000)).unwrap();
+        let cross = SignedApproval {
+            token: v2_signed.token.clone(),
+            sig: sign_approval(&seed, &token("n1", "nginx", "abc", 2_000))
+                .unwrap()
+                .sig,
+        };
+        assert!(verify_approval_any(&public, &cross, "n1", "nginx", "abc", 1).is_err());
+        let cross2 = SignedApproval {
+            token: v1.token.clone(),
+            sig: v2_signed.sig,
+        };
+        assert!(verify_approval_any(&public, &cross2, "n1", "nginx", "abc", 1).is_err());
+        let unknown = SignedApproval {
+            token: r#"{"v":3}"#.into(),
+            sig: v1.sig,
+        };
+        assert!(
+            verify_approval_any(&public, &unknown, "n1", "nginx", "abc", 1)
+                .unwrap_err()
+                .contains("unknown approval version")
+        );
+    }
+
+    #[test]
+    fn rule_approval_config_needs_an_automation_key_and_cannot_stand_in_for_a_human() {
+        let key = hub_public(&generate_hub_seed()).unwrap();
+        let target = |extra: &str| {
+            format!(
+                "[[target]]\nid=\"t\"\npath=\"/etc/x\"\nproject=\"p\"\nexporter=\"env\"\napply=true\n{extra}\n"
+            )
+        };
+        let ok = format!(
+            "automation_approver = \"{key}\"\n{}",
+            target("accept_rule_approval = true")
+        );
+        assert!(NodeConfig::parse(&ok).is_ok());
+        assert!(NodeConfig::parse(&target("accept_rule_approval = true"))
+            .unwrap_err()
+            .contains("needs automation_approver"));
+        let both = format!(
+            "automation_approver = \"{key}\"\n{}",
+            target("accept_rule_approval = true\nrequire_approval = true")
+        );
+        assert!(NodeConfig::parse(&both).unwrap_err().contains("choose one"));
+        assert!(NodeConfig::parse("automation_approver = \"zz\"\n")
+            .unwrap_err()
+            .contains("automation_approver"));
+        let pull = format!(
+            "automation_approver = \"{key}\"\n[[target]]\nid=\"t\"\npath=\"/etc/x\"\nproject=\"p\"\nexporter=\"env\"\nmode=\"pull\"\naccept_rule_approval = true\n"
+        );
+        assert!(NodeConfig::parse(&pull).is_err());
     }
 
     #[test]
