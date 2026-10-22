@@ -1583,24 +1583,22 @@ pub fn approver_seed(dir: &Path) -> Result<String, String> {
 /// another computer (a roaming copy would make two machines the same approver).
 pub fn default_approver_dir() -> Option<PathBuf> {
     #[cfg(windows)]
-    {
-        return dirs::data_local_dir().map(|d| d.join("io.unenverse"));
-    }
+    let base = dirs::data_local_dir();
     #[cfg(not(windows))]
-    dirs::data_dir().map(|d| d.join("io.unenverse"))
+    let base = dirs::data_dir();
+    base.map(|d| d.join("io.unenverse"))
 }
 
 /// The roaming-profile directory an older Windows build kept the device key in, when it differs
 /// from where the key lives now.
 fn legacy_approver_dir() -> Option<PathBuf> {
     #[cfg(windows)]
-    {
-        return dirs::data_dir()
-            .map(|d| d.join("io.unenverse"))
-            .filter(|old| Some(old) != default_approver_dir().as_ref());
-    }
+    let old = dirs::data_dir()
+        .map(|d| d.join("io.unenverse"))
+        .filter(|old| Some(old) != default_approver_dir().as_ref());
     #[cfg(not(windows))]
-    None
+    let old = None;
+    old
 }
 
 /// Reads a valid `approver.key` from `legacy` so the caller can write it to the new place. The old
@@ -3041,7 +3039,12 @@ reload = "systemctl reload nginx"
 
     #[test]
     fn device_approver_path_stays_under_the_platform_data_directory() {
-        let expected = dirs::data_dir().map(|dir| dir.join("io.unenverse"));
+        // Windows keeps a device key in the machine-local profile; the others use the data directory.
+        #[cfg(windows)]
+        let base = dirs::data_local_dir();
+        #[cfg(not(windows))]
+        let base = dirs::data_dir();
+        let expected = base.map(|dir| dir.join("io.unenverse"));
         assert_eq!(default_approver_dir(), expected);
 
         #[cfg(target_os = "linux")]

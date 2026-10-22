@@ -44,9 +44,9 @@ fn a_healthy_vault_passes_every_check_and_exits_0() {
     let v = healthy("doctor-ok");
     let o = v.run(&["doctor"]);
     assert_eq!(o.code, 0, "{}", o.all());
-    // Windows files inherit the directory ACL, so doctor reports the permission
-    // check as a note there ("Not enforceable on this platform"), never as ok.
-    let permissions = if cfg!(windows) { "note" } else { "ok" };
+    // Windows has an owner-only access list since ADR-0166, which doctor reads with icacls: a
+    // vault this program created passes there too.
+    let permissions = "ok";
     for f in findings(&o) {
         let want = if f["check"] == "permissions" {
             permissions
