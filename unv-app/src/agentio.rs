@@ -84,12 +84,18 @@ fn command_json(cmd: &Command, path: &str) -> Value {
     v
 }
 
+/// The version of the scripting contract (`book/src/contract.md`). It moves when a command, flag,
+/// exit code or envelope field that the contract lists changes incompatibly; the committed surface
+/// snapshot `tests/fixtures/contract/surface.txt` fails until the change is made on purpose.
+pub const CONTRACT_VERSION: u32 = 1;
+
 /// The full contract document.
 pub fn describe(cmd: &Command) -> Value {
     json!({
         "tool": "unv",
         "version": env!("CARGO_PKG_VERSION"),
-        "contract": 1,
+        "contract": CONTRACT_VERSION,
+        "contract_version": CONTRACT_VERSION,
         "summary": "Local-first secrets manager. Every command works against the local \
                     SQLCipher vault or a remote unv-server (--server).",
         "envelope": {
