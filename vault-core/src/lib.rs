@@ -56,6 +56,7 @@ pub mod bundle_import;
 pub mod bundle_scope;
 pub mod catalogue;
 pub mod config_check;
+pub mod forget;
 pub mod lifecycle;
 pub mod migrate_schema;
 pub mod migration;

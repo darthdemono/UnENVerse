@@ -80,6 +80,13 @@ pub fn init_schema(conn: &Connection) -> Result<(), String> {
         "exposed",
         "TEXT NOT NULL DEFAULT '[]'",
     )?;
+    // R20: a snapshot whose content was purged by `entry forget` keeps its hash and chain link.
+    crate::migrate_schema::add_column_if_missing(
+        conn,
+        "config_snapshots",
+        "forgotten",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
     Ok(())
 }
 
@@ -96,11 +103,24 @@ fn chain_of(
     exposed: &str,
     at: &str,
 ) -> String {
+    chain_of_sha(prev, project, exporter, &sha(content), masked, exposed, at)
+}
+
+/// [`chain_of`] from the content's hash, which is all a forgotten snapshot still has.
+fn chain_of_sha(
+    prev: &str,
+    project: &str,
+    exporter: &str,
+    content_sha: &str,
+    masked: &str,
+    exposed: &str,
+    at: &str,
+) -> String {
     // `exposed` is derived data, but it is what blast radius is answered from, so
     // editing it to hide an entry must break the chain like editing the text does.
     sha(&format!(
         "envv-history-v2|{prev}|{project}|{exporter}|{}|{}|{}|{at}",
-        sha(content),
+        content_sha,
         sha(masked),
         sha(exposed)
     ))
@@ -334,6 +354,19 @@ pub struct Snapshot {
 }
 
 pub fn get(conn: &Connection, seq: i64) -> Result<Option<Snapshot>, String> {
+    let gone: Option<i64> = conn
+        .query_row(
+            "SELECT forgotten FROM config_snapshots WHERE seq = ?1",
+            [seq],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if gone == Some(1) {
+        return Err(format!(
+            "The content of snapshot #{seq} was forgotten (unv entry forget); only its hash remains"
+        ));
+    }
     conn.query_row(
         &format!(
             "SELECT {META_COLS}, content, masked, exposed FROM config_snapshots WHERE seq = ?1"
@@ -694,7 +727,7 @@ pub fn verify(conn: &Connection) -> Result<VerifyReport, String> {
             .map_or_else(|| "genesis".to_string(), |c| c.1.clone());
         let mut st = conn
             .prepare(
-                "SELECT seq, at, content, masked, sha256, bytes, chain, exposed FROM config_snapshots \
+                "SELECT seq, at, content, masked, sha256, bytes, chain, exposed, forgotten FROM config_snapshots \
                  WHERE project = ?1 AND exporter = ?2 ORDER BY seq ASC",
             )
             .map_err(|e| e.to_string())?;
@@ -709,18 +742,35 @@ pub fn verify(conn: &Connection) -> Result<VerifyReport, String> {
                     r.get::<_, i64>(5)?,
                     r.get::<_, String>(6)?,
                     r.get::<_, String>(7)?,
+                    r.get::<_, i64>(8)? == 1,
                 ))
             })
             .map_err(|e| e.to_string())?;
         for row in rows {
-            let (seq, at, content, masked, stored_sha, bytes, chain, exposed) =
+            let (seq, at, content, masked, stored_sha, bytes, chain, exposed, forgotten) =
                 row.map_err(|e| e.to_string())?;
             rep.snapshots += 1;
-            if sha(&content) != stored_sha || content.len() as i64 != bytes {
+            // A forgotten snapshot has no content left to hash; the stored hash stands in for it,
+            // and an edit to that hash still breaks the chain below.
+            if forgotten {
+                if !content.is_empty() {
+                    rep.problems.push(format!(
+                        "{label}: #{seq} is marked forgotten but still holds content"
+                    ));
+                }
+            } else if sha(&content) != stored_sha || content.len() as i64 != bytes {
                 rep.problems
                     .push(format!("{label}: #{seq} content does not match its hash"));
             }
-            let want = chain_of(&prev, &project, &exporter, &content, &masked, &exposed, &at);
+            let want = chain_of_sha(
+                &prev,
+                &project,
+                &exporter,
+                &stored_sha,
+                &masked,
+                &exposed,
+                &at,
+            );
             if want != chain {
                 rep.problems
                     .push(format!("{label}: #{seq} breaks the chain"));
