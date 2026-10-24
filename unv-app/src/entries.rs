@@ -158,6 +158,12 @@ pub struct EntryFields {
     /// the sentence you will be held to if the issuer asks why you have the key.
     #[arg(long)]
     pub purpose: Option<String>,
+    /// The app built or run on top of this credential (separate from --purpose).
+    #[arg(long)]
+    pub app_name: Option<String>,
+    /// What that app does with this credential.
+    #[arg(long)]
+    pub app_purpose: Option<String>,
     /// Key pool this entry joins, so `unv get --pool <name>` can swap onto it.
     ///
     /// Membership is explicit: two keys for the same provider do not pool
@@ -763,6 +769,12 @@ impl EntryFields {
         }
         if let Some(v) = &self.purpose {
             set_str(entry, "purpose", v);
+        }
+        if let Some(v) = &self.app_name {
+            set_str(entry, "app_name", v);
+        }
+        if let Some(v) = &self.app_purpose {
+            set_str(entry, "app_purpose", v);
         }
         if let Some(v) = &self.pool {
             set_str(entry, "pool", v.trim());
