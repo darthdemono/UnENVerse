@@ -136,6 +136,8 @@ fn meta_for(entry: &Value, profile: Profile) -> Vec<(String, String)> {
         out.extend([
             ("DESCRIPTION".into(), s(entry, "description").to_string()),
             ("PURPOSE".into(), s(entry, "purpose").to_string()),
+            ("APP_NAME".into(), s(entry, "app_name").to_string()),
+            ("APP_PURPOSE".into(), s(entry, "app_purpose").to_string()),
             ("TAGS".into(), join(entry, "tags")),
             ("CATEGORIES".into(), join(entry, "categories")),
             ("PROJECTS".into(), projects),

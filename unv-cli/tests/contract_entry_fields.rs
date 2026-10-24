@@ -281,3 +281,26 @@ fn a_secret_read_from_stdin_never_needs_the_command_line_and_cannot_be_given_twi
     assert_ne!(both.code, 0, "{}", both.all());
     assert_eq!(count(&v), 1);
 }
+
+#[test]
+fn an_app_name_and_purpose_are_stored_apart_from_the_purpose_given_to_the_issuer() {
+    // The app a secret was made for, and what it does with it, are not the sentence
+    // told to the issuer (`--purpose`). Both are plain metadata, so they are readable like the purpose.
+    let v = Vault::new("fields-app-meta");
+    v.ok(&[
+        "entry",
+        "add",
+        "Acme",
+        "--key",
+        "k",
+        "--purpose",
+        "told the issuer",
+        "--app-name",
+        "Release bot",
+        "--app-purpose",
+        "posts notes",
+    ]);
+    assert_eq!(field(&v, "Acme", "purpose"), "told the issuer");
+    assert_eq!(field(&v, "Acme", "app_name"), "Release bot");
+    assert_eq!(field(&v, "Acme", "app_purpose"), "posts notes");
+}
