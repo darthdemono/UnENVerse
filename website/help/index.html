@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get help with UnENVerse</title>
+  <meta name="description" content="Where to look first, how to ask for help with UnENVerse, and what to include so a problem can be fixed.">
+  <link rel="canonical" href="{{SITE_URL}}/help/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Get help with UnENVerse">
+  <meta property="og:description" content="Where to look first, how to ask for help with UnENVerse, and what to include so a problem can be fixed.">
+  <meta property="og:url" content="{{SITE_URL}}/help/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap">
+      <h1>Get help</h1>
+      <p class="lead">Most questions are answered on a page you can read in a minute. Try these in order.</p>
+      <ol>
+        <li>The <a href="/faq/">FAQ</a> for the common questions.</li>
+        <li>The <a href="/quickstart/">quickstart</a> and the <a href="/guides/">guides</a> for a task from start to finish.</li>
+        <li><code>unv doctor</code>. It checks the database, the salt, file permissions, the audit chain and common setup mistakes, and says what to fix.</li>
+        <li><code>unv &lt;command&gt; --help</code>, and the <a href="/docs/cli-reference.html">command reference</a>.</li>
+        <li>The <a href="/changelog/">changelog</a>, in case the behaviour changed in a recent version.</li>
+      </ol>
+      <h2>Asking on GitHub</h2>
+      <p>Open an <a href="https://github.com/darthdemono/UnENVerse/issues">issue</a> and include:</p>
+      <ul>
+        <li>The version (<code>unv --version</code>, or the About box in the app), and your operating system.</li>
+        <li>What you ran and what you expected, with the exact error text.</li>
+        <li>The output of <code>unv doctor</code>, which contains no secret values.</li>
+      </ul>
+      <p>Do not paste master passwords, tokens, vault files or <code>--reveal</code> output. If something already leaked, read <a href="/docs/compromise.html">if something leaks</a>.</p>
+      <p class="small">A forgotten master password cannot be recovered by anyone, including the maintainer. Backups and the recovery key are the only way back, and they are set up before you need them: see <a href="/guides/cli/">the command line guide</a>.</p>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

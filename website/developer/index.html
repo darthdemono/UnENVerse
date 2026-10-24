@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UnENVerse for developers: architecture, API, build and contribute</title>
+  <meta name="description" content="Where the code lives, how to build and test UnENVerse, the server API, the CLI contract and how to contribute.">
+  <link rel="canonical" href="{{SITE_URL}}/developer/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="UnENVerse for developers: architecture, API, build and contribute">
+  <meta property="og:description" content="Where the code lives, how to build and test UnENVerse, the server API, the CLI contract and how to contribute.">
+  <meta property="og:url" content="{{SITE_URL}}/developer/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap">
+      <h1>Developer</h1>
+      <p class="lead">UnENVerse is a Tauri 2 desktop app (TypeScript and Vite in <code>src/</code>, Rust in <code>src-tauri/</code>), the <code>unv</code> CLI, an optional <code>unv-server</code>, and <code>vault-core</code>, the library that holds storage, crypto, permissions and nodes.</p>
+      <h2>Read first</h2>
+      <ul>
+        <li><a href="/architecture/">Architecture</a>: how the pieces fit and why.</li>
+        <li><a href="/reference/">API reference</a>: the server's routes, generated from the code.</li>
+        <li><a href="/docs/contract.html">The scripting contract</a>: exit codes and JSON envelopes <code>unv</code> promises to scripts. <code>unv describe</code> prints it as JSON.</li>
+        <li><a href="/docs/adr/README.html">Decision records</a>: the reasons behind choices.</li>
+        <li><a href="/roadmap/">Roadmap</a> and the <a href="/changelog/">changelog</a>.</li>
+      </ul>
+      <h2>Build and test</h2>
+<pre><code>npm ci
+npm run dev            # Vite only, for UI work
+cargo tauri dev        # the full desktop window
+npm run check          # format, lint, typecheck and the TypeScript tests
+cargo test --workspace # all Rust tests
+npm run preflight      # what CI runs</code></pre>
+      <h2>Ground rules</h2>
+      <ul>
+        <li>Whatever the UI can do, the CLI can do, and the reverse; exemptions are written down.</li>
+        <li>Vault data is untrusted input and is escaped on every render. Redaction fails closed.</li>
+        <li>A bug fix comes with a regression test that fails without it.</li>
+        <li><a href="https://github.com/darthdemono/UnENVerse/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> has the full list, and the <a href="https://github.com/darthdemono/UnENVerse">repository</a> has the code.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

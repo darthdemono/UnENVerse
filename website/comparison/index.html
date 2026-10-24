@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UnENVerse compared with .env files and other ways to keep secrets</title>
+  <meta name="description" content="How UnENVerse differs from plain .env files, a browser or desktop password manager, and a hosted secrets service.">
+  <link rel="canonical" href="{{SITE_URL}}/comparison/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="UnENVerse compared with .env files and other ways to keep secrets">
+  <meta property="og:description" content="How UnENVerse differs from plain .env files, a browser or desktop password manager, and a hosted secrets service.">
+  <meta property="og:url" content="{{SITE_URL}}/comparison/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap">
+      <h1>Comparison</h1>
+      <p class="lead">UnENVerse is for people who run their own software: developers, homelab owners and small teams. This page compares kinds of tool, not named products, and only on things this project can verify about itself.</p>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col"></th><th scope="col">Plain .env files</th><th scope="col">A password manager</th><th scope="col">A hosted secrets service</th><th scope="col">UnENVerse</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Where the secrets live</th><td>Files, often copied around</td><td>The vendor's or your own vault</td><td>The provider's cloud</td><td>One encrypted vault on your own machine or server</td></tr>
+          <tr><th scope="row">Encryption at rest</th><td>None</td><td>Yes</td><td>Yes</td><td>SQLCipher, key from Argon2id</td></tr>
+          <tr><th scope="row">Feeds a config file or a running process</th><td>Is the file</td><td>Usually copy and paste</td><td>Through its agent or SDK</td><td>Renders env files, compose, nginx and more from references; <code>unv exec</code> injects into a process</td></tr>
+          <tr><th scope="row">Can a script or AI agent use a secret without seeing it</th><td>No</td><td>Rarely</td><td>Sometimes</td><td>Yes: redacted by default, values only into the file or process you name</td></tr>
+          <tr><th scope="row">People and permissions</th><td>None</td><td>Sharing</td><td>Policies</td><td>Users, classes and permission expressions on <code>unv-server</code></td></tr>
+          <tr><th scope="row">Needs an account or a subscription</th><td>No</td><td>Often</td><td>Yes</td><td>No. Free and open source</td></tr>
+          <tr><th scope="row">Works offline</th><td>Yes</td><td>Varies</td><td>No</td><td>Yes, local first</td></tr>
+          <tr><th scope="row">Audit trail</th><td>None</td><td>Varies</td><td>Yes</td><td>Hash-chained log checked by <code>unv doctor</code></td></tr>
+        </tbody>
+      </table></div>
+      <h2>What UnENVerse is not</h2>
+      <ul>
+        <li>Not a hosted service: nobody runs it for you, and there is no account to recover a lost master password with.</li>
+        <li>Not a replacement for a team-scale identity platform. Permissions exist, but a single maintainer wrote them and no outside audit has certified them. See the <a href="/security/">security page</a> for what has and has not been reviewed.</li>
+        <li>Not on macOS releases yet. See <a href="/install/">Install</a>.</li>
+      </ul>
+      <p>Questions this page does not answer are in the <a href="/faq/">FAQ</a>.</p>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

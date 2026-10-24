@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install UnENVerse on Linux, Windows or Docker</title>
+  <meta name="description" content="Install the UnENVerse desktop app, the unv command line or the unv-server container, and verify the download.">
+  <link rel="canonical" href="{{SITE_URL}}/install/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Install UnENVerse on Linux, Windows or Docker">
+  <meta property="og:description" content="Install the UnENVerse desktop app, the unv command line or the unv-server container, and verify the download.">
+  <meta property="og:url" content="{{SITE_URL}}/install/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap">
+      <h1>Install</h1>
+      <p class="lead">Three things can be installed, and they share one vault format: the desktop app, the <code>unv</code> command line, and <code>unv-server</code> for a vault several people or machines reach. Current release: {{VERSION}}.</p>
+      <h2>Desktop app and command line</h2>
+      <p>Get the file for your system from the <a href="/download/">download page</a>. Every file has a SHA-256 sum and a Sigstore signature.</p>
+<pre><code># Debian or Ubuntu (amd64 or arm64)
+sudo apt install ./UnENVerse_{{VERSION}}_amd64.deb
+
+# Fedora or RHEL
+sudo dnf install ./UnENVerse-{{VERSION}}-1.x86_64.rpm
+
+# Any Linux: the AppImage
+chmod +x UnENVerse_{{VERSION}}_amd64.AppImage &amp;&amp; ./UnENVerse_{{VERSION}}_amd64.AppImage
+
+# Command line only (add -musl for a static build that runs on Alpine)
+tar xzf unv-{{VERSION}}-linux-x86_64.tar.gz &amp;&amp; ./unv --version</code></pre>
+      <p>On Windows run the <code>-setup.exe</code> (x64 or Arm), or unpack the <code>.zip</code> for the command line. macOS is built and tested in CI but not released, because nothing could be signed or notarized without an Apple Developer account. See <a href="/docs/platforms.html">platforms</a>.</p>
+      <h2>Server in Docker</h2>
+<pre><code>docker run -d -p 127.0.0.1:8743:8743 -v unv-data:/data -e UNV_PASSWORD=... \
+  ghcr.io/darthdemono/unenverse/unv-server:latest</code></pre>
+      <p>The image is published for <code>linux/amd64</code> and <code>linux/arm64</code>. The port is bound to this machine only: the server speaks plain HTTP unless started with <code>--tls</code>, and the master password travels in every sign-in. Add <code>--tls</code>, or put a TLS proxy in front, before reaching it from other machines.</p>
+      <h2>Verify, update, uninstall</h2>
+      <ul>
+        <li>Check the SHA-256 of the file against <code>SHA256SUMS</code> on the release before running it.</li>
+        <li><code>unv update check</code> reports a newer release; <code>unv update install</code> installs one whose signature verifies.</li>
+        <li>Uninstalling the app does not delete your vault (<code>vault.db</code> and <code>vault.salt</code> in the <code>io.unenverse</code> data folder). Back it up first with <code>unv backup export</code>; a forgotten master password cannot be recovered.</li>
+      </ul>
+      <p>Next: the <a href="/quickstart/">quickstart</a>.</p>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

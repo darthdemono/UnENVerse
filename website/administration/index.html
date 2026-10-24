@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administer a UnENVerse server: users, backups, TLS and nodes</title>
+  <meta name="description" content="Run and maintain UnENVerse with unv-server: unlocking, TLS and pinning, users and permissions, backups, health checks and nodes.">
+  <link rel="canonical" href="{{SITE_URL}}/administration/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Administer a UnENVerse server: users, backups, TLS and nodes">
+  <meta property="og:description" content="Run and maintain UnENVerse with unv-server: unlocking, TLS and pinning, users and permissions, backups, health checks and nodes.">
+  <meta property="og:url" content="{{SITE_URL}}/administration/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap">
+      <h1>Administration</h1>
+      <p class="lead">For whoever runs <code>unv-server</code> or looks after a team's vault. Each topic links to the page that has the detail.</p>
+      <h2>Running the server</h2>
+      <ul>
+        <li><code>unv-server --port 8743</code>, with <code>--tls</code> for a self-signed certificate (valid three years, fingerprint printed at startup) or <code>--tls --cert fullchain.pem --key privkey.pem</code> for your own. Clients pin the certificate fingerprint and never silently re-pin a changed one.</li>
+        <li>In Docker the server unlocks itself from <code>UNV_PASSWORD</code>. Watch <code>/api/health</code>: it reports liveness and lock state without leaking counts.</li>
+        <li>Memory: two worker threads by default (<code>UNV_WORKER_THREADS</code>); the container sets a 256 MB limit, enough for two concurrent Argon2id unlocks.</li>
+      </ul>
+      <h2>Users and permissions</h2>
+      <ul>
+        <li>The owner holds the master password. Other users get their own login, optionally a second factor, and permissions written as expressions over projects, categories and entries.</li>
+        <li>A user can be limited to read, write or neither per scope, and strict-write mode refuses writes outside the grant. Details: <a href="/docs/security.html">security model</a>.</li>
+      </ul>
+      <h2>Backups and recovery</h2>
+      <ul>
+        <li><code>unv backup export</code> writes an encrypted <code>.vaultbak</code> under a separate backup password; <code>unv backup archive</code> copies the vault byte for byte including the salt. Restore into an empty vault to test it.</li>
+        <li>Recovery packages and the recovery key are the only way back from a lost master password. Set them up first.</li>
+      </ul>
+      <h2>Health, history and audit</h2>
+      <ul>
+        <li><code>unv doctor</code> checks permissions, network filesystems and the hash-chained audit log. <code>unv audit</code> reads the log; entry and config history keep previous values.</li>
+      </ul>
+      <h2>Machines</h2>
+      <ul>
+        <li><a href="/guides/nodes/">Nodes</a> deliver secrets to managed hosts with approvals signed on the owner's device.</li>
+        <li><code>unv update check</code> finds a newer release; update the container with <code>docker compose pull unv-server &amp;&amp; docker compose up -d unv-server</code>.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>
