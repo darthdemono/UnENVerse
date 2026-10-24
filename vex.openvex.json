@@ -147,6 +147,32 @@
       "status": "not_affected",
       "justification": "vulnerable_code_not_in_execute_path",
       "impact_statement": "quick-xml: build-time plist parsing of our own files (Tauri)"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2026-0374"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "basic-toml: unmaintained, build-time only via age's i18n macros"
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2026-0387"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "crypto-bigint 0.5.5: reached only through ssh-key's p256; no ECDSA signing, no patched 0.5 release"
     }
   ]
 }

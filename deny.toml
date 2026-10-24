@@ -8,6 +8,10 @@ all-features = true
 version = 2
 yanked = "deny"
 ignore = [
+  # crypto-bigint 0.5.5, via ssh-key -> p256 -> elliptic-curve 0.13. ECDSA signing is never
+  # used; ssh-key is only asked for Ed25519 and for parsing. Ends when ssh-key moves to
+  # an elliptic-curve release built on crypto-bigint 0.7.6 or later.
+  { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5.5: reached only through ssh-key's p256; no ECDSA signing, no patched 0.5 release" },
   # basic-toml, via i18n-config under age's i18n-embed-fl macro: reads age's own
   # bundled translation config at build time, never untrusted input. Ends when age
   # moves off i18n-embed.
