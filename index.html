@@ -734,6 +734,8 @@
         <div class="form-group" id="f-unknown-type-banner" hidden role="alert">
           <p class="form-hint" style="color:var(--warn,#c9a227)"></p>
         </div>
+        <section class="form-section" aria-labelledby="fs-secret">
+          <h3 class="form-section-title" id="fs-secret">Secret</h3>
         <div class="form-row-3">
           <div class="form-group">
             <label for="f-provider" class="form-label" id="f-provider-label" data-field="provider">Provider <span
@@ -865,6 +867,22 @@
             <input class="form-input mono" id="f-label" type="text" autocomplete="off" maxlength="24" placeholder="e.g. game, web, mobile">
           </div>
         </div>
+        <div class="form-group" id="f-extra-vars-section">
+          <label class="form-label" id="f-extra-vars-label">Additional values <span class="opt">optional, a secret, id, token or any custom role next to the value above</span></label>
+          <div id="f-extra-vars-list" class="extra-vars-list" role="group" aria-labelledby="f-extra-vars-label"></div>
+          <div class="extra-var-add">
+            <select id="f-extra-vars-role" class="form-input" aria-label="Role of the value to add">
+              <option value="secret">secret</option>
+              <option value="id">id</option>
+              <option value="token">token</option>
+              <option value="password">password</option>
+              <option value="username">username</option>
+              <option value="url">url</option>
+              <option value="">custom role...</option>
+            </select>
+            <button type="button" id="f-extra-vars-add" class="btn btn-ghost btn-sm" title="Add another value with this role">+ Add value</button>
+          </div>
+        </div>
         <!-- The template has five inputs feeding it; nobody should have to run a
              copy to find out what it produced. Written by `updateNamePreview()`. -->
         <div class="form-group" id="f-name-preview-group">
@@ -892,6 +910,67 @@
           <label for="f-secret" class="form-label" data-field="api_secret">API Secret <span class="opt">optional</span></label>
           <input class="form-input mono" id="f-secret" type="text" placeholder="Client secret or shared secret">
         </div>
+        <div class="form-group" id="f-secret-role-group">
+          <label for="f-secret-role" class="form-label" data-field="secret_role" title="What the secret above is called, when SECRET is wrong — Twilio's second half is an Auth Token, Apple's is a private key.">
+            Secret role <span class="opt">optional — default SECRET</span>
+          </label>
+          <input class="form-input mono" id="f-secret-role" type="text" autocomplete="off" placeholder="blank = SPOTIFY_SECRET  ·  auth_token  ·  private_key">
+        </div>
+        <div class="form-row-2" id="f-username-row">
+          <div class="form-group">
+            <label for="f-username" class="form-label" data-field="username">Username</label>
+            <input class="form-input" id="f-username" type="text" placeholder="Optional username">
+          </div>
+          <div class="form-group">
+            <label for="f-email" class="form-label" data-field="email">Email</label>
+            <input class="form-input" id="f-email" type="email" placeholder="Optional email">
+          </div>
+        </div>
+
+        <!-- Secret-type-dependent groups (only relevant ones shown/hidden by JS) -->
+        <div class="form-group" id="f-username-group" style="display:none"></div>
+        <div class="form-group" id="f-email-group" style="display:none"></div>
+        <div class="form-group" id="f-cert-issuer-group" style="display:none">
+          <label for="f-cert-issuer" class="form-label" data-field="cert_issuer">Issuer / Provider</label>
+          <input class="form-input" id="f-cert-issuer" placeholder="e.g. Let's Encrypt, Google, EnvV">
+        </div>
+        <div class="form-group" id="f-cert-group" style="display:none">
+          <label for="f-cert" class="form-label" data-field="certificate_data">Fullchain (PEM)</label>
+          <textarea class="form-input mono" id="f-cert" rows="3"
+            placeholder="-----BEGIN CERTIFICATE-----\n... (fullchain.pem)"></textarea>
+        </div>
+        <div class="form-group" id="f-cert-key-group" style="display:none">
+          <label for="f-cert-key" class="form-label" data-field="cert_key_data">Privkey (PEM)</label>
+          <textarea class="form-input mono" id="f-cert-key" rows="3"
+            placeholder="-----BEGIN PRIVATE KEY-----&#10;..."></textarea>
+        </div>
+        <div class="form-group" id="f-blob-group" style="display:none">
+          <label for="f-blob" class="form-label" data-field="blob_ref">File Path / Reference</label>
+          <input class="form-input mono" id="f-blob" placeholder="/path/to/file">
+        </div>
+
+        <!-- Composite secrets (Phase 24.1): the template holds {name} holes;
+             each part is an ordinary row below in Extra Variables. Hidden for
+             every other type by dynamicSecretFields. -->
+        <div class="form-group" id="f-template-group" style="display:none">
+          <label for="f-template" class="form-label" title="The shape of the rendered value, with {name} holes for each secret part. Each part is a row below in Extra Variables.">Template <span class="req">*</span></label>
+          <textarea class="form-input mono" id="f-template" rows="2" placeholder="https://example.com/cal/{mailbox_id}@x.com/{calendar_key}/calendar.ics"></textarea>
+          <div class="form-row-3" style="margin-top:6px">
+            <div class="form-group">
+              <label for="f-template-kind" class="form-label">Kind</label>
+              <select id="f-template-kind" class="form-input">
+                <option value="link">Link</option>
+                <option value="signed_link">Signed link</option>
+                <option value="connection">Connection string</option>
+                <option value="custom">Custom (no encoding)</option>
+              </select>
+            </div>
+          </div>
+          <output class="env-name-preview mono" id="f-template-preview" for="f-template f-template-kind"></output>
+        </div>
+        </section>
+        <section class="form-section" aria-labelledby="fs-use">
+          <h3 class="form-section-title" id="fs-use">How it is used</h3>
         <div class="form-group" id="f-local-preset-group" style="display:none">
           <label for="f-local-preset" class="form-label" title="Fills 'Sent as' for the self-hosted apps whose convention is well known. It only sets the two fields below; nothing is contacted.">
             Self-hosted app <span class="opt">optional</span>
@@ -975,12 +1054,30 @@
           </label>
           <input class="form-input mono" id="f-user-agent" type="text" autocomplete="off" placeholder="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36">
         </div>
-        <div class="form-group" id="f-secret-role-group">
-          <label for="f-secret-role" class="form-label" data-field="secret_role" title="What the secret above is called, when SECRET is wrong — Twilio's second half is an Auth Token, Apple's is a private key.">
-            Secret role <span class="opt">optional — default SECRET</span>
-          </label>
-          <input class="form-input mono" id="f-secret-role" type="text" autocomplete="off" placeholder="blank = SPOTIFY_SECRET  ·  auth_token  ·  private_key">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="f-apiurl" class="form-label" data-field="api_url">API URL <span class="opt">optional</span></label>
+            <input class="form-input mono" id="f-apiurl" type="text" placeholder="https://api.example.com">
+          </div>
+          <div class="form-group">
+            <label for="f-cburl" class="form-label" data-field="callback_url">Callback URL <span class="opt">optional</span></label>
+            <input class="form-input mono" id="f-cburl" type="text" placeholder="https://yourapp.com/oauth/cb">
+          </div>
         </div>
+        <div class="form-group">
+          <label for="f-scopes" class="form-label" data-field="scopes">Scopes <span class="opt">optional — comma
+              separated</span></label>
+          <input class="form-input mono" id="f-scopes" placeholder="repo, read:user, write:packages">
+        </div>
+        <div class="form-group">
+          <label for="f-env-prefixes" class="form-label" title="Prefixes added by services that consume this credential. For Chunk type, the first prefix is the namespace identifier (e.g. AM for AM_JWT_SECRET). For Key type, each prefix is a context identifier (e.g. ND for ND_LASTFM_APIKEY).">
+            Env Prefixes <span class="opt">optional — comma separated</span>
+          </label>
+          <input class="form-input mono" id="f-env-prefixes" placeholder="e.g. ND, SPOTIFYD">
+        </div>
+        </section>
+        <section class="form-section" aria-labelledby="fs-2fa">
+          <h3 class="form-section-title" id="fs-2fa">Two-factor</h3>
         <div class="form-group" id="f-totp-group">
           <label for="f-totp" class="form-label" data-field="totp_secret" title="The authenticator seed this service issued you. Paste the whole otpauth:// URI and the algorithm, digits and period are read from it.">
             Two-Factor Seed <span class="opt">optional — base32, or a whole otpauth:// URI</span>
@@ -1025,6 +1122,46 @@
             </div>
           </div>
         </div>
+        </section>
+        <section class="form-section" aria-labelledby="fs-about">
+          <h3 class="form-section-title" id="fs-about">About this secret</h3>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="f-purpose" class="form-label" data-field="purpose">Purpose <span class="opt">optional — what you told the issuer</span></label>
+            <input class="form-input" id="f-purpose" placeholder="CI builds for the UnENVerse repo">
+          </div>
+          <div class="form-group">
+            <label for="f-pool" class="form-label" data-field="pool">Key Pool <span class="opt">optional — swap between keys</span></label>
+            <input class="form-input mono" id="f-pool" placeholder="github-ci">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="f-app-name" class="form-label" data-field="app_name" title="The app you built or run that uses this secret. Separate from Purpose, which is what you told the issuer.">App name <span class="opt">optional, the app this secret was made for</span></label>
+            <input class="form-input" id="f-app-name" placeholder="UnENVerse CI bot">
+          </div>
+          <div class="form-group">
+            <label for="f-app-purpose" class="form-label" data-field="app_purpose" title="What that app does with this secret.">App purpose <span class="opt">optional, what the app uses it for</span></label>
+            <input class="form-input" id="f-app-purpose" placeholder="Posts release notes to Discord">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="f-apidesc" class="form-label" data-field="api_description">API Description <span
+              class="opt">optional</span></label>
+          <input class="form-input" id="f-apidesc" placeholder="What does this key do technically?">
+        </div>
+        <div class="form-group">
+          <label for="f-desc" class="form-label" data-field="description">General Description <span
+              class="opt">optional</span></label>
+          <input class="form-input" id="f-desc" placeholder="Which project / stack uses this? Any caveats?">
+        </div>
+        <div class="form-group">
+          <label for="f-details" class="form-label" data-field="details">Details <span class="opt">optional</span></label>
+          <input class="form-input" id="f-details" placeholder="Extra notes or metadata">
+        </div>
+        </section>
+        <section class="form-section" aria-labelledby="fs-organise">
+          <h3 class="form-section-title" id="fs-organise">Organise</h3>
         <div class="form-row-2">
           <div class="form-group">
             <label for="f-price" class="form-label" data-field="price_type">Price Type</label>
@@ -1046,39 +1183,6 @@
             </select>
           </div>
         </div>
-        <div class="form-row-2" id="f-username-row">
-          <div class="form-group">
-            <label for="f-username" class="form-label" data-field="username">Username</label>
-            <input class="form-input" id="f-username" type="text" placeholder="Optional username">
-          </div>
-          <div class="form-group">
-            <label for="f-email" class="form-label" data-field="email">Email</label>
-            <input class="form-input" id="f-email" type="email" placeholder="Optional email">
-          </div>
-        </div>
-
-        <!-- Secret-type-dependent groups (only relevant ones shown/hidden by JS) -->
-        <div class="form-group" id="f-username-group" style="display:none"></div>
-        <div class="form-group" id="f-email-group" style="display:none"></div>
-        <div class="form-group" id="f-cert-issuer-group" style="display:none">
-          <label for="f-cert-issuer" class="form-label" data-field="cert_issuer">Issuer / Provider</label>
-          <input class="form-input" id="f-cert-issuer" placeholder="e.g. Let's Encrypt, Google, EnvV">
-        </div>
-        <div class="form-group" id="f-cert-group" style="display:none">
-          <label for="f-cert" class="form-label" data-field="certificate_data">Fullchain (PEM)</label>
-          <textarea class="form-input mono" id="f-cert" rows="3"
-            placeholder="-----BEGIN CERTIFICATE-----\n... (fullchain.pem)"></textarea>
-        </div>
-        <div class="form-group" id="f-cert-key-group" style="display:none">
-          <label for="f-cert-key" class="form-label" data-field="cert_key_data">Privkey (PEM)</label>
-          <textarea class="form-input mono" id="f-cert-key" rows="3"
-            placeholder="-----BEGIN PRIVATE KEY-----&#10;..."></textarea>
-        </div>
-        <div class="form-group" id="f-blob-group" style="display:none">
-          <label for="f-blob" class="form-label" data-field="blob_ref">File Path / Reference</label>
-          <input class="form-input mono" id="f-blob" placeholder="/path/to/file">
-        </div>
-
         <div class="form-group">
           <label class="form-label" id="f-project-label" data-field="project">Projects</label>
           <!-- A div-based picker, not a <select multiple>: WebKitGTK renders a
@@ -1088,16 +1192,25 @@
             aria-labelledby="f-project-label" tabindex="0"></div>
           <small style="color:var(--text3); font-size:10px;">Click to toggle project assignment</small>
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="f-apiurl" class="form-label" data-field="api_url">API URL <span class="opt">optional</span></label>
-            <input class="form-input mono" id="f-apiurl" type="text" placeholder="https://api.example.com">
-          </div>
-          <div class="form-group">
-            <label for="f-cburl" class="form-label" data-field="callback_url">Callback URL <span class="opt">optional</span></label>
-            <input class="form-input mono" id="f-cburl" type="text" placeholder="https://yourapp.com/oauth/cb">
+        <div class="form-group">
+          <label class="form-label" id="f-categories-label" data-field="categories">Categories <span class="opt">optional</span></label>
+          <div id="f-categories" class="cat-chips-wrap" role="group" aria-labelledby="f-categories-label"></div>
+        </div>
+        <div class="form-group">
+          <label for="f-tags-input" class="form-label" data-field="tags">Tags <span class="opt">optional — space separated</span></label>
+          <input class="form-input" id="f-tags-input" placeholder="e.g. critical infra prod-only">
+        </div>
+        <div class="form-group">
+          <label for="f-icon" class="form-label" data-field="custom_icon">Icon <span class="opt">optional</span></label>
+          <div class="icon-field">
+            <div id="f-icon-preview" class="icon-preview-sm"></div>
+            <input class="form-input mono" id="f-icon" placeholder="Simple Icons slug, e.g. github">
+            <button type="button" id="f-icon-pick" class="btn btn-ghost btn-sm">Browse</button>
           </div>
         </div>
+        </section>
+        <section class="form-section" aria-labelledby="fs-life">
+          <h3 class="form-section-title" id="fs-life">Lifecycle</h3>
         <div class="form-row-3">
           <div class="form-group">
             <label for="f-version" class="form-label" data-field="version">Version <span class="opt">optional</span></label>
@@ -1131,87 +1244,13 @@
             <input class="form-input mono" id="f-rotation-days" type="number" min="1" placeholder="90">
           </div>
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="f-purpose" class="form-label" data-field="purpose">Purpose <span class="opt">optional — what you told the issuer</span></label>
-            <input class="form-input" id="f-purpose" placeholder="CI builds for the UnENVerse repo">
-          </div>
-          <div class="form-group">
-            <label for="f-pool" class="form-label" data-field="pool">Key Pool <span class="opt">optional — swap between keys</span></label>
-            <input class="form-input mono" id="f-pool" placeholder="github-ci">
-          </div>
-        </div>
         <div class="form-group">
           <label for="f-compromised" class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="f-compromised" style="width:auto;margin:0">
             Mark as compromised <span class="opt">flags as critical until rotated</span>
           </label>
         </div>
-        <div class="form-group">
-          <label for="f-scopes" class="form-label" data-field="scopes">Scopes <span class="opt">optional — comma
-              separated</span></label>
-          <input class="form-input mono" id="f-scopes" placeholder="repo, read:user, write:packages">
-        </div>
-        <div class="form-group">
-          <label for="f-apidesc" class="form-label" data-field="api_description">API Description <span
-              class="opt">optional</span></label>
-          <input class="form-input" id="f-apidesc" placeholder="What does this key do technically?">
-        </div>
-        <div class="form-group">
-          <label for="f-desc" class="form-label" data-field="description">General Description <span
-              class="opt">optional</span></label>
-          <input class="form-input" id="f-desc" placeholder="Which project / stack uses this? Any caveats?">
-        </div>
-        <div class="form-group">
-          <label for="f-details" class="form-label" data-field="details">Details <span class="opt">optional</span></label>
-          <input class="form-input" id="f-details" placeholder="Extra notes or metadata">
-        </div>
-        <div class="form-group">
-          <label for="f-icon" class="form-label" data-field="custom_icon">Icon <span class="opt">optional</span></label>
-          <div class="icon-field">
-            <div id="f-icon-preview" class="icon-preview-sm"></div>
-            <input class="form-input mono" id="f-icon" placeholder="Simple Icons slug, e.g. github">
-            <button type="button" id="f-icon-pick" class="btn btn-ghost btn-sm">Browse</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" id="f-categories-label" data-field="categories">Categories <span class="opt">optional</span></label>
-          <div id="f-categories" class="cat-chips-wrap" role="group" aria-labelledby="f-categories-label"></div>
-        </div>
-        <div class="form-group">
-          <label for="f-tags-input" class="form-label" data-field="tags">Tags <span class="opt">optional — space separated</span></label>
-          <input class="form-input" id="f-tags-input" placeholder="e.g. critical infra prod-only">
-        </div>
-        <div class="form-group">
-          <label for="f-env-prefixes" class="form-label" title="Prefixes added by services that consume this credential. For Chunk type, the first prefix is the namespace identifier (e.g. AM for AM_JWT_SECRET). For Key type, each prefix is a context identifier (e.g. ND for ND_LASTFM_APIKEY).">
-            Env Prefixes <span class="opt">optional — comma separated</span>
-          </label>
-          <input class="form-input mono" id="f-env-prefixes" placeholder="e.g. ND, SPOTIFYD">
-        </div>
-        <!-- Composite secrets (Phase 24.1): the template holds {name} holes;
-             each part is an ordinary row below in Extra Variables. Hidden for
-             every other type by dynamicSecretFields. -->
-        <div class="form-group" id="f-template-group" style="display:none">
-          <label for="f-template" class="form-label" title="The shape of the rendered value, with {name} holes for each secret part. Each part is a row below in Extra Variables.">Template <span class="req">*</span></label>
-          <textarea class="form-input mono" id="f-template" rows="2" placeholder="https://example.com/cal/{mailbox_id}@x.com/{calendar_key}/calendar.ics"></textarea>
-          <div class="form-row-3" style="margin-top:6px">
-            <div class="form-group">
-              <label for="f-template-kind" class="form-label">Kind</label>
-              <select id="f-template-kind" class="form-input">
-                <option value="link">Link</option>
-                <option value="signed_link">Signed link</option>
-                <option value="connection">Connection string</option>
-                <option value="custom">Custom (no encoding)</option>
-              </select>
-            </div>
-          </div>
-          <output class="env-name-preview mono" id="f-template-preview" for="f-template f-template-kind"></output>
-        </div>
-        <div class="form-group" id="f-extra-vars-section">
-          <label class="form-label" id="f-extra-vars-label">Extra Variables <span class="opt">optional — use for multi-field credentials and chunk fields</span></label>
-          <div id="f-extra-vars-list" class="extra-vars-list" role="group" aria-labelledby="f-extra-vars-label"></div>
-          <button type="button" id="f-extra-vars-add" class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;align-self:flex-start">+ Add variable</button>
-        </div>
+        </section>
       </div><!-- /.modal-body -->
       <div class="modal-footer">
         <div class="modal-footer-left">

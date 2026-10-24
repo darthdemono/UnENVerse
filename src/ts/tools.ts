@@ -1674,6 +1674,8 @@ export function initTools() {
       ['expires_at', 'Expires'],
       ['rate_limit', 'Rate Limit'],
       ['purpose', 'Purpose'],
+      ['app_name', 'App name'],
+      ['app_purpose', 'App purpose'],
       ['pool', 'Key Pool'],
       ['version', 'Version'],
       ['api_description', 'Description'],

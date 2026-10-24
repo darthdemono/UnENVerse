@@ -1073,6 +1073,22 @@ function buildBundleCard(
     html` <button
         type="button"
         class="btn btn-ghost btn-sm"
+        data-action="bundle-add-key"
+        data-bundle="${id}"
+      >
+        Add key
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        data-action="bundle-add-env"
+        data-bundle="${id}"
+      >
+        Add env
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
         data-action="bundle-add-member"
         data-bundle="${id}"
       >
@@ -1381,6 +1397,8 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
     metaRows.push(['Rate Limit', rl.rate_limit_note]);
   }
   if (entry.purpose) metaRows.push(['Purpose', entry.purpose]);
+  if (entry.app_name) metaRows.push(['App', entry.app_name]);
+  if (entry.app_purpose) metaRows.push(['App purpose', entry.app_purpose]);
   if (entry.pool) metaRows.push(['Key Pool', entry.pool]);
   if (entry.expires_at) metaRows.push(['Expires', entry.expires_at]);
   if (entry.api_url) metaRows.push(['API URL', safeUrl(entry.api_url)]);

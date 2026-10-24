@@ -49,6 +49,7 @@ import {
   showContextMenu,
   dynamicSecretFields,
   openAdd,
+  openAddToBundle,
   openEdit,
   closeModal,
   saveModal,
@@ -66,7 +67,7 @@ import {
   confirmBundleMemberReferenceBreakage,
   pushUndo,
 } from './modals';
-import { renameBundleSlotRefs } from './bundle-scope';
+import { joinBundle, renameBundleSlotRefs } from './bundle-scope';
 import { buildBundleExport, type BundleExportFormat } from './copy-profile';
 import {
   doSetFilter,
@@ -1343,38 +1344,17 @@ async function init() {
             !(await showConfirm(`Add all ${additions.length} entries in pool "${poolName}"?`))
           )
             return;
-          let order = Math.max(
-            0,
-            ...st.vault.api_keys
-              .filter((entry) => entry.bundle_id === bundleId)
-              .map((entry) => entry.bundle_order ?? 0),
-          );
-          const used = new Set(
-            st.vault.api_keys
-              .filter((entry) => entry.bundle_id === bundleId)
-              .map((entry) => entry.bundle_slot),
-          );
-          for (const addition of additions) {
-            const base = (addition.label || addition.provider)
-              .trim()
-              .replace(/[^A-Za-z0-9_-]+/g, '_')
-              .slice(0, 24);
-            let slot = /^[A-Za-z0-9]/.test(base)
-              ? base
-              : `member_${st.vault.api_keys.filter((entry) => entry.bundle_id === bundleId).length + 1}`;
-            for (let suffix = 2; used.has(slot); suffix++) {
-              const tail = `_${suffix}`;
-              slot = `${base.slice(0, 24 - tail.length)}${tail}`;
-            }
-            used.add(slot);
-            addition.bundle_id = bundleId;
-            addition.bundle_slot = slot;
-            addition.bundle_order = order += 10;
-            bundle.bundle_primary ??= addition.id;
-          }
+          for (const addition of additions) joinBundle(st.vault.api_keys, bundle, addition);
           await persist();
           render();
         })();
+        break;
+      }
+      case 'bundle-add-key':
+      case 'bundle-add-env': {
+        const bundleId = el.dataset.bundle ?? '';
+        if (!st.vault.api_keys.some((e) => e.id === bundleId && e.secretType === 'bundle')) break;
+        openAddToBundle(bundleId, action === 'bundle-add-key' ? 'api_key' : 'env_var');
         break;
       }
       case 'bundle-add-var': {
@@ -1390,7 +1370,12 @@ async function init() {
             return;
           }
           const value = await showPasswordPrompt(`Secret value for ${key}`);
-          if (value === null) return;
+          // The prompt answers null for both Cancel and an empty box, and an empty value
+          // would store a blank secret, so say why nothing was added.
+          if (value === null) {
+            showToast('No value entered, so no variable was added', 'err');
+            return;
+          }
           bundle.extra_vars ??= [];
           // Until this form exposes an explicit visibility control, new locals
           // fail closed and are masked rather than accidentally shown in a card.

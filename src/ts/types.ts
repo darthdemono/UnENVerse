@@ -273,6 +273,10 @@ export interface VaultEntry {
    * months later nobody remembers.
    */
   purpose?: string | null;
+  /** The app built or run on top of this secret. Distinct from {@link purpose}, which is what the issuer was told. */
+  app_name?: string | null;
+  /** What that app does with this secret. */
+  app_purpose?: string | null;
   /**
    * Name of the key pool this entry belongs to, or `null` for a standalone key.
    *

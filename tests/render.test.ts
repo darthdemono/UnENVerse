@@ -212,7 +212,7 @@ describe('renderGrid', () => {
       'Categories: Infrastructure',
     );
     expect(grid().querySelector('.bundle-card-wrap')?.textContent).toContain('Tags: critical');
-    expect(grid().querySelectorAll('[data-action^="bundle-add-"]')).toHaveLength(5);
+    expect(grid().querySelectorAll('[data-action^="bundle-add-"]')).toHaveLength(7);
   });
 
   it('keeps bundle-scope resolution independent of the active presentation filter', () => {

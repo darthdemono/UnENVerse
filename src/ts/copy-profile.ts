@@ -108,6 +108,8 @@ function metaFor(entry: VaultEntry, profile: CopyProfile): Meta[] {
     out.push(
       { role: 'DESCRIPTION', value: entry.description ?? '' },
       { role: 'PURPOSE', value: entry.purpose ?? '' },
+      { role: 'APP_NAME', value: entry.app_name ?? '' },
+      { role: 'APP_PURPOSE', value: entry.app_purpose ?? '' },
       { role: 'TAGS', value: join(entry.tags) },
       { role: 'CATEGORIES', value: join(entry.categories) },
       // "Universal" is the catch-all every entry carries, so listing it says

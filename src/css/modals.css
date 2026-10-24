@@ -89,6 +89,42 @@
 }
 
 /* ── FORM ──────────────────────────────────────────── */
+/* The add/edit form is long; sections give it a shape (identity and value first,
+   then how it is used, then notes and housekeeping) instead of one endless column. */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 14px 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2, transparent);
+}
+
+.form-section-title {
+  margin: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+.extra-var-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.extra-var-add .form-input {
+  width: auto;
+  flex: 0 1 170px;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

@@ -12,7 +12,6 @@ import {
   newEntryId,
   envName,
   primaryEnvName,
-  secretEnvName,
   namesGeneratedBy,
   primaryIsOptional,
   entryHasPayload,
@@ -47,6 +46,7 @@ import {
 } from './cookies';
 import { parseTotpSeed, normalizeB32, TOTP_DEFAULTS } from './totp';
 import {
+  joinBundle,
   referencesToBundleMember,
   renameBundleLocalRefs,
   renameBundleRefs,
@@ -332,7 +332,13 @@ export function dynamicSecretFields() {
 
   const showKey =
     type !== 'certificate' && type !== 'file_blob' && type !== 'composite' && type !== 'bundle';
-  const showSecret = type === 'api_key';
+  // API Secret and its role predate "Additional values". A new entry adds a
+  // secret as an additional value; the old pair stays visible only while an
+  // entry actually holds one, so a stored secret is never unreachable (invariant 7).
+  const legacySecret =
+    !!(document.getElementById('f-secret') as HTMLInputElement | null)?.value ||
+    !!(document.getElementById('f-secret-role') as HTMLInputElement | null)?.value;
+  const showSecret = type === 'api_key' && legacySecret;
   const showUser = type === 'password' || type === 'ssh_key';
   // A composite's payload is its template plus its parts (extra_vars); a
   // bundle's is entirely its members and its local variables (extra_vars).
@@ -343,6 +349,8 @@ export function dynamicSecretFields() {
 
   keyGroup.style.display = showKey ? 'flex' : 'none';
   secretGroup.style.display = showSecret ? 'flex' : 'none';
+  const secretRoleGroup = document.getElementById('f-secret-role-group');
+  if (secretRoleGroup) secretRoleGroup.style.display = showSecret ? 'flex' : 'none';
   usernameRow.style.display = showUser ? 'grid' : 'none';
   certGroup.style.display = type === 'certificate' ? 'flex' : 'none';
   certKeyGroup.style.display = type === 'certificate' ? 'flex' : 'none';
@@ -399,10 +407,13 @@ function refreshRequiredMarker(
   const type = (document.getElementById('f-secret-type') as HTMLSelectElement).value as
     SecretType | undefined;
   const extra_vars = [
-    ...document.querySelectorAll<HTMLInputElement>('#f-extra-vars-list .extra-var-key'),
+    ...document.querySelectorAll<HTMLElement>('#f-extra-vars-list .extra-var-row'),
   ]
-    .map((el) => ({ key: el.value.trim() }))
-    .filter((v) => v.key);
+    .map((row) => ({
+      key: row.querySelector<HTMLInputElement>('.extra-var-key')?.value.trim() ?? '',
+      value: row.querySelector<HTMLInputElement>('.extra-var-value')?.value.trim() ?? '',
+    }))
+    .filter((v) => v.key && v.value);
   const totp_secret =
     (document.getElementById('f-totp') as HTMLInputElement).value.trim() || undefined;
   const optional = primaryIsOptional({ secretType: type, extra_vars, totp_secret } as VaultEntry);
@@ -517,6 +528,8 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
       };
     })(),
     purpose: getVal('f-purpose') || undefined,
+    app_name: getVal('f-app-name') || undefined,
+    app_purpose: getVal('f-app-purpose') || undefined,
     pool: getVal('f-pool') || undefined,
     expires_at: getVal('f-expires') || undefined,
     rotation_days: getVal('f-rotation-days')
@@ -579,7 +592,10 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
             })(),
           };
         })
-        .filter((v) => v.key);
+        // A named row with no value stores a blank secret, and made the primary value
+        // "optional" on the strength of a variable that holds nothing. A row the entry
+        // already had is kept as it was; a new, empty one is not saved.
+        .filter((v) => v.key && (v.value || baseVars.has(v.key)));
       return result.length ? result : undefined;
     })(),
     env_prefixes: (() => {
@@ -961,6 +977,8 @@ export function fillForm(entry: Partial<VaultEntry>) {
   resetTotpField();
   refreshTotpStatus();
   (document.getElementById('f-purpose') as HTMLInputElement).value = entry.purpose || '';
+  (document.getElementById('f-app-name') as HTMLInputElement).value = entry.app_name || '';
+  (document.getElementById('f-app-purpose') as HTMLInputElement).value = entry.app_purpose || '';
   (document.getElementById('f-pool') as HTMLInputElement).value = entry.pool || '';
   (document.getElementById('f-expires') as HTMLInputElement).value = entry.expires_at || '';
   const rotEl = document.getElementById('f-rotation-days') as HTMLInputElement;
@@ -1112,9 +1130,11 @@ export function updateNamePreview(): void {
       .filter((v) => v.key),
   } as VaultEntry;
 
-  const lines = [`${primaryEnvName(draft)}=••••••`];
-  if (get('f-secret')) lines.push(`${secretEnvName(draft)}=••••••`);
-  out.textContent = lines.join('\n');
+  // Every name the entry will generate, not only the first two: the additional
+  // values (a secret, an id, a custom role) are the ones people lose track of.
+  out.textContent = namesGeneratedBy(draft)
+    .map((g) => `${g.name}=••••••`)
+    .join('\n');
 
   // A label that cannot be a segment is refused at save, so say so as it is
   // typed rather than at the moment the user presses the button.
@@ -1575,15 +1595,28 @@ function wireExtraVarsAdd(): void {
   if (_extraVarsAddBound) return;
   _extraVarsAddBound = true;
   document.getElementById('f-extra-vars-add')?.addEventListener('click', () => {
-    const row = _makeExtraVarRow();
+    // The dropdown beside the button names the role; "custom" leaves the key empty.
+    const role = (document.getElementById('f-extra-vars-role') as HTMLSelectElement | null)?.value;
+    const used = new Set(
+      [...document.querySelectorAll<HTMLInputElement>('#f-extra-vars-list .extra-var-key')].map(
+        (el) => el.value.trim(),
+      ),
+    );
+    let key = role ?? '';
+    // Two rows with one key would generate one variable name twice.
+    for (let n = 2; key && used.has(key); n++) key = `${role}_${n}`;
+    const masked = ['secret', 'token', 'password'].includes(role ?? '');
+    const row = _makeExtraVarRow(key, '', masked);
     document.getElementById('f-extra-vars-list')?.appendChild(row);
-    row.querySelector<HTMLInputElement>('.extra-var-key')?.focus();
+    row.querySelector<HTMLInputElement>(key ? '.extra-var-value' : '.extra-var-key')?.focus();
     dynamicSecretFields(); // A5: a fresh row has no key yet, so this is a no-op until one is typed
+    updateNamePreview();
   });
   // A5: typing a variable's key can turn the primary value optional (or back)
   // for an `env_var` entry — delegated so it covers every row, present and future.
   document.getElementById('f-extra-vars-list')?.addEventListener('input', (e) => {
-    if ((e.target as HTMLElement).classList.contains('extra-var-key')) dynamicSecretFields();
+    const t = (e.target as HTMLElement).classList;
+    if (t.contains('extra-var-key') || t.contains('extra-var-value')) dynamicSecretFields();
   });
 }
 
@@ -1847,6 +1880,7 @@ function wireNamePreview(): void {
     if (el) el.addEventListener('input', refreshCompositePreview);
   }
   document.getElementById('f-extra-vars-list')?.addEventListener('input', refreshCompositePreview);
+  document.getElementById('f-extra-vars-list')?.addEventListener('input', updateNamePreview);
 }
 
 // ── Modal open/close/save ─────────────────────────────────────────────────
@@ -1900,7 +1934,7 @@ function _makeExtraVarRow(key = '', value = '', secret = false, isPublic = false
   setHtml(
     row,
     html`
-      <input class="form-input mono extra-var-key" placeholder="KEY" value="${key}" />
+      <input class="form-input mono extra-var-key" placeholder="role or name" value="${key}" />
       <input
         class="form-input mono extra-var-value"
         placeholder="value"
@@ -1927,6 +1961,7 @@ function _makeExtraVarRow(key = '', value = '', secret = false, isPublic = false
   row.querySelector('.extra-var-remove')!.addEventListener('click', () => {
     row.remove();
     dynamicSecretFields(); // A5: removing the only named variable can make the primary required again
+    updateNamePreview();
   });
   return row;
 }
@@ -2062,13 +2097,16 @@ function defaultRoleFromType(): void {
   const type = document.getElementById('f-secret-type') as HTMLSelectElement | null;
   if (!role || !type || (role.value && role.dataset.auto !== '1')) return;
   const hasPrimary = !primaryIsOptional({ secretType: type.value } as VaultEntry);
-  role.value = hasPrimary ? type.value : '';
+  // An API key's role is `key` (GITHUB_KEY), not its type name: `api_key` read as
+  // GITHUB_API_KEY, and the type is already obvious from the entry.
+  role.value = hasPrimary ? (type.value === 'api_key' ? 'key' : type.value) : '';
   role.dataset.auto = hasPrimary ? '1' : '0';
   updateNamePreview();
 }
 
 export function openAdd(e?: Event) {
   if (e) e.stopPropagation();
+  _pendingBundleId = null;
   // Restore draft if available (item 11)
   const draft = formDraft.json;
   try {
@@ -2107,6 +2145,18 @@ function clearDraft() {
   formDraft.json = null;
 }
 
+/** Set by {@link openAddToBundle}; consumed by the next save of a new entry. */
+let _pendingBundleId: string | null = null;
+
+/** Open the Add form for a new entry that will join a bundle when it is saved. */
+export function openAddToBundle(bundleId: string, type: SecretType): void {
+  fillForm({ secretType: type } as VaultEntry);
+  buildCatChips([]);
+  defaultRoleFromType();
+  openModal('Add to bundle', -1);
+  _pendingBundleId = bundleId;
+}
+
 export function openEdit(e: Event, idx: number) {
   e.stopPropagation();
   fillForm(st.vault.api_keys[idx]);
@@ -2117,6 +2167,7 @@ export function openEdit(e: Event, idx: number) {
 export function closeModal() {
   document.getElementById('modal-overlay')!.classList.remove('open');
   _editTarget = undefined;
+  _pendingBundleId = null;
   clearDraft();
 }
 
@@ -2348,11 +2399,16 @@ export async function saveModal() {
           showToast(`Updated ${moved} project reference${moved === 1 ? '' : 's'}`, 'ok', 2500);
       }
     } else {
-      st.vault.api_keys.push({
+      const created = {
         ...entry,
         id: newEntryId(),
         created_at: new Date().toISOString(),
-      });
+      };
+      const bundle = _pendingBundleId
+        ? st.vault.api_keys.find((e) => e.id === _pendingBundleId && e.secretType === 'bundle')
+        : undefined;
+      if (bundle) joinBundle(st.vault.api_keys, bundle, created);
+      st.vault.api_keys.push(created);
     }
     void persist();
     closeModal();
