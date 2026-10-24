@@ -37,11 +37,9 @@
  * mid-session. Ids that no longer resolve are already handled by the renderers
  * (invariant 1) and by `restoreViewState`'s validation (invariant 7).
  *
- * **Local vaults only.** A remote vault's writes come back through its own API
- * and `RemoteVaultStore` has no equivalent marker to poll; watching one would
- * mean a request every few seconds against a server that may be on a phone
- * tether. Written down because an unrecorded gap is indistinguishable from an
- * oversight (invariant 10).
+ * **Remote vaults** poll `GET /api/vault` with `If-None-Match`; the server answers
+ * 304 to the owner while nothing changed, so a quiet poll is a few bytes every
+ * three seconds.
  */
 
 import { st, inTauri } from './state';
@@ -53,6 +51,8 @@ import { invokeTauri } from './tauri';
  * terminal to show up in the window within a blink; 3 s read as "slow".
  */
 const POLL_MS = 750;
+/** A remote poll crosses a network, so it is slower than the local SELECT. */
+const REMOTE_POLL_MS = 3000;
 
 let timer: ReturnType<typeof setInterval> | null = null;
 /** Set while a reload is in flight, so a slow load cannot overlap the next tick. */
@@ -72,13 +72,21 @@ function editorOpen(): boolean {
  * nobody reads.
  */
 export async function checkVaultVersion(): Promise<boolean> {
-  if (reloading || !st.vaultOpen || st.store?.isRemote) return false;
+  if (reloading || !st.vaultOpen) return false;
   try {
-    const stored = (await invoke('vault_version')) as string | null | undefined;
-    // `null` means locked. Nothing to compare against, and nothing to reload.
-    if (!stored) return false;
-    const ours = (st.store as unknown as { lastVersion?: string | null }).lastVersion ?? null;
-    if (!ours || stored === ours) return false;
+    if (st.store?.isRemote) {
+      // A remote vault answers the same question with a conditional GET: 304
+      // when our version is still current, so a quiet poll moves no vault data.
+      if (!(await st.store.changed?.())) return false;
+    } else {
+      const stored = (await invoke('vault_version')) as string | null | undefined;
+      // `null` means locked. Nothing to compare against, and nothing to reload.
+      if (!stored) return false;
+      // A vault that was empty when we read it has no version of ours; the first
+      // write from outside must still reload (it used to be ignored forever).
+      const ours = (st.store as unknown as { lastVersion?: string | null }).lastVersion ?? null;
+      if (stored === ours) return false;
+    }
     if (editorOpen()) return false;
 
     reloading = true;
@@ -87,7 +95,7 @@ export async function checkVaultVersion(): Promise<boolean> {
     st.vault = data;
     const { triggerRender } = await import('./state');
     triggerRender();
-    showToast('Vault updated outside this window — reloaded');
+    showToast('Vault updated outside this window - reloaded');
     return true;
   } catch {
     return false;
@@ -102,9 +110,14 @@ export async function checkVaultVersion(): Promise<boolean> {
  */
 export function startVaultWatch(): void {
   if (timer !== null || !inTauri) return;
+  // Not gated on `document.hidden`: WebKitGTK reports a window that another
+  // window covers as hidden, so a change made in the terminal beside the app
+  // was never noticed until the app was focused again.
+  let tick = 0;
   timer = setInterval(() => {
-    // A hidden window cannot show the change; the focus hook below catches up.
-    if (!document.hidden) void checkVaultVersion();
+    // The store can switch between local and remote while the timer lives.
+    if (st.store?.isRemote && ++tick % (REMOTE_POLL_MS / POLL_MS) !== 0) return;
+    void checkVaultVersion();
   }, POLL_MS);
   // Coming back from the terminal that made the change: look at once rather
   // than waiting for the next tick.

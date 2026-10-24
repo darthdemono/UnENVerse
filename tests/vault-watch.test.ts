@@ -99,14 +99,25 @@ describe('checkVaultVersion', () => {
     expect(loads).toBe(0);
   });
 
-  it('does not watch a remote vault', async () => {
-    // Its writes come back through its own API, and polling one could mean a
-    // request every three seconds against a server on a phone tether.
+  it('reloads a remote vault only when its conditional GET says it changed', async () => {
+    // A remote vault used to be skipped, so a change made with `unv` against the
+    // same server never reached the open window.
     install('v1');
-    stored = 'v2';
+    let changed = false;
     (st.store as any).isRemote = true;
+    (st.store as any).changed = async () => changed;
     expect(await checkVaultVersion()).toBe(false);
     expect(loads).toBe(0);
+    changed = true;
+    expect(await checkVaultVersion()).toBe(true);
+    expect(loads).toBe(1);
+  });
+
+  it('reloads when the vault was empty at load and something else then wrote it', async () => {
+    // `ours` was null, which the check used to treat as "nothing to compare".
+    install(null);
+    stored = 'v2';
+    expect(await checkVaultVersion()).toBe(true);
   });
 
   it('never throws when the command fails', async () => {

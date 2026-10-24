@@ -62,6 +62,11 @@ export interface VaultStore {
    * nothing matches and the save is refused instead of writing the copy back over the merge.
    */
   markStale?(): void;
+  /**
+   * Remote stores only: true when the stored vault is no longer the version we
+   * last read or wrote. A conditional GET, so an unchanged vault costs a 304.
+   */
+  changed?(): Promise<boolean>;
   readonly isRemote: boolean;
   readonly vaultId: string;
 }
@@ -398,6 +403,15 @@ export class RemoteVaultStore implements VaultStore {
 
   markStale(): void {
     this.lastVersion = 'stale-copy';
+  }
+
+  async changed(): Promise<boolean> {
+    if (!this.token || !this.lastVersion) return false;
+    const r = await this._apiFetch('/api/vault', {
+      headers: { Authorization: `Bearer ${this.token}`, 'If-None-Match': this.lastVersion },
+    });
+    // The pinned-HTTPS proxy may surface no ETag; then there is nothing to compare.
+    return r.ok && !!r.etag && r.etag !== this.lastVersion;
   }
 
   async save(data: VaultData): Promise<void> {

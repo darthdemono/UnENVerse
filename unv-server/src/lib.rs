@@ -1530,6 +1530,15 @@ async fn get_vault(headers: HeaderMap, State(state): State<AppState>) -> impl In
     // instead — bounded by how often the vault actually changes.
 
     if session.is_owner {
+        // A client that already holds this version gets 304 instead of the whole vault, so a
+        // desktop polling for outside changes costs a few bytes while nothing moved.
+        if headers
+            .get(axum::http::header::IF_NONE_MATCH)
+            .and_then(|v| v.to_str().ok())
+            == Some(ver.as_str())
+        {
+            return ([(axum::http::header::ETAG, ver)], StatusCode::NOT_MODIFIED).into_response();
+        }
         return ([(axum::http::header::ETAG, ver)], Json(vault)).into_response();
     }
 
@@ -4481,6 +4490,40 @@ mod tests {
         assert_eq!(r.status(), StatusCode::NOT_FOUND);
         let r = call(&router, "GET", "/api/vault/entries/x/history", None, None).await;
         assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// The desktop polls `GET /api/vault` with the version it holds. Answering 200 with the
+    /// whole vault every time made a quiet poll cost the full download; the owner now gets a
+    /// 304 while nothing moved, and the full vault again once something did.
+    #[tokio::test]
+    async fn the_owner_gets_304_for_the_version_they_hold_and_the_vault_after_a_change() {
+        let (state, owner) = owner_with_vault();
+        let router = build_router(state.clone(), 8080);
+        let got = call(&router, "GET", "/api/vault", Some(&owner), None).await;
+        let v1 = got.headers()[axum::http::header::ETAG]
+            .to_str()
+            .unwrap()
+            .to_string();
+        let same = call_with(
+            &router,
+            "GET",
+            "/api/vault",
+            &owner,
+            &[("if-none-match", v1.as_str())],
+            serde_json::Value::Null,
+        )
+        .await;
+        assert_eq!(same.status(), StatusCode::NOT_MODIFIED);
+        let other = call_with(
+            &router,
+            "GET",
+            "/api/vault",
+            &owner,
+            &[("if-none-match", "not-the-version")],
+            serde_json::Value::Null,
+        )
+        .await;
+        assert_eq!(other.status(), StatusCode::OK);
     }
 
     #[tokio::test]
