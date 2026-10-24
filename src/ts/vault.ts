@@ -1352,8 +1352,12 @@ async function init() {
       }
       case 'bundle-add-key':
       case 'bundle-add-env': {
-        const bundleId = el.dataset.bundle ?? '';
-        if (!st.vault.api_keys.some((e) => e.id === bundleId && e.secretType === 'bundle')) break;
+        const bundleId = el.dataset.bundle;
+        if (
+          !bundleId ||
+          !st.vault.api_keys.some((e) => e.id === bundleId && e.secretType === 'bundle')
+        )
+          break;
         openAddToBundle(bundleId, action === 'bundle-add-key' ? 'api_key' : 'env_var');
         break;
       }

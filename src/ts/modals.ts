@@ -410,8 +410,8 @@ function refreshRequiredMarker(
     ...document.querySelectorAll<HTMLElement>('#f-extra-vars-list .extra-var-row'),
   ]
     .map((row) => ({
-      key: row.querySelector<HTMLInputElement>('.extra-var-key')?.value.trim() ?? '',
-      value: row.querySelector<HTMLInputElement>('.extra-var-value')?.value.trim() ?? '',
+      key: row.querySelector<HTMLInputElement>('.extra-var-key')!.value.trim(),
+      value: row.querySelector<HTMLInputElement>('.extra-var-value')!.value.trim(),
     }))
     .filter((v) => v.key && v.value);
   const totp_secret =
@@ -1596,16 +1596,16 @@ function wireExtraVarsAdd(): void {
   _extraVarsAddBound = true;
   document.getElementById('f-extra-vars-add')?.addEventListener('click', () => {
     // The dropdown beside the button names the role; "custom" leaves the key empty.
-    const role = (document.getElementById('f-extra-vars-role') as HTMLSelectElement | null)?.value;
+    const role = (document.getElementById('f-extra-vars-role') as HTMLSelectElement).value;
     const used = new Set(
       [...document.querySelectorAll<HTMLInputElement>('#f-extra-vars-list .extra-var-key')].map(
         (el) => el.value.trim(),
       ),
     );
-    let key = role ?? '';
+    let key = role;
     // Two rows with one key would generate one variable name twice.
     for (let n = 2; key && used.has(key); n++) key = `${role}_${n}`;
-    const masked = ['secret', 'token', 'password'].includes(role ?? '');
+    const masked = ['secret', 'token', 'password'].includes(role);
     const row = _makeExtraVarRow(key, '', masked);
     document.getElementById('f-extra-vars-list')?.appendChild(row);
     row.querySelector<HTMLInputElement>(key ? '.extra-var-value' : '.extra-var-key')?.focus();

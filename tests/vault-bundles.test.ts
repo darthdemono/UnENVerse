@@ -581,3 +581,39 @@ describe('bundles written by older builds and unusual shapes', { timeout: 30000 
     expect(member('late').bundle_order).toBe(10);
   });
 });
+
+describe('adding a new key or env to a bundle', { timeout: 30000 }, () => {
+  const fillAndSave = async (provider: string, key: string) => {
+    const set = (id: string, v: string) => {
+      const el = document.getElementById(id) as HTMLInputElement;
+      el.value = v;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    set('f-provider', provider);
+    set('f-key', key);
+    document.getElementById('modal-save')!.click();
+    await flush(80);
+  };
+
+  it('Add key opens the form on an API key and saves it as a slot of the bundle', async () => {
+    await act(bundleBtn('bundle-add-key'));
+    expect((document.getElementById('f-secret-type') as HTMLSelectElement).value).toBe('api_key');
+    await fillAndSave('Fresh', 'fresh-key-value-1234');
+    const added = st.vault.api_keys.find((e) => e.provider === 'Fresh')!;
+    expect(added).toMatchObject({ bundle_id: 'bun', bundle_slot: 'Fresh', bundle_order: 30 });
+  });
+
+  it('Add env opens the form on an environment variable', async () => {
+    await act(bundleBtn('bundle-add-env'));
+    expect((document.getElementById('f-secret-type') as HTMLSelectElement).value).toBe('env_var');
+    document.getElementById('modal-cancel')!.click();
+  });
+
+  it('does nothing for a bundle that no longer exists', async () => {
+    const btn = document.querySelector<HTMLElement>(bundleBtn('bundle-add-key'))!;
+    btn.dataset.bundle = 'gone';
+    btn.click();
+    await flush();
+    expect(document.getElementById('modal-overlay')!.classList.contains('open')).toBe(false);
+  });
+});
