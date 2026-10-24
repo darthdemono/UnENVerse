@@ -45,7 +45,9 @@ describe('startVaultWatch / stopVaultWatch', () => {
     watch.stopVaultWatch();
   });
 
-  it('polls on the tick, skips a hidden window, and checks again on focus', async () => {
+  it('polls on the tick even when the window is reported hidden, and checks again on focus', async () => {
+    // WebKitGTK reports a window another window covers as hidden; skipping those
+    // ticks meant a change made in the terminal beside the app was never seen.
     vi.useFakeTimers();
     const { st, watch, invoke } = await fresh(true, 'v1');
     st.vaultOpen = true;
@@ -57,24 +59,43 @@ describe('startVaultWatch / stopVaultWatch', () => {
 
     Object.defineProperty(document, 'hidden', { value: true, configurable: true });
     await vi.advanceTimersByTimeAsync(800);
-    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledTimes(2);
 
     window.dispatchEvent(new Event('focus'));
     await vi.advanceTimersByTimeAsync(0);
-    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(invoke).toHaveBeenCalledTimes(3);
 
     Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    watch.stopVaultWatch();
+  });
+
+  it('polls a remote vault every third second, not every tick', async () => {
+    vi.useFakeTimers();
+    const { st, watch } = await fresh(true, 'v1');
+    const changed = vi.fn().mockResolvedValue(false);
+    st.vaultOpen = true;
+    st.store = { isRemote: true, changed, load: vi.fn() } as any;
+    watch.startVaultWatch();
+    await vi.advanceTimersByTimeAsync(2900);
+    expect(changed).toHaveBeenCalledTimes(0);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(changed).toHaveBeenCalledTimes(1);
     watch.stopVaultWatch();
   });
 });
 
 describe('checkVaultVersion edges', () => {
-  it('does not reload when our own version is unknown', async () => {
+  it('reloads when our own version is unknown but the store has one', async () => {
+    // An empty vault has no version; the first outside write has to reach us.
     const { st, watch } = await fresh(true, 'v2');
     st.vaultOpen = true;
-    st.store = { isRemote: false, lastVersion: undefined, load: vi.fn() } as any;
-    expect(await watch.checkVaultVersion()).toBe(false);
-    expect((st.store as any).load).not.toHaveBeenCalled();
+    st.store = {
+      isRemote: false,
+      lastVersion: undefined,
+      load: vi.fn().mockResolvedValue(null),
+    } as any;
+    await watch.checkVaultVersion();
+    expect((st.store as any).load).toHaveBeenCalled();
   });
 
   it('gives up quietly when the reload returns nothing', async () => {
