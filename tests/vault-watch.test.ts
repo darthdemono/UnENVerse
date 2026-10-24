@@ -127,3 +127,23 @@ describe('checkVaultVersion', () => {
     await expect(checkVaultVersion()).resolves.toBe(false);
   });
 });
+
+describe('overlapping polls', () => {
+  it('lets a slow reload finish instead of starting a second one', async () => {
+    install('v1');
+    stored = 'v2';
+    let release!: () => void;
+    (st.store as any).load = () =>
+      new Promise((resolve) => {
+        loads++;
+        release = () => resolve(vault(2));
+      });
+    const first = checkVaultVersion();
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(await checkVaultVersion()).toBe(false);
+    release();
+    expect(await first).toBe(true);
+    expect(loads).toBe(1);
+  });
+});

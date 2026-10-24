@@ -320,3 +320,33 @@ describe('bundle creation and suggestions', () => {
     expect(bundleSuggestions(list, ['SPOTIFY'])).toEqual([]);
   });
 });
+
+describe('joinBundle', () => {
+  it('names a slot after the label or provider, and numbers it when that is taken', async () => {
+    const { joinBundle } = await import('../src/ts/bundle-scope');
+    const bundle = { id: 'b', provider: 'B' } as never;
+    const a = { id: 'a', provider: 'Bot' } as never;
+    const b = { id: 'c', provider: 'Bot', label: 'x y' } as never;
+    const c = { id: 'd', provider: 'Bot' } as never;
+    const all = [bundle, a, b, c];
+    joinBundle(all, bundle, a);
+    joinBundle(all, bundle, b);
+    joinBundle(all, bundle, c);
+    expect((a as any).bundle_slot).toBe('Bot');
+    expect((b as any).bundle_slot).toBe('x_y');
+    expect((c as any).bundle_slot).toBe('Bot_2');
+    expect([(a as any).bundle_order, (b as any).bundle_order, (c as any).bundle_order]).toEqual([
+      10, 20, 30,
+    ]);
+    expect((bundle as any).bundle_primary).toBe('a');
+  });
+
+  it('falls back to member_N when nothing usable is left to name a slot after', async () => {
+    const { joinBundle } = await import('../src/ts/bundle-scope');
+    const bundle = { id: 'b', provider: 'B', bundle_primary: 'keep' } as never;
+    const m = { id: 'm', provider: '' } as never;
+    joinBundle([bundle, m], bundle, m);
+    expect((m as any).bundle_slot).toBe('member_1');
+    expect((bundle as any).bundle_primary).toBe('keep');
+  });
+});

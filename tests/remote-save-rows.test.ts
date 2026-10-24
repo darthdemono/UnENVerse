@@ -64,3 +64,55 @@ describe('pinned HTTPS proxy', () => {
     }
   });
 });
+
+describe('changed (the poll behind live reload of a remote vault)', () => {
+  const serve = (etag: string | null) => {
+    const seen: { match?: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init: RequestInit) => {
+        const h = (init.headers ?? {}) as Record<string, string>;
+        if (String(url).endsWith('/api/unlock'))
+          return Promise.resolve(new Response(JSON.stringify({ token: 't' }), { status: 200 }));
+        if (init.method === 'PUT')
+          return Promise.resolve(new Response(null, { status: 204, headers: { ETag: 'v1' } }));
+        seen.push({ match: h['If-None-Match'] });
+        // 304 when the caller holds the stored version, the vault with a new ETag otherwise.
+        return Promise.resolve(
+          h['If-None-Match'] === etag
+            ? new Response(null, { status: 304, headers: { ETag: etag ?? '' } })
+            : new Response('{}', { status: 200, headers: etag ? { ETag: etag } : {} }),
+        );
+      }),
+    );
+    return seen;
+  };
+
+  it('is false before sign-in and before any version is known, without asking the server', async () => {
+    const seen = serve('v1');
+    const store = new RemoteVaultStore('http://localhost:1');
+    expect(await store.changed()).toBe(false);
+    await store.unlock('pw');
+    expect(await store.changed()).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  it('is false on a 304 and true once the stored version has moved', async () => {
+    const seen = serve('v1');
+    const store = new RemoteVaultStore('http://localhost:1');
+    await store.unlock('pw');
+    await store.save({} as never); // adopts v1
+    expect(await store.changed()).toBe(false);
+    expect(seen[0].match).toBe('v1');
+    serve('v2');
+    expect(await store.changed()).toBe(true);
+  });
+
+  it('is false when the answer carries no ETag to compare', async () => {
+    const store = new RemoteVaultStore('http://localhost:1');
+    serve(null);
+    await store.unlock('pw');
+    await store.save({} as never);
+    expect(await store.changed()).toBe(false);
+  });
+});

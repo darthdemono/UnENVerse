@@ -773,3 +773,25 @@ describe('adding a new key or env straight into a bundle', { timeout: 30000 }, (
     expect(added.bundle_order).toBe(20);
   });
 });
+
+describe('the additional values controls', { timeout: 30000 }, () => {
+  it('a custom role adds an empty row and puts the cursor in the role box', async () => {
+    await openAdd();
+    set('f-extra-vars-role', '');
+    $('f-extra-vars-add').click();
+    const key = document.querySelector<HTMLInputElement>('#f-extra-vars-list .extra-var-key')!;
+    expect(key.value).toBe('');
+    expect(document.activeElement).toBe(key);
+  });
+
+  it('typing a value into a named row stops the primary value being required', async () => {
+    await openAdd('env_var');
+    addVar('TOKEN', '');
+    expect($('f-key-label').innerHTML).toContain('req');
+    const row = document.querySelector<HTMLElement>('#f-extra-vars-list .extra-var-row')!;
+    const value = row.querySelector<HTMLInputElement>('.extra-var-value')!;
+    value.value = 'abc';
+    value.dispatchEvent(new Event('input', { bubbles: true }));
+    expect($('f-key-label').innerHTML).toContain('opt');
+  });
+});
