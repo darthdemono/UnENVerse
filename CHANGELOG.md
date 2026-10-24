@@ -2,6 +2,27 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.61.0 (2026-10-24)
+
+### Added
+
+- Additional values on a secret: a dropdown of roles (secret, id, token, password, username, url, or a custom one) and a **+ Add value** button next to the value field. Each addition is stored as an extra variable and shown in the generated variable names.
+- App name and app purpose on a secret, separate from Purpose (what you told the issuer). Also `--app-name` and `--app-purpose` on `unv entry add` and `unv entry set`, in `unv diff`, and in the full copy profile.
+- **Add key** and **Add env** on a bundle create a new entry that joins the bundle as a slot, instead of only adopting an existing entry by name.
+- The site is laid out like a docs site, with new Install, Comparison, Support, Get help, Administration and Developer pages.
+
+### Changed
+
+- The Add and Edit form is split into sections (Secret, How it is used, Two-factor, About this secret, Organise, Lifecycle).
+- An API key's default value role is `key`, so a new entry generates `GITHUB_KEY` rather than `GITHUB_API_KEY`. Existing entries keep their role.
+- API Secret and Secret role are hidden on new entries and stay visible on an entry that already holds a secret.
+
+### Fixed
+
+- A named variable with an empty value was counted as the entry's payload, so a bundle or environment variable entry could be saved holding a blank secret. New empty rows are dropped, and a name with no value no longer makes the primary value optional.
+- The Generated variable preview showed only the primary and the secret. It lists every name the entry generates and updates as rows change.
+- The desktop window did not notice a change made from a terminal while another window covered it, and ignored the first outside write to a vault that was empty when it opened. A vault served by `unv-server` is now watched too, with a conditional request that the server answers with 304 while nothing changed.
+
 ## 0.60.0 (2026-10-22)
 
 ### Security
