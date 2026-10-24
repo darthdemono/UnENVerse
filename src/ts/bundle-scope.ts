@@ -484,3 +484,26 @@ export function bundleSuggestions(
     .filter(([, list]) => list.length >= 2)
     .map(([, list]) => ({ provider: list[0].provider, entries: list }));
 }
+
+/**
+ * Make `member` a slot of `bundle`: a unique slot name, the next order step and, when the
+ * bundle has no primary yet, primary status. Shared by "Add member" (an existing entry) and
+ * "Add key" / "Add env" (a new one), so both name slots the same way.
+ */
+export function joinBundle(entries: VaultEntry[], bundle: VaultEntry, member: VaultEntry): void {
+  const siblings = entries.filter((entry) => entry.bundle_id === bundle.id && entry !== member);
+  const used = new Set(siblings.map((entry) => entry.bundle_slot));
+  const base = (member.label || member.provider || '')
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .slice(0, 24);
+  let slot = /^[A-Za-z0-9]/.test(base) ? base : `member_${siblings.length + 1}`;
+  for (let suffix = 2; used.has(slot); suffix++) {
+    const tail = `_${suffix}`;
+    slot = `${slot.slice(0, 24 - tail.length)}${tail}`;
+  }
+  member.bundle_id = bundle.id;
+  member.bundle_slot = slot;
+  member.bundle_order = Math.max(0, ...siblings.map((entry) => entry.bundle_order ?? 0)) + 10;
+  bundle.bundle_primary ??= member.id;
+}

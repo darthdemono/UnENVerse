@@ -528,9 +528,10 @@ describe('the name preview', { timeout: 30000 }, () => {
   // different types both exported as PROVIDER and silently overwrote each other.
   it('starts a new entry on its type name, follows the type select, and stops once typed over', async () => {
     await openAdd();
-    expect(($('f-role') as HTMLInputElement).value).toBe('api_key');
+    // An API key's role is `key`, not its type name: ACME_KEY, not ACME_API_KEY.
+    expect(($('f-role') as HTMLInputElement).value).toBe('key');
     set('f-provider', 'Acme');
-    expect($('f-name-preview').textContent).toContain('ACME_API_KEY');
+    expect($('f-name-preview').textContent).toContain('ACME_KEY');
     const type = $('f-secret-type') as HTMLSelectElement;
     type.value = 'password';
     type.dispatchEvent(new Event('change', { bubbles: true }));
@@ -678,5 +679,97 @@ describe('editing', { timeout: 30000 }, () => {
     await flush();
     await save();
     expect(lastToast()![0]).toMatch(/^Bundle template cycle:/);
+  });
+});
+
+describe('additional values, app metadata and blank values', { timeout: 30000 }, () => {
+  it('adds an additional value with the chosen role, masked when it is a secret', async () => {
+    await openAdd();
+    set('f-extra-vars-role', 'secret');
+    $('f-extra-vars-add').click();
+    set('f-extra-vars-role', 'id');
+    $('f-extra-vars-add').click();
+    const rows = [...document.querySelectorAll<HTMLElement>('#f-extra-vars-list .extra-var-row')];
+    expect(rows.map((r) => r.querySelector<HTMLInputElement>('.extra-var-key')!.value)).toEqual([
+      'secret',
+      'id',
+    ]);
+    expect(rows[0].querySelector<HTMLInputElement>('.extra-var-secret')!.checked).toBe(true);
+    expect(rows[1].querySelector<HTMLInputElement>('.extra-var-secret')!.checked).toBe(false);
+  });
+
+  it('never gives two additional values the same role', async () => {
+    await openAdd();
+    set('f-extra-vars-role', 'secret');
+    $('f-extra-vars-add').click();
+    $('f-extra-vars-add').click();
+    const keys = [
+      ...document.querySelectorAll<HTMLInputElement>('#f-extra-vars-list .extra-var-key'),
+    ].map((el) => el.value);
+    expect(keys).toEqual(['secret', 'secret_2']);
+  });
+
+  it('lists every additional value in the generated variables, not only the first two', async () => {
+    await openAdd();
+    set('f-provider', 'Acme');
+    set('f-key', 'k');
+    addVar('id', 'abc');
+    addVar('webhook_signing', 'xyz', { secret: true });
+    const text = $('f-name-preview').textContent!;
+    expect(text).toContain('ACME_KEY=');
+    expect(text).toContain('ACME_ID=');
+    expect(text).toContain('ACME_WEBHOOK_SIGNING=');
+  });
+
+  it('saves app name and app purpose apart from the purpose', async () => {
+    await openAdd();
+    set('f-provider', 'Acme');
+    set('f-key', 'acme-key-value-12345');
+    set('f-purpose', 'told the issuer this');
+    set('f-app-name', 'Release bot');
+    set('f-app-purpose', 'posts notes');
+    await save();
+    expect(last()).toMatchObject({
+      purpose: 'told the issuer this',
+      app_name: 'Release bot',
+      app_purpose: 'posts notes',
+    });
+    $('modal-cancel').click();
+  });
+
+  it('does not save a named variable with no value, and does not let it stand in for the primary', async () => {
+    // Bug: a variable name with an empty value counted as the entry's payload, so an
+    // env_var entry with a name and nothing else was saved as a blank secret.
+    await openAdd('env_var');
+    set('f-provider', 'Blank');
+    addVar('TOKEN', '');
+    const before = st.vault.api_keys.length;
+    await save();
+    expect(st.vault.api_keys).toHaveLength(before);
+    expect(lastToast()[1]).toBe('err');
+  });
+});
+
+describe('adding a new key or env straight into a bundle', { timeout: 30000 }, () => {
+  it('saves the new entry as a slot of that bundle, named after it', async () => {
+    // Bug: a bundle could only take an entry that already existed, found by typing its name,
+    // so adding a key or env to it from the bundle did nothing useful.
+    ({ st } = await bootApp(
+      [
+        { ...entry('b', 'Discord bot'), secretType: 'bundle' },
+        { ...entry('m1', 'Token'), bundle_id: 'b', bundle_slot: 'Token', bundle_order: 10 },
+      ],
+      {},
+    ));
+    const { openAddToBundle } = await import('../src/ts/modals');
+    openAddToBundle('b', 'env_var');
+    await flush();
+    expect(($('f-secret-type') as HTMLSelectElement).value).toBe('env_var');
+    set('f-provider', 'Token');
+    addVar('DISCORD_TOKEN', 'not-a-real-token-value');
+    await save();
+    const added = last();
+    expect(added).toMatchObject({ bundle_id: 'b', bundle_slot: 'Token_2' });
+    expect(added.bundle_order).toBe(20);
   });
 });

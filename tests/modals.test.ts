@@ -179,9 +179,16 @@ describe('dynamicSecretFields', () => {
     dynamicSecretFields();
   };
 
-  it('shows the API secret field only for api_key', () => {
+  it('shows the legacy API secret field only for an api_key that already holds one', () => {
+    // New entries add a secret as an additional value; the old field stays reachable
+    // for an entry that stored one (invariant 7: a hidden field is not a gate).
+    typeIs('api_key');
+    expect($('f-secret-group').style.display).toBe('none');
+    expect($('f-secret-role-group').style.display).toBe('none');
+    ($('f-secret') as HTMLInputElement).value = 'stored-secret';
     typeIs('api_key');
     expect($('f-secret-group').style.display).toBe('flex');
+    expect($('f-secret-role-group').style.display).toBe('flex');
     typeIs('password');
     expect($('f-secret-group').style.display).toBe('none');
   });
@@ -247,7 +254,8 @@ describe('dynamicSecretFields', () => {
       typeIs('env_var');
       expect($('f-key-label').innerHTML).toContain('req');
       const list = document.getElementById('f-extra-vars-list')!;
-      list.innerHTML = '<div class="extra-var-row"><input class="extra-var-key" value="ID"></div>';
+      list.innerHTML =
+        '<div class="extra-var-row"><input class="extra-var-key" value="ID"><input class="extra-var-value" value="abc"></div>';
       // The delegated `input` listener on the list is glue bound once by
       // `openAdd()`; re-evaluating the marker after a DOM change is what
       // `dynamicSecretFields` itself does, which is the predicate this test
@@ -257,10 +265,22 @@ describe('dynamicSecretFields', () => {
       expect(($('f-key') as HTMLInputElement).hasAttribute('aria-required')).toBe(false);
     });
 
+    it('stays required while the named variable has no value', () => {
+      // A name with nothing behind it used to make the primary "optional" and let a blank
+      // secret be saved.
+      typeIs('env_var');
+      const list = document.getElementById('f-extra-vars-list')!;
+      list.innerHTML =
+        '<div class="extra-var-row"><input class="extra-var-key" value="ID"><input class="extra-var-value" value=""></div>';
+      dynamicSecretFields();
+      expect($('f-key-label').innerHTML).toContain('req');
+    });
+
     it('goes back to required when the last named variable is removed', () => {
       typeIs('env_var');
       const list = document.getElementById('f-extra-vars-list')!;
-      list.innerHTML = '<div class="extra-var-row"><input class="extra-var-key" value="ID"></div>';
+      list.innerHTML =
+        '<div class="extra-var-row"><input class="extra-var-key" value="ID"><input class="extra-var-value" value="abc"></div>';
       dynamicSecretFields();
       expect($('f-key-label').innerHTML).toContain('opt');
       list.innerHTML = '';
