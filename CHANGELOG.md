@@ -2,7 +2,7 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
-## 0.61.0 (2026-10-24)
+## 0.60.1 (2026-10-25)
 
 ### Added
 
