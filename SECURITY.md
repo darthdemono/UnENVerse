@@ -30,6 +30,42 @@ The same contact is in the site's
   reason in [`osv-scanner.toml`](osv-scanner.toml), `deny.toml` and the machine
   readable [`vex.openvex.json`](vex.openvex.json).
 
+### What a good report contains
+
+- The affected version and platform, and the component (vault, CLI, server, desktop app, site).
+- The impact: what an attacker gains, and what they need first.
+- Steps to reproduce or a proof of concept, and the root cause if you found it.
+- Whether you plan to publish, and when.
+
+Please keep the report private until a fix ships or 90 days have passed, whichever
+comes first, and do not share it with third parties meanwhile. There is no bug
+bounty and no PGP key: the private form above is encrypted in transit and visible
+only to the maintainer.
+
+### Safe harbour
+
+Good-faith research that follows this policy is welcome. The maintainer will not
+start legal action over it, provided you stay within the scope below, use only
+vaults and systems you own or are authorised to test, do not read, change or
+destroy other people's data, and stop and report if you reach real secrets.
+
+### How reports are handled
+
+1. Acknowledge the report (within seven days) and say what happens next.
+2. Record it in a private advisory draft, reproduce it, and rate its impact.
+3. Fix it on a private branch where the issue is severe, or in the open for a low risk one.
+4. Verify the fix with the reporter before the release.
+5. Release, publish the advisory (with a CVE where one applies), and credit the reporter.
+
+### Security incidents
+
+Incidents without a direct exploit are handled the same way: a compromised
+dependency, a tampered release or workflow, a leaked signing key or token, or an
+attack on the repository or the website. The maintainer confirms the incident,
+revokes and rotates what was exposed (see "Secrets and credentials" below), ships a
+release that pins any new public key, and publishes an advisory that says who is
+affected and what to do. Legal reporting duties are met where they apply.
+
 ## Scope
 
 UnENVerse's encrypted storage, desktop IPC, CLI redaction, server API,
@@ -78,3 +114,13 @@ to verify a download, is described on the
   type-aware ESLint run on every push and pull request.
 - Threshold: any finding of medium severity or higher is fixed, or dismissed with a
   written reason, before the next release.
+
+## Fuzzing and audits
+
+- Every parser that reads untrusted text has a libFuzzer target in [`fuzz/`](fuzz/),
+  run weekly by the Fuzz workflow and on demand.
+- Milestones that change the attack surface (new storage format, new network
+  route, new signing key, new third-party library with native code) get a review
+  against the [threat model](THREAT_MODEL.md) before release. The
+  [assurance case](ASSURANCE_CASE.md) lists the boundaries and weaknesses an
+  independent audit would start from.

@@ -64,8 +64,8 @@ that enforces it, so it can be checked.
 
 Listed in the "Threats and mitigations" and "Not defended against" sections of
 [THREAT_MODEL.md](THREAT_MODEL.md): a weak master password, root on an unlocked
-machine, an upstream release that is malicious and not yet flagged, and fuzzing
-that is manual today.
+machine, an upstream release that is malicious and not yet flagged, and a parser
+bug that the weekly fuzzing has not found.
 
 ## Keeping it true
 
