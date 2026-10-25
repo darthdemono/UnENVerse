@@ -1,6 +1,6 @@
 [package]
 name    = "unenverse"
-version = "0.60.1"
+version = "0.60.2"
 edition = "2021"
 rust-version.workspace = true
 publish = false
