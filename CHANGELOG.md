@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.61.0 (2026-10-25)
+
 ### Added
 
 - macOS builds: an unsigned `.dmg` for Apple silicon and Intel, and `unv` and `unv-server` archives for both, built and published by the release job and listed in the signed CLI update feed.
