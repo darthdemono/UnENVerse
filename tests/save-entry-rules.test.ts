@@ -202,6 +202,7 @@ describe('recovery phrases', () => {
     $<HTMLSelectElement>('f-secret-type').value = 'crypto_wallet';
     $('f-secret-type').dispatchEvent(new Event('change'));
     set('f-provider', 'Wallet');
+    set('f-role', 'crypto_wallet');
     set('f-key', 'abandon abandon abandon');
     confirmAnswer = false;
     await saveModal();
@@ -218,6 +219,7 @@ describe('what a save does', () => {
     form(null);
     set('f-provider', 'GitHub');
     set('f-key', 'ghp_token');
+    set('f-role', 'key');
     await saveModal();
     const saved = st.vault.api_keys[0];
     expect(saved.id).toBeTruthy();

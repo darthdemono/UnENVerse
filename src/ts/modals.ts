@@ -13,6 +13,8 @@ import {
   envName,
   primaryEnvName,
   namesGeneratedBy,
+  duplicateNamesWithin,
+  defaultRoleForType,
   primaryIsOptional,
   entryHasPayload,
 } from './state';
@@ -45,6 +47,7 @@ import {
   toPlaywrightStorageState,
 } from './cookies';
 import { parseTotpSeed, normalizeB32, TOTP_DEFAULTS } from './totp';
+import { fieldSchema } from './field-schema';
 import {
   joinBundle,
   referencesToBundleMember,
@@ -379,6 +382,23 @@ export function dynamicSecretFields() {
   const rotationGroup = document.getElementById('f-rotation-days')?.closest('.form-group');
   if (rotationGroup instanceof HTMLElement)
     rotationGroup.style.display = type === 'cookie' ? 'none' : '';
+
+  // The shared optional fields mean different things per type (a cookie's API URL is its
+  // site), so they are labelled and offered per type. A field that already holds a value
+  // always stays visible.
+  const schema = fieldSchema(type);
+  const filled = (id: string) => !!(document.getElementById(id) as HTMLInputElement | null)?.value;
+  const show = (id: string, on: boolean, fieldId: string) => {
+    const g = document.getElementById(id);
+    if (g) g.style.display = on || filled(fieldId) ? '' : 'none';
+  };
+  show('f-cburl-group', schema.callback, 'f-cburl');
+  show('f-scopes-group', schema.scopes, 'f-scopes');
+  show('f-ratelimit-group', schema.rate, 'f-ratelimit');
+  const urlLabel = document.getElementById('f-apiurl-label');
+  if (urlLabel) setHtml(urlLabel, html`${schema.urlLabel} <span class="opt">optional</span>`);
+  const urlInput = document.getElementById('f-apiurl') as HTMLInputElement | null;
+  if (urlInput) urlInput.placeholder = schema.urlPlaceholder;
 
   if (providerLabel) setHtml(providerLabel, html`${cfg.providerLabel} <span class="req">*</span>`);
   if (providerInput) providerInput.placeholder = cfg.providerPlaceholder;
@@ -1117,6 +1137,7 @@ export function updateNamePreview(): void {
     label: get('f-label') || undefined,
     primary_role: get('f-role') || undefined,
     secret_role: get('f-secret-role') || undefined,
+    username: get('f-username') || undefined,
     // The names an entry generates depend on which values it holds (`namesGeneratedBy`
     // emits nothing for an empty one), so the draft says what the form will hold. Without
     // this the collision check below compared an empty list and never warned.
@@ -1147,6 +1168,12 @@ export function updateNamePreview(): void {
   // overwrite in whatever loads the file, and the only moment the user can
   // cheaply avoid it is while they are choosing the name.
   const note = document.getElementById('f-name-collision');
+  const twice = duplicateNamesWithin(draft);
+  if (note && twice.length) {
+    note.textContent = `${twice[0]} is generated twice by this entry: give each value its own role`;
+    note.hidden = false;
+    return;
+  }
   if (note) {
     const editing = parseInt((document.getElementById('edit-index') as HTMLInputElement).value);
     const others = (st.vault?.api_keys ?? []).filter((_, i) => i !== editing);
@@ -1868,6 +1895,7 @@ function wireNamePreview(): void {
     'f-role',
     'f-secret-role',
     'f-secret',
+    'f-username',
   ]) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updateNamePreview);
@@ -2099,7 +2127,7 @@ function defaultRoleFromType(): void {
   const hasPrimary = !primaryIsOptional({ secretType: type.value } as VaultEntry);
   // An API key's role is `key` (GITHUB_KEY), not its type name: `api_key` read as
   // GITHUB_API_KEY, and the type is already obvious from the entry.
-  role.value = hasPrimary ? (type.value === 'api_key' ? 'key' : type.value) : '';
+  role.value = hasPrimary ? defaultRoleForType(type.value) : '';
   role.dataset.auto = hasPrimary ? '1' : '0';
   updateNamePreview();
 }
@@ -2278,6 +2306,54 @@ export async function saveModal() {
         4500,
       );
       return;
+    }
+    // Every secret with a primary value carries a value role: the variable it generates is
+    // PROVIDER_ROLE (GITHUB_KEY, ELTE_PASSWORD), never a bare PROVIDER. An entry saved
+    // before roles existed, and never given one, keeps its bare name so the .env already
+    // deployed from it keeps working; any new entry, and any entry that has a role, needs one.
+    if (entry.api_key && !entry.primary_role && (idx < 0 || old?.primary_role)) {
+      showToast(
+        'Value role is required: it names the variable (GITHUB_KEY, ELTE_PASSWORD)',
+        'err',
+        4500,
+      );
+      return;
+    }
+    // One role, once per entry: two values under one name overwrite each other in whatever
+    // loads the file.
+    const twice = duplicateNamesWithin(entry);
+    if (twice.length) {
+      showToast(
+        `${twice[0]} would be generated twice by this entry. Give each value its own role.`,
+        'err',
+        5000,
+      );
+      return;
+    }
+    // One name, once per provider. Two entries may share a provider and a role only when
+    // something tells them apart: a key id, a name label, a version, a different account
+    // (the copy then adds the account: ELTE_PASSWORD_DARTHDEMONO_GMAIL_COM) or a key pool.
+    const before = new Set(old ? namesGeneratedBy(old).map((g) => g.name.toUpperCase()) : []);
+    const mine = namesGeneratedBy(entry).filter((g) => !before.has(g.name.toUpperCase()));
+    if (mine.length) {
+      const mineSet = new Set(mine.map((g) => g.name.toUpperCase()));
+      const clash = st.vault.api_keys.find((other) => {
+        if (other === old || (old?.id && other.id === old.id)) return false;
+        if (!namesGeneratedBy(other).some((g) => mineSet.has(g.name.toUpperCase()))) return false;
+        const pool = (entry.pool ?? '').trim();
+        if (pool && pool === (other.pool ?? '').trim()) return false;
+        const a = (entry.account_name ?? '').trim().toLowerCase();
+        const b = (other.account_name ?? '').trim().toLowerCase();
+        return !(a && b && a !== b);
+      });
+      if (clash) {
+        showToast(
+          `${mine[0].name} is already generated by ${clash.provider}. Give this one a key ID, a name label or its own account.`,
+          'err',
+          6000,
+        );
+        return;
+      }
     }
     // E12. `entry_ck` falls back to `provider|account_name|key_id` for an entry
     // with no `id`, so two entries differing only by `label` would collide there
