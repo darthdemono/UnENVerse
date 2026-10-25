@@ -392,3 +392,29 @@ describe('sorted by expiry, ties', () => {
     }
   });
 });
+
+describe('text search reads every descriptive field', () => {
+  it('finds an entry by its username, label, purpose, app name or URL, never by its secret', () => {
+    // Bug: search only read the provider, account, key id and the three description fields.
+    st.vault.api_keys = [
+      makeEntry({
+        provider: 'A',
+        username: 'joy.login',
+        label: 'prod',
+        purpose: 'billing runs',
+        app_name: 'Release bot',
+        app_purpose: 'posts notes',
+        api_url: 'https://api.acme.test',
+        api_key: 'hidden-value-123',
+      }),
+      makeEntry({ provider: 'B' }),
+    ];
+    for (const q of ['joy.login', 'prod', 'billing', 'release', 'posts', 'acme.test']) {
+      st.searchQ = q;
+      expect(getFiltered().map((e) => e.provider)).toEqual(['A']);
+    }
+    st.searchQ = 'hidden-value';
+    expect(getFiltered()).toHaveLength(0);
+    st.searchQ = '';
+  });
+});
