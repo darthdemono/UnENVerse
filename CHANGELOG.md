@@ -2,6 +2,23 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.60.2 (2026-10-25)
+
+### Added
+
+- The env naming schema is written down as a scale from one key to an organisation (ADR-0169): prefix, provider, key id, version, label, role, and the account as a tie-breaker.
+- Every secret with a primary value has a value role, and the form and `unv entry add` start a new one on it: `key` for an API key, `password` for a password, `value` for an environment variable, the type name for the rest. A new entry cannot be saved without one.
+- A role is unique: one entry cannot generate the same name twice (two `secret` values, or a primary role `id` beside an additional value `ID`), and a second entry for the same provider and role needs a key id, version, label, account or key pool to tell it apart.
+- When a copy holds entries with the same name and each has its own account, the account is appended: `ELTE_PASSWORD_DARTHDEMONO_GMAIL_COM`.
+- A password generates its sign-in name first, `ELTE_USER` before `ELTE_PASSWORD`, in copies, exports and the preview. The card shows the username above the password and names the variable on hover.
+- Fields are labelled and offered per secret type: a browser session has a Site URL, a password a Login URL, a database a Server URL, and so on. Callback URL, scopes and rate limit appear only where the type uses them, and always while they hold a value.
+- Sort by date added and by expiry, each newest or oldest first and soonest or latest first, with undated entries last in both directions.
+
+### Fixed
+
+- A category filter and a type filter did not narrow together: with a category selected, the type chips were ignored and every card of the category stayed.
+- The bundle header's copy button copied the primary member's value alone. It now copies the combined environment of every member and variable.
+
 ## 0.60.1 (2026-10-25)
 
 ### Added
