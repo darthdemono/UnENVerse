@@ -758,7 +758,7 @@ mod tests {
 
     #[test]
     fn only_a_pushing_target_can_write_its_directory() {
-        let read = plan(&opts(vec![wg(false)])).unwrap();
+        let read = plan_linux(&opts(vec![wg(false)])).unwrap();
         let flat: Vec<String> = read.iter().map(Step::describe).collect();
         assert!(flat
             .iter()
@@ -768,7 +768,7 @@ mod tests {
             .any(|s| s == "setfacl -m u:unv-node:x /etc/wireguard"));
         assert!(!flat.iter().any(|s| s.contains("rwx")));
 
-        let push = plan(&opts(vec![wg(true)])).unwrap();
+        let push = plan_linux(&opts(vec![wg(true)])).unwrap();
         let flat: Vec<String> = push.iter().map(Step::describe).collect();
         assert!(flat
             .iter()
@@ -809,14 +809,14 @@ mod tests {
         o.hub = "http://10.10.0.2:8743".into();
         o.relay = Some("10.10.0.2:8743".into());
         assert_eq!(effective_hub(&o), "http://127.0.0.1:18743");
-        let steps: Vec<String> = plan(&o).unwrap().iter().map(Step::describe).collect();
+        let steps: Vec<String> = plan_linux(&o).unwrap().iter().map(Step::describe).collect();
         assert!(steps.iter().any(|s| s.contains("unv-hub-relay.service")));
         assert!(service_unit(&o).contains("unv-hub-relay.service"));
     }
 
     #[test]
     fn the_plan_enrols_before_it_starts_the_agent() {
-        let steps = plan(&opts(vec![wg(true)])).unwrap();
+        let steps = plan_linux(&opts(vec![wg(true)])).unwrap();
         let enrol = steps.iter().position(|s| *s == Step::Enrol).unwrap();
         let start = steps
             .iter()
