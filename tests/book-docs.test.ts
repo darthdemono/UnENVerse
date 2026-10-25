@@ -28,7 +28,12 @@ describe('the book', () => {
   });
 
   it('keeps development-record paths and the old product name out of the phase pages', () => {
-    for (const f of fs.readdirSync(path.join(book, 'phases'))) {
+    const pages = fs
+      .readdirSync(path.join(book, 'phases'), { recursive: true })
+      .map(String)
+      .filter((f) => f.endsWith('.md'));
+    expect(pages.filter((f) => f.startsWith('log')).length).toBeGreaterThan(90);
+    for (const f of pages) {
       const text = read(`phases/${f}`);
       expect(text, f).not.toMatch(/handoff\//);
       expect(text, f).not.toMatch(/Handoff-\d+/);
