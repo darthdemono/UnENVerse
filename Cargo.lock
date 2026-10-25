@@ -7007,7 +7007,9 @@ dependencies = [
  "clap",
  "clap_complete",
  "keepass",
+ "rcgen",
  "serde_json",
+ "time",
  "tokio",
  "tracing",
  "unv-app",
@@ -7150,6 +7152,7 @@ dependencies = [
  "tracing-subscriber",
  "webpki-roots",
  "windows-sys 0.61.2",
+ "x509-parser",
  "zeroize",
 ]
 
