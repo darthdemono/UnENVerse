@@ -721,6 +721,42 @@ mod schema_tests {
     use super::*;
     use serde_json::json;
 
+    /// Mirrors the `env_names` fuzz target: whatever text a pool name or provider
+    /// holds, the generated name is a legal variable name and parsing never panics.
+    #[test]
+    fn hostile_text_still_yields_a_legal_variable_name() {
+        let samples = [
+            "",
+            "   ",
+            "9lives",
+            "ß straße",
+            "İstanbul",
+            "日本語",
+            "a\u{0}b",
+            "export",
+            "EXPORT =x",
+            "ǅ-ǈ",
+            "\r\n\\\n",
+            "=",
+            "a=b\\",
+            "'unterminated",
+            "\"x\\",
+        ];
+        for raw in samples {
+            let name = env_name_from_text(raw);
+            assert!(
+                name.starts_with(|c: char| c == '_' || c.is_ascii_uppercase()),
+                "{raw:?} -> {name}"
+            );
+            assert!(name
+                .chars()
+                .all(|c| c == '_' || c.is_ascii_uppercase() || c.is_ascii_digit()));
+            let names: Vec<String> = parse_env_file(raw).into_iter().map(|v| v.name).collect();
+            let _ = disambiguate_names(&names);
+            let _ = unquote_env_value(raw);
+        }
+    }
+
     /// The sign-in name is generated before the password (`ELTE_USER`, then
     /// `ELTE_PASSWORD`), and an entry with no username generates no `USER` line.
     #[test]
