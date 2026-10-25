@@ -244,6 +244,13 @@ describe('the site source is complete', () => {
     expect(header).toContain('width="32" height="32" alt=""');
   });
 
+  it('serves security.txt at the RFC 9116 path and the old one, unexpired', () => {
+    const old = fs.readFileSync(path.join(site, 'security.txt'), 'utf8');
+    expect(fs.readFileSync(path.join(site, '.well-known/security.txt'), 'utf8')).toBe(old);
+    const expires = /^Expires: (.+)$/m.exec(old)?.[1] ?? '';
+    expect(Date.parse(expires)).toBeGreaterThan(Date.now());
+  });
+
   it('has a screenshot manifest that matches the images on disk', () => {
     const dir = path.join(site, 'assets/screens');
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as Record<
