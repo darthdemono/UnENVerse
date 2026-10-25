@@ -6,6 +6,9 @@ Contract version 1.
 
 | Command | What it does |
 | --- | --- |
+| `unv acme check <entry> <host>` | Connect to a host and compare the certificate it serves with the entry's |
+| `unv acme issue <entry>` | Get a certificate and save it as a certificate entry (replacing one of that name) |
+| `unv acme renew <entry>` | Renew an entry made by `issue` once it is within its renewal window |
 | `unv audit` | Show the append-only audit log, or verify its hash chain |
 | `unv backup archive <file>` | Archive the vault database **and its salt** into one encrypted file |
 | `unv backup dest add local <id> <path>` | A local path or mounted NAS share. The mount must already be available |
@@ -110,6 +113,7 @@ Contract version 1.
 | `unv migrate archive ls` |  |
 | `unv migrate cutover <migration>` | Make this vault the authority for the entries a Git-store import (SOPS, pass, gopass) created |
 | `unv migrate drift <migration>` | Compare a Git source, as it is now, with what was last imported. Read-only on both sides |
+| `unv migrate leaks <dir>` | Find secrets left in plain text under a folder, with your own `gitleaks`, and offer them as migration candidates |
 | `unv migrate plan <format> <file>` | Inspect a source without changing the vault |
 | `unv migrate report` | List migration summaries without source values or file contents |
 | `unv migrate sync <migration>` | Refresh the vault from the source this migration read, one way. Preview unless `--apply` |
