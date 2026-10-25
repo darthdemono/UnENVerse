@@ -240,6 +240,20 @@ pub fn names_generated_by(
 ) -> Vec<(String, String)> {
     let f = |k: &str| entry.get(k).and_then(|v| v.as_str()).unwrap_or("");
     let mut out = Vec::new();
+    // The sign-in name comes first (`ELTE_USER`), then the primary value.
+    if !f("username").is_empty() {
+        out.push((
+            env_name(
+                entry,
+                &NameOpts {
+                    role: Some("USER"),
+                    case,
+                    include_prefix,
+                },
+            ),
+            f("username").to_string(),
+        ));
+    }
     if !f("api_key").is_empty() {
         out.push((
             primary_name(entry, case, include_prefix),
@@ -700,4 +714,35 @@ pub fn import_json(access: &Access, file: &PathBuf, yes: bool) -> CliResult {
         || println!("Imported {} entries", list.len()),
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod schema_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// The sign-in name is generated before the password (`ELTE_USER`, then
+    /// `ELTE_PASSWORD`), and an entry with no username generates no `USER` line.
+    #[test]
+    fn the_username_is_generated_ahead_of_the_primary_value() {
+        let with = json!({
+            "provider": "ELTE", "username": "joy", "api_key": "pw",
+            "primary_role": "password", "api_url": "https://x.test"
+        });
+        let got = names_generated_by(&with, None, false);
+        assert_eq!(
+            got,
+            vec![
+                ("ELTE_USER".into(), "joy".into()),
+                ("ELTE_PASSWORD".into(), "pw".into()),
+                ("ELTE_URL".into(), "https://x.test".into()),
+            ]
+        );
+        let without = json!({"provider": "ELTE", "api_key": "pw", "primary_role": "password"});
+        let names: Vec<String> = names_generated_by(&without, None, false)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect();
+        assert_eq!(names, vec!["ELTE_PASSWORD"]);
+    }
 }
