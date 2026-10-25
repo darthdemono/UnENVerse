@@ -326,3 +326,23 @@ export const delSVG = raw(
 export const dupSVG = raw(
   `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="13" height="13" rx="2"/><path d="M8 8h13v13H8z"/></svg>`,
 );
+
+/** Whether the shortcut labels should show the Mac keys (the handlers accept Cmd and Ctrl everywhere). */
+export function onMac(): boolean {
+  return /^(mac|iphone|ipad)/i.test(navigator.platform || '');
+}
+
+/** `Ctrl+Shift+P` as `⇧⌘P` and `Ctrl+K` as `⌘K` on a Mac; unchanged elsewhere. */
+export function modLabel(label: string): string {
+  return onMac() ? label.replace('Ctrl+Shift+', '⇧⌘').replace('Ctrl+', '⌘') : label;
+}
+
+/** Rewrite the shortcut hints the static page prints (the help list, the search box, the confirm hint). */
+export function wireModLabels(): void {
+  if (!onMac()) return;
+  document.querySelectorAll('kbd, #prompt-hint').forEach((el) => {
+    el.textContent = modLabel(el.textContent || '');
+  });
+  const search = document.getElementById('search') as HTMLInputElement | null;
+  if (search) search.placeholder = search.placeholder.replace('Ctrl+K', '⌘K');
+}

@@ -15,7 +15,7 @@ import { html, setHtml } from './html';
 import { lockVault } from './lock';
 import { openAdd } from './modals';
 import { openSettings } from './settings-panel';
-import { showToast } from './utils';
+import { modLabel, showToast } from './utils';
 
 export interface Command {
   id: string;
@@ -69,13 +69,13 @@ export function paletteCommands(): Command[] {
     go('go-remote', 'Go to Remote Vaults', 'remote'),
     go('go-users', 'Go to Users', 'users'),
     go('go-auth', 'Go to Authenticator', 'auth'),
-    { id: 'add', label: 'Add a secret', hint: 'Ctrl+N', run: () => openAdd() },
+    { id: 'add', label: 'Add a secret', hint: modLabel('Ctrl+N'), run: () => openAdd() },
     { id: 'settings', label: 'Open settings', hint: 'S', run: () => openSettings() },
     { id: 'lock', label: 'Lock the vault', run: () => void lockVault() },
     {
       id: 'search',
       label: 'Search secrets',
-      hint: 'Ctrl+K',
+      hint: modLabel('Ctrl+K'),
       run: () => {
         switchPanel('secrets');
         const box = document.getElementById('search') as HTMLInputElement | null;
