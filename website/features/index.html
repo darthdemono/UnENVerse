@@ -56,7 +56,16 @@
         <li>Generators for secrets, passwords, UUIDs, certificates and SSH keys.</li>
       </ul>
 
-      <h2 id="cli">The unv command line</h2>
+            <figure class="frame">
+        <img src="/assets/screens/edit-crop.webp" width="{{W_edit-crop}}" height="{{H_edit-crop}}" loading="lazy" alt="The Edit Secret form for an API key, split into sections: Secret with provider, key id, account, the value, its value role, additional values and the generated variable names; then how the secret is used.">
+        <figcaption>The form is split into sections. The value role names the variable it generates, and additional values add a secret, an id or any custom role beside it.</figcaption>
+      </figure>
+      <figure class="frame">
+        <img src="/assets/screens/bundle-crop.webp" width="{{W_bundle-crop}}" height="{{H_bundle-crop}}" loading="lazy" alt="An open TMDB bundle holding two credentials, v3 and v4, with buttons to copy the whole environment, add a key or an env, and export.">
+        <figcaption>A bundle copies as one environment. Add a new key or env straight into it.</figcaption>
+      </figure>
+
+<h2 id="cli">The unv command line</h2>
       <p>Everything the desktop app can do, <code>unv</code> can do, and the reverse. Output is JSON with stable exit codes, so scripts can branch on the result.</p>
       <ul>
         <li><strong>Redacted by default.</strong> <code>unv get</code> prints a fingerprint and a length, not the value. A vault-wide export to the terminal is refused, not masked.</li>
