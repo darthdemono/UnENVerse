@@ -1,3 +1,6 @@
+unv acme check <entry> <host> --port= --sni=
+unv acme issue <entry> --ca-file= --directory= --dns= --domain= --email= --http= --lego= --token-entry= --token-var=
+unv acme renew <entry> --days= --force --lego=
 unv audit --limit= --verify
 unv backup archive <file> --backup-password=
 unv backup dest add local <id> <path>
@@ -102,6 +105,7 @@ unv migrate archive export <id> --out=
 unv migrate archive ls
 unv migrate cutover <migration>
 unv migrate drift <migration>
+unv migrate leaks <dir> --apply --gitleaks= --template
 unv migrate plan <format> <file> --template
 unv migrate report
 unv migrate sync <migration> --apply

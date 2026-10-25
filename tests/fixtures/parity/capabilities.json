@@ -995,6 +995,30 @@
       "note": "JWT decoding of pasted text and a reference table of key formats; neither reads vault data. The format table is the provider catalogue (unv catalogue show)."
     },
     {
+      "id": "acme-certificates",
+      "status": "exempt",
+      "cli": [
+        "unv acme issue",
+        "unv acme renew",
+        "unv acme check"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R17 asks an ACME server for a certificate through the user's own lego and keeps it as a certificate entry; renew is meant for a timer and check handshakes with a host. CLI-only: it needs an installed external program, a DNS token entry or an open port, and the desktop has no long-running job flow.",
+      "cli_flags": []
+    },
+    {
+      "id": "leak-scan-import",
+      "status": "exempt",
+      "cli": [
+        "unv migrate leaks"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R17 runs the user's own gitleaks over a folder and offers its findings as migration candidates; a scan prints fingerprints only and nothing is saved without --apply. CLI-only: it needs an installed external program and a folder path, and the desktop has no folder-scan flow.",
+      "cli_flags": []
+    },
+    {
       "id": "git-store-sync",
       "status": "exempt",
       "cli": [
