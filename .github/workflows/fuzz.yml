@@ -37,6 +37,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The vault links the system SQLCipher; `.cargo/config.toml` asks for mold on gnu.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsqlcipher-dev mold
       - name: Install the nightly toolchain
         run: rustup toolchain install nightly --profile minimal --target x86_64-unknown-linux-gnu
       - name: Install cargo-fuzz
