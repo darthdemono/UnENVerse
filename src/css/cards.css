@@ -701,7 +701,9 @@
   font-family: "JetBrains Mono", monospace;
   font-size: 10.5px;
   line-height: 1.5;
-  word-break: break-all;
+  /* Break between words first and inside a word only when one cannot fit (a long URL).
+     Breaking at any letter split ordinary sentences mid-word: "object st/orage". */
+  overflow-wrap: anywhere;
 }
 
 .meta-val a {

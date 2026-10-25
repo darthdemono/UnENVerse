@@ -811,3 +811,13 @@ describe('Group by secret type, with bundles and pools', () => {
     Settings.set('groupByType', false);
   });
 });
+
+describe('card metadata wrapping', () => {
+  it('breaks a long value only where it must, not between letters of ordinary words', () => {
+    // Bug: .meta-val used word-break: break-all, which split "assets" as "ass/ets".
+    const css = readFileSync(resolve(__dirname, '../src/css/cards.css'), 'utf8');
+    const rule = /\.meta-val\s*\{([^}]*)\}/.exec(css)![1];
+    expect(rule).toContain('overflow-wrap: anywhere');
+    expect(rule).not.toContain('break-all');
+  });
+});
