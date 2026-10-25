@@ -18,6 +18,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 - A category filter and a type filter did not narrow together: with a category selected, the type chips were ignored and every card of the category stayed.
 - The bundle header's copy button copied the primary member's value alone. It now copies the combined environment of every member and variable.
+- **Group by secret type** did nothing in a vault that held a bundle, and ignored key pools; bundles, pools and the grouping now compose, with a Bundles heading of their own.
+- Search read only the provider, account, key id and descriptions. It now also reads the username, email, name label, version, pool, purpose, app name, app purpose and URL (never a secret).
 
 ## 0.60.1 (2026-10-25)
 
