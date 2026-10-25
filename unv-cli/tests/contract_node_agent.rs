@@ -5,7 +5,7 @@
 //! observes gets read access and no reload unit, and `unv node check` reports
 //! what the agent would watch.
 
-// `unv node install` sets up a systemd service and refuses on other platforms.
+// `unv node install` sets up a systemd service (a launchd job on macOS) and refuses on Windows.
 #![cfg(target_os = "linux")]
 
 mod common;
