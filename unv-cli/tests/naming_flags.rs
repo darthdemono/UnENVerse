@@ -42,8 +42,8 @@ fn case_and_prefix_change_exported_names_and_nothing_else() {
 
     let plain = unv(&dir, &["--reveal", "export", "--format", "dotenv"]);
     assert!(
-        plain.contains("SPOTIFY=abc123"),
-        "default names unchanged: {plain}"
+        plain.contains("SPOTIFY_KEY=abc123"),
+        "default names carry the key role: {plain}"
     );
 
     let lower = unv(
@@ -57,13 +57,13 @@ fn case_and_prefix_change_exported_names_and_nothing_else() {
             "dotenv",
         ],
     );
-    assert!(lower.contains("spotify=abc123"), "{lower}");
+    assert!(lower.contains("spotify_key=abc123"), "{lower}");
 
     let prefixed = unv(
         &dir,
         &["--reveal", "--env-prefix", "export", "--format", "dotenv"],
     );
-    assert!(prefixed.contains("ND_SPOTIFY=abc123"), "{prefixed}");
+    assert!(prefixed.contains("ND_SPOTIFY_KEY=abc123"), "{prefixed}");
 
     let profile = unv(
         &dir,
@@ -78,6 +78,6 @@ fn case_and_prefix_change_exported_names_and_nothing_else() {
             "basic",
         ],
     );
-    assert!(profile.contains("nd_spotify=abc123"), "{profile}");
+    assert!(profile.contains("nd_spotify_key=abc123"), "{profile}");
     std::fs::remove_dir_all(dir).ok();
 }

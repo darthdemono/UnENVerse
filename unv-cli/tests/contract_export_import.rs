@@ -17,6 +17,8 @@ mod common;
 
 use common::Vault;
 
+/// A new API key starts on the value role `key`, so the variables are `GITHUB_KEY` and
+/// `STRIPE_KEY` rather than the bare provider name.
 fn seeded(tag: &str) -> Vault {
     let v = Vault::new(tag);
     v.ok(&["project", "add", "Web"]);
@@ -43,26 +45,32 @@ fn revealed(v: &Vault, args: &[&str]) -> String {
 fn each_flat_format_carries_the_real_values_in_its_own_syntax() {
     let v = seeded("export-formats");
     let dotenv = revealed(&v, &["export", "--format", "dotenv"]);
-    assert!(dotenv.contains("GITHUB=ghp_secret123"), "{dotenv}");
-    assert!(dotenv.contains("STRIPE=sk_live_abc"), "{dotenv}");
+    assert!(
+        dotenv.contains(&format!("GITHUB_KEY={}", "ghp_secret123")),
+        "{dotenv}"
+    );
+    assert!(dotenv.contains("STRIPE_KEY=sk_live_abc"), "{dotenv}");
     let yaml = revealed(&v, &["export", "--format", "yaml"]);
-    assert!(yaml.contains("STRIPE: \"sk_live_abc\""), "{yaml}");
+    assert!(yaml.contains("STRIPE_KEY: \"sk_live_abc\""), "{yaml}");
     let tfvars = revealed(&v, &["export", "--format", "tfvars"]);
-    assert!(tfvars.contains("stripe = \"sk_live_abc\""), "{tfvars}");
+    assert!(tfvars.contains("stripe_key = \"sk_live_abc\""), "{tfvars}");
     let k8s = revealed(&v, &["export", "--format", "k8s", "--name", "payments"]);
     assert!(k8s.contains("kind: Secret"), "{k8s}");
     assert!(
         k8s.contains("name: payments"),
         "--name names the Secret: {k8s}"
     );
-    assert!(k8s.contains("STRIPE: \"sk_live_abc\""), "{k8s}");
+    assert!(k8s.contains("STRIPE_KEY: \"sk_live_abc\""), "{k8s}");
 }
 
 #[test]
 fn a_project_narrows_the_export_to_its_own_entries() {
     let v = seeded("export-project");
     let dotenv = revealed(&v, &["export", "--format", "dotenv", "--project", "web"]);
-    assert!(dotenv.contains("GITHUB=ghp_secret123"), "{dotenv}");
+    assert!(
+        dotenv.contains(&format!("GITHUB_KEY={}", "ghp_secret123")),
+        "{dotenv}"
+    );
     assert!(
         !dotenv.contains("STRIPE") && !dotenv.contains("sk_live_abc"),
         "an entry outside the project must not be exported: {dotenv}"
@@ -88,7 +96,7 @@ fn values_do_not_reach_a_terminal_unless_revealed_and_a_file_is_the_way_out() {
     assert_eq!(o.code, 0, "{}", o.all());
     assert!(std::fs::read_to_string(&file)
         .unwrap()
-        .contains("STRIPE=sk_live_abc"));
+        .contains("STRIPE_KEY=sk_live_abc"));
 }
 
 #[test]

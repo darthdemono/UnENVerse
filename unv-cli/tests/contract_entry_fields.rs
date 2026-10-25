@@ -304,3 +304,22 @@ fn an_app_name_and_purpose_are_stored_apart_from_the_purpose_given_to_the_issuer
     assert_eq!(field(&v, "Acme", "app_name"), "Release bot");
     assert_eq!(field(&v, "Acme", "app_purpose"), "posts notes");
 }
+
+#[test]
+fn a_new_secret_starts_on_a_value_role_and_an_explicit_role_wins() {
+    // Every secret with a primary value carries a role, so the variable is
+    // PROVIDER_ROLE (GITHUB_KEY) and never a bare PROVIDER. Without a value there is
+    // nothing to name.
+    let v = Vault::new("fields-default-role");
+    v.ok(&["entry", "add", "Gh", "--key", "k"]);
+    assert_eq!(field(&v, "Gh", "primary_role"), "key");
+    v.ok(&["entry", "add", "Site", "--type", "password", "--key", "pw"]);
+    assert_eq!(field(&v, "Site", "primary_role"), "password");
+    v.ok(&["entry", "add", "DB_URL", "--type", "env_var", "--key", "x"]);
+    assert_eq!(field(&v, "DB_URL", "primary_role"), "value");
+    v.ok(&["entry", "add", "Cid", "--key", "k", "--role", "id"]);
+    assert_eq!(field(&v, "Cid", "primary_role"), "id");
+    // Nothing to name without a value: the role is left unset.
+    v.ok(&["entry", "add", "Empty"]);
+    assert_eq!(v.run(&["get", "Empty", "--field", "primary_role"]).code, 3);
+}

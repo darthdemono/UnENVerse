@@ -972,6 +972,21 @@ pub fn cmd_add(
         entry["provider"] = json!(provider);
     }
     fields.apply(&mut entry, &projs)?;
+    // Every secret with a primary value carries a value role, so the variable it
+    // generates is PROVIDER_ROLE (GITHUB_KEY, ELTE_PASSWORD), never a bare PROVIDER.
+    // `--role` wins; the desktop form starts a new entry on the same defaults.
+    let has_value = entry
+        .get("api_key")
+        .and_then(|v| v.as_str())
+        .is_some_and(|v| !v.is_empty());
+    let has_role = entry
+        .get("primary_role")
+        .and_then(|v| v.as_str())
+        .is_some_and(|v| !v.is_empty());
+    if has_value && !has_role {
+        let role = default_role(entry.get("secretType").and_then(|v| v.as_str()));
+        entry["primary_role"] = json!(role);
+    }
     let fingerprint = out::fingerprint(entry.get("api_key").and_then(|v| v.as_str()).unwrap_or(""));
     let id = entry
         .get("id")
@@ -987,6 +1002,17 @@ pub fn cmd_add(
         || println!("Added '{provider}' ({fingerprint})"),
     );
     Ok(())
+}
+
+/// The value role a new entry of this type starts with: `key` for an API key, `value`
+/// (which the name template leaves out) for an environment variable, the type name for
+/// the rest. Twin of `defaultRoleForType` in `src/ts/state.ts`.
+pub fn default_role(secret_type: Option<&str>) -> &str {
+    match secret_type {
+        None | Some("") | Some("api_key") => "key",
+        Some("env_var") => "value",
+        Some(other) => other,
+    }
 }
 
 /// `unv totp add NAME --seed-stdin [--account …]` — the guided path that
