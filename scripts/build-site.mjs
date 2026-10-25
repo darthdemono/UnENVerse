@@ -73,6 +73,8 @@ const KINDS = [
   { re: /\.aarch64\.rpm$/, group: 'desktop', label: 'Fedora and RHEL, arm64 (.rpm)' },
   { re: /x64-setup\.exe$/, group: 'desktop', label: 'Windows x64 installer (.exe)' },
   { re: /arm64-setup\.exe$/, group: 'desktop', label: 'Windows on Arm installer (.exe)' },
+  { re: /_aarch64\.dmg$/, group: 'desktop', label: 'macOS, Apple silicon (.dmg, unsigned)' },
+  { re: /_x64\.dmg$/, group: 'desktop', label: 'macOS, Intel (.dmg, unsigned)' },
   { re: /^unv-.*-linux-x86_64\.tar\.gz$/, group: 'cli', label: 'Linux x86_64: unv and unv-server' },
   { re: /^unv-.*-linux-aarch64\.tar\.gz$/, group: 'cli', label: 'Linux arm64: unv and unv-server' },
   {
@@ -95,6 +97,12 @@ const KINDS = [
     group: 'cli',
     label: 'Windows on Arm: unv.exe and unv-server.exe',
   },
+  {
+    re: /^unv-.*-macos-aarch64\.tar\.gz$/,
+    group: 'cli',
+    label: 'macOS, Apple silicon: unv and unv-server',
+  },
+  { re: /^unv-.*-macos-x86_64\.tar\.gz$/, group: 'cli', label: 'macOS, Intel: unv and unv-server' },
 ];
 
 export function classify(assets) {
@@ -123,7 +131,7 @@ export function jsonLd(version) {
     '@type': 'SoftwareApplication',
     name: 'UnENVerse',
     applicationCategory: 'SecurityApplication',
-    operatingSystem: 'Linux, Windows',
+    operatingSystem: 'Linux, Windows, macOS',
     softwareVersion: version,
     license: 'https://www.apache.org/licenses/LICENSE-2.0',
     downloadUrl: `${SITE_URL}/download/`,

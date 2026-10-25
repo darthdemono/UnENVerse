@@ -2,6 +2,15 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## Unreleased
+
+### Added
+
+- macOS builds: an unsigned `.dmg` for Apple silicon and Intel, and `unv` and `unv-server` archives for both, built and published by the release job and listed in the signed CLI update feed.
+- `unv node install` runs on macOS: a role account, access lists, and launchd jobs for the agent and for reloading a service (ADR-0170).
+- Shortcut labels show the Command key on a Mac.
+- The Caps Lock hint works on macOS, and `unv update` hands an Intel Homebrew install (`/usr/local/Cellar`) to `brew upgrade unv`.
+
 ## 0.60.2 (2026-10-25)
 
 ### Added
