@@ -1180,6 +1180,7 @@ mod tests {
             let dest = d.join("unv");
             let steps = [Step::InstallBinary(dest.display().to_string())];
             assert!(run(&steps, false).0.is_ok());
+            // nosemgrep: rust.lang.security.current-exe.current-exe (a test compares the installed copy with this very binary)
             let me = std::env::current_exe().unwrap();
             assert_eq!(
                 std::fs::metadata(&dest).unwrap().len(),
@@ -1196,6 +1197,7 @@ mod tests {
 
         #[test]
         fn installing_over_the_running_binary_is_a_no_op() {
+            // nosemgrep: rust.lang.security.current-exe.current-exe (a test compares the installed copy with this very binary)
             let me = std::env::current_exe().unwrap();
             let before = std::fs::metadata(&me).unwrap().len();
             let steps = [Step::InstallBinary(me.display().to_string())];
