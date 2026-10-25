@@ -173,6 +173,30 @@ entry("Wireguard", base64.b64encode(secrets.token_bytes(32)).decode(), account="
       tags="vpn,homelab", categories="homelab", projects="home-vpn", desc="Interface key for the home VPN",
       rotation_days=365)
 
+# ----- app metadata: which app each secret was made for, and what it does with it ------
+# Purpose is what the issuer was told; app name and app purpose describe the software that
+# uses the secret. Applied after the entries exist so one table drives every card.
+META = {
+    "GitHub": ("Publish release packages from CI", "Release workflow", "Builds, signs and publishes each tagged release"),
+    "Anthropic": ("Research assistant for the docs team", "Docs assistant", "Answers questions about the product from the manuals"),
+    "Stripe": ("Test-mode billing for the staging shop", "Staging shop", "Runs checkout flows against fake cards"),
+    "AWS": ("Deploy the static site and its assets", "Site deployer", "Syncs the built site to object storage and invalidates the CDN"),
+    "Cloudflare": ("Edit DNS records for the lab domain", "DNS sync", "Keeps the lab hostnames pointed at the current gateway"),
+    "Sentry": ("Receive crash reports from the app", "Desktop app", "Uploads symbolicated crash reports from beta users"),
+    "SendGrid": ("Send transactional mail", "Mailer", "Sends sign-in links and invoices"),
+    "Slack": ("Post alerts to the on-call channel", "Alert relay", "Forwards monitoring alerts to chat"),
+    "Discord": ("Announce releases to the community", "Release bot", "Posts the changelog when a release is published"),
+    "Grafana": ("Read dashboards for the wall display", "Status wall", "Renders live dashboards on a kitchen tablet"),
+    "Proxmox": ("Administer the hypervisor", "Hypervisor console", "Manual administration only"),
+    "Fastmail": ("Personal mailbox", "Mail client", "Fetches and sends personal mail"),
+    "Postgres Password": ("Application database role", "Orders API", "Reads and writes the orders tables"),
+}
+for provider, (purpose, app, app_purpose) in META.items():
+    run("entry", "set", provider, "--purpose", purpose, "--app-name", app, "--app-purpose", app_purpose, check=False)
+run("entry", "set", "Proxmox", "--username", "root", check=False)
+run("entry", "set", "Fastmail", "--username", "me", check=False)
+run("entry", "set", "Postgres Password", "--username", "app", check=False)
+
 # ----- bundles: entries that belong on one card ------------------------------
 run("bundle", "new", "TMDB", "--member", "v3=TMDB v3", "--member", "v4=TMDB v4", check=False)
 
