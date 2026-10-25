@@ -695,6 +695,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: MigrateCmd,
     },
+    /// Certificates from an ACME server (Let's Encrypt and others), obtained with your own `lego`.
+    Acme {
+        #[command(subcommand)]
+        cmd: AcmeCmd,
+    },
     /// Pin a project and environment to this directory (writes `.unv.json`).
     ///
     /// Later commands run here inherit them, so `--project` stops being typed
@@ -974,6 +979,68 @@ enum RotateCmd {
 }
 
 #[derive(Subcommand)]
+enum AcmeCmd {
+    /// Get a certificate and save it as a certificate entry (replacing one of that name).
+    ///
+    /// Needs lego 5 or newer, not bundled. The DNS provider's token comes from a vault entry and
+    /// reaches lego as one environment variable, never as an argument. Choose one challenge:
+    /// `--dns <provider>` or `--http <address>`.
+    Issue {
+        /// The certificate entry to create or replace.
+        entry: String,
+        #[arg(long = "domain", required = true)]
+        domains: Vec<String>,
+        #[arg(long)]
+        email: String,
+        /// ACME directory URL (default: Let's Encrypt production).
+        #[arg(long)]
+        directory: Option<String>,
+        /// lego's DNS provider code, for example `cloudflare`.
+        #[arg(long)]
+        dns: Option<String>,
+        /// Answer an HTTP-01 challenge on this address, `:80` or `host:port`.
+        #[arg(long = "http")]
+        http_address: Option<String>,
+        /// A vault entry whose primary value is the DNS provider's API token.
+        #[arg(long)]
+        token_entry: Option<String>,
+        /// The variable the provider reads its token from, when it is not one of the built-in four.
+        #[arg(long)]
+        token_var: Option<String>,
+        /// Extra CAs for lego to trust when it talks to the ACME server (a private CA).
+        #[arg(long)]
+        ca_file: Option<PathBuf>,
+        /// The lego program to run (default: `lego` on PATH).
+        #[arg(long, default_value = "lego")]
+        lego: String,
+    },
+    /// Renew an entry made by `issue` once it is within its renewal window.
+    ///
+    /// Safe to run from a timer: it does nothing while the certificate has more than `--days` left.
+    Renew {
+        entry: String,
+        /// Renew when this many days or fewer remain.
+        #[arg(long, default_value_t = 30)]
+        days: i64,
+        /// Renew now whatever the dates say.
+        #[arg(long)]
+        force: bool,
+        #[arg(long, default_value = "lego")]
+        lego: String,
+    },
+    /// Connect to a host and compare the certificate it serves with the entry's.
+    Check {
+        entry: String,
+        host: String,
+        #[arg(long, default_value_t = 443)]
+        port: u16,
+        /// Server name to ask for when it differs from the host.
+        #[arg(long)]
+        sni: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
 enum MigrateCmd {
     /// Inspect a source without changing the vault.
     Plan {
@@ -992,6 +1059,25 @@ enum MigrateCmd {
         /// Preserve source bytes as a ${…} template with stable entry bindings.
         #[arg(long)]
         template: bool,
+    },
+    /// Find secrets left in plain text under a folder, with your own `gitleaks`, and offer them as
+    /// migration candidates.
+    ///
+    /// A scan lists rule, file, line and a fingerprint, never a value, and writes nothing. With
+    /// `--apply` every finding is saved as an entry; with `--template` each file is also kept as a
+    /// `${...}` template. Only the working tree is read, not Git history. gitleaks is not bundled.
+    Leaks {
+        /// The folder to scan.
+        dir: PathBuf,
+        /// Save the findings as entries. Without it this is a preview.
+        #[arg(long)]
+        apply: bool,
+        /// Keep each file as a template that points at the saved entries.
+        #[arg(long)]
+        template: bool,
+        /// The gitleaks program to run (default: `gitleaks` on PATH).
+        #[arg(long, default_value = "gitleaks")]
+        gitleaks: String,
     },
     /// Re-render a template migration and compare its SHA-256 with its source.
     Verify { migration: String },
@@ -4396,6 +4482,66 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 *apply,
             )
         }
+        Commands::Acme { cmd } => match cmd {
+            AcmeCmd::Issue {
+                entry,
+                domains,
+                email,
+                directory,
+                dns,
+                http_address,
+                token_entry,
+                token_var,
+                ca_file,
+                lego,
+            } => {
+                let settings = unv_app::acme::Settings {
+                    domains: domains.clone(),
+                    email: email.clone(),
+                    server: directory
+                        .clone()
+                        .unwrap_or_else(|| unv_app::acme::LETS_ENCRYPT.into()),
+                    dns: dns.clone(),
+                    http_address: http_address.clone(),
+                    token_entry: token_entry.clone(),
+                    token_var: token_var.clone(),
+                    ca_file: ca_file.as_ref().map(|p| p.to_string_lossy().into_owned()),
+                };
+                let data = unv_app::acme::issue(a, entry, &settings, lego)?;
+                out::ok("acme.issue", data.clone(), || {
+                    println!("Saved '{entry}', valid until {}.", data["expires_at"].as_str().unwrap_or(""));
+                });
+                Ok(())
+            }
+            AcmeCmd::Renew {
+                entry,
+                days,
+                force,
+                lego,
+            } => {
+                let data = unv_app::acme::renew(a, entry, lego, *days, *force)?;
+                out::ok("acme.renew", data.clone(), || {
+                    if data["renewed"] == true {
+                        println!("Renewed '{entry}', valid until {}.", data["expires_at"].as_str().unwrap_or(""));
+                    } else {
+                        println!("'{entry}' is not due: {} days left.", data["days_left"]);
+                    }
+                });
+                Ok(())
+            }
+            AcmeCmd::Check {
+                entry,
+                host,
+                port,
+                sni,
+            } => {
+                let data = unv_app::acme::check(a, entry, host, *port, sni.as_deref())?;
+                out::ok("acme.check", data, || {
+                    println!("{host}:{port} serves the certificate in '{entry}'.");
+                });
+                Ok(())
+            }
+        },
         Commands::Migrate { cmd } => match cmd {
             MigrateCmd::Plan {
                 format,
@@ -4436,6 +4582,39 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                         "Applied: {} imported, {} archived, {} skipped.",
                         preview.counts.imported, preview.counts.archived, preview.counts.skipped
                     );
+                });
+                Ok(())
+            }
+            MigrateCmd::Leaks {
+                dir,
+                apply,
+                template,
+                gitleaks,
+            } => {
+                let findings = unv_app::leak_scan::scan(dir, gitleaks)?;
+                let plans = unv_app::leak_scan::plan(a, dir, &findings, *template)?;
+                let candidates = unv_app::leak_scan::candidates(&findings);
+                let applied = if *apply {
+                    unv_app::leak_scan::apply(a, plans)?
+                } else {
+                    plans.into_iter().map(|p| p.preview).collect()
+                };
+                let data = serde_json::json!({ "applied": *apply, "findings": candidates, "files": applied });
+                out::ok("migrate.leaks", data, || {
+                    if candidates.is_empty() {
+                        println!("No secrets found.");
+                    }
+                    for c in &candidates {
+                        println!("  {}:{}  {}  {}", c.file, c.line, c.rule, c.fingerprint);
+                    }
+                    if !candidates.is_empty() {
+                        println!(
+                            "{} finding(s) in {} file(s). {}",
+                            candidates.len(),
+                            applied.len(),
+                            if *apply { "Saved." } else { "Preview only; add --apply to save them." }
+                        );
+                    }
                 });
                 Ok(())
             }
