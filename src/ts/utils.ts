@@ -341,7 +341,7 @@ export function modLabel(label: string): string {
 export function wireModLabels(): void {
   if (!onMac()) return;
   document.querySelectorAll('kbd, #prompt-hint').forEach((el) => {
-    el.textContent = modLabel(el.textContent || '');
+    el.textContent = modLabel(el.textContent as string);
   });
   const search = document.getElementById('search') as HTMLInputElement | null;
   if (search) search.placeholder = search.placeholder.replace('Ctrl+K', '⌘K');

@@ -255,7 +255,7 @@ describe('Mac shortcut labels', () => {
     Object.defineProperty(navigator, 'platform', { value: p, configurable: true });
 
   it('shows Cmd keys on a Mac and leaves Ctrl everywhere else', async () => {
-    const { modLabel, wireModLabels } = await import('../src/ts/utils');
+    const { modLabel, onMac, wireModLabels } = await import('../src/ts/utils');
     document.body.innerHTML =
       '<input id="search" placeholder="Search… Ctrl+K | x"><kbd>Ctrl+Shift+P</kbd><kbd>Esc</kbd>';
     setPlatform('Linux x86_64');
@@ -270,6 +270,13 @@ describe('Mac shortcut labels', () => {
     expect((document.getElementById('search') as HTMLInputElement).placeholder).toBe(
       'Search… ⌘K | x',
     );
+    // A page without the search box is not an error.
+    document.body.innerHTML = '<kbd>Ctrl+K</kbd>';
+    wireModLabels();
+    expect(document.querySelector('kbd')!.textContent).toBe('⌘K');
+    // A webview that reports no platform at all is not a Mac.
+    Object.defineProperty(navigator, 'platform', { value: undefined, configurable: true });
+    expect(onMac()).toBe(false);
     setPlatform('');
   });
 });
