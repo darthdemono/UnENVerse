@@ -131,7 +131,7 @@ mod commands {
 
     /// Current lock state from the desktop session, or `None` where the
     /// platform cannot report it. Linux reads GDK's keymap (X11 and Wayland);
-    /// Windows reads the Caps Lock toggle bit.
+    /// Windows reads the Caps Lock toggle bit; macOS reads the session's modifier flags.
     #[tauri::command]
     pub fn caps_lock_state() -> Option<bool> {
         #[cfg(target_os = "linux")]
@@ -148,7 +148,16 @@ mod commands {
             // VK_CAPITAL = 0x14; the low bit is the toggle state.
             Some(unsafe { GetKeyState(0x14) } & 1 != 0) // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage (one Win32 call, no pointers)
         }
-        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+        #[cfg(target_os = "macos")]
+        {
+            #[link(name = "ApplicationServices", kind = "framework")]
+            unsafe extern "C" {
+                fn CGEventSourceFlagsState(state_id: i32) -> u64;
+            }
+            // kCGEventSourceStateCombinedSessionState = 0; kCGEventFlagMaskAlphaShift is Caps Lock.
+            Some(unsafe { CGEventSourceFlagsState(0) } & 0x0001_0000 != 0) // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage (one CoreGraphics call, no pointers)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
         {
             None
         }
