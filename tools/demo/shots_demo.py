@@ -117,6 +117,25 @@ def main():
 
         go("card-expanded", expand_first_card, 1.0)
         go("add-secret", lambda: (panel("secrets"), wd.click("#add-btn")))
+
+        def edit_first(scroll=0):
+            # A card with every kind of metadata filled in, opened for editing, so the
+            # sectioned form is shown holding real values.
+            wd.click("#card-grid > .card [data-action='edit']")
+            wait_for(lambda: wd.exists("#modal-overlay.open"), 10, "the edit form")
+            wd.js("document.querySelector('#key-modal .modal-body').scrollTop = arguments[0]", [scroll])
+
+        go("edit-secret", lambda: (panel("secrets"), edit_first(0)), 1.0)
+        go("edit-secret-more", lambda: (panel("secrets"), edit_first(900)), 1.0)
+        go("edit-secret-end", lambda: (panel("secrets"), edit_first(99999)), 1.0)
+        go("sort-menu", lambda: (panel("secrets"), wd.click("#sort-btn")), 0.8)
+
+        def open_bundle():
+            panel("secrets")
+            wd.click(".bundle-card-wrap [data-action='bundle-toggle']")
+            time.sleep(0.8)
+
+        go("bundle", open_bundle, 1.0)
         go("authenticator", lambda: panel("auth"), 1.5)
         for slug, label in (("project-wireguard", "Home VPN"), ("project-compose", "Media Stack"),
                             ("project-nginx", "Edge Proxy")):

@@ -27,7 +27,10 @@ UNV_SERVER_URL=http://localhost:$PORT UNV_PASSWORD=demo-passphrase-123 \
 
 npx vite build >/dev/null
 docker image inspect unv-viewer >/dev/null 2>&1 || docker build -t unv-viewer tools/viewer
-docker run --rm --network host -e SHOT_CROP=1920x1200 \
+# Capped so a screenshot run cannot take the whole machine: the release build of the
+# desktop app is the heavy part. Raise VIEWER_CPUS / VIEWER_MEM on a build server.
+docker run --rm --network host --cpus "${VIEWER_CPUS:-2}" --memory "${VIEWER_MEM:-6g}" \
+  -e CARGO_BUILD_JOBS="${VIEWER_CPUS:-2}" -e SHOT_CROP=1920x1200 \
   -v "$PWD":/src:ro -v unv-viewer-target:/cargo-target -v unv-viewer-cargo:/usr/local/cargo/registry \
   -v "$PWD/$OUT":/out -e DEMO_SERVER=http://localhost:$PORT \
   unv-viewer bash -c '
