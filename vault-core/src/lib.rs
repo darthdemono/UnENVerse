@@ -55,6 +55,7 @@ pub mod cxf;
 pub mod bundle_import;
 pub mod bundle_scope;
 pub mod catalogue;
+pub mod certinfo;
 pub mod config_check;
 pub mod forget;
 pub mod lifecycle;
