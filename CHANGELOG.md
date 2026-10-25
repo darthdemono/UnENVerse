@@ -10,6 +10,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - `unv node install` runs on macOS: a role account, access lists, and launchd jobs for the agent and for reloading a service (ADR-0170).
 - Shortcut labels show the Command key on a Mac.
 - The Caps Lock hint works on macOS, and `unv update` hands an Intel Homebrew install (`/usr/local/Cellar`) to `brew upgrade unv`.
+- `unv migrate leaks <dir>` runs your own gitleaks over a folder and offers what it finds as migration candidates; nothing is saved without `--apply` and no value is printed (ADR-0171).
+- `unv acme issue|renew|check` gets a certificate through your own lego, keeps it as a certificate entry with the dates the CA signed, renews only inside the window, and compares the certificate a host serves with the entry (ADR-0171).
 
 ## 0.60.2 (2026-10-25)
 

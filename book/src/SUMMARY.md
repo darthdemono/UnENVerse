@@ -287,3 +287,4 @@
   - [0168: Master password change by export, verify and a two-step swap](adr/0168-master-password-change-by-export-verify-and-two-step-swap.md)
   - [0169: The env naming schema, from one key to an organisation](adr/0169-the-env-naming-schema-from-one-key-to-an-organisation.md)
   - [0170: macOS builds and a launchd node install](adr/0170-macos-builds-and-a-launchd-node-install.md)
+  - [0171: Leak-scan import and ACME certificates through installed tools](adr/0171-leak-scan-import-and-acme-through-installed-tools.md)
