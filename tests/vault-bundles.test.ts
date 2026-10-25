@@ -617,3 +617,33 @@ describe('adding a new key or env to a bundle', { timeout: 30000 }, () => {
     expect(document.getElementById('modal-overlay')!.classList.contains('open')).toBe(false);
   });
 });
+
+describe('copying a bundle', { timeout: 30000 }, () => {
+  it('the header button copies the whole combined environment, not the primary value', async () => {
+    // Bug: it copied the primary member's value alone.
+    await act(bundleBtn('bundle-copy-env'));
+    expect(copied).toHaveLength(1);
+    const text = copied[0];
+    expect(text).toContain('=');
+    expect(text.split('\n').filter((l) => /^[A-Z_0-9]+=/.test(l)).length).toBeGreaterThan(1);
+    expect(toasts[toasts.length - 1][0]).toBe('Bundle environment copied');
+  });
+});
+
+describe('copying a bundle environment, failures', { timeout: 30000 }, () => {
+  it('does nothing for a bundle that is gone', async () => {
+    const btn = document.querySelector<HTMLElement>(bundleBtn('bundle-copy-env'))!;
+    btn.dataset.bundle = 'gone';
+    copied.length = 0;
+    btn.click();
+    await flush();
+    expect(copied).toHaveLength(0);
+  });
+
+  it('says so when a template variable cannot be resolved', async () => {
+    bundle().extra_vars = [{ key: 'broken', kind: 'template', value: 'x-{nope}' }] as never;
+    await act(bundleBtn('bundle-copy-env'));
+    expect(toasts[toasts.length - 1][0]).toMatch(/^Export failed/);
+    expect(toasts[toasts.length - 1][1]).toBe('err');
+  });
+});

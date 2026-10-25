@@ -131,10 +131,14 @@ export function getFiltered(): VaultEntry[] {
         if (!hay.includes(text)) return false;
       }
     }
-    if (st.filter.type === 'price') return k.price_type === st.filter.value;
+    // These two used to `return` their own verdict, which skipped the type chips below:
+    // pick a category, then a type chip, and every card of the category stayed. They are
+    // plain conditions now, so every filter dimension narrows the same result.
+    if (st.filter.type === 'price' && k.price_type !== st.filter.value) return false;
     if (st.filter.type === 'category') {
       const pfx = st.filter.value + '/';
-      return (k.categories || []).some((c) => c === st.filter.value || c.startsWith(pfx));
+      if (!(k.categories || []).some((c) => c === st.filter.value || c.startsWith(pfx)))
+        return false;
     }
     // Phase 24.2's type chip bar replaced the old single-select sidebar
     // sub-list (`st.filter.type === 'secret_type'`) — multi-toggle,
@@ -156,6 +160,20 @@ export function getFiltered(): VaultEntry[] {
   });
 }
 
+/** Compare two optional dates; a missing or unparsable one sorts after every real one. */
+function dateCompare(
+  a: string | null | undefined,
+  b: string | null | undefined,
+  dir: 1 | -1,
+): number {
+  const ta = a ? new Date(a).getTime() : NaN;
+  const tb = b ? new Date(b).getTime() : NaN;
+  if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+  if (Number.isNaN(ta)) return 1;
+  if (Number.isNaN(tb)) return -1;
+  return (ta - tb) * dir;
+}
+
 export function sorted(arr: VaultEntry[]): VaultEntry[] {
   const by = st.currentSortBy;
   const priceOrder: Record<string, number> = { free: 0, local: 1, conditional: 2, paid: 3 };
@@ -175,10 +193,15 @@ export function sorted(arr: VaultEntry[]): VaultEntry[] {
         (a.categories?.[0] || 'zzz').localeCompare(b.categories?.[0] || 'zzz') ||
         a.provider.localeCompare(b.provider)
       );
-    if (by === 'expiry') {
-      const ae = a.expires_at ? new Date(a.expires_at).getTime() : Infinity;
-      const be = b.expires_at ? new Date(b.expires_at).getTime() : Infinity;
-      return ae - be;
+    // Dates: an entry without the date is listed last in either direction, so reversing
+    // the order never pushes the undated ones to the top.
+    if (by === 'expiry' || by === 'expiry-asc' || by === 'expiry-desc') {
+      const dir = by === 'expiry-desc' ? -1 : 1;
+      return dateCompare(a.expires_at, b.expires_at, dir) || a.provider.localeCompare(b.provider);
+    }
+    if (by === 'added-desc' || by === 'added-asc') {
+      const dir = by === 'added-asc' ? 1 : -1;
+      return dateCompare(a.created_at, b.created_at, dir) || a.provider.localeCompare(b.provider);
     }
     return a.provider.localeCompare(b.provider);
   });
