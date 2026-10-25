@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
+  <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows%20%7C%20macOS-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux, Windows and macOS">
   <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
   <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
   <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
@@ -44,7 +44,7 @@ It supports
 - a team server with users, classes, API tokens and a permission language
 - nodes that deploy rendered configs to your other machines, with signed approvals
 - a hash-chained audit log, config history and a "blast radius" report
-- Linux (x86_64, arm64), Windows (x64, Arm) and Docker (amd64, arm64)
+- Linux (x86_64, arm64), Windows (x64, Arm), macOS (Apple silicon, Intel) and Docker (amd64, arm64)
 
 ![UnENVerse showing a vault of API keys, passwords, certificates and 2FA codes](Screenshots/unenverse.png)
 
@@ -80,7 +80,9 @@ docker run -d -p 127.0.0.1:8743:8743 -v unv-data:/data -e UNV_PASSWORD=... \
 
 The port is published on this machine only: the server speaks plain HTTP unless it is started with `--tls`, and the master password travels in every sign-in. Add `--tls` after the image name, or put a TLS proxy in front, before publishing it to other machines.
 
-Windows: run the `-setup.exe` (x64 or Arm) or unpack the `.zip` for the command line. To build from source, see [Building from source](#building-from-source).
+Windows: run the `-setup.exe` (x64 or Arm) or unpack the `.zip` for the command line.
+
+macOS (11 and newer): open the `.dmg` and drag UnENVerse to Applications, or unpack the `-macos-*.tar.gz` for the command line. The builds are not notarized, so the first launch needs right-click, Open (or `xattr -dr com.apple.quarantine /Applications/UnENVerse.app`). To build from source, see [Building from source](#building-from-source).
 
 ## Usage
 
@@ -237,6 +239,7 @@ Grab the artefact for your platform from the [Releases](../../releases) page.
 | `*-setup.exe`               | Windows, x64 and Arm. Fetches WebView2 during install if the machine lacks it.                                                  |
 | `unv-*-linux-x86_64.tar.gz` | `unv` and `unv-server`, no GUI toolkit required. Also `-linux-aarch64` for arm64 (Raspberry Pi, Graviton).                      |
 | `unv-*-linux-*-musl.tar.gz` | The same two, statically linked (`x86_64` and `aarch64`): Alpine and any other distribution regardless of its glibc.            |
+| `*.dmg`                     | macOS, Apple silicon and Intel. Unsigned: right-click, Open the first time.                                                     |
 | `unv-*-windows-x86_64.zip`  | The same two, for Windows. Also `-windows-aarch64` for Windows on Arm.                                                          |
 | `unenverse-*.vsix`          | The VS Code extension: reference completion, hover fingerprints and secret-aware tasks. Install with `code --install-extension` |
 

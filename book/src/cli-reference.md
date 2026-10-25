@@ -125,7 +125,7 @@ Contract version 1.
 | `unv node automation-key` | Show the hub's automation public key for a node's `automation_approver` |
 | `unv node check` | Validate a node config and show what it would report. Contacts no one |
 | `unv node enroll` | On the managed host: spend an enrollment token and save this node's identity. Nothing is read from the vault |
-| `unv node install` | On the managed host, as root: install the agent as a hardened systemd service, enrol it, and give it access to exactly the files you name. `--plan` prints every step without running any |
+| `unv node install` | On the managed host, as root: install the agent as a hardened systemd service (a launchd job on macOS), enrol it, and give it access to exactly the files you name. `--plan` prints every step without running any |
 | `unv node ls` | List enrolled nodes and each target's status (hub) |
 | `unv node policy <node>` | Hold every push to a node for a human (`required`), or stop (`none`) |
 | `unv node pull <node> <target>` | Fetch a pull target's file from the node. Written with `--out` (0600); there is no stdout form, because the file is the node's own and holds its secrets |

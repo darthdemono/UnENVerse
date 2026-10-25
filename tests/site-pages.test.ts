@@ -30,6 +30,8 @@ const release = {
     ['unv-9.9.9-linux-x86_64-musl.tar.gz', 1],
     ['unv-9.9.9-linux-aarch64-musl.tar.gz', 1],
     ['unv-9.9.9-windows-aarch64.zip', 1],
+    ['UnENVerse_9.9.9_aarch64.dmg', 1],
+    ['unv-9.9.9-macos-aarch64.tar.gz', 1],
   ].map(([name, size]) => ({
     name,
     size,

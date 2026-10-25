@@ -1,15 +1,15 @@
 # Platforms
 
-|                                                         | Linux                                                   | Windows                                         | macOS                                         |
-| ------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
-| Desktop app and `unv` release builds                    | x86_64, arm64 (glibc), x86_64 musl for the command line | x64, Arm                                        | built and tested in CI only, no release asset |
-| SQLCipher                                               | system library (AppImage and packages bundle it)        | vendored                                        | vendored                                      |
-| Owner-only files                                        | mode 0600 / 0700                                        | protected access list holding only your account | mode 0600 / 0700                              |
-| Device key (`approver.key`)                             | `~/.local/share/io.unenverse`                           | `%LOCALAPPDATA%\io.unenverse`, never roaming    | `~/Library/Application Support/io.unenverse`  |
-| Node agent as a service                                 | systemd (`unv node install`)                            | Task Scheduler, by hand                         | launchd, by hand                              |
-| `unv doctor` checks permissions and network filesystems | yes                                                     | yes                                             | yes                                           |
+|                                                         | Linux                                                   | Windows                                         | macOS                                        |
+| ------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------- |
+| Desktop app and `unv` release builds                    | x86_64, arm64 (glibc), x86_64 musl for the command line | x64, Arm                                        | `.dmg` (Apple silicon, Intel), unsigned      |
+| SQLCipher                                               | system library (AppImage and packages bundle it)        | vendored                                        | vendored                                     |
+| Owner-only files                                        | mode 0600 / 0700                                        | protected access list holding only your account | mode 0600 / 0700                             |
+| Device key (`approver.key`)                             | `~/.local/share/io.unenverse`                           | `%LOCALAPPDATA%\io.unenverse`, never roaming    | `~/Library/Application Support/io.unenverse` |
+| Node agent as a service                                 | systemd (`unv node install`)                            | Task Scheduler, by hand                         | launchd (`unv node install`)                 |
+| `unv doctor` checks permissions and network filesystems | yes                                                     | yes                                             | yes                                          |
 
-macOS is not released: there is no Apple Developer account behind the project, so nothing would be signed or notarized, and an unsigned app is blocked by Gatekeeper on first launch (right-click, Open). The CI job builds and tests it so the code does not rot; a release is the maintainer's decision.
+macOS builds are published but not signed or notarized: there is no Apple Developer account behind the project, so Gatekeeper blocks the app on first launch (right-click, Open, or `xattr -dr com.apple.quarantine /Applications/UnENVerse.app`). Shortcuts show the Command key there; the Caps Lock hint reads the session's modifier flags.
 
 ## Owner-only files on Windows
 
@@ -19,9 +19,13 @@ Windows has no file modes, and a file inherits the access list of its folder, wh
 
 The key that signs approvals identifies one machine. On Windows an older build kept it under the roaming profile, which a domain can copy to other computers. It now lives under the machine-local profile; the first time a build finds only the old file it copies it across (the old file is kept, so an interrupted move leaves the old key working) and you can delete the roaming copy yourself once nodes accept the new location.
 
-## Running the node agent without systemd
+## The node agent on macOS
 
-The agent is `unv node run --config <node.toml>`. Run it under whatever your system uses to keep a program alive. On macOS, `unv_app::node_install::launchd_plist` produces the job below (save it as `/Library/LaunchDaemons/io.unenverse.node.plist`, then `sudo launchctl load` it):
+`unv node install` works on macOS as it does on Linux, with launchd in place of systemd. As root it creates a hidden role account `_unvnode`, installs `unv` to `/usr/local/bin`, writes `/usr/local/etc/unv-node/node.toml`, grants the account access to the files you name with `chmod +a` (read, plus write on the file and its folder when the target pushes), and loads `/Library/LaunchDaemons/io.unenverse.node.plist`. `reload=<label>` names a launchd service: a root job watches the signal file the agent writes after it validated the new file, and runs `launchctl kickstart -k system/<label>`. `--plan` prints every step. Differences from Linux: launchd has no equivalent of the systemd sandbox options, so the agent is limited by its account and the access lists alone, and `--relay` is refused because macOS ships no `socat`.
+
+## Running the node agent without the installer
+
+The agent is `unv node run --config <node.toml>`. Run it under whatever your system uses to keep a program alive. On macOS, `unv node install` writes the job below (without the account and log keys shown by the real file) (save it as `/Library/LaunchDaemons/io.unenverse.node.plist`, then `sudo launchctl load` it):
 
 ```xml
 <plist version="1.0"><dict>
