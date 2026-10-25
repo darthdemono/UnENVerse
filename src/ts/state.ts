@@ -2021,9 +2021,18 @@ export interface GeneratedName {
   role: string;
 }
 
-/** Every name one entry generates, in the order a copy emits them. */
+/**
+ * Every name one entry generates, in the order a copy emits them.
+ *
+ * The order is part of the schema: the sign-in name first (`ELTE_USER`), then the
+ * primary value (`ELTE_PASSWORD`), the legacy second secret, the URL, and every
+ * additional value in the order it was added. {@link valuesGeneratedBy} walks the
+ * same slots, so a name and its value can never drift apart.
+ */
 export function namesGeneratedBy(entry: VaultEntry, opts: EnvNameOpts = {}): GeneratedName[] {
   const out: GeneratedName[] = [];
+  if (entry.username)
+    out.push({ name: envName(entry, { ...opts, role: 'USER' }), entry, role: 'USER' });
   if (entry.api_key) out.push({ name: primaryEnvName(entry, opts), entry, role: '' });
   if (entry.api_secret)
     out.push({ name: secretEnvName(entry, opts), entry, role: entry.secret_role || 'SECRET' });
@@ -2034,6 +2043,47 @@ export function namesGeneratedBy(entry: VaultEntry, opts: EnvNameOpts = {}): Gen
     out.push({ name: envName(entry, { ...opts, role: xv.key }), entry, role: xv.key });
   }
   return out;
+}
+
+/** The values {@link namesGeneratedBy} names, in the same order. */
+export function valuesGeneratedBy(entry: VaultEntry): string[] {
+  const out: string[] = [];
+  if (entry.username) out.push(entry.username);
+  if (entry.api_key) out.push(entry.api_key);
+  if (entry.api_secret) out.push(entry.api_secret);
+  if (entry.api_url) out.push(entry.api_url);
+  for (const xv of entry.extra_vars ?? []) if (xv.key) out.push(xv.value ?? '');
+  return out;
+}
+
+/**
+ * Names one entry generates more than once (compared case-insensitively).
+ *
+ * Two values of one entry under one role is the same silent overwrite as two entries
+ * sharing a name, and it is the one the form can refuse outright: `secret` twice, or
+ * a primary role of `id` next to an additional value called `ID`.
+ */
+export function duplicateNamesWithin(entry: VaultEntry, opts: EnvNameOpts = {}): string[] {
+  const seen = new Set<string>();
+  const dup = new Set<string>();
+  for (const g of namesGeneratedBy(entry, opts)) {
+    const k = g.name.toUpperCase();
+    if (seen.has(k)) dup.add(g.name);
+    seen.add(k);
+  }
+  return [...dup];
+}
+
+/**
+ * The value role a new entry of this type starts with. Every secret that has a primary
+ * value carries one (the variable is `PROVIDER_ROLE`, never a bare `PROVIDER`): an API key
+ * is a `key`, a password a `password`, a plain environment variable a `value` (which
+ * `envName` leaves out, so its name stays the variable name itself).
+ */
+export function defaultRoleForType(type: string | undefined): string {
+  if (!type || type === 'api_key') return 'key';
+  if (type === 'env_var') return 'value';
+  return type;
 }
 
 /** A name two or more values want. */
@@ -2091,8 +2141,40 @@ export function disambiguateNames(names: GeneratedName[]): string[] {
   // this must not break" section is about.
   const taken = new Set<string>();
 
-  return names.map((g) => {
+  // Two entries of one provider and role with no key id or name label differ only by the
+  // account they belong to: `ELTE_PASSWORD` for darthdemono@gmail.com and for a second
+  // address become `ELTE_PASSWORD_DARTHDEMONO_GMAIL_COM` and `ELTE_PASSWORD_<OTHER>`.
+  // Applied to the whole group when every member has its own account, so neither is left
+  // as the bare name the other one is now a variant of.
+  const mode = (Settings.get('envCopyCase') as EnvNameCase) ?? 'upper';
+  const accountOf = (g: GeneratedName): string => {
+    const seg = envSegment(g.entry.account_name, mode !== 'preserve');
+    return mode === 'lower' ? seg.toLowerCase() : seg;
+  };
+  const byAccount = new Map<string, string>();
+  const groups = new Map<string, GeneratedName[]>();
+  for (const g of names) {
+    const k = g.name.toUpperCase();
+    if ((counts.get(k) ?? 0) < 2) continue;
+    groups.set(k, [...(groups.get(k) ?? []), g]);
+  }
+  for (const [k, group] of groups) {
+    const segs = group.map(accountOf);
+    if (segs.every(Boolean) && new Set(segs.map((x) => x.toUpperCase())).size === group.length) {
+      group.forEach((g, i) => {
+        const c = `${g.name}_${segs[i]}`;
+        if (!used.has(c.toUpperCase())) {
+          used.add(c.toUpperCase());
+          byAccount.set(`${k}\0${names.indexOf(g)}`, c);
+        }
+      });
+    }
+  }
+
+  return names.map((g, idx) => {
     const key = g.name.toUpperCase();
+    const viaAccount = byAccount.get(`${key}\0${idx}`);
+    if (viaAccount) return viaAccount;
     if (counts.get(key)! < 2) return g.name;
     if (!taken.has(key)) {
       taken.add(key);

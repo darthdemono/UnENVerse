@@ -256,3 +256,109 @@ describe('panels and sidebar', () => {
     expect(layout.classList.contains('activity-bar-icon-label')).toBe(true);
   });
 });
+
+describe('the universal env naming schema', () => {
+  const e = (o: object) => makeEntry({ provider: 'ELTE', api_key: 'pw', ...o });
+
+  it('puts the sign-in name before the password, and values follow the same order', async () => {
+    const { valuesGeneratedBy } = await import('../src/ts/state');
+    const entry = e({ username: 'joy', primary_role: 'password', api_url: 'https://x.test' });
+    expect(namesGeneratedBy(entry).map((g) => g.name)).toEqual([
+      'ELTE_USER',
+      'ELTE_PASSWORD',
+      'ELTE_URL',
+    ]);
+    expect(valuesGeneratedBy(entry)).toEqual(['joy', 'pw', 'https://x.test']);
+  });
+
+  it('adds the account when two entries share provider and role and nothing else tells them apart', () => {
+    const a = e({ primary_role: 'password', account_name: 'darthdemono@gmail.com' });
+    const b = e({ primary_role: 'password', account_name: 'other@mail.test' });
+    const names = disambiguateNames([...namesGeneratedBy(a), ...namesGeneratedBy(b)]);
+    expect(names).toEqual(['ELTE_PASSWORD_DARTHDEMONO_GMAIL_COM', 'ELTE_PASSWORD_OTHER_MAIL_TEST']);
+  });
+
+  it('falls back to an ordinal when an account is missing or repeated', () => {
+    const a = e({ primary_role: 'password', account_name: 'same@x.test' });
+    const b = e({ primary_role: 'password', account_name: 'same@x.test' });
+    expect(disambiguateNames([...namesGeneratedBy(a), ...namesGeneratedBy(b)])).toEqual([
+      'ELTE_PASSWORD',
+      'ELTE_PASSWORD_2',
+    ]);
+    const c = e({ primary_role: 'password' });
+    expect(disambiguateNames([...namesGeneratedBy(a), ...namesGeneratedBy(c)])).toEqual([
+      'ELTE_PASSWORD',
+      'ELTE_PASSWORD_2',
+    ]);
+  });
+
+  it('does not touch names that never collided, and a key id still wins over the account', () => {
+    const a = e({ primary_role: 'password', key_id: '1', account_name: 'a@x.test' });
+    const b = e({ primary_role: 'password', key_id: '2', account_name: 'b@x.test' });
+    expect(disambiguateNames([...namesGeneratedBy(a), ...namesGeneratedBy(b)])).toEqual([
+      'ELTE_1_PASSWORD',
+      'ELTE_2_PASSWORD',
+    ]);
+  });
+
+  it('finds a role used twice inside one entry, across the primary, the url and the extras', async () => {
+    const { duplicateNamesWithin } = await import('../src/ts/state');
+    expect(duplicateNamesWithin(e({ primary_role: 'id' }))).toEqual([]);
+    expect(
+      duplicateNamesWithin(
+        e({
+          primary_role: 'id',
+          extra_vars: [
+            { key: 'ID', value: 'x' },
+            { key: 'secret', value: 'y' },
+            { key: 'Secret', value: 'z' },
+          ],
+        }),
+      ),
+    ).toEqual(['ELTE_ID', 'ELTE_SECRET']);
+  });
+
+  it('gives every type a starting role: key, password, value (bare), or the type name', async () => {
+    const { defaultRoleForType } = await import('../src/ts/state');
+    expect(defaultRoleForType('api_key')).toBe('key');
+    expect(defaultRoleForType(undefined)).toBe('key');
+    expect(defaultRoleForType('password')).toBe('password');
+    expect(defaultRoleForType('env_var')).toBe('value');
+    expect(defaultRoleForType('connection_string')).toBe('connection_string');
+  });
+});
+
+describe('the account tie-breaker follows the copy case setting', () => {
+  const pair = () => [
+    makeEntry({
+      provider: 'ELTE',
+      api_key: 'a',
+      primary_role: 'password',
+      account_name: 'Me@Gmail.test',
+    }),
+    makeEntry({
+      provider: 'ELTE',
+      api_key: 'b',
+      primary_role: 'password',
+      account_name: 'other@x.test',
+    }),
+  ];
+  const run = () => {
+    const [a, b] = pair();
+    return disambiguateNames([...namesGeneratedBy(a), ...namesGeneratedBy(b)]);
+  };
+
+  it('lower-cases it with lower, keeps its case with preserve', () => {
+    Settings.set('envCopyCase', 'lower');
+    expect(run()).toEqual(['elte_password_me_gmail_test', 'elte_password_other_x_test']);
+    Settings.set('envCopyCase', 'preserve');
+    expect(run()).toEqual(['ELTE_password_Me_Gmail_test', 'ELTE_password_other_x_test']);
+    Settings.set('envCopyCase', 'upper');
+  });
+
+  it('falls back to upper when the setting is missing', () => {
+    Settings.set('envCopyCase', undefined as never);
+    expect(run()[0]).toBe('ELTE_PASSWORD_ME_GMAIL_TEST');
+    Settings.set('envCopyCase', 'upper');
+  });
+});

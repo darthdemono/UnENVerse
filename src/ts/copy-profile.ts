@@ -52,6 +52,7 @@ import {
   primaryEnvName,
   quoteEnvValue,
   namesGeneratedBy,
+  valuesGeneratedBy,
   disambiguateNames,
   type EnvNameCase,
   type GeneratedName,
@@ -175,13 +176,7 @@ export function buildCopyText(entry: VaultEntry, opts: CopyOpts = {}): string {
   // meaning "unset" into a file about to be loaded.
   const generated = namesGeneratedBy(entry, nameOpts);
   const unique = disambiguateNames(generated);
-  const values: string[] = [];
-  if (entry.api_key) values.push(entry.api_key);
-  if (entry.api_secret) values.push(entry.api_secret);
-  if (entry.api_url) values.push(entry.api_url);
-  for (const xv of entry.extra_vars ?? []) {
-    if (xv.key) values.push(xv.value ?? '');
-  }
+  const values = valuesGeneratedBy(entry);
   unique.forEach((name, i) => lines.push(`${name}=${quoteEnvValue(values[i])}`));
 
   const push = (name: string, value: string) => lines.push(`${name}=${quoteEnvValue(value)}`);
@@ -215,6 +210,7 @@ export function buildBundleExport(
   for (const entry of entries) {
     const names = namesGeneratedBy(entry);
     const out: Out[] = [];
+    if (entry.username) out.push({ value: entry.username });
     if (entry.api_key) out.push({ value: entry.api_key });
     if (entry.api_secret) out.push({ value: entry.api_secret });
     if (entry.api_url) out.push({ value: entry.api_url });
