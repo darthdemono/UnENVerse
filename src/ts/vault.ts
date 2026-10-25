@@ -135,7 +135,10 @@ const SORT_OPTIONS = [
   { value: 'provider', label: 'A – Z' },
   { value: 'price', label: 'Price Type' },
   { value: 'category', label: 'Category' },
-  { value: 'expiry', label: 'Expiry' },
+  { value: 'expiry-asc', label: 'Expiring soonest first' },
+  { value: 'expiry-desc', label: 'Expiring latest first' },
+  { value: 'added-desc', label: 'Date added, newest first' },
+  { value: 'added-asc', label: 'Date added, oldest first' },
 ];
 
 /**
@@ -147,7 +150,9 @@ const SORT_OPTIONS = [
  */
 
 function restoreSort(): void {
-  const saved = Settings.get('lastSortBy');
+  // `expiry` was the one expiry mode before the direction was chosen: soonest first.
+  const stored = Settings.get('lastSortBy');
+  const saved = stored === 'expiry' ? 'expiry-asc' : stored;
   const opt = SORT_OPTIONS.find((o) => o.value === saved);
   if (!opt) return;
   st.currentSortBy = opt.value;
@@ -1568,6 +1573,26 @@ async function init() {
           render();
           showToast(`${codeStatus(spent.entry).remaining} recovery codes left`, 'ok');
         })();
+        break;
+      }
+      case 'bundle-copy-env': {
+        // The header button copies the combined environment of every member and local
+        // variable, the same text "Copy all as .env" writes. It used to copy the primary
+        // member's value alone, which is one line of an environment the card stands for.
+        const bundle = st.vault.api_keys.find(
+          (entry) => entry.id === el.dataset.bundle && entry.secretType === 'bundle',
+        );
+        if (!bundle) break;
+        const members = st.vault.api_keys
+          .filter((entry) => entry.bundle_id === bundle.id)
+          .sort((a, b) => (a.bundle_order ?? 0) - (b.bundle_order ?? 0));
+        try {
+          void clipboardWrite(buildBundleExport(bundle, members, 'dotenv')).then(() =>
+            showToast('Bundle environment copied', 'ok'),
+          );
+        } catch (error) {
+          showToast(`Export failed: ${String(error)}`, 'err');
+        }
         break;
       }
       case 'bundle-export': {

@@ -215,14 +215,17 @@ describe('sorting and expanding', { timeout: 30000 }, () => {
     await flush();
   };
 
-  it('offers the four orders, marks the current one, and applies and remembers the choice', async () => {
+  it('offers the orders, marks the current one, and applies and remembers the choice', async () => {
     $('sort-btn').click();
     const items = [...document.querySelectorAll<HTMLElement>('#dropdown .dropdown-item')];
     expect(items.map((i) => i.textContent!.trim().replace(/^✓\s*/, ''))).toEqual([
       'A – Z',
       'Price Type',
       'Category',
-      'Expiry',
+      'Expiring soonest first',
+      'Expiring latest first',
+      'Date added, newest first',
+      'Date added, oldest first',
     ]);
     expect(items[0].classList.contains('active')).toBe(true);
     items[1].click();
@@ -234,14 +237,22 @@ describe('sorting and expanding', { timeout: 30000 }, () => {
   });
 
   it('expiry puts the soonest first and entries without one last', async () => {
-    await choose('Expiry');
+    await choose('Expiring soonest first');
     expect(shown()).toEqual(['Gamma', 'Beta', 'Alpha']);
+    await choose('Expiring latest first');
+    expect(shown()).toEqual(['Beta', 'Gamma', 'Alpha']);
   });
 
   it('the saved order is restored on the next start', async () => {
+    await boot({ lastSortBy: 'expiry-desc' });
+    expect(st.currentSortBy).toBe('expiry-desc');
+    expect($('sort-label-text').textContent).toBe('Expiring latest first');
+  });
+
+  it('restores the old single expiry order as soonest first', async () => {
     await boot({ lastSortBy: 'expiry' });
-    expect(st.currentSortBy).toBe('expiry');
-    expect($('sort-label-text').textContent).toBe('Expiry');
+    expect(st.currentSortBy).toBe('expiry-asc');
+    expect($('sort-label-text').textContent).toBe('Expiring soonest first');
   });
 
   it('a saved order that no longer exists is ignored', async () => {

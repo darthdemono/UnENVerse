@@ -24,6 +24,7 @@ import {
   quoteEnvValue,
   findNameCollisions,
   isTreeCollapsed,
+  envName,
 } from './state';
 import { getFiltered, sorted, buildProjectTree, getDescendantProjectIds } from './filters';
 import { timeUntil } from './ui-qol';
@@ -847,7 +848,7 @@ function buildBundleCard(
     ['Categories', categories],
     ['Tags', tags],
   ] as const;
-  const copyLabel = primary ? `Copy ${primary.bundle_slot || primary.provider}` : '';
+  const copyLabel = `Copy ${bundle.provider} env`;
   setHtml(
     summary,
     html`
@@ -881,13 +882,14 @@ function buildBundleCard(
       </div>
       ${chipRows.some(([, values]) => values.length) ? html`<div class="card-tags bundle-chips">${chipRows.map(([label, values]) => unionChip(label, values))}</div>` : ''}
       <div class="card-foot">${
-        primary
+        members.length
           ? html`<button
           type="button"
           class="env-copy-btn"
-          data-action="copy-field"
-          data-value="${primary.api_key || primary.api_secret || ''}"
+          data-action="bundle-copy-env"
+          data-bundle="${id}"
           aria-label="${copyLabel}"
+          title="Copy every member and variable as one .env"
         >${copySVG}<span>${copyLabel}</span></button>`
           : ''
       }
@@ -1285,6 +1287,8 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
     return Settings.get('maskKeysByDefault');
   };
   const hasMask = masked('key');
+  // The variable the sign-in name is copied as, shown on hover beside the value's own.
+  const userVar = entry.username ? envName(entry, { role: 'USER' }) : '';
   // A composite's "value" is its rendered template, never `api_key` (which it
   // does not use). Rendered here, once, rather than in the template string
   // below, so a render error shows as text instead of breaking card markup.
@@ -1502,6 +1506,19 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
       </div>${entry.api_description ? html`<div class="card-apidesc">${entry.api_description}</div>` : ''}
       <div class="card-body">
         <div class="key-section">${
+          entry.username
+            ? html`<div class="key-row">
+                <div class="key-label" title="${userVar}">USERNAME</div>
+                <div class="key-value" data-action="copy-field" data-value="${entry.username}">${entry.username}</div>
+                <button
+                  class="icon-btn sm"
+                  data-action="copy-field"
+                  data-value="${entry.username}"
+                  aria-label="Copy username"
+                >${copySVG}</button>
+              </div>`
+            : ''
+        }${
           compositeActive
             ? compositeOk
               ? html`<div class="key-row">
@@ -1604,20 +1621,6 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
                     aria-label="${'Copy secret for ' + entry.provider}"
                   >${copySVG}</button>
                 </div>
-              </div>`
-              : ''
-          }
-          ${
-            entry.username
-              ? html`<div class="key-row">
-                <div class="key-label">USERNAME</div>
-                <div class="key-value" data-action="copy-field" data-value="${entry.username}">${entry.username}</div>
-                <button
-                  class="icon-btn sm"
-                  data-action="copy-field"
-                  data-value="${entry.username}"
-                  aria-label="Copy username"
-                >${copySVG}</button>
               </div>`
               : ''
           }

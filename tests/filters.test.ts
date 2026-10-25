@@ -303,3 +303,92 @@ describe('sorted', () => {
     expect(input).toEqual(copy);
   });
 });
+
+describe('filters narrow together', () => {
+  it('a category and a type chip both apply (the category used to win alone)', () => {
+    // Bug: the category and price branches returned their own verdict before the type
+    // chips were read, so picking a category and then a chip kept every card of the
+    // category.
+    st.vault.api_keys = [
+      makeEntry({ provider: 'KeyInInfra', categories: ['infra'], secretType: 'api_key' }),
+      makeEntry({ provider: 'PwInInfra', categories: ['infra'], secretType: 'password' }),
+      makeEntry({ provider: 'PwElsewhere', categories: ['other'], secretType: 'password' }),
+    ];
+    st.filter = { type: 'category', value: 'infra' } as never;
+    expect(
+      getFiltered()
+        .map((e) => e.provider)
+        .sort(),
+    ).toEqual(['KeyInInfra', 'PwInInfra']);
+    st.activeTypeChips = new Set(['password']);
+    expect(getFiltered().map((e) => e.provider)).toEqual(['PwInInfra']);
+    st.activeTypeChips = new Set();
+  });
+
+  it('a price filter and a type chip both apply', () => {
+    st.vault.api_keys = [
+      makeEntry({ provider: 'FreeKey', price_type: 'free', secretType: 'api_key' }),
+      makeEntry({ provider: 'FreePw', price_type: 'free', secretType: 'password' }),
+      makeEntry({ provider: 'PaidPw', price_type: 'paid', secretType: 'password' }),
+    ];
+    st.filter = { type: 'price', value: 'free' } as never;
+    st.activeTypeChips = new Set(['password']);
+    expect(getFiltered().map((e) => e.provider)).toEqual(['FreePw']);
+    st.activeTypeChips = new Set();
+  });
+});
+
+describe('sorted by date', () => {
+  const rows = () => [
+    makeEntry({ provider: 'undated' }),
+    makeEntry({
+      provider: 'old',
+      created_at: '2020-01-01T00:00:00Z',
+      expires_at: '2031-01-01T00:00:00Z',
+    }),
+    makeEntry({
+      provider: 'new',
+      created_at: '2026-01-01T00:00:00Z',
+      expires_at: '2027-01-01T00:00:00Z',
+    }),
+  ];
+  const order = (by: string) => {
+    st.currentSortBy = by;
+    return sorted(rows()).map((e) => e.provider);
+  };
+
+  it('date added, newest or oldest first, undated last either way', () => {
+    expect(order('added-desc')).toEqual(['new', 'old', 'undated']);
+    expect(order('added-asc')).toEqual(['old', 'new', 'undated']);
+  });
+
+  it('expiry, soonest or latest first, undated last either way', () => {
+    expect(order('expiry-asc')).toEqual(['new', 'old', 'undated']);
+    expect(order('expiry-desc')).toEqual(['old', 'new', 'undated']);
+  });
+
+  it('orders equal dates by name and keeps two undated entries by name', () => {
+    st.currentSortBy = 'added-desc';
+    const out = sorted([
+      makeEntry({ provider: 'b' }),
+      makeEntry({ provider: 'a' }),
+      makeEntry({ provider: 'y', created_at: '2020-01-01T00:00:00Z' }),
+      makeEntry({ provider: 'x', created_at: '2020-01-01T00:00:00Z' }),
+    ]);
+    expect(out.map((e) => e.provider)).toEqual(['x', 'y', 'a', 'b']);
+  });
+});
+
+describe('sorted by expiry, ties', () => {
+  it('orders entries with the same expiry by name in either direction', () => {
+    const same = '2030-01-01T00:00:00Z';
+    for (const by of ['expiry', 'expiry-asc', 'expiry-desc']) {
+      st.currentSortBy = by;
+      const out = sorted([
+        makeEntry({ provider: 'b', expires_at: same }),
+        makeEntry({ provider: 'a', expires_at: same }),
+      ]);
+      expect(out.map((e) => e.provider)).toEqual(['a', 'b']);
+    }
+  });
+});

@@ -719,3 +719,28 @@ describe('a composite entry (Phase 24.1)', () => {
     expect(grid().querySelector('img')).toBeNull();
   });
 });
+
+describe('a password card', () => {
+  it('shows the username before the password, and names the variable it is copied as', () => {
+    st.vault.api_keys = [
+      {
+        id: 'p1',
+        provider: 'Elte',
+        secretType: 'password',
+        primary_role: 'password',
+        api_key: 'pw-value',
+        username: 'joy',
+        price_type: 'free',
+        categories: [],
+        scopes: [],
+      } as never,
+    ];
+    renderGrid();
+    const labels = [...document.querySelectorAll('#card-grid .key-label')];
+    const user = labels.findIndex((l) => l.textContent === 'USERNAME');
+    const pass = labels.findIndex((l) => (l.textContent ?? '').includes('PASSWORD'));
+    expect(user).toBeGreaterThanOrEqual(0);
+    expect(user).toBeLessThan(pass);
+    expect(labels[user].getAttribute('title')).toBe('ELTE_USER');
+  });
+});
