@@ -120,6 +120,10 @@ impl ScratchDir {
         Ok(Self { path })
     }
 
+    pub fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+
     /// Write one file into the directory, 0600, and return its path.
     ///
     /// The name is sanitised: it comes from a variable name, which comes from

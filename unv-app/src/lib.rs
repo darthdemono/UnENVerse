@@ -7,6 +7,7 @@
 //! terminal output wiring.
 
 pub mod access;
+pub mod acme;
 pub mod agentio;
 pub mod authreq;
 pub mod backup;
@@ -41,6 +42,7 @@ pub mod history_cmd;
 pub mod import_vaults;
 pub mod issuer_cloudflare;
 pub mod issuer_postgres;
+pub mod leak_scan;
 pub mod matlog;
 pub mod migrate;
 pub mod node_agent;
