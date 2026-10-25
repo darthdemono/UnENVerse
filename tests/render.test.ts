@@ -744,3 +744,70 @@ describe('a password card', () => {
     expect(labels[user].getAttribute('title')).toBe('ELTE_USER');
   });
 });
+
+describe('Group by secret type, with bundles and pools', () => {
+  const headers = () =>
+    [...document.querySelectorAll('#card-grid .type-group-header')].map((h) => h.textContent);
+  const vaultWith = () => {
+    st.vault.api_keys = [
+      makeEntry({ id: 'bun', provider: 'Discord', secretType: 'bundle', api_key: '' }),
+      makeEntry({ id: 'm1', provider: 'Bot', bundle_id: 'bun', bundle_slot: 'bot' }),
+      makeEntry({ id: 'pw', provider: 'Site', secretType: 'password', api_key: 'x' }),
+      makeEntry({ id: 'k1', provider: 'Key', secretType: 'api_key' }),
+      makeEntry({ id: 'a', provider: 'PoolA', secretType: 'api_key', pool: 'ring' }),
+      makeEntry({ id: 'b', provider: 'PoolB', secretType: 'api_key', pool: 'ring' }),
+    ];
+  };
+
+  it('puts a bundle under its own heading instead of ignoring the setting (a vault with a bundle did)', () => {
+    // Bug: the bundle layout returned before the grouping ran, so in any vault holding a
+    // bundle "Group by secret type" did nothing.
+    vaultWith();
+    Settings.set('groupBundles', true);
+    Settings.set('groupByType', true);
+    renderGrid();
+    expect(headers()).toEqual(['Bundles', 'API Keys', 'Passwords']);
+    Settings.set('groupByType', false);
+  });
+
+  it('shows no headings with the setting off, and still folds pools under a heading with it on', () => {
+    vaultWith();
+    Settings.set('groupBundles', true);
+    Settings.set('groupPools', true);
+    renderGrid();
+    expect(headers()).toEqual([]);
+    Settings.set('groupByType', true);
+    renderGrid();
+    const kids = [...grid().children];
+    const header = kids.findIndex((k) => k.textContent === 'API Keys');
+    const pool = kids.findIndex(
+      (k) => k.classList.contains('pool-card-wrap') && !k.classList.contains('bundle-card-wrap'),
+    );
+    expect(pool).toBeGreaterThan(header);
+    expect(header).toBeGreaterThanOrEqual(0);
+    expect(headers()).toContain('API Keys');
+    Settings.set('groupByType', false);
+    Settings.set('groupPools', false);
+  });
+
+  it('groups a vault with no bundle, with a type that has no heading of its own last', () => {
+    st.vault.api_keys = [
+      makeEntry({ id: 'c', provider: 'Jar', secretType: 'cookie' }),
+      makeEntry({ id: 'p', provider: 'Pw', secretType: 'password', api_key: 'x' }),
+    ];
+    Settings.set('groupByType', true);
+    renderGrid();
+    expect(headers()).toEqual(['Passwords', 'Cookie']);
+    Settings.set('groupByType', false);
+  });
+
+  it('keeps bundles in the plain layout when bundle grouping is off', () => {
+    vaultWith();
+    Settings.set('groupBundles', false);
+    Settings.set('groupByType', true);
+    renderGrid();
+    expect(headers()).toEqual(['Bundles', 'API Keys', 'Passwords']);
+    Settings.set('groupBundles', true);
+    Settings.set('groupByType', false);
+  });
+});

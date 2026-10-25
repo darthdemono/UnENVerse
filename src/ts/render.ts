@@ -670,9 +670,15 @@ export function renderGrid() {
   const posOf = new Map<VaultEntry, number>();
   st.vault.api_keys.forEach((e, i) => posOf.set(e, i));
   const idxOf = (e: VaultEntry) => posOf.get(e) ?? -1;
-  if (Settings.get('groupBundles') && validBundleIds.size > 0) {
+  // One pass for every layout: bundles, key pools and "Group by secret type" all compose.
+  // They used to be separate branches that each returned early, so a vault holding a
+  // bundle ignored the grouping setting and the grouping setting ignored pools.
+  {
+    const useBundles = Settings.get('groupBundles') && validBundleIds.size > 0;
     const bundles = new Map(
-      st.vault.api_keys.filter((e) => e.secretType === 'bundle' && e.id).map((e) => [e.id!, e]),
+      useBundles
+        ? st.vault.api_keys.filter((e) => e.secretType === 'bundle' && e.id).map((e) => [e.id!, e])
+        : [],
     );
     const consumed = new Set<string>();
     const allMembers = new Map<string, VaultEntry[]>();
@@ -692,6 +698,11 @@ export function renderGrid() {
     });
     const consumedPools = new Set<string>();
     let animIdx = 0;
+    // Cards are collected with the type they belong to, so "Group by secret type" can
+    // arrange them under headings afterwards. This branch used to return before the
+    // grouping branch ran, so in any vault holding a bundle the setting did nothing.
+    const cards: { type: string; el: HTMLElement }[] = [];
+    const put = (type: string, el: HTMLElement) => cards.push({ type, el });
     for (const entry of items) {
       const bundleId = entry.secretType === 'bundle' ? entry.id : entry.bundle_id;
       const bundle = bundleId ? bundles.get(bundleId) : undefined;
@@ -707,10 +718,13 @@ export function renderGrid() {
           consumedPools.add(poolName);
           const partialMatch =
             !!st.searchQ && poolMembers.length < fullPoolsOf.get(poolName)!.length;
-          grid.appendChild(buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch));
+          put(
+            entry.secretType || 'api_key',
+            buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch),
+          );
           continue;
         }
-        grid.appendChild(buildCard(entry, idxOf(entry), animIdx++));
+        put(entry.secretType || 'api_key', buildCard(entry, idxOf(entry), animIdx++));
         continue;
       }
       if (consumed.has(bundle.id)) continue;
@@ -721,7 +735,8 @@ export function renderGrid() {
       const shownMembers = items.includes(bundle)
         ? (allMembers.get(bundle.id) ?? [])
         : visibleMembers;
-      grid.appendChild(
+      put(
+        'bundle',
         buildBundleCard(
           bundle,
           shownMembers,
@@ -732,71 +747,51 @@ export function renderGrid() {
         ),
       );
     }
-    return;
-  }
-  if (Settings.get('groupByType')) {
-    const GROUP_ORDER: SecretType[] = [
-      'api_key',
-      'password',
-      'env_var',
-      'connection_string',
-      'ssh_key',
-      'certificate',
-      'file_blob',
-    ];
-    const GROUP_LABELS: Record<string, string> = {
-      api_key: 'API Keys',
-      password: 'Passwords',
-      env_var: 'Env Variables',
-      connection_string: 'Connections',
-      ssh_key: 'SSH Keys',
-      certificate: 'Certificates',
-      file_blob: 'File Blobs',
-    };
-    const groups = new Map<SecretType, VaultEntry[]>();
-    items.forEach((entry) => {
-      const stType = (entry.secretType || 'api_key') as SecretType;
-      if (!groups.has(stType)) groups.set(stType, []);
-      groups.get(stType)!.push(entry);
-    });
-    let animIdx = 0;
-    // Kinds without a heading of their own (cookie, composite, ...) follow the listed
-    // ones, so a layout never drops an entry that the toolbar count includes.
-    const order = [...GROUP_ORDER, ...[...groups.keys()].filter((t) => !GROUP_ORDER.includes(t))];
-    order.forEach((stType) => {
-      const groupItems = groups.get(stType);
-      if (!groupItems?.length) return;
-      const hdr = document.createElement('div');
-      hdr.className = 'type-group-header';
-      hdr.textContent =
-        GROUP_LABELS[stType] ?? stType.charAt(0).toUpperCase() + stType.slice(1).replace(/_/g, ' ');
-      grid.appendChild(hdr);
-      groupItems.forEach((entry) => grid.appendChild(buildCard(entry, idxOf(entry), animIdx++)));
-    });
-  } else if (Settings.get('groupPools')) {
-    const fullPools = poolsOf(st.vault);
-    const filteredPools = poolsOf({ api_keys: items });
-    const consumed = new Set<string>();
-    let animIdx = 0;
-    items.forEach((entry) => {
-      const poolName = typeof entry.pool === 'string' ? entry.pool.trim() : '';
-      const poolMembers = poolName ? filteredPools.get(poolName) : undefined;
-      if (poolName && poolMembers && poolMembers.length >= 2) {
-        if (consumed.has(poolName)) return;
-        consumed.add(poolName);
-        // A search that matches only some of a pool's members forces it open
-        // on those members, rather than hiding the reason the card matched
-        // behind a collapsed summary the user did not ask to expand.
-        const partialMatch = !!st.searchQ && poolMembers.length < fullPools.get(poolName)!.length;
-        grid.appendChild(buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch));
-        return;
-      }
-      grid.appendChild(buildCard(entry, idxOf(entry), animIdx++));
-    });
-  } else {
-    items.forEach((entry, i) => grid.appendChild(buildCard(entry, idxOf(entry), i)));
+    if (Settings.get('groupByType')) {
+      groupOrder(cards.map((c) => c.type)).forEach((type) => {
+        const hdr = document.createElement('div');
+        hdr.className = 'type-group-header';
+        hdr.textContent = groupLabel(type);
+        grid.appendChild(hdr);
+        cards.filter((c) => c.type === type).forEach((c) => grid.appendChild(c.el));
+      });
+    } else {
+      cards.forEach((c) => grid.appendChild(c.el));
+    }
   }
 }
+
+/** Section order and headings of "Group by secret type". */
+const GROUP_ORDER: SecretType[] = [
+  'bundle',
+  'api_key',
+  'password',
+  'env_var',
+  'connection_string',
+  'ssh_key',
+  'certificate',
+  'file_blob',
+];
+const GROUP_LABELS: Record<string, string> = {
+  bundle: 'Bundles',
+  api_key: 'API Keys',
+  password: 'Passwords',
+  env_var: 'Env Variables',
+  connection_string: 'Connections',
+  ssh_key: 'SSH Keys',
+  certificate: 'Certificates',
+  file_blob: 'File Blobs',
+};
+const groupLabel = (t: string): string =>
+  GROUP_LABELS[t] ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ');
+/** Types in display order: the listed ones first, anything else after them. */
+const groupOrder = (present: Iterable<string>): string[] => {
+  const have = new Set(present);
+  return [
+    ...GROUP_ORDER.filter((t) => have.has(t)),
+    ...[...have].filter((t) => !GROUP_ORDER.includes(t as SecretType)),
+  ];
+};
 
 function buildBundleCard(
   bundle: VaultEntry,
