@@ -4,7 +4,7 @@ version = "0.60.1"
 edition = "2021"
 rust-version.workspace = true
 publish = false
-license = "Apache-2.0"
+license = "PolyForm-Strict-1.0.0"
 
 [lib]
 name       = "unenverse_lib"

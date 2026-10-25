@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //
 // Every source file carries a licence and copyright line (OpenSSF gold:
 // license_per_file, copyright_per_file).
@@ -11,8 +11,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const SLASH = new Set(['rs', 'ts', 'js', 'mjs']);
 const HASH = new Set(['py', 'sh']);
 const SKIP = /^(tests\/fixtures|node_modules|dist|target|docs)\//;
-const ID = 'SPDX-License-Identifier: Apache-2.0';
-const HOLDER = 'Copyright the UnENVerse contributors.';
+const ID = 'SPDX-License-Identifier: PolyForm-Strict-1.0.0';
+const HOLDER = 'Copyright Jubair Hasan.';
 
 const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\0')

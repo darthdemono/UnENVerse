@@ -2,7 +2,7 @@
   "name": "unenverse",
   "version": "0.60.1",
   "private": true,
-  "license": "Apache-2.0",
+  "license": "PolyForm-Strict-1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

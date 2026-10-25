@@ -164,8 +164,8 @@
   "info": {
     "description": "Remote vault API — owner unlocks, users authenticate with /api/auth.",
     "license": {
-      "identifier": "Apache-2.0",
-      "name": "Apache-2.0"
+      "identifier": "PolyForm-Strict-1.0.0",
+      "name": "PolyForm-Strict-1.0.0"
     },
     "title": "UnENVerse Server",
     "version": "0.60.1"

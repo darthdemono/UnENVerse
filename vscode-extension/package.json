@@ -4,7 +4,7 @@
   "description": "References, fingerprints and secret-aware tasks for an UnENVerse vault, through the unv CLI. It never shows a secret value.",
   "version": "0.60.1",
   "publisher": "darthdemono",
-  "license": "Apache-2.0",
+  "license": "PolyForm-Strict-1.0.0",
   "engines": {
     "vscode": "^1.85.0"
   },
