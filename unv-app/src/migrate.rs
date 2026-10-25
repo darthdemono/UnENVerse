@@ -22,7 +22,7 @@ pub enum SourceKind {
     Compose,
     WireGuard,
     Nginx,
-    /// Findings from a leak scanner, built by [`plan_leaks`], never read from a file by [`read`].
+    /// Findings from a leak scanner, built by [`plan_leaks`], never read from a file by `read`.
     Gitleaks,
 }
 
