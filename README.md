@@ -28,7 +28,7 @@
   <img src="https://img.shields.io/badge/-Linux%20%7C%20Windows-%23323330.svg?style=for-the-badge&logoColor=white&logo=linux" alt="Platforms: Linux and Windows">
   <img src="https://img.shields.io/badge/-Rust-%23323330.svg?style=for-the-badge&logoColor=white&logo=rust" alt="Rust">
   <img src="https://img.shields.io/badge/-Tauri-%23323330.svg?style=for-the-badge&logoColor=white&logo=tauri" alt="Tauri">
-  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-Apache--2.0-%23323330.svg?style=for-the-badge&logoColor=white&logo=apache" alt="Licence: Apache-2.0"></a>
+  <a href="https://github.com/darthdemono/UnENVerse/blob/main/LICENSE"><img src="https://img.shields.io/badge/-PolyForm%20Strict%201.0.0-%23323330.svg?style=for-the-badge&logoColor=white" alt="Licence: PolyForm Strict 1.0.0"></a>
   <a href="https://unenverse.darthdemono.com/"><img src="https://img.shields.io/badge/-Website-%23323330.svg?style=for-the-badge&logoColor=white&logo=aboutdotme" alt="Website"></a>
 </p>
 
@@ -1322,4 +1322,6 @@ Every job carries a control case. If the validator accepts deliberate nonsense, 
 
 ## License
 
-UnENVerse is released under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution and [CHANGELOG.md](CHANGELOG.md) for the release history.
+UnENVerse is source-available under the [PolyForm Strict License 1.0.0](LICENSE). You may read and run it for any noncommercial purpose, including personal use, research, study, hobby projects and use by charities, schools and public bodies. The licence does not allow distributing the software or making changes or new works based on it, and commercial use needs a separate licence from the maintainer. It is not an open-source licence.
+
+Releases up to and including 0.60.1 were published under the Apache License 2.0, and anyone who received one of those releases keeps the rights that licence gave them for that release. See [NOTICE](NOTICE) for attribution and [CHANGELOG.md](CHANGELOG.md) for the release history.

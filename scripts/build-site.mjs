@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Assembles the product site from website/ into an output folder.
  *
@@ -125,7 +125,7 @@ export function jsonLd(version) {
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Linux, Windows',
     softwareVersion: version,
-    license: 'https://www.apache.org/licenses/LICENSE-2.0',
+    license: 'https://polyformproject.org/licenses/strict/1.0.0',
     downloadUrl: `${SITE_URL}/download/`,
     url: `${SITE_URL}/`,
     image: `${SITE_URL}/assets/og.png`,

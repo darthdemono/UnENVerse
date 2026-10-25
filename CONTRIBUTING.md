@@ -10,10 +10,11 @@ tests, docs and new importers or exporters are very welcome.
   before the work is done.
 - **Security problems are not issues.** Report them privately, as described in
   [SECURITY.md](SECURITY.md).
-- By contributing you agree your work is licensed under Apache-2.0, the licence of
-  this repository, and you certify the
-  [Developer Certificate of Origin 1.1](https://developercertificate.org/): you wrote
-  the change or have the right to submit it under that licence. The pull request
+- By contributing you grant the maintainer a perpetual, worldwide, royalty-free licence
+  to use, modify and distribute your work as part of the project (the repository is
+  PolyForm Strict 1.0.0, which gives nobody else the right to make changes), and you
+  certify the [Developer Certificate of Origin 1.1](https://developercertificate.org/):
+  you wrote the change or have the right to submit it on those terms. The pull request
   template carries this as a checkbox you tick; adding `Signed-off-by` to your
   commits (`git commit -s`) is welcome but not required. Be kind: see the
   [Code of Conduct](CODE_OF_CONDUCT.md).

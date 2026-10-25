@@ -1,6 +1,6 @@
 # Support
 
-UnENVerse is free software kept by one maintainer in spare time. Help is given in good faith and on a best-effort basis; there is no support contract and no paid tier.
+UnENVerse is free to use for noncommercial purposes and kept by one maintainer in spare time. Help is given in good faith and on a best-effort basis; there is no support contract and no paid tier.
 
 ## Where to ask
 

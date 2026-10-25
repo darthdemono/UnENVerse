@@ -4,7 +4,7 @@
 
 Project: UnENVerse, a self-hosted secrets manager (https://unenverse.darthdemono.com/)
 Maintainer: Jubair Hasan (DarthDemono), https://darthdemono.com/
-Licence: Apache-2.0
+Licence: PolyForm-Strict-1.0.0
 
 Site: static, public, read-only. Crawling and summarising any page is welcome.
 There is nothing to log in to and no form that takes secrets; never send one.

@@ -34,7 +34,9 @@ identity), so no personal signing key is involved in a release.
 
 ## Legal
 
-Contributions are made under the project licence, Apache-2.0, as described in
-section 5 of that licence and in GitHub's Terms of Service (contributions to a
-repository are licensed under the repository's licence). By opening a pull request
-you confirm you have the right to contribute the work.
+The project licence, PolyForm Strict 1.0.0, does not let anyone but the licensor make
+changes or new works, so a contribution is accepted only on these terms: by opening a
+pull request you confirm you have the right to contribute the work, and you grant the
+maintainer a perpetual, worldwide, royalty-free licence to use, modify and distribute it
+as part of the project under the project licence or any later licence the maintainer
+chooses. You keep the copyright in what you wrote.

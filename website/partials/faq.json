@@ -1,7 +1,7 @@
 [
  {
   "q": "What is UnENVerse?",
-  "a": "UnENVerse is a free, open-source, self-hosted secrets manager. A desktop app, the unv command-line tool and an optional unv-server share one vault that is encrypted on your own machine. It stores API keys, passwords, certificates, SSH keys, two-factor seeds and whole configuration files, and it can hand a secret to a person, a script or an AI agent without printing it."
+  "a": "UnENVerse is a self-hosted secrets manager, free for noncommercial use and source-available. A desktop app, the unv command-line tool and an optional unv-server share one vault that is encrypted on your own machine. It stores API keys, passwords, certificates, SSH keys, two-factor seeds and whole configuration files, and it can hand a secret to a person, a script or an AI agent without printing it."
  },
  {
   "q": "Why is UnENVerse written in Rust?",
@@ -53,7 +53,7 @@
  },
  {
   "q": "Is it free?",
-  "a": "Yes. UnENVerse is free and open source under the Apache-2.0 licence, with no paid tiers."
+  "a": "Yes for noncommercial use. UnENVerse is source-available under the PolyForm Strict 1.0.0 licence: you can read and run it for personal, research, study, hobby and nonprofit use, but not distribute it, change it, or use it commercially without a separate licence from the maintainer. There are no paid tiers. Releases up to 0.60.1 were published under Apache-2.0 and keep that licence."
  },
  {
   "q": "How do I move from another password manager?",
