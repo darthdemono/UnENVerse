@@ -15,36 +15,64 @@
   </nav>
 </header>
 <nav class="rail" aria-label="Sections">
-  <a href="/" aria-label="Overview"{{RAIL_home}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></a>
-  <a href="/download/" aria-label="Download"{{RAIL_download}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 19h16"/></svg></a>
-  <a href="/guides/" aria-label="Guides"{{RAIL_guides}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg></a>
-  <a href="/security/" aria-label="Security"{{RAIL_security}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></a>
+  <button type="button" data-group="start" aria-label="Start" title="Start"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <button type="button" data-group="docs" aria-label="Documentation" title="Documentation"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg></button>
+  <button type="button" data-group="project" aria-label="Project" title="Project"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg></button>
+  <button type="button" data-group="security" aria-label="Security" title="Security"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></button>
 </nav>
 <aside class="side" aria-label="Site map">
-  <p class="side-h">Start</p>
-  <a class="side-i" href="/"{{CUR_home}}>Overview</a>
-  <a class="side-i" href="/quickstart/"{{CUR_quickstart}}>Quick start</a>
-  <a class="side-i" href="/comparison/"{{CUR_comparison}}>Comparison</a>
-  <a class="side-i" href="/support/"{{CUR_support}}>Support the project</a>
-  <a class="side-i" href="/help/"{{CUR_help}}>Get help</a>
-  <p class="side-h">Use</p>
-  <a class="side-i" href="/install/"{{CUR_install}}>Install</a>
-  <a class="side-i" href="/download/"{{CUR_download}}>Download<span class="count">{{VERSION}}</span></a>
-  <a class="side-i" href="/features/"{{CUR_features}}>Features</a>
-  <a class="side-i" href="/administration/"{{CUR_administration}}>Administration</a>
-  <a class="side-i" href="/developer/"{{CUR_developer}}>Developer</a>
-  <p class="side-h">Guides</p>
-  <a class="side-i" href="/guides/"{{CUR_guides}}>All guides</a>
-  <a class="side-i" href="/guides/importing/"{{CUR_importing}}>Importing</a>
-  <a class="side-i" href="/guides/cli/"{{CUR_cli}}>Command line</a>
-  <a class="side-i" href="/guides/nodes/"{{CUR_nodes}}>Nodes</a>
-  <p class="side-h">More</p>
-  <a class="side-i" href="/faq/"{{CUR_faq}}>FAQ</a>
-  <a class="side-i" href="/roadmap/"{{CUR_roadmap}}>Roadmap</a>
-  <a class="side-i" href="/changelog/"{{CUR_changelog}}>Changelog</a>
-  <a class="side-i" href="/architecture/"{{CUR_architecture}}>Architecture</a>
-  <a class="side-i" href="/security/"{{CUR_security}}>Security</a>
-  <a class="side-i" href="/reference/">API</a>
-  <a class="side-i" href="/docs/">Documentation</a>
-  <a class="side-i" href="https://github.com/darthdemono/UnENVerse/releases">Release notes</a>
+  <div class="side-g" data-group="start">
+    <p class="side-h">Start</p>
+    <a class="side-i" href="/"{{CUR_home}}>Overview</a>
+    <a class="side-i" href="/quickstart/"{{CUR_quickstart}}>Quick start</a>
+    <a class="side-i" href="/install/"{{CUR_install}}>Install</a>
+    <a class="side-i" href="/download/"{{CUR_download}}>Download<span class="count">{{VERSION}}</span></a>
+  </div>
+  <div class="side-g" data-group="docs">
+    <p class="side-h">Documentation</p>
+    <a class="side-i" href="/features/"{{CUR_features}}>Features</a>
+    <a class="side-i" href="/guides/"{{CUR_guides}}>Guides</a>
+    <a class="side-i side-sub" href="/guides/importing/"{{CUR_importing}} hidden>Importing</a>
+    <a class="side-i side-sub" href="/guides/cli/"{{CUR_cli}} hidden>Command line</a>
+    <a class="side-i side-sub" href="/guides/nodes/"{{CUR_nodes}} hidden>Nodes</a>
+    <a class="side-i" href="/administration/"{{CUR_administration}}>Administration</a>
+    <a class="side-i" href="/developer/"{{CUR_developer}}>Developer</a>
+    <a class="side-i" href="/reference/">API</a>
+    <a class="side-i" href="/docs/">Documentation</a>
+  </div>
+  <div class="side-g" data-group="project">
+    <p class="side-h">Project</p>
+    <a class="side-i" href="/roadmap/"{{CUR_roadmap}}>Roadmap</a>
+    <a class="side-i" href="/changelog/"{{CUR_changelog}}>Changelog</a>
+    <a class="side-i" href="/faq/"{{CUR_faq}}>FAQ</a>
+    <a class="side-i" href="/comparison/"{{CUR_comparison}}>Comparison</a>
+    <a class="side-i" href="/architecture/"{{CUR_architecture}}>Architecture</a>
+    <a class="side-i" href="/support/"{{CUR_support}}>Support the project</a>
+    <a class="side-i" href="/help/"{{CUR_help}}>Get help</a>
+    <a class="side-i" href="https://github.com/darthdemono/UnENVerse/releases">Release notes</a>
+  </div>
+  <div class="side-g" data-group="security">
+    <p class="side-h">Security</p>
+    <a class="side-i" href="/security/"{{CUR_security}}>Security</a>
+    <a class="side-i" href="/docs/security.html">Security model</a>
+    <a class="side-i" href="/docs/compromise.html">If something leaks</a>
+  </div>
 </aside>
+<script>
+(function () {
+  var side = document.querySelector("aside.side");
+  if (!side) return;
+  var groups = side.querySelectorAll(".side-g");
+  var buttons = document.querySelectorAll("nav.rail [data-group]");
+  function show(name) {
+    groups.forEach(function (g) { g.hidden = g.dataset.group !== name; });
+    buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.group === name)); });
+  }
+  // The guide pages sit under Guides; their own links appear only while one is open.
+  if (location.pathname.indexOf("/guides/") === 0)
+    side.querySelectorAll(".side-sub").forEach(function (a) { a.hidden = false; });
+  var cur = side.querySelector('[aria-current="page"]');
+  show(cur && cur.closest(".side-g") ? cur.closest(".side-g").dataset.group : "start");
+  buttons.forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.group); }); });
+})();
+</script>

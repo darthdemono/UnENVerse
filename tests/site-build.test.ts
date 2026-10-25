@@ -112,7 +112,9 @@ describe('assembling the site', () => {
     const dl = fs.readFileSync(path.join(out, 'download/index.html'), 'utf8');
     expect(dl).toContain('Download UnENVerse 9.9.9');
     expect(dl).toContain('<a class="side-i" href="/download/" aria-current="page">');
-    expect(dl).toContain('aria-label="Download" aria-current="page"');
+    // The activity rail switches which sidebar group is shown, so the page's own group is
+    // the one that holds the current link.
+    expect(dl).toMatch(/data-group="start">[\s\S]*?aria-current="page">[\s\S]*?<\/div>/);
     expect(dl).not.toMatch(/\{\{/);
     const map = fs.readFileSync(path.join(out, 'sitemap.xml'), 'utf8');
     expect(map).toContain('/quickstart/');
