@@ -211,13 +211,15 @@ pub enum Origin {
 /// [`STANDALONE_MARKER`] exists beside it (passed in so this stays pure).
 pub fn classify(exe: &Path, marker_dir_has_marker: bool) -> Origin {
     let p = exe.to_string_lossy().replace('\\', "/").to_lowercase();
-    let managed: [(&str, &'static str); 9] = [
+    let managed: [(&str, &'static str); 10] = [
         (
             "/nix/store/",
             "nix profile upgrade, or update your Nix configuration",
         ),
         ("/homebrew/", "brew upgrade unv"),
         ("/linuxbrew/", "brew upgrade unv"),
+        // Intel Homebrew's Cellar sits under /usr/local.
+        ("/cellar/", "brew upgrade unv"),
         ("/scoop/", "scoop update unv"),
         ("/windowsapps/", "winget upgrade unv"),
         ("/winget/", "winget upgrade unv"),
@@ -231,7 +233,8 @@ pub fn classify(exe: &Path, marker_dir_has_marker: bool) -> Origin {
     // A package manager's directory wins over the marker: a marker copied into
     // /usr/bin must not turn a dnf-owned file into one we overwrite.
     for (needle, cmd) in managed {
-        if p.contains(needle) && !p.contains("/usr/local/") {
+        // /usr/local is where a hand-copied binary goes, so only the bare /usr/ rule steps aside.
+        if p.contains(needle) && !(needle == "/usr/" && p.contains("/usr/local/")) {
             return Origin::Managed(cmd);
         }
     }
@@ -278,6 +281,8 @@ mod tests {
             "linux-aarch64-musl",
             "windows-x86_64",
             "windows-aarch64",
+            "macos-x86_64",
+            "macos-aarch64",
         ];
         let mut m = manifest();
         m.assets = names
@@ -363,5 +368,9 @@ mod tests {
             Origin::Managed(_)
         ));
         assert_eq!(classify(&p("/usr/local/bin/unv"), true), Origin::Standalone);
+        assert_eq!(
+            classify(&p("/usr/local/Cellar/unv/0.60.2/bin/unv"), true),
+            Origin::Managed("brew upgrade unv")
+        );
     }
 }
