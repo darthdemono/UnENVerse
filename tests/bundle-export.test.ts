@@ -181,3 +181,23 @@ describe('templates in a bundle export that cannot be exported', () => {
     expect(run(vars, 'javascript')).toMatch(/`https:\/\/\$\{\w+\}\/x`/);
   });
 });
+
+describe('bundle export of a sign-in', () => {
+  it('writes a member username as its USER variable ahead of the password', () => {
+    const bundle = makeEntry({ id: 'b', provider: 'Site', secretType: 'bundle' });
+    const member = makeEntry({
+      id: 'm',
+      provider: 'Elte',
+      bundle_slot: 'login',
+      username: 'joy',
+      api_key: 'pw',
+      primary_role: 'password',
+    });
+    const lines = buildBundleExport(bundle, [member], 'dotenv').split('\n');
+    expect(lines.findIndex((l) => l.startsWith('ELTE_USER='))).toBeGreaterThanOrEqual(0);
+    expect(lines.findIndex((l) => l.startsWith('ELTE_USER='))).toBeLessThan(
+      lines.findIndex((l) => l.startsWith('ELTE_PASSWORD=')),
+    );
+    expect(lines.join('\n')).toContain('ELTE_USER=joy');
+  });
+});
