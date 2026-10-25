@@ -42,7 +42,11 @@ const MAC_LABEL: &str = "io.unenverse.node";
 
 /// Where the agent keeps its state on the host `plan` targets.
 pub fn state_dir() -> &'static str {
-    if cfg!(target_os = "macos") {
+    state_dir_for(cfg!(target_os = "macos"))
+}
+
+fn state_dir_for(macos: bool) -> &'static str {
+    if macos {
         MAC_STATE_DIR
     } else {
         STATE_DIR
@@ -339,7 +343,11 @@ pub fn effective_hub(o: &Options) -> String {
 
 /// Everything to do, in order, up to (not including) starting the service.
 pub fn plan(o: &Options) -> CliResult<Vec<Step>> {
-    if cfg!(target_os = "macos") {
+    plan_for(o, cfg!(target_os = "macos"))
+}
+
+fn plan_for(o: &Options, macos: bool) -> CliResult<Vec<Step>> {
+    if macos {
         plan_macos(o)
     } else {
         plan_linux(o)
@@ -564,10 +572,33 @@ fn plan_linux(o: &Options) -> CliResult<Vec<Step>> {
 }
 
 #[cfg(unix)]
-pub fn execute(steps: &[Step], enrol: &mut dyn FnMut() -> CliResult, dry_run: bool) -> CliResult {
-    use crate::error::Code;
+fn write_file(path: &str, mode: u32, content: &str) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
+    std::fs::File::create(path)?.write_all(content.as_bytes())?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+}
+
+/// Copy `me` (the running program) to `dest`. A copy to a temp name and a rename, so a running
+/// agent is not overwritten in place ("text file busy").
+#[cfg(unix)]
+fn install_binary(me: std::io::Result<PathBuf>, dest: &str) -> CliResult {
+    use crate::error::Code;
+    use std::os::unix::fs::PermissionsExt;
+    let me = me.map_err(|e| CliError::new(Code::Error, format!("cannot find this binary: {e}")))?;
+    if me.as_path() == std::path::Path::new(dest) {
+        return Ok(());
+    }
+    let tmp = format!("{dest}.new");
+    std::fs::copy(&me, &tmp)
+        .and_then(|_| std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755)))
+        .and_then(|_| std::fs::rename(&tmp, dest))
+        .map_err(|e| CliError::new(Code::Error, format!("{dest}: {e}")))
+}
+
+#[cfg(unix)]
+pub fn execute(steps: &[Step], enrol: &mut dyn FnMut() -> CliResult, dry_run: bool) -> CliResult {
+    use crate::error::Code;
     for (i, s) in steps.iter().enumerate() {
         eprintln!("[{}/{}] {}", i + 1, steps.len(), s.describe());
         if dry_run {
@@ -590,30 +621,11 @@ pub fn execute(steps: &[Step], enrol: &mut dyn FnMut() -> CliResult, dry_run: bo
                 path,
                 mode,
                 content,
-            } => {
-                let mut f = std::fs::File::create(path)
-                    .map_err(|e| CliError::new(Code::Error, format!("{path}: {e}")))?;
-                f.write_all(content.as_bytes())
-                    .map_err(|e| CliError::new(Code::Error, format!("{path}: {e}")))?;
-                std::fs::set_permissions(path, std::fs::Permissions::from_mode(*mode))
-                    .map_err(|e| CliError::new(Code::Error, format!("{path}: {e}")))?;
-            }
+            } => write_file(path, *mode, content)
+                .map_err(|e| CliError::new(Code::Error, format!("{path}: {e}")))?,
             Step::InstallBinary(dest) => {
                 // nosemgrep: rust.lang.security.current-exe.current-exe (the installer copies this very program to the service path; it is not used to decide trust)
-                let me = std::env::current_exe().map_err(|e| {
-                    CliError::new(Code::Error, format!("cannot find this binary: {e}"))
-                })?;
-                if me.as_path() != std::path::Path::new(dest) {
-                    // Copy to a temp name and rename, so a running agent is not
-                    // overwritten in place ("text file busy").
-                    let tmp = format!("{dest}.new");
-                    std::fs::copy(&me, &tmp)
-                        .map_err(|e| CliError::new(Code::Error, format!("{tmp}: {e}")))?;
-                    std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755))
-                        .map_err(|e| CliError::new(Code::Error, format!("{tmp}: {e}")))?;
-                    std::fs::rename(&tmp, dest)
-                        .map_err(|e| CliError::new(Code::Error, format!("{dest}: {e}")))?;
-                }
+                install_binary(std::env::current_exe(), dest)?
             }
             Step::Enrol => enrol()?,
         }
@@ -658,6 +670,9 @@ mod tests {
     use super::*;
     use vault_core::nodes::NodeConfig;
 
+    // The Ed25519 base point: a valid public key, which is all the config check wants.
+    const BASEPOINT: &str = "5866666666666666666666666666666666666666666666666666666666666666";
+
     fn opts(targets: Vec<TargetSpec>) -> Options {
         Options {
             hub: "https://hub.example:8743".into(),
@@ -682,7 +697,7 @@ mod tests {
         for apply in [false, true] {
             let t = wg(apply);
             let toml = node_toml(&opts(vec![t]));
-            let c = NodeConfig::parse(&toml).unwrap_or_else(|e| panic!("{e}\n{toml}"));
+            let c = NodeConfig::parse(&toml).expect(&toml);
             assert_eq!(c.targets[0].apply, apply);
             assert_eq!(c.targets[0].mode, if apply { "push" } else { "pull" });
         }
@@ -903,5 +918,351 @@ mod tests {
         let mut o = opts(vec![wg(true)]);
         o.relay = Some("hub:8743".into());
         assert!(plan_macos(&o).unwrap_err().to_string().contains("socat"));
+    }
+
+    #[test]
+    fn the_host_picks_its_own_plan_and_its_own_state_directory() {
+        let o = opts(vec![wg(true)]);
+        let host = plan_for(&o, cfg!(target_os = "macos")).unwrap();
+        assert_eq!(plan(&o).unwrap(), host);
+        assert_eq!(plan_for(&o, true).unwrap(), plan_macos(&o).unwrap());
+        assert_eq!(plan_for(&o, false).unwrap(), plan_linux(&o).unwrap());
+        assert_eq!(state_dir_for(true), "/usr/local/var/unv-node");
+        assert_eq!(state_dir_for(false), "/var/lib/unv-node");
+        assert_eq!(state_dir(), state_dir_for(cfg!(target_os = "macos")));
+    }
+
+    #[test]
+    fn every_target_key_is_read_and_a_bad_pair_or_key_is_named() {
+        let t = parse_target(
+            "id=a, path=/etc/a ,project=p,exporter=env,mode=pull,apply=true,validate=true,reload=u,require_approval=true",
+        )
+        .unwrap();
+        assert_eq!(t.id, "a");
+        assert_eq!(t.path, PathBuf::from("/etc/a"));
+        assert_eq!(t.project, "p");
+        assert_eq!(t.exporter, "env");
+        // apply=true means the agent pushes, whatever mode was written.
+        assert_eq!(t.mode, "push");
+        assert_eq!(t.validate.as_deref(), Some("true"));
+        assert_eq!(t.reload_unit.as_deref(), Some("u"));
+        assert!(t.apply && t.require_approval);
+        let e = parse_target("id=a,oops").unwrap_err().to_string();
+        assert!(e.contains("expected key=value"), "{e}");
+        let e = parse_target("id=a,colour=red").unwrap_err().to_string();
+        assert!(e.contains("unknown key 'colour'"), "{e}");
+        let e = parse_target("id=a,path=/a,project=p,exporter=env,mode=sideways")
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("push or pull"), "{e}");
+    }
+
+    #[test]
+    fn the_node_config_carries_the_approver_validate_and_approval_the_target_asked_for() {
+        let mut t = wg(true);
+        t.validate = Some("check \"x\" \\y".into());
+        t.require_approval = true;
+        let mut o = opts(vec![t]);
+        o.approver = Some(BASEPOINT.into());
+        let toml = node_toml(&o);
+        assert!(toml.contains(&format!("approver = \"{}\"", BASEPOINT)));
+        assert!(toml.contains("require_approval = true"));
+        let c = NodeConfig::parse(&toml).expect(&toml);
+        assert_eq!(c.targets[0].validate.as_deref(), Some("check \"x\" \\y"));
+    }
+
+    #[test]
+    fn a_reload_unit_name_replaces_everything_but_letters_and_digits() {
+        let mut t = wg(true);
+        t.id = "wg0/x y".into();
+        assert_eq!(unit_name(&t), "unv-reload-wg0-x-y");
+    }
+
+    #[test]
+    fn the_service_may_write_a_shared_directory_once() {
+        let mut a = wg(true);
+        a.id = "one".into();
+        let mut b = wg(true);
+        b.id = "two".into();
+        b.path = PathBuf::from("/etc/wireguard/wg1.conf");
+        let u = service_unit(&opts(vec![a, b]));
+        assert!(
+            u.contains("ReadWritePaths=/var/lib/unv-node /etc/wireguard\n"),
+            "{u}"
+        );
+    }
+
+    #[test]
+    fn a_reload_needs_a_pushing_target_on_both_platforms() {
+        let t = parse_target("id=a,path=/etc/a,project=p,exporter=env,reload=x").unwrap();
+        for macos in [true, false] {
+            let e = plan_for(&opts(vec![t.clone()]), macos)
+                .unwrap_err()
+                .to_string();
+            assert!(e.contains("apply=true"), "{e}");
+            let e = plan_for(&opts(vec![]), macos).unwrap_err().to_string();
+            assert!(e.contains("at least one"), "{e}");
+        }
+    }
+
+    #[test]
+    fn the_linux_plan_writes_a_reload_pair_for_a_target_that_names_a_unit() {
+        let t =
+            parse_target("id=a,path=/etc/a/a.conf,project=p,exporter=env,apply=true,reload=svc")
+                .unwrap();
+        let steps: Vec<String> = plan_linux(&opts(vec![t]))
+            .unwrap()
+            .iter()
+            .map(Step::describe)
+            .collect();
+        assert!(
+            steps.contains(&"write /etc/systemd/system/unv-reload-a.path (mode 644)".to_string())
+        );
+        assert!(steps
+            .contains(&"write /etc/systemd/system/unv-reload-a.service (mode 644)".to_string()));
+        assert!(steps.contains(&"systemctl enable --now unv-reload-a.path".to_string()));
+    }
+
+    #[test]
+    fn a_macos_target_in_the_root_directory_has_no_folder_to_open_up() {
+        let mut t = wg(true);
+        t.path = PathBuf::from("/");
+        let steps: Vec<String> = plan_macos(&opts(vec![t]))
+            .unwrap()
+            .iter()
+            .map(Step::describe)
+            .collect();
+        assert!(!steps.iter().any(|s| s.contains("add_file")), "{steps:?}");
+    }
+
+    #[test]
+    fn without_a_relay_the_agent_dials_the_hub_it_was_given() {
+        let mut o = opts(vec![wg(true)]);
+        assert_eq!(effective_hub(&o), "https://hub.example:8743");
+        o.relay = Some("hub:8743".into());
+        assert_eq!(effective_hub(&o), "http://127.0.0.1:18743");
+    }
+
+    #[test]
+    fn a_linux_target_in_the_root_directory_has_no_folder_to_open_up() {
+        let mut t = wg(true);
+        t.path = PathBuf::from("/");
+        let o = opts(vec![t]);
+        let steps: Vec<String> = plan_linux(&o).unwrap().iter().map(Step::describe).collect();
+        assert!(
+            !steps
+                .iter()
+                .any(|s| s.starts_with("setfacl -m u:unv-node:rwx")),
+            "{steps:?}"
+        );
+        assert!(service_unit(&o).contains("ReadWritePaths=/var/lib/unv-node\n"));
+    }
+
+    #[cfg(unix)]
+    mod execution {
+        use super::*;
+        use std::os::unix::fs::PermissionsExt;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        fn tmp(name: &str) -> PathBuf {
+            let d = std::env::temp_dir().join(format!("unv-install-{}-{name}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&d);
+            std::fs::create_dir_all(&d).unwrap();
+            d
+        }
+
+        fn run(steps: &[Step], dry: bool) -> (CliResult, bool) {
+            let enrolled = AtomicBool::new(false);
+            let mut enrol = || {
+                enrolled.store(true, Ordering::SeqCst);
+                Ok(())
+            };
+            let r = execute(steps, &mut enrol, dry);
+            (r, enrolled.load(Ordering::SeqCst))
+        }
+
+        #[test]
+        fn a_dry_run_changes_nothing_and_does_not_enrol() {
+            let d = tmp("dry");
+            let f = d.join("x");
+            let steps = [
+                Step::Write {
+                    path: f.display().to_string(),
+                    mode: 0o600,
+                    content: "a".into(),
+                },
+                Step::Run(vec!["false".into()]),
+                Step::Enrol,
+            ];
+            let (r, enrolled) = run(&steps, true);
+            assert!(r.is_ok());
+            assert!(!f.exists() && !enrolled);
+        }
+
+        #[test]
+        fn a_write_creates_the_file_with_the_mode_asked_for() {
+            let d = tmp("write");
+            let f = d.join("node.toml");
+            let steps = [Step::Write {
+                path: f.display().to_string(),
+                mode: 0o600,
+                content: "secret = 1\n".into(),
+            }];
+            assert!(run(&steps, false).0.is_ok());
+            assert_eq!(std::fs::read_to_string(&f).unwrap(), "secret = 1\n");
+            assert_eq!(
+                std::fs::metadata(&f).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+
+        #[test]
+        fn a_write_into_a_missing_folder_names_the_path() {
+            let d = tmp("nowrite");
+            let f = d.join("missing").join("x");
+            let steps = [Step::Write {
+                path: f.display().to_string(),
+                mode: 0o600,
+                content: "a".into(),
+            }];
+            let e = run(&steps, false).0.unwrap_err().to_string();
+            assert!(e.contains("missing"), "{e}");
+        }
+
+        #[test]
+        fn a_command_that_fails_stops_the_install_before_the_next_step() {
+            let d = tmp("fail");
+            let f = d.join("after");
+            let steps = [
+                Step::Run(vec!["true".into()]),
+                Step::Run(vec!["false".into()]),
+                Step::Write {
+                    path: f.display().to_string(),
+                    mode: 0o600,
+                    content: "a".into(),
+                },
+            ];
+            let e = run(&steps, false).0.unwrap_err().to_string();
+            assert!(e.contains("`false` failed"), "{e}");
+            assert!(!f.exists());
+        }
+
+        #[test]
+        fn a_command_that_cannot_start_names_the_program() {
+            let steps = [Step::Run(vec!["/nonexistent/unv-test-program".into()])];
+            let e = run(&steps, false).0.unwrap_err().to_string();
+            assert!(e.contains("/nonexistent/unv-test-program"), "{e}");
+        }
+
+        #[test]
+        fn enrolment_runs_in_order_and_its_failure_stops_the_install() {
+            let (r, enrolled) = run(&[Step::Enrol], false);
+            assert!(r.is_ok() && enrolled);
+            let d = tmp("enrolfail");
+            let f = d.join("after");
+            let mut bad = || Err(CliError::invalid("hub said no"));
+            let steps = [
+                Step::Enrol,
+                Step::Write {
+                    path: f.display().to_string(),
+                    mode: 0o600,
+                    content: "a".into(),
+                },
+            ];
+            let e = execute(&steps, &mut bad, false).unwrap_err().to_string();
+            assert!(e.contains("hub said no"));
+            assert!(!f.exists());
+        }
+
+        #[test]
+        fn the_binary_is_copied_executable_and_replaced_by_rename() {
+            let d = tmp("bin");
+            let dest = d.join("unv");
+            let steps = [Step::InstallBinary(dest.display().to_string())];
+            assert!(run(&steps, false).0.is_ok());
+            let me = std::env::current_exe().unwrap();
+            assert_eq!(
+                std::fs::metadata(&dest).unwrap().len(),
+                std::fs::metadata(me).unwrap().len()
+            );
+            assert_eq!(
+                std::fs::metadata(&dest).unwrap().permissions().mode() & 0o777,
+                0o755
+            );
+            assert!(!d.join("unv.new").exists());
+            // A second install over the existing file works too.
+            assert!(run(&steps, false).0.is_ok());
+        }
+
+        #[test]
+        fn installing_over_the_running_binary_is_a_no_op() {
+            let me = std::env::current_exe().unwrap();
+            let before = std::fs::metadata(&me).unwrap().len();
+            let steps = [Step::InstallBinary(me.display().to_string())];
+            assert!(run(&steps, false).0.is_ok());
+            assert_eq!(std::fs::metadata(&me).unwrap().len(), before);
+        }
+
+        #[test]
+        fn a_binary_that_cannot_be_copied_or_renamed_is_an_error_naming_the_destination() {
+            let d = tmp("binfail");
+            let missing = d.join("nodir").join("unv");
+            let e = run(&[Step::InstallBinary(missing.display().to_string())], false)
+                .0
+                .unwrap_err()
+                .to_string();
+            assert!(e.contains("nodir"), "{e}");
+            // Renaming a file onto a non-empty directory fails after the copy succeeded.
+            let dest = d.join("occupied");
+            std::fs::create_dir_all(dest.join("inside")).unwrap();
+            let e = run(&[Step::InstallBinary(dest.display().to_string())], false)
+                .0
+                .unwrap_err()
+                .to_string();
+            assert!(e.contains("occupied"), "{e}");
+        }
+
+        #[test]
+        fn a_missing_running_binary_is_reported_not_guessed() {
+            let e = install_binary(Err(std::io::Error::other("gone")), "/tmp/x")
+                .unwrap_err()
+                .to_string();
+            assert!(
+                e.contains("cannot find this binary") && e.contains("gone"),
+                "{e}"
+            );
+        }
+
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_write_that_runs_out_of_space_is_an_error() {
+            let steps = [Step::Write {
+                path: "/dev/full".into(),
+                mode: 0o600,
+                content: "a".into(),
+            }];
+            let e = run(&steps, false).0.unwrap_err().to_string();
+            assert!(e.contains("/dev/full"), "{e}");
+        }
+
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn a_mode_that_cannot_be_set_is_an_error_unless_this_is_root() {
+            // /dev/null belongs to root: only root may change its mode.
+            let steps = [Step::Write {
+                path: "/dev/null".into(),
+                mode: 0o666,
+                content: String::new(),
+            }];
+            let owner_is_me = std::fs::read_to_string("/proc/self/status")
+                .unwrap()
+                .lines()
+                .find(|l| l.starts_with("Uid:"))
+                .is_some_and(|l| l.split_whitespace().nth(1) == Some("0"));
+            let err = run(&steps, false).0.err().map(|e| e.to_string());
+            // Root changes the mode and succeeds; anyone else is refused, naming the file.
+            assert_eq!(err.is_none(), owner_is_me);
+            assert!(err.is_none_or(|e| e.contains("/dev/null")));
+        }
     }
 }
