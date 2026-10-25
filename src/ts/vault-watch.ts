@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * @file
  * Notice when something *else* writes the vault, and pick the change up.

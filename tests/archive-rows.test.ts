@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Settings -> Full-fidelity archive (Phase 33.3). The cryptography is Rust
  * (`archive_tests` in unv-cli); this drives the two buttons.

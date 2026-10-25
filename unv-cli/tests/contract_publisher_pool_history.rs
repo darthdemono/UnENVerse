@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Pool inspection, history lookups and the publisher commands:
 //!
 //! * `pool show` lists each member with its use count and whether it cools,

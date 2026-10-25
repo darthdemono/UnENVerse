@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Starter chunks of a new typed project. The desktop app builds them in
 //! `src/ts/chunks/starters.ts`, the CLI in `unv-app/src/starters.rs`; the same
 //! project type must start with the same chunks whichever one created it, so both

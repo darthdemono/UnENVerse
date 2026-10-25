@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Tools -> Enrich (Phase 33.1). jsdom has no Tauri, so the browser branch is the
  * default and the IPC branch is reached by installing a bridge before a fresh

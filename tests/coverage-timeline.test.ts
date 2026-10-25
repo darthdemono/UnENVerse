@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for timeline.ts: every cell state, sort, export path and the calendar-feed section. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml, makeEntry, makeVault, resetState } from './helpers';

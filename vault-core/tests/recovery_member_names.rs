@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Restoring a recovery package must not let a member name leave its staging directory. The
 //! manifest is not authenticated and anyone who knows the recipient can build a package, so
 //! `../x` and absolute names used to be written wherever they pointed.

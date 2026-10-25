@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Stack integrations (Phase 38): the TypeScript interpreter of
  * `vault-core/data/stack-adapters.json`, pinned against the same golden files as

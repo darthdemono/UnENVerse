@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The guarantees an automated caller depends on.
 //!
 //! The claim this CLI makes is narrow and testable: *a caller can drive every

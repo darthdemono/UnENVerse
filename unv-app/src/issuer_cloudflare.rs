@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The Cloudflare API token connector for the rotation engine (`vault_core::rotation`).
 //!
 //! Default strategy is `create_overlapping`: read the old token's policies, create a token with the

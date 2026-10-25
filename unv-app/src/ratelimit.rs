@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Rate limits: parsing the free-text form, and rendering the structured one.
 //!
 //! An entry carries the limit twice on purpose. `rate_limit_count` +

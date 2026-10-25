@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Commands that sit beside the main flows, each held to what its help says:
 //! single-use recovery codes, `file write`, `project show`, `chunk rm`,
 //! `template show`, `entry verify`, `entry timeline`, `totp uri`/`rm` and `ops`.

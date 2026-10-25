@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 38 — stack integrations as data (ADR-0144).
 //!
 //! The homelab stack is where secrets and config already meet: Prometheus scrape

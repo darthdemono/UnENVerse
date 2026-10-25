@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Choosing which sidebar sections and activity-bar panels exist and in what
  * order: the arrows, hide and show buttons, drag and drop, and Alt+arrow from the

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Vault access: local SQLCipher DB or a remote `unv-server`, behind one enum.
 //!
 //! Every command takes an [`Access`] rather than a connection, so the same code

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The rotation state machine (R13): rotate a credential at its issuer, deploy it to the things that
 //! use it, check them, and revoke the old credential only when that is safe.
 //!

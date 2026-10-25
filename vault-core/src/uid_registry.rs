@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The unique-ID registry — Phase 24.4.
 //!
 //! A server-side record of every identifier this deployment has issued, so a

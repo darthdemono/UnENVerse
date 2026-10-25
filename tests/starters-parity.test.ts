@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The TypeScript half of the starter-chunk parity pin: the app builds a new typed
  * project's chunks here, the CLI builds them in `unv-app/src/starters.rs`, and

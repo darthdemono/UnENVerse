@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Users, classes, tokens and permission expressions — the Users panel.
 //!
 //! Local mode drives `vault-core::users` directly; remote mode goes through the

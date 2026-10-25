@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 34 end to end: a real `Agent` from `unv-cli` against a real hub over
 //! a real TCP socket. The unit tests in `src/nodes.rs` prove each route; this
 //! proves the two halves agree on the wire (signing, framing, the order of

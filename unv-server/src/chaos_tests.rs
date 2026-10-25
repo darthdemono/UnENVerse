@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Several actors, one server (chaos testing, RBAC and session level).
 //!
 //! Each test is a situation two or more people can really produce: an admin revokes

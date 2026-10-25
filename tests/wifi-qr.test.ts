@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { loadRealIndexHtml } from './helpers';
 import { hideWifiQr, qrSvg, showWifiQr } from '../src/ts/wifi-qr';

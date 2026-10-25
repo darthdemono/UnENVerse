@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Runs another program (`sops`, `gpg`, `gopass`) on the user's behalf, under rules a reviewer can
 //! read in one place.
 //!

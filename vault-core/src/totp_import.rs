@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Reading and writing the export files other authenticator apps produce.
 //!
 //! Phase 22 gave the vault somewhere to keep a third-party TOTP seed. This

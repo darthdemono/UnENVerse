@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Tools that act on the vault: bulk selection and bundling, the side-by-side
  * secret diff, the expiry calendar and the migration preview/apply.

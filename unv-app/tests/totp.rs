@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Stored third-party TOTP seeds — the Rust half of the parser's parity, plus
 //! the redaction guarantees the seed depends on (Phase 22).
 //!

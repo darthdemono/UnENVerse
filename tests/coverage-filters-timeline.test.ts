@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for filters.ts and entry-timeline.ts. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getFiltered, sorted, getDescendantProjectIds, buildProjectTree } from '../src/ts/filters';

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: PolyForm-Strict-1.0.0
 """Example unv-plugin-rpc/1 plugin: send a notification to an ntfy topic.
 
 The protocol is one JSON object per line on stdin and stdout. The topic URL arrives in the

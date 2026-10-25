@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The secret-type registry (Phase 24.5). Not a twin pair — there is exactly
  * one `secret-types.json`, read here and by `vault_core::secret_types` — so

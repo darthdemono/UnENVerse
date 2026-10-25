@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Session cookies — Phase 23, step 5.
 //!
 //! The twin of `src/ts/cookies.ts`, pinned by

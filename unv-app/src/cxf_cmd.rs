@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv cxf import|export` — FIDO Credential Exchange (CXF), Phase 24.5.
 //!
 //! Both directions call `vault_core::cxf` and nothing else, the same split

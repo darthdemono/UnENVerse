@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The add/edit form's "Read key" for `gpg_key` (Phase 24.5): Rust reads the key
  * (`pgp_inspect`, tested against real gpg output in vault-core); this pins what

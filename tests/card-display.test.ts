@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * What a card shows for an entry: its badges, which values are masked and which
  * are printed, rendered composites and their errors, links, metadata rows, the

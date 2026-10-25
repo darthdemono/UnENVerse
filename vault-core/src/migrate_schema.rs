@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Ordered, recorded SQLCipher schema migrations.
 //!
 //! Migration 0001 captures the complete pre-R05 schema, including the explicit

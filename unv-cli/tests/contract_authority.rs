@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Delegated administration: a user the owner gave `manage-users` or
 //! `manage-classes` can only act downwards. Nobody can create, grant or assign
 //! authority at or above their own, and nobody can act on a user of equal or higher

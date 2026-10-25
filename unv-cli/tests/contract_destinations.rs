@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Recovery destinations and schedules ("Backups", README):
 //!
 //! * a local destination is registered under an id, listed, and refused when the

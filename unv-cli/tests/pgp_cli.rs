@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `--pgp-public` through the real binary (Phase 24.5, `gpg_key`): the expiry and
 //! fingerprint the vault records are what `gpg --list-keys --with-colons` says
 //! about the same key, and nothing secret is involved.

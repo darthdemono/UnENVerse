@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 // Static guards for the CI/release workflows (roadmap R02). GitHub Actions cannot
 // run on a laptop, so what can be proven here is the shape that makes the
 // guarantees true: a release needs the CI gate, Docker tags move only after the

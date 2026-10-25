@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Web session provider presets (Phase 24.5). The SAPISIDHASH vector is
  * computed independently (`printf '%s' "1000000000 testsapisid

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 36 — the materialisation log (ADR-0142).
 //!
 //! Local `unv exec`, `--out` and revealed output are deliberately not in the

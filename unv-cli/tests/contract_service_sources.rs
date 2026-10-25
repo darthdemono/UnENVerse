@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Service migration ("OpenBao, Infisical, Bitwarden Secrets Manager"): `unv import-service` reads a
 //! service with the user's own credential. The services here are local mock servers and a stub
 //! `bws`, so no account and no network are needed; the `unv` binary, its HTTP client, the planner,

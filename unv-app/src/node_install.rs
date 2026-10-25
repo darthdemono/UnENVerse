@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv node install`: turn this machine into a managed node in one command.
 //!
 //! Doing it by hand takes about ten steps (a system user, the binary, a config,

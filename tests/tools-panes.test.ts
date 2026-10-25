@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The Tools panel's small panes: generators, hash, JWT decoder, converters,
  * certificate and SSH key generation, the activity-bar keyboard, the sidebar

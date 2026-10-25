@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Hostile-value test for the Users/Classes panels (Phase 28): usernames, ids,
  * token descriptions and class names come from a server someone else may run.

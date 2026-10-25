@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Branch coverage for the stack interpreter, driven by a synthetic adapter so
  * every node kind and every YAML writer path runs, not just those the shipped

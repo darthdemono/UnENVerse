@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The UI generators' entropy source (Phase 33.4): the app side of
  * `--entropy-source`. The Rust mixing is tested in vault-core; this pins the

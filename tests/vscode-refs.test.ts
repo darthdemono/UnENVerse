@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The editor-free logic of the VS Code extension (Phase 38). The extension's
  * providers and task are thin callers of these functions; they type-check but

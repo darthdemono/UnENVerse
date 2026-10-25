@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The PostgreSQL connector for the rotation engine: two roles take turns.
 //!
 //! The application connects as `app_a` or `app_b`, each with its own password. A rotation sets a new

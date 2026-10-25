@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The scripting contract (`book/src/contract.md`) pinned from outside: every command and flag
 //! `unv describe` lists is compared with a committed snapshot, so a rename or removal that would
 //! break a script fails here until it is made on purpose. Adding a command or flag also changes the

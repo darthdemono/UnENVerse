@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Several actors, one hub (chaos testing, nodes level). A real `Agent` from `unv-cli`
 //! against a real hub over a real TCP socket, with the owner acting at the worst moment.
 //!

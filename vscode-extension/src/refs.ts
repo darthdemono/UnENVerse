@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The parts of the extension that need no VS Code: finding a `${…}` under the
  * cursor, deciding what to complete, building an `unv exec` argv, and reading an

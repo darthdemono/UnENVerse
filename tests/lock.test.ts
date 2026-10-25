@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Locking the vault. The bar is simple: after a lock, nothing secret may remain
  * reachable — not in `st.vault`, not in a pending undo closure, not on screen.

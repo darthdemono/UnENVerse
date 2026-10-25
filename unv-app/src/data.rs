@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Shared accessors and lookup rules over the vault JSON blob.
 //!
 //! Lookups deliberately refuse ambiguity. A CLI that picks the "first match" for

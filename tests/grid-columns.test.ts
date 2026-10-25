@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadRealIndexHtml } from '../tests/helpers';
 import { Settings, applyGridSettings } from '../src/ts/state';

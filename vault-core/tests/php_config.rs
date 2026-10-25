@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The PHP array reader, held to PHP's own rules for the literals it claims to
 //! understand (the PHP manual's string and integer syntax) and to its stated
 //! promises: nothing is executed; whatever needs PHP to evaluate becomes `null`

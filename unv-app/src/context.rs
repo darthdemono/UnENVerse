@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Per-directory project and environment context — `unv use` and `.unv.json`.
 //!
 //! Every command that scopes to a project repeats `--project web` forever. This

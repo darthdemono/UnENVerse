@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv uid` — the unique-ID registry (Phase 24.4). Server-side only, and
 //! opt-in there (`unv-server --uid-registry`); every command refuses against
 //! `Access::Local` and against a server with the feature off, both by naming

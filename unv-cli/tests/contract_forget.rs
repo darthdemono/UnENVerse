@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv entry forget` (R20): old values leave the history, the current value stays, the audit chain
 //! still verifies, and a dry run changes nothing.
 

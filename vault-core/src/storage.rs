@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Row-per-entry storage, schema v2 (Phase 30, review-01 section 2.1; ADR-0138).
 //!
 //! Schema v1 kept the whole vault as one JSON string in one row, so every write

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv support bundle` and `unv demo-vault` (R25): the bundle may be sent to a stranger, so it
 //! must hold no name, value, path or host; the demo vault must be usable and honest.
 

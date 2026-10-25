@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The category and project trees in the sidebar: nesting by "/", the grey
  * virtual parent for a path whose parent was never created, per-branch counts

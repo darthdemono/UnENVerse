@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Putting entries on a real project from the card menu and the bulk bar. The edit form was
  * the only place that could, so assigning ten secrets meant ten edits.

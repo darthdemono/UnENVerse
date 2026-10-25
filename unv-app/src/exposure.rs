@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 36 — which vault secrets appear, by exact value, in some text.
 //!
 //! The same exact-value idea as `unv shield` (Phase 26): the matcher is built

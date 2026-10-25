@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! What an OpenPGP key says about itself: fingerprint, key id, user ids and, the
 //! reason this exists, **when it expires** (Phase 24.5, `gpg_key`).
 //!

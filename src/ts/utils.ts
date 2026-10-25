@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Pure utilities — no state, no DOM side effects on module load. */
 import { invokeTauri, isTauri } from './tauri';
 import { raw } from './html';

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Tools -> Unique IDs (Phase 33.4). The routes are tested over real HTTP in
  * unv-server; this drives the pane: what a user sees for each answer.

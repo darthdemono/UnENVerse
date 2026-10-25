@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The managed host's side of nodes ("Setting up a node", README): `unv node
 //! install --plan` shows every step without running one, a target that only
 //! observes gets read access and no reload unit, and `unv node check` reports

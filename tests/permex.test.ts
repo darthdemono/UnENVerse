@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The client-side permission language is advisory — `vault-core/src/permex.rs`
  * is what actually gates access. These tests pin the two to the same semantics,

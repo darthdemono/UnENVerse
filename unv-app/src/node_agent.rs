@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 34 — the node agent: what runs on the managed host (ADR-0140).
 //!
 //! It holds no vault key and no token that reads the vault. Its whole identity

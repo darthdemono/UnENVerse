@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The plugin host against real child processes: the example plugin passes the conformance suite
 //! and deliberately bad plugins fail the check that matches their fault. Needs `python3`.
 #![cfg(unix)]

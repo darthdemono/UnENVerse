@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! A small line diff for rendered config files (Phase 35).
 //!
 //! Exists once, in Rust: the CLI, the server and the app all ask for a diff

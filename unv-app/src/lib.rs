@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Shared application engine for the CLI, desktop app and optional server.
 //!
 //! This is the former library half of `unv-cli`. It owns the reusable vault

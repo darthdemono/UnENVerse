@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv support bundle` and `unv demo-vault` (R25): the two things that make a bug report cheap for
 //! a solo maintainer. The bundle is a small JSON file the person reads before sending; it holds
 //! versions, counts and check results, and never a value, a name, a path or a host. The demo vault

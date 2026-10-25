@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Whole-vault `unv export` and `unv import --json`, as README describes them:
 //!
 //! * the flat formats (dotenv, yaml, k8s Secret, tfvars) carry real values, so they

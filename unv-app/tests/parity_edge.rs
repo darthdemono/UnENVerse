@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The Rust half of the edge-case exporter parity check.
 //!
 //! `tests/cli-parity-edge.test.ts` writes what the desktop app produces for the

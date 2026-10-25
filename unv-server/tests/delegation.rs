@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! A `manage-users` delegate with a narrow data scope must not be able to act as, or widen, an
 //! account that reaches more than the delegate does. Tier (who outranks whom) said nothing about
 //! scope, so a delegate could reset the password of, mint a token for, or clear the restriction of

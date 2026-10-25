@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! FIDO Credential Exchange (CXF) import and export — Phase 24.5.
 //!
 //! CXF (FIDO Alliance) is the JSON format password managers are converging on

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Config-file generation, ported from `src/ts/chunk-ops.ts` and
 //! `src/ts/import-export.ts` for the four stable project types.
 //!

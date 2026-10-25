@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Secret templates: predefined field presets for common services (a GitHub PAT,
 //! an AWS key, a Postgres DSN). One JSON file at the repo root,
 //! `secret-templates.json`, compiled in here and imported by the app's

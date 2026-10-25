@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: Apache-2.0
-# Copyright the UnENVerse contributors.
+# SPDX-License-Identifier: PolyForm-Strict-1.0.0
+# Copyright Jubair Hasan.
 """Fill a throwaway unv-server with a demo vault: fake providers, every kind of
 secret, three projects, users, classes and permission expressions.
 

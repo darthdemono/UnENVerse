@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Cross-chunk, cross-format checks for a project (Phase 29, "the config compiler"; ADR-0137).
 //!
 //! Phase 18's validation matrix runs each generated file past its own tool

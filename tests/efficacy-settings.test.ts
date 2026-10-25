@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Phase 32.2(b): `<select>`, checkbox and number controls in Settings. They apply
  * on Save, not on change, so the question is not "did the screen move" but "does

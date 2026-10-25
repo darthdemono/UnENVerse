@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv check` through the real binary (Phase 29). The rule logic is unit-tested
 //! in `vault-core/src/config_check.rs`; this pins what only the command can show:
 //! the envelope, `--fail-on` exit codes, and that a secret field's value never

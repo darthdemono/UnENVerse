@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The file picker the config view uses. It builds a throwaway file input (a
  * static one is a ghost widget in WebKitGTK), hands the text and the name to the

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Composite-secret rendering (Phase 24.1) — the TypeScript half of a twin
  * pair with `vault-core/src/composite.rs`, pinned by

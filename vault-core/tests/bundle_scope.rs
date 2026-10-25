@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Bundle-local template resolution, from its stated contract: a template can name
 //! the bundle's own variables, a member's fields by slot, and (when the caller
 //! allows it) global references; anything it cannot resolve is an error so a

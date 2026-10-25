@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Importing authenticator exports, from the module's own contract: a seed that
 //! cannot be imported is REPORTED by name (never by secret) instead of dropped, so
 //! the counts add up; an encrypted export is refused by app name whatever format the

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Encrypted backup (`.vaultbak`) — byte-compatible with the desktop app's
 //! WebCrypto implementation in `src/ts/import-export.ts`.
 //!

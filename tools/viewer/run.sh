@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0
-# Copyright the UnENVerse contributors.
+# SPDX-License-Identifier: PolyForm-Strict-1.0.0
+# Copyright Jubair Hasan.
 # Build the app and screenshot its real window. See Dockerfile and README.md.
 #
 #   tools/viewer/run.sh [scenario ...]     scenarios are in tools/viewer/shots.py

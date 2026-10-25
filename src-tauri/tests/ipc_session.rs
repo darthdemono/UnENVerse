@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The desktop commands that work on an unlocked vault, called through the mock
 //! runtime. The rules held to account are the ones the UI depends on: names are
 //! unique with a message a person can read, a second factor is never reported

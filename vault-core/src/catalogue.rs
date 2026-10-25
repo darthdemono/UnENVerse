@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The provider catalogue: a signed, public table of issuer key prefixes that
 //! `unv enrich` consults before the table compiled into the binary.
 //!

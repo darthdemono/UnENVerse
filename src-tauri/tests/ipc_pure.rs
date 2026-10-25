@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The desktop commands that need no vault key: each is a thin door onto the
 //! one Rust implementation the CLI shares, so what is checked here is that the
 //! door passes the arguments through, returns the documented shape and refuses

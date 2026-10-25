@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Phase 32.1: the closers `efficacy.test.ts` can only mark "dialog not open".
  * For each, open its dialog (the `.open` class every overlay in this app uses),

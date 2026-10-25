@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Phase 32.1: the structured-project config view. Every project type renders a
  * chunk tree whose buttons (`export-*`, `import-*`, `add-*`, `edit-chunk`,

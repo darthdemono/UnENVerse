@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Which vault this is, and which copy of it is allowed to act.
 //!
 //! A vault has one `vault_id` for its whole life. Each copy that was ever opened has an

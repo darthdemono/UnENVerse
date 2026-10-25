@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv reset-vault` — delete the local vault, what the app's Settings -> Reset
 //! does (Phase 33.5). Local only, and it never asks for the master password: the
 //! point is the case where it is lost. Hence the guard rails the app's version

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for ui-qol.ts: reveal, caps-lock hint, modal focus, strength, search history, times. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Phase 32.1: the dynamic half of the efficacy audit. `efficacy.test.ts` reaches
  * only static `button[id]`; the controls people press most are rendered into the

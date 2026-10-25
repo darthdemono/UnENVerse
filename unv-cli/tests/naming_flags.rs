@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `--env-case` / `--env-prefix` (Phase 33.5): the CLI side of the app's copy
 //! settings. The same entry must export under the names the app's copy would
 //! use, and the defaults must not move.

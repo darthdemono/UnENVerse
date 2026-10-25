@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 // The documentation book: every page the table of contents names exists, every phase is listed, and
 // the phase pages carry no development-record paths.
 import fs from 'node:fs';

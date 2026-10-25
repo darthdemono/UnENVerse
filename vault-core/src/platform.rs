@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Small platform differences that the rest of the code should not have to know about.
 //!
 //! - [`replace_file`]: the "write a temp file, rename it over the target" step. On Windows a rename

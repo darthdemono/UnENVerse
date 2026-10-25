@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv history` — the config time machine (Phase 35, ADR-0141).
 //!
 //! Local vault: calls the shared dispatcher directly. Remote: the same

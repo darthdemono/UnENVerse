@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Several writers, one vault (chaos testing, desktop client level). The store is a fake
  * with a "server" document behind it, so another writer can act between this client's

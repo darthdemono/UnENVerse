@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Credential generations and lifecycle facts (roadmap R07).
 //!
 //! Entry JSON holds current descriptive state. This module holds generations,

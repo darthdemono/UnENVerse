@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The Compose secrets guide (`book/src/compose-secrets.md`), run: the recipe writes the value as
 //! an owner-only file with no trailing newline, and Compose accepts the stack that mounts it.
 #![cfg(unix)]

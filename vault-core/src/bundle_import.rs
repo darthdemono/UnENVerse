@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Import a Python config module as bundle-local variables (Phase 24.1).
 //!
 //! Twin of `src/ts/bundle-import.ts`, pinned by

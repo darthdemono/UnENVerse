@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! A v1 vault (the whole document in one row) opened by the real binary
 //! (Phase 30): it converts, keeps every entry and its history, leaves a backup,
 //! and `unv doctor` says what it found.

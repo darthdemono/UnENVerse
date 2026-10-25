@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Runs a plugin as a supervised child process speaking `unv-plugin-rpc/1`: one JSON object per
 //! line on stdin and stdout, `{"id":N,"method":..,"params":{..}}` answered by `{"id":N,"result":..}`
 //! or `{"id":N,"error":{"message":..}}`.

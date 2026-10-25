@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Stack integrations in the app (Phase 38): creating a Prometheus, Grafana or
  * Homepage project, its header controls, adding a chunk from the descriptor, and

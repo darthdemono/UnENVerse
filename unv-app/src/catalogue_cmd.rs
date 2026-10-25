@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv catalogue` — the signed provider catalogue (Phase 31).
 //!
 //! The format, signature and cache rules live in `vault_core::catalogue`; this

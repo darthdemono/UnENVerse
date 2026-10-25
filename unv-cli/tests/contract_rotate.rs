@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv rotate`: the real binary against a mock Cloudflare token API. The old credential must stay
 //! valid unless `--revoke-now` is given, and a revoke happens last.
 

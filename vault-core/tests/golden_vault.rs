@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Golden tests for the on-disk formats (roadmap R01, project phase 43).
 //!
 //! The fixture in `fixtures/vault-0.42.x/` was written by the 0.42.4 build

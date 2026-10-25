@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The parts of `unv rotate` the command line cannot reach: the entry store the engine writes
 //! through, the connector choice and its settings, and the refusals before anything is called.
 //! One vault for the whole file (the paths are process-wide), so it is a single ordered story.

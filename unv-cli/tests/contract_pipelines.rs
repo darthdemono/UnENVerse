@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv` is built to sit in a pipeline ("an orchestrator, a CI job or an
 //! agent"). A reader that stops reading early (`| head -1`, `| jq -e`, a
 //! script that has what it needs) is normal, not a failure: the command must

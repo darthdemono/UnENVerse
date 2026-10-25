@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! AWS Secrets Manager and Systems Manager Parameter Store, behind the `aws` cargo feature.
 //!
 //! AWS is a commercial service and optional: nothing in the default build reaches it, and no AWS SDK

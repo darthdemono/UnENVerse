@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv oauth refresh` against a mock issuer on localhost, through the real
 //! binary. The properties that matter: the rotated refresh token is in the vault
 //! by the time the command succeeds, the issuer's error text is not echoed, and

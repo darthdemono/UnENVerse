@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Import from Git-based secret stores: SOPS files, a `pass` store and a gopass store.
 //!
 //! None of these reimplement a key system. The user's own tool does the decryption, through

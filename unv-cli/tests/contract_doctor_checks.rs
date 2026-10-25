@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The rest of `unv doctor`: the checks about data that lives outside the vault
 //! file or that an older build could have left behind, and the one repair it offers.
 //!

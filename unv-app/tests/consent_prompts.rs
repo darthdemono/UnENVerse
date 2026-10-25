@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The two commands that ask before they change who may act: enabling a plugin and activating a
 //! vault instance. A "yes" does it, a "no" leaves everything as it was. The question is a parameter,
 //! so the answer is chosen here rather than by a terminal.

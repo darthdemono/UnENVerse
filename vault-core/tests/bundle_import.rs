@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Importing a Python config module as bundle variables. The module's contract:
 //! only assignments of literals are read and nothing is executed; anything else is
 //! kept as source text with a warning that names the line; a name assigned twice is

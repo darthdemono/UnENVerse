@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv cookie import` — Phase 24.5. Turns a DevTools capture (Copy as cURL,
 //! HAR, `Set-Cookie` lines, a Firefox `cookies.sqlite`) into a web-session entry.
 //!

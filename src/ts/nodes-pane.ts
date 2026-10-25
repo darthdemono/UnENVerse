@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Tools -> Nodes (Phase 34): the app side of `unv node ...`, over the hub's
  * `/api/nodes/*` routes. Nodes are managed on a server started with `--nodes`,

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! KeePass migration ("Importing existing secrets", README): `unv import-vault
 //! keepass` reads a KDBX with a key file (the password prompt needs a terminal),
 //! previews first without showing a value, keeps attachments instead of dropping

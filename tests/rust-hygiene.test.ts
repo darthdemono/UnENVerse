@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 // Source-level rules for the Rust crates that a compiler does not enforce.
 import fs from 'node:fs';
 import path from 'node:path';

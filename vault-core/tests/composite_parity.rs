@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The Rust half of composite-secret rendering's parity, pinned against
 //! `tests/fixtures/parity/composite.json` (repository root) — identical
 //! cases are asserted from `tests/composite.test.ts` on the TypeScript side.

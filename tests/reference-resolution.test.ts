@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Resolving `${...}` references: roles, aliases, bundles, project bindings and
  * the legacy provider_keyid form. A reference that resolves to the wrong secret

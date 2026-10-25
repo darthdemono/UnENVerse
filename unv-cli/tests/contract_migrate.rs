@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! "Lossless config migration" (README): `unv migrate` reads a `.env`, Compose,
 //! WireGuard or nginx file locally, plans first, keeps the source read-only,
 //! stores a byte-preserving template when asked, treats a repeat of an

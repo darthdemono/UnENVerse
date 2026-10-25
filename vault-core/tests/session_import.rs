@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Web-session capture parsers, from the contract their module states: a paste is
 //! attacker-controlled text, so nothing is fetched or run and the size is bounded;
 //! only the chosen origin's session survives; whatever is left out (another

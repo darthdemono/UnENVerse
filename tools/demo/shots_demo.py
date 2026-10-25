@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: Apache-2.0
-# Copyright the UnENVerse contributors.
+# SPDX-License-Identifier: PolyForm-Strict-1.0.0
+# Copyright Jubair Hasan.
 """Screenshot the real app against the demo server (tools/demo/run.sh drives this).
 
 Walks the login, the main grid, each kind of secret, the projects, the tools and

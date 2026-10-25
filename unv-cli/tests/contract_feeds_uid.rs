@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! "Calendar feeds and the unique-ID registry" (README), through the real `unv`
 //! and a real `unv-server --uid-registry`:
 //!

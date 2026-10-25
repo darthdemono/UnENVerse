@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Structured logging, shared by all three binaries.
 //!
 //! Before this module the workspace had no `tracing`, no metrics crate and no

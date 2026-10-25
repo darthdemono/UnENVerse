@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Tools -> Unique IDs (Phase 33.4): the app side of `unv uid ...`, over the
  * server's `/api/uid/*` routes (Phase 24.4). The registry is server-side only, so

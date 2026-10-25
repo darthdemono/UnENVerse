@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The three collapsed-card bands — description, tags, footer — are each clamped
  * to a whole number of their own rows. Getting that arithmetic wrong does not

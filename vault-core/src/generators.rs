@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Cryptographic key and certificate generators.
 //!
 //! Every generator here takes an [`crate::entropy::Source`]. That is the whole

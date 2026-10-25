@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Importing and exporting authenticator seeds ("Authenticator codes", README):
 //!
 //! * a list of `otpauth://` URIs imports as entries, kinds and parameters

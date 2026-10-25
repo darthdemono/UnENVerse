@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * `chunks/env-link.ts` — matching plain `KEY=value` env fields against vault
  * entries so they can become `${ref}` placeholders.

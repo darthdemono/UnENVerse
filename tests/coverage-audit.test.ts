@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for audit.ts: loading, the table, verify and export buttons, chain edge rows. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml, resetState } from './helpers';

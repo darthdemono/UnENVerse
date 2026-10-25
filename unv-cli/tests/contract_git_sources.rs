@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Git-store migration ("SOPS, pass and gopass"): `unv import-vault sops|pass|gopass` reads the
 //! user's own tools. The tools here are stub scripts on a private PATH, so no GPG key, no age key
 //! and no network is needed, but the whole path is real: the `unv` binary, its tool adapter, the

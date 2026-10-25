@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 35 through the real binary: a save snapshots the rendered config, a
 //! rotation diffs as a changed fingerprint, the real values need --reveal or
 //! --out, pruning leaves a verifiable history, and tampering is caught.

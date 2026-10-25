@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv plugin`: discovery, install without enabling, enabling after a warning, and the
 //! conformance suite on the example plugin. Needs `python3`.
 #![cfg(unix)]

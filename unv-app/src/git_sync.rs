@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! After a Git-store import: refresh one way from the source, see where the source has moved, and
 //! hand authority to UnENVerse (cutover) or take it back (uncutover).
 //!

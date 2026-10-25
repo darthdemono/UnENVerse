@@ -2,6 +2,12 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## Unreleased
+
+### Changed
+
+- The licence changes from Apache-2.0 to the PolyForm Strict License 1.0.0. The software is source-available: free to read and run for any noncommercial purpose (personal use, research, study, hobby projects, charities, schools and public bodies), but it may not be distributed, changed or built on, and commercial use needs a separate licence from the maintainer. Releases up to and including 0.60.1 stay under Apache-2.0 for everyone who received them. Contributions are accepted under a licence grant to the maintainer (see CONTRIBUTING.md).
+
 ## 0.60.1 (2026-10-25)
 
 ### Added

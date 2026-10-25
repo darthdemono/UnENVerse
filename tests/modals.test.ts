@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Add/Edit form tests. These drive the real `index.html`, so a missing or
  * renamed element id fails here rather than silently at runtime — the exact

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 import { st, Settings, inTauri, newEntryId } from './state';
 import type { VaultEntry } from './types';
 import { showToast, clipboardWrite } from './utils';

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Single-use recovery codes (Phase 24.5). Twin of the `code_*`/`mark_used`
  * functions in `vault-core/src/type_emit.rs`, pinned by

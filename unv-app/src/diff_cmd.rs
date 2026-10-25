@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv diff A B` — compare two entries field by field, the CLI side of the app's
 //! Diff tool (Phase 33.6). Secrets are redacted like everywhere else: a
 //! fingerprint on each side, so "equal" and "different" are still answerable

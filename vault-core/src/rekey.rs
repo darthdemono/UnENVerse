@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Changing the master password: a new salt, a new key, the same data.
 //!
 //! The key is Argon2id over the password and `vault.salt`, so changing the password changes both

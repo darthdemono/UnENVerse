@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The credential-type emitters, checked against the file formats they write
 //! (npm, PyPI, Cargo, Docker, netrc, PostgreSQL/JDBC/URL connection strings, the
 //! Wi-Fi QR string, BIP39) rather than against the code: each output is what the

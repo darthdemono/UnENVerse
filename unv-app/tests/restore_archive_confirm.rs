@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `backup restore-archive --force`: answering "no" must leave the vault alone. The answer used to
 //! be discarded, so "n" overwrote it anyway.
 

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Plugin manifests and the registry of installed plugins (protocol `unv-plugin-rpc/1`).
 //!
 //! A plugin is an external program in `<plugins dir>/<name>/` with a `plugin.json` manifest. It runs

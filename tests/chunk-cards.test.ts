@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * How a chunk card draws its fields: reference badges (vault, .env, chunk,
  * unresolved), docker service lists as badges, JSON values pretty-printed,

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for perm-editor.ts: every builder field, missing elements, a failing save. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { st } from '../src/ts/state';

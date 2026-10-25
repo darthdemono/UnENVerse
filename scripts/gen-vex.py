@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: Apache-2.0
-# Copyright the UnENVerse contributors.
+# SPDX-License-Identifier: PolyForm-Strict-1.0.0
+# Copyright Jubair Hasan.
 """Write vex.openvex.json from the advisory decisions in deny.toml and osv-scanner.toml.
 
 Those two files are the source of truth (each ignore carries its reason); this

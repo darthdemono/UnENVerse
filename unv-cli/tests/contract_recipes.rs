@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The recipes in `book/src/contract.md`, run. A recipe that stops working, or a page that stops
 //! showing one, fails here.
 #![cfg(unix)]

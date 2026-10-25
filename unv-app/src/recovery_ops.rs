@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Local recovery destinations, package runs and the unlocked scheduler.
 //!
 //! The database holds durable intent and state in `vault_core::ops`; this

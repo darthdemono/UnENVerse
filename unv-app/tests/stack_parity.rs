@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The Rust half of the stack-adapter check (Phase 38).
 //!
 //! `tests/stack.test.ts` pins the TypeScript interpreter against the golden

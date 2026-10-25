@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! OAuth refresh-token grants, shared by `unv oauth refresh` and the desktop
 //! app's "Refresh access token" (Phase 24.5). Pure over JSON: the HTTP call is
 //! the caller's (the CLI's blocking client, the app's pinned `remote_request`),

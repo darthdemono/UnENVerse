@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Edge-case half of the exporter parity check. `cli-parity.test.ts` pins one
  * ordinary project per format; this feeds the same exporters the awkward inputs

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv import-vault` ("Importing existing secrets", README): the vendor
 //! importers are preview-first, never show a value in the preview, write
 //! atomically, treat a re-import of an unchanged source as a no-op, and turn a

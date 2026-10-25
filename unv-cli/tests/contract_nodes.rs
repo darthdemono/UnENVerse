@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Nodes ("Nodes", README), the hub side driven through the real `unv` and a
 //! real `unv-server --nodes`:
 //!

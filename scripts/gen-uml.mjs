@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Regenerates the data-model diagram on the architecture page from src/ts/types.ts with
  * TsUML2 (https://github.com/rimdev/tsuml2, a TypeScript to UML tool that runs offline).

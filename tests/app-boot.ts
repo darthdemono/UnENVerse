@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Boots the real application against a small vault, the way the shell tests
  * need it: `vault.ts` wires itself on import, so every boot gets a fresh module

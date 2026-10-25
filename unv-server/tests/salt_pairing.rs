@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! An existing vault whose salt file is missing must be reported, not given a fresh salt by
 //! whoever calls `/api/unlock` first: a minted salt can never open the existing database.
 

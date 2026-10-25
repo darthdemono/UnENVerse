@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `.env` parsing, import and watch — the file-drop path from the UI.
 //!
 //! Also home to **the environment-variable name template** and **`.env`

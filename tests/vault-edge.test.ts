@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The grid and shell handlers when the thing they were asked about is no longer
  * there: a card clicked after its entry was deleted, a bundle removed while a

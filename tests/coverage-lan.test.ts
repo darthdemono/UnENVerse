@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for lan.ts: status polling, start/stop, the card in every state and its buttons. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { loadRealIndexHtml, resetState } from './helpers';

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Several clients, one server (chaos testing, clients level): the CLI's remote client
 //! against a real hub, with a second client acting between its read and its save.
 

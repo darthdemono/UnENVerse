@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Checking the vault: `scan`, `rotate-check`, `diff`, `audit`, `status`
 //! (README "Commands", "Tools", "The security model"):
 //!

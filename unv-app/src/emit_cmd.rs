@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv emit` and `unv codes` — what the Phase 24.5 types do beyond holding
 //! fields. The logic is `vault_core::type_emit`; this file is I/O and policy.
 //!

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for cookies.ts: every parser fallback, exporter and the vault round trip. */
 import { describe, it, expect } from 'vitest';
 import {

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The signed release manifest behind `unv update` (Phase 54, roadmap R26).
 //!
 //! Same shape as the provider catalogue (an Ed25519 signature over the exact

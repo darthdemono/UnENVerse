@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Permission expressions — a small boolean language over vault entries.
 //!
 //! Replaces the flat list of `(scope_type, scope_value, permission)` rows, which

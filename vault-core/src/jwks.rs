@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! The public half of a `signing_key` as a JSON Web Key Set (Phase 24.5).
 //!
 //! A service that signs tokens publishes its *public* keys at a `jwks_uri`, and a

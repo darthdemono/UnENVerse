@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Output: one JSON envelope, one redaction rule, one place that decides.
 //!
 //! The design goal is that an agent (Claude, a Python wrapper, a CI job) can run

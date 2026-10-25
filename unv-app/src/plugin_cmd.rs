@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv plugin`: find, install, enable, disable, remove and test plugins (`unv-plugin-rpc/1`).
 //!
 //! Installing records the program's hash and enables nothing. Enabling is the user's decision, made

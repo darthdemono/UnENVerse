@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 import { buildBundle, bundleSuggestions } from './bundle-scope';
 import { showEntryTimeline } from './entry-timeline';
 import { codeStatus, nextCode } from './recovery-codes';

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for enrich-pane.ts: online edge cases, apply skips, doctor on a remote. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml, makeEntry, makeVault, resetState } from './helpers';

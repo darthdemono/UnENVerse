@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv import-vault onepassword` on the layout a real 1Password export uses: the
 //! login's own username and password sit in `details.loginFields` marked by
 //! `designation`, and every other field sits in a section with a value object keyed

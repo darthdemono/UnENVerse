@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Generates `src/ts/icon-paths.ts` — the SVG path data for every slug in
  * `SI_REGISTRY`, taken from the `simple-icons` npm package at build time.

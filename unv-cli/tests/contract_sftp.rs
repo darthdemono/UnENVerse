@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! SFTP recovery destinations ("Backups", README), against a real OpenSSH server
 //! in a container (`atmoz/sftp`); skipped where Docker or the image is missing.
 //!

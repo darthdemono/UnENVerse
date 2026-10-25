@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv import-vault bitwarden` on an export that uses every item kind Bitwarden
 //! has, as the import contract describes it: a preview that writes nothing and
 //! prints no value; every readable item becomes an entry with its credential in the

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `${…}` reference resolution — the Rust twin of `resolveFieldRef` in
 //! `src/ts/chunk-ops.ts`.
 //!

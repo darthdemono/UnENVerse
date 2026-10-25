@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Import paths replace `st.vault` wholesale. Every view-scoped selection that
  * pointed into the old vault has to be dropped with it — otherwise the import

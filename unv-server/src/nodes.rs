@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Phase 34 — the hub half of Nodes (ADR-0140).
 //!
 //! Opt-in: every route here answers 404 unless the server was started with

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv rotate plan|run|status`: drives `vault_core::rotation` against an issuer connector and the
 //! vault entry. The engine owns the safety rules; this module only supplies the entry store and
 //! the connector.

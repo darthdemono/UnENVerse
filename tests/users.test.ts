@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Users panel. Ids here are scoped to a single vault, and the panel is one of
  * the few places the app shows a credential in the clear — both are what these

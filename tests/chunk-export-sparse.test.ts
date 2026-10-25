@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * Exporting chunks that are incomplete: fields with no value, no name, or no
  * chunk list at all. An export is a file someone deploys, so a missing value must

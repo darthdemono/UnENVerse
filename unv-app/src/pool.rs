@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Key pools: several interchangeable credentials for one service, swapped
 //! between so a caller can keep working when one is rate limited.
 //!

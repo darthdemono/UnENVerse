@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! `unv vault status|activate`: which instance of the vault this is, and the explicit step that
 //! makes a restored or copied one the live one (see `vault_core::identity`).
 

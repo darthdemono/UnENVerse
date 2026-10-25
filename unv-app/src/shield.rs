@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Exact-value redaction for child output and filesystem exposure scans.
 //!
 //! The matcher is built from values the vault actually holds, not token-shaped

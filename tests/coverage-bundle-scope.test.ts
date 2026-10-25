@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Branch coverage for bundle-scope.ts: renames, references, resolver errors, composite errors. */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {

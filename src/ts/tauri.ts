@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /** Minimal typed boundary for Tauri's runtime-injected IPC bridge. */
 type Invoke = (command: string, args?: unknown) => Promise<unknown>;
 

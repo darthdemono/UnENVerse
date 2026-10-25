@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 //! Vault identity (R19): a vault has an id and an instance; a restored copy starts in standby, will
 //! not act, says so in `doctor`, and becomes live only through `unv vault activate`.
 

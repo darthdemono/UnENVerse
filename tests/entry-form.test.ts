@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright the UnENVerse contributors.
+// SPDX-License-Identifier: PolyForm-Strict-1.0.0
+// Copyright Jubair Hasan.
 /**
  * The Add / Edit form: what it reads into an entry for each kind of secret,
  * what it refuses to save and what it says, how the optional-value rule moves
