@@ -260,6 +260,12 @@ jobs:
           # also runs on Arm, so this only buys a native app.
           - os: windows-11-arm
             label: windows-aarch64
+          # macOS: unsigned (ad-hoc) .dmg, see src-tauri/tauri.macos.conf.json. Apple silicon
+          # on the default runner, Intel on its own runner.
+          - os: macos-latest
+            label: macos-aarch64
+          - os: macos-15-intel
+            label: macos-x86_64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -389,7 +395,8 @@ jobs:
                    target/release/bundle/deb/*.deb \
                    target/release/bundle/rpm/*.rpm \
                    target/release/bundle/nsis/*-setup.exe \
-                   target/release/bundle/msi/*.msi; do
+                   target/release/bundle/msi/*.msi \
+                   target/release/bundle/dmg/*.dmg; do
             cp "$f" staging/
           done
           ls -lh staging/
@@ -439,6 +446,12 @@ jobs:
           - os: windows-11-arm
             label: windows-aarch64
             archive: zip
+          - os: macos-latest
+            label: macos-aarch64
+            archive: tar.gz
+          - os: macos-15-intel
+            label: macos-x86_64
+            archive: tar.gz
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -761,7 +774,9 @@ jobs:
                    desktop-windows-x86_64 desktop-windows-aarch64 \
                    headless-linux-x86_64 headless-linux-aarch64 \
                    headless-linux-x86_64-musl headless-linux-aarch64-musl \
-                   headless-windows-x86_64 headless-windows-aarch64; do
+                   headless-windows-x86_64 headless-windows-aarch64 \
+                   desktop-macos-x86_64 desktop-macos-aarch64 \
+                   headless-macos-x86_64 headless-macos-aarch64; do
             for i in 1 2 3 4 5; do
               if gh run download "$GITHUB_RUN_ID" -n "$a" -D "artifacts/$a"; then
                 continue 2
@@ -836,7 +851,7 @@ jobs:
 
           # Headless binaries get archived per platform, with a flat layout so
           # `tar xzf … && ./unv` works with no path juggling.
-          for t in linux-x86_64 linux-aarch64 linux-x86_64-musl linux-aarch64-musl; do
+          for t in linux-x86_64 linux-aarch64 linux-x86_64-musl linux-aarch64-musl macos-x86_64 macos-aarch64; do
             ( cd "artifacts/headless-$t" && chmod +x unv unv-server \
               && tar czf "$GITHUB_WORKSPACE/release-assets/unv-${VERSION}-$t.tar.gz" . )
           done
@@ -863,6 +878,8 @@ jobs:
               --asset "linux-aarch64-musl=release-assets/unv-${VERSION}-linux-aarch64-musl.tar.gz" \
               --asset "windows-x86_64=release-assets/unv-${VERSION}-windows-x86_64.zip" \
               --asset "windows-aarch64=release-assets/unv-${VERSION}-windows-aarch64.zip" \
+              --asset "macos-x86_64=release-assets/unv-${VERSION}-macos-x86_64.tar.gz" \
+              --asset "macos-aarch64=release-assets/unv-${VERSION}-macos-aarch64.tar.gz" \
               --key-file "$RUNNER_TEMP/update.key" -o release-assets/unv-update.json
             rm -f "$RUNNER_TEMP/update.key"
             scripts/check-update-manifest.sh release-assets/unv-update.json "$VERSION"
@@ -971,6 +988,7 @@ jobs:
             | `*.deb` | Debian / Ubuntu (`amd64`, `arm64`) |
             | `*.rpm` | Fedora / RHEL (`x86_64`, `aarch64`) |
             | `*-setup.exe` | Windows, x64 and Arm (NSIS; WebView2 is fetched by the installer if absent) |
+            | `*.dmg` | macOS 11 and newer, Apple silicon (`aarch64`) and Intel (`x64`). Not notarized: open it with right-click, Open the first time |
 
             Linux bundles are built on Ubuntu 22.04, so they run on that glibc and newer.
 
@@ -981,6 +999,7 @@ jobs:
             | `unv-${{ needs.meta.outputs.version }}-linux-x86_64.tar.gz`, `-linux-aarch64.tar.gz` | `unv`, `unv-server` (glibc) |
             | `unv-${{ needs.meta.outputs.version }}-linux-x86_64-musl.tar.gz`, `-linux-aarch64-musl.tar.gz` | `unv`, `unv-server`, static (Alpine and any other distro) |
             | `unv-${{ needs.meta.outputs.version }}-windows-x86_64.zip`, `-windows-aarch64.zip` | `unv.exe`, `unv-server.exe` |
+            | `unv-${{ needs.meta.outputs.version }}-macos-aarch64.tar.gz`, `-macos-x86_64.tar.gz` | `unv`, `unv-server` (unsigned: `xattr -d com.apple.quarantine unv unv-server` if Gatekeeper blocks them) |
 
             `unv describe` prints the full command tree, exit codes and redaction
             rules as JSON — read that rather than guessing from error messages.

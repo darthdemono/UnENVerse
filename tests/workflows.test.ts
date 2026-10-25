@@ -103,6 +103,8 @@ describe('release targets', () => {
     'linux-aarch64-musl',
     'windows-x86_64',
     'windows-aarch64',
+    'macos-x86_64',
+    'macos-aarch64',
   ];
   it('builds every CLI target the update manifest guard requires, named as std::env::consts says', () => {
     const m = (
@@ -118,7 +120,14 @@ describe('desktop bundles', () => {
   it('build natively for every architecture and the release downloads each one', () => {
     const build = load('build.yml');
     const labels = build.jobs.desktop.strategy!.matrix.include.map((i) => i.label).sort();
-    expect(labels).toEqual(['linux-aarch64', 'linux-x86_64', 'windows-aarch64', 'windows-x86_64']);
+    expect(labels).toEqual([
+      'linux-aarch64',
+      'linux-x86_64',
+      'macos-aarch64',
+      'macos-x86_64',
+      'windows-aarch64',
+      'windows-x86_64',
+    ]);
     const dl = (build.jobs.release.steps as Step[]).map((s) => s.run ?? '').join('\n');
     for (const l of labels) expect(dl).toContain(`desktop-${l}`);
   });
