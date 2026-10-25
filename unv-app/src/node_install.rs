@@ -20,7 +20,7 @@
 //! * Targets are observe-only (`mode = "pull"`) unless you pass `apply=true`
 //!   in the target spec.
 //!
-//! Linux with systemd only. Needs root.
+//! Linux with systemd, or macOS with launchd (`plan_macos`). Needs root.
 
 use crate::error::{CliError, CliResult};
 use std::path::PathBuf;
@@ -31,6 +31,23 @@ const CONFIG_DIR: &str = "/etc/unv-node";
 const SYSTEMD_DIR: &str = "/etc/systemd/system";
 const BIN: &str = "/usr/local/bin/unv";
 const RELAY_PORT: u16 = 18743;
+
+// macOS keeps the same layout under /usr/local, which is writable by an installer and not
+// sealed like /usr, and runs the agent under a role account (`_` prefix hides it from the login window).
+pub const MAC_USER: &str = "_unvnode";
+const MAC_STATE_DIR: &str = "/usr/local/var/unv-node";
+const MAC_CONFIG_DIR: &str = "/usr/local/etc/unv-node";
+const MAC_DAEMONS_DIR: &str = "/Library/LaunchDaemons";
+const MAC_LABEL: &str = "io.unenverse.node";
+
+/// Where the agent keeps its state on the host `plan` targets.
+pub fn state_dir() -> &'static str {
+    if cfg!(target_os = "macos") {
+        MAC_STATE_DIR
+    } else {
+        STATE_DIR
+    }
+}
 
 /// One file the node manages.
 #[derive(Clone, Debug, PartialEq)]
@@ -43,7 +60,8 @@ pub struct TargetSpec {
     pub mode: String,
     pub apply: bool,
     pub validate: Option<String>,
-    /// A systemd unit to reload when the file changes, e.g. `wg-quick@wg0`.
+    /// A systemd unit to reload when the file changes, e.g. `wg-quick@wg0`. On macOS it is a launchd
+    /// label (`system/<label>` is kickstarted), e.g. `homebrew.mxcl.nginx`.
     pub reload_unit: Option<String>,
     pub require_approval: bool,
 }
@@ -228,10 +246,8 @@ pub fn service_unit(o: &Options) -> String {
 }
 
 /// A launchd job for macOS (`/Library/LaunchDaemons/io.unenverse.node.plist`): the same agent the
-/// systemd unit runs, restarted if it exits. Written by hand for now (see the Nodes page); `unv node
-/// install` does not yet install it, because the rest of that command (a service user, directories
-/// and permissions) is Linux-specific.
-pub fn launchd_plist(config: &str, state_dir: &str, bin: &str) -> String {
+/// systemd unit runs, restarted if it exits, as `user`. `plan_macos` installs it.
+pub fn launchd_plist(config: &str, state_dir: &str, bin: &str, user: &str) -> String {
     let esc = |s: &str| {
         s.replace('&', "&amp;")
             .replace('<', "&lt;")
@@ -244,12 +260,45 @@ pub fn launchd_plist(config: &str, state_dir: &str, bin: &str) -> String {
          \t<key>Label</key>\n\t<string>io.unenverse.node</string>\n\
          \t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>{}</string>\n\t\t<string>node</string>\n\t\t<string>run</string>\n\t\t<string>--config</string>\n\t\t<string>{}</string>\n\t</array>\n\
          \t<key>EnvironmentVariables</key>\n\t<dict>\n\t\t<key>UNV_NODE_DIR</key>\n\t\t<string>{}</string>\n\t</dict>\n\
+         \t<key>UserName</key>\n\t<string>{}</string>\n\
+         \t<key>StandardErrorPath</key>\n\t<string>{}/agent.log</string>\n\
          \t<key>RunAtLoad</key>\n\t<true/>\n\
          \t<key>KeepAlive</key>\n\t<true/>\n\
          </dict>\n</plist>\n",
         esc(bin),
         esc(config),
+        esc(state_dir),
+        esc(user),
         esc(state_dir)
+    )
+}
+
+/// The launchd counterpart of [`reload_units`]: a root job that runs when the agent touches the
+/// signal file (written after it validated the new file) and restarts exactly one launchd service.
+pub fn launchd_reload_plist(t: &TargetSpec, label: &str) -> String {
+    let esc = |s: &str| {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+    };
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+         <plist version=\"1.0\">\n<dict>\n\
+         \t<key>Label</key>\n\t<string>{}</string>\n\
+         \t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/launchctl</string>\n\t\t<string>kickstart</string>\n\t\t<string>-k</string>\n\t\t<string>system/{}</string>\n\t</array>\n\
+         \t<key>WatchPaths</key>\n\t<array>\n\t\t<string>{}</string>\n\t</array>\n\
+         </dict>\n</plist>\n",
+        esc(&mac_reload_label(t)),
+        esc(label),
+        esc(&vault_core::nodes_apply::reload_signal_unit_path(MAC_STATE_DIR, &t.id))
+    )
+}
+
+fn mac_reload_label(t: &TargetSpec) -> String {
+    format!(
+        "io.unenverse.reload.{}",
+        unit_name(t).trim_start_matches("unv-reload-")
     )
 }
 
@@ -290,6 +339,14 @@ pub fn effective_hub(o: &Options) -> String {
 
 /// Everything to do, in order, up to (not including) starting the service.
 pub fn plan(o: &Options) -> CliResult<Vec<Step>> {
+    if cfg!(target_os = "macos") {
+        plan_macos(o)
+    } else {
+        plan_linux(o)
+    }
+}
+
+fn check_targets(o: &Options) -> CliResult {
     if o.targets.is_empty() {
         return Err(CliError::invalid("Give at least one --target"));
     }
@@ -308,6 +365,118 @@ pub fn plan(o: &Options) -> CliResult<Vec<Step>> {
             )));
         }
     }
+    Ok(())
+}
+
+/// macOS: a role account, ACLs from `chmod +a`, and launchd jobs instead of systemd units. A
+/// loopback relay needs `socat`, which macOS does not ship, so it is refused rather than half done.
+pub fn plan_macos(o: &Options) -> CliResult<Vec<Step>> {
+    check_targets(o)?;
+    if o.relay.is_some() {
+        return Err(CliError::invalid(
+            "--relay needs socat, which macOS does not ship; point --hub at an https hub instead",
+        ));
+    }
+    let plist = format!("{MAC_DAEMONS_DIR}/{MAC_LABEL}.plist");
+    let owner = format!("{MAC_USER}:{MAC_USER}");
+    let mut p = vec![
+        // A free id in the 200-400 service range, used for both the user and its group.
+        sh(&[
+            "sh",
+            "-c",
+            &format!(
+                "dscl . -read /Users/{MAC_USER} >/dev/null 2>&1 || {{ \
+                 id=$(dscl . -list /Users UniqueID | awk '$2>=300 && $2<400 {{m=$2}} END {{print m ? m+1 : 300}}') && \
+                 dscl . -create /Groups/{MAC_USER} PrimaryGroupID $id && \
+                 dscl . -create /Users/{MAC_USER} UniqueID $id && \
+                 dscl . -create /Users/{MAC_USER} PrimaryGroupID $id && \
+                 dscl . -create /Users/{MAC_USER} UserShell /usr/bin/false && \
+                 dscl . -create /Users/{MAC_USER} NFSHomeDirectory {MAC_STATE_DIR} && \
+                 dscl . -create /Users/{MAC_USER} IsHidden 1; }}"
+            ),
+        ]),
+        sh(&["install", "-d", "-m", "755", "/usr/local/bin"]),
+        Step::InstallBinary(BIN.into()),
+        sh(&["install", "-d", "-o", MAC_USER, "-g", MAC_USER, "-m", "700", MAC_CONFIG_DIR]),
+        sh(&["install", "-d", "-o", MAC_USER, "-g", MAC_USER, "-m", "700", MAC_STATE_DIR]),
+        Step::Write {
+            path: format!("{MAC_CONFIG_DIR}/node.toml"),
+            mode: 0o600,
+            content: node_toml(o),
+        },
+        sh(&["chown", &owner, &format!("{MAC_CONFIG_DIR}/node.toml")]),
+    ];
+    for t in &o.targets {
+        let file = t.path.display().to_string();
+        let (f_acl, d_acl) = if t.apply {
+            (
+                "read,write,append,readattr,readextattr",
+                "list,search,add_file,delete_child,readattr",
+            )
+        } else {
+            ("read,readattr,readextattr", "search")
+        };
+        p.push(sh(&[
+            "chmod",
+            "+a",
+            &format!("{MAC_USER} allow {f_acl}"),
+            &file,
+        ]));
+        if let Some(dir) = t.path.parent() {
+            p.push(sh(&[
+                "chmod",
+                "+a",
+                &format!("{MAC_USER} allow {d_acl}"),
+                &dir.display().to_string(),
+            ]));
+        }
+        if let Some(label) = &t.reload_unit {
+            // The agent creates the signal file; its directory must exist for launchd to watch.
+            let signal = vault_core::nodes_apply::reload_signal_unit_path(MAC_STATE_DIR, &t.id);
+            let signal_dir = signal.rsplit_once('/').map_or(MAC_STATE_DIR, |(d, _)| d);
+            p.push(sh(&[
+                "install", "-d", "-o", MAC_USER, "-g", MAC_USER, "-m", "700", signal_dir,
+            ]));
+            p.push(Step::Write {
+                path: format!("{MAC_DAEMONS_DIR}/{}.plist", mac_reload_label(t)),
+                mode: 0o644,
+                content: launchd_reload_plist(t, label),
+            });
+        }
+    }
+    p.push(Step::Write {
+        path: plist.clone(),
+        mode: 0o644,
+        content: launchd_plist(
+            &format!("{MAC_CONFIG_DIR}/node.toml"),
+            MAC_STATE_DIR,
+            BIN,
+            MAC_USER,
+        ),
+    });
+    p.push(Step::Enrol);
+    p.push(sh(&["chown", "-R", &owner, MAC_STATE_DIR]));
+    // Boot out first (it is not loaded on a first install), so a re-install picks up the new
+    // binary and identity, like `systemctl restart`.
+    let load = |path: &str, label: &str| {
+        sh(&[
+            "sh",
+            "-c",
+            &format!(
+                "launchctl bootout system/{label} 2>/dev/null; launchctl bootstrap system {path}"
+            ),
+        ])
+    };
+    for t in o.targets.iter().filter(|t| t.reload_unit.is_some()) {
+        let label = mac_reload_label(t);
+        p.push(load(&format!("{MAC_DAEMONS_DIR}/{label}.plist"), &label));
+    }
+    p.push(load(&plist, MAC_LABEL));
+    Ok(p)
+}
+
+fn plan_linux(o: &Options) -> CliResult<Vec<Step>> {
+    check_targets(o)?;
     let mut p = vec![
         sh(&[
             "sh",
@@ -467,8 +636,11 @@ mod tests {
             "/usr/local/etc/unv-node/node.toml",
             "/usr/local/var/unv-node",
             "/usr/local/bin/unv",
+            "_unvnode",
         );
         for part in [
+            "<key>UserName</key>",
+            "<string>_unvnode</string>",
             "<string>io.unenverse.node</string>",
             "<string>/usr/local/bin/unv</string>",
             "<string>node</string>",
@@ -478,7 +650,7 @@ mod tests {
         ] {
             assert!(plist.contains(part), "{part}");
         }
-        let odd = launchd_plist("/etc/a&b<c>.toml", "/s", "/b");
+        let odd = launchd_plist("/etc/a&b<c>.toml", "/s", "/b", "u");
         assert!(odd.contains("/etc/a&amp;b&lt;c&gt;.toml"));
         assert!(!odd.contains("a&b"));
     }
@@ -655,5 +827,81 @@ mod tests {
             steps.last().unwrap().describe(),
             "systemctl restart unv-node"
         );
+    }
+
+    fn mac_steps(targets: Vec<TargetSpec>) -> Vec<String> {
+        plan_macos(&opts(targets))
+            .unwrap()
+            .iter()
+            .map(Step::describe)
+            .collect()
+    }
+
+    #[test]
+    fn the_macos_plan_uses_a_role_account_acls_and_launchd_never_systemd() {
+        let steps = mac_steps(vec![wg(true)]);
+        assert!(steps
+            .iter()
+            .any(|s| s.contains("dscl . -create /Users/_unvnode")));
+        assert!(steps.iter().any(|s| {
+            s.starts_with(
+            "chmod +a _unvnode allow read,write,append,readattr,readextattr /etc/wireguard/wg0.conf"
+        )
+        }));
+        assert!(steps
+            .iter()
+            .any(|s| s.starts_with("chmod +a _unvnode allow list,search,add_file,delete_child")));
+        assert!(steps
+            .iter()
+            .any(|s| s == "write /Library/LaunchDaemons/io.unenverse.node.plist (mode 644)"));
+        for s in &steps {
+            assert!(
+                !s.contains("systemctl") && !s.contains("setfacl") && !s.contains("useradd"),
+                "{s}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_macos_observe_only_target_gets_read_access_and_no_write() {
+        let steps = mac_steps(vec![wg(false)]);
+        assert!(steps
+            .iter()
+            .any(|s| s.contains("allow read,readattr,readextattr /etc/wireguard/wg0.conf")));
+        assert!(!steps
+            .iter()
+            .any(|s| s.contains("add_file") || s.contains("write,")));
+    }
+
+    #[test]
+    fn the_macos_plan_enrols_before_it_loads_the_agent_and_reloads_by_watching_the_signal() {
+        let t = parse_target(
+            "id=ng,path=/usr/local/etc/nginx/nginx.conf,project=p,exporter=env,apply=true,reload=homebrew.mxcl.nginx",
+        )
+        .unwrap();
+        let steps = plan_macos(&opts(vec![t.clone()])).unwrap();
+        let enrol = steps.iter().position(|s| *s == Step::Enrol).unwrap();
+        let load = steps
+            .iter()
+            .position(|s| {
+                s.describe().contains(
+                    "launchctl bootstrap system /Library/LaunchDaemons/io.unenverse.node.plist",
+                )
+            })
+            .unwrap();
+        assert!(enrol < load);
+        let plist = launchd_reload_plist(&t, "homebrew.mxcl.nginx");
+        assert!(plist.contains("<string>system/homebrew.mxcl.nginx</string>"));
+        assert!(plist.contains("<key>WatchPaths</key>"));
+        // Watches the signal the agent writes after validating, never the target file itself.
+        assert!(plist.contains("/usr/local/var/unv-node/reload/ng"));
+        assert!(!plist.contains("nginx.conf"));
+    }
+
+    #[test]
+    fn macos_refuses_a_relay_because_socat_is_not_there() {
+        let mut o = opts(vec![wg(true)]);
+        o.relay = Some("hub:8743".into());
+        assert!(plan_macos(&o).unwrap_err().to_string().contains("socat"));
     }
 }

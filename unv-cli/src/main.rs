@@ -1357,7 +1357,7 @@ enum NodeCmd {
         state_dir: Option<PathBuf>,
     },
     /// On the managed host, as root: install the agent as a hardened systemd
-    /// service, enrol it, and give it access to exactly the files you name.
+    /// service (a launchd job on macOS), enrol it, and give it access to exactly the files you name.
     /// `--plan` prints every step without running any.
     Install {
         /// The hub, `https://…` (or `http://` with `--relay`).
@@ -2734,7 +2734,7 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
                     }
                 }
             };
-            let state = std::path::PathBuf::from("/var/lib/unv-node");
+            let state = std::path::PathBuf::from(unv_app::node_install::state_dir());
             let hub_url = unv_app::node_install::effective_hub(&o);
             let mut enrol = || {
                 node_cmd::enroll(
