@@ -39,6 +39,7 @@ import {
   showPasswordPrompt,
   clipboardWrite,
   saveFile,
+  wireModLabels,
 } from './utils';
 import { poolsOf, poolNext } from './pools';
 import {
@@ -390,6 +391,7 @@ async function init() {
   // Focus trapping and restoration for every overlay. See its doc comment for
   // why it observes classes instead of hooking each open/close site.
   wireModalFocus();
+  wireModLabels();
 
   // Wrap form selects as custom dropdowns (WebKitGTK compositing workaround)
   ['f-secret-type', 'f-price', 'f-env'].forEach((id) => {

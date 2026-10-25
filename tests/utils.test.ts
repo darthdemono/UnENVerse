@@ -249,3 +249,27 @@ describe('clipboard', () => {
     expect(document.querySelectorAll('textarea').length).toBe(before);
   });
 });
+
+describe('Mac shortcut labels', () => {
+  const setPlatform = (p: string) =>
+    Object.defineProperty(navigator, 'platform', { value: p, configurable: true });
+
+  it('shows Cmd keys on a Mac and leaves Ctrl everywhere else', async () => {
+    const { modLabel, wireModLabels } = await import('../src/ts/utils');
+    document.body.innerHTML =
+      '<input id="search" placeholder="Search… Ctrl+K | x"><kbd>Ctrl+Shift+P</kbd><kbd>Esc</kbd>';
+    setPlatform('Linux x86_64');
+    expect(modLabel('Ctrl+N')).toBe('Ctrl+N');
+    wireModLabels();
+    expect(document.querySelector('kbd')!.textContent).toBe('Ctrl+Shift+P');
+    setPlatform('MacIntel');
+    expect(modLabel('Ctrl+N')).toBe('⌘N');
+    expect(modLabel('Ctrl+Shift+P')).toBe('⇧⌘P');
+    wireModLabels();
+    expect([...document.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['⇧⌘P', 'Esc']);
+    expect((document.getElementById('search') as HTMLInputElement).placeholder).toBe(
+      'Search… ⌘K | x',
+    );
+    setPlatform('');
+  });
+});
