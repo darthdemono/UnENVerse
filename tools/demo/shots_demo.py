@@ -123,7 +123,7 @@ def main():
             # sectioned form is shown holding real values.
             wd.click("#card-grid > .card [data-action='edit']")
             wait_for(lambda: wd.exists("#modal-overlay.open"), 10, "the edit form")
-            wd.js("document.querySelector('#key-modal .modal-body').scrollTop = arguments[0]", [scroll])
+            wd.js("document.querySelector('#key-modal').scrollTop = arguments[0]", [scroll])
 
         go("edit-secret", lambda: (panel("secrets"), edit_first(0)), 1.0)
         go("edit-secret-more", lambda: (panel("secrets"), edit_first(900)), 1.0)
@@ -132,8 +132,12 @@ def main():
 
         def open_bundle():
             panel("secrets")
+            # Fold the card the earlier shots left open, then open the bundle and bring it up.
+            wd.js("const c = document.querySelector('#card-grid > .card.expanded .card-chevron'); if (c) c.click()")
+            time.sleep(0.4)
             wd.click(".bundle-card-wrap [data-action='bundle-toggle']")
-            time.sleep(0.8)
+            time.sleep(0.6)
+            wd.js("document.querySelector('.bundle-card-wrap').scrollIntoView({block: 'start'})")
 
         go("bundle", open_bundle, 1.0)
         go("authenticator", lambda: panel("auth"), 1.5)
