@@ -22,6 +22,8 @@ pub enum SourceKind {
     Compose,
     WireGuard,
     Nginx,
+    /// Findings from a leak scanner, built by [`plan_leaks`], never read from a file by [`read`].
+    Gitleaks,
 }
 
 impl SourceKind {
@@ -41,6 +43,7 @@ impl SourceKind {
             Self::Compose => "compose",
             Self::WireGuard => "wireguard",
             Self::Nginx => "nginx",
+            Self::Gitleaks => "gitleaks",
         }
     }
 }
@@ -374,6 +377,7 @@ fn read(kind: SourceKind, label: &str, text: &str) -> ParsedSource {
         SourceKind::Env => env_source(label, text),
         SourceKind::Compose => compose_source(label, text),
         SourceKind::WireGuard | SourceKind::Nginx => key_value_source(kind, label, text),
+        SourceKind::Gitleaks => unreachable!("leak findings arrive through plan_leaks"),
     }
 }
 
@@ -445,7 +449,83 @@ pub fn plan(
     text: &str,
     template: bool,
 ) -> CliResult<Plan> {
-    let parsed = read(kind, label, text);
+    plan_parsed(access, read(kind, label, text), template)
+}
+
+/// A secret a leak scanner reported in a file: the scanner's rule, the line it starts on and the
+/// matched text.
+pub struct LeakHit {
+    pub rule: String,
+    pub line: usize,
+    pub secret: String,
+}
+
+/// Finds each hit's secret in `text` and plans the file like any other migration source. A secret
+/// the file no longer contains (the scanner also decodes base64 and similar) is listed as
+/// unsupported rather than guessed at. Two hits on the same text count once.
+pub fn plan_leaks(
+    access: &Access,
+    label: &str,
+    text: &str,
+    hits: &[LeakHit],
+    template: bool,
+) -> CliResult<Plan> {
+    let mut fields: Vec<SourceField> = Vec::new();
+    let mut unsupported = Vec::new();
+    for hit in hits {
+        // The line is 1-based in current gitleaks; searching from the line before tolerates a
+        // 0-based report and a secret that starts on an earlier line of a multi-line match.
+        let from: usize = text
+            .split_inclusive('\n')
+            .take(hit.line.saturating_sub(2))
+            .map(str::len)
+            .sum();
+        let found = (!hit.secret.is_empty())
+            .then(|| text[from..].find(&hit.secret).map(|at| from + at))
+            .flatten();
+        let Some(start) = found else {
+            unsupported.push(format!(
+                "{} at line {}: the secret is not in the file as written",
+                hit.rule, hit.line
+            ));
+            continue;
+        };
+        let end = start + hit.secret.len();
+        if fields.iter().any(|f| start < f.end && f.start < end) {
+            continue;
+        }
+        let digest = sha256_hex(hit.secret.as_bytes());
+        fields.push(SourceField {
+            name: format!("{} {} line {}", hit.rule, label, hit.line),
+            logical_value: hit.secret.clone(),
+            raw_value: hit.secret.clone(),
+            start,
+            end,
+            source_id: format!(
+                "gitleaks:{}:{}:{}",
+                label_id(label),
+                hit.rule,
+                &digest[..12]
+            ),
+        });
+    }
+    fields.sort_by_key(|f| f.start);
+    plan_parsed(
+        access,
+        ParsedSource {
+            kind: SourceKind::Gitleaks,
+            label: label.into(),
+            text: text.into(),
+            fields,
+            unsupported,
+            has_comments: false,
+        },
+        template,
+    )
+}
+
+fn plan_parsed(access: &Access, parsed: ParsedSource, template: bool) -> CliResult<Plan> {
+    let (kind, label) = (parsed.kind, parsed.label.clone());
     let vault = access.load_vault_or_empty()?;
     let conn = access.conn()?;
     let mut planned = Vec::new();
@@ -493,7 +573,7 @@ pub fn plan(
         .collect();
     let preview = Preview {
         format: kind.as_str().into(),
-        source: label.into(),
+        source: label,
         template,
         counts: report,
         items,
