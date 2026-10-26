@@ -4,6 +4,13 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.61.1 (2026-10-26)
+
+### Changed
+
+- Release notes list each commit as a linked short hash with its linked pull request number, in place of the author name.
+- Dependency updates: the GitHub Actions group (`taiki-e/install-action`, CodeQL), the Rust 1.98 build images, and the npm minor and patch group (Playwright, Tauri CLI, Vitest coverage, ESLint, jsdom, Prettier, simple-icons, typescript-eslint).
+
 ## 0.61.0 (2026-10-25)
 
 ### Added
