@@ -901,6 +901,8 @@ jobs:
       - name: Changelog since the previous tag
         id: changelog
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # Exclude the tag being released by NAME, not by ${GITHUB_REF_NAME}.
@@ -916,7 +918,15 @@ jobs:
           fi
           {
             echo "commits<<ENDOFCHANGELOG"
-            git log --no-merges --pretty=format:"- %s (%an)" "$RANGE"
+            # "- [`abc1234`](commit url) subject ([#12](pull url))": the hash links to the
+            # commit, the pull request is the one that introduced it (none for a direct push).
+            git log --no-merges --pretty=format:"%H %s" "$RANGE" | while read -r sha subject || [ -n "$sha" ]; do
+              pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/pulls" --jq '.[0].number // empty' 2>/dev/null || true)
+              subject=$(printf '%s' "$subject" | sed -E 's/ \(#[0-9]+\)$//')
+              line="- [\`${sha:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${sha}) ${subject}"
+              [ -n "$pr" ] && line="${line} ([#${pr}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${pr}))"
+              echo "$line"
+            done
             echo ""
             echo "ENDOFCHANGELOG"
           } >> "$GITHUB_OUTPUT"
