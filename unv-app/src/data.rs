@@ -171,6 +171,12 @@ pub fn find_entry_index(vault: &Value, query: &str) -> CliResult<usize> {
     if exact.len() == 1 {
         return Ok(exact[0]);
     }
+    // A generated variable name (`X_COOKIE`) names its entry with no key id, so
+    // two entries of one provider that differ by role need no id to be told apart.
+    let by_var = entries_generating(&list, query);
+    if by_var.len() == 1 {
+        return Ok(by_var[0]);
+    }
     if exact.len() > 1 {
         return Err(ambiguous(query, &exact, &list));
     }
@@ -189,6 +195,19 @@ pub fn find_entry_index(vault: &Value, query: &str) -> CliResult<usize> {
     }
 }
 
+/// Entries that generate the environment variable `var` (case-insensitive).
+fn entries_generating(list: &[Value], var: &str) -> Vec<usize> {
+    list.iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            crate::envfile::names_generated_by(e, None, false)
+                .iter()
+                .any(|(n, _)| n.eq_ignore_ascii_case(var))
+        })
+        .map(|(i, _)| i)
+        .collect()
+}
+
 fn ambiguous(query: &str, hits: &[usize], list: &[Value]) -> CliError {
     let names: Vec<String> = hits
         .iter()
@@ -205,7 +224,7 @@ fn ambiguous(query: &str, hits: &[usize], list: &[Value]) -> CliError {
         })
         .collect();
     CliError::ambiguous(format!(
-        "'{query}' matches {} entries: {}\nBe exact, or use provider:key_id.",
+        "'{query}' matches {} entries: {}\nBe exact, use provider:key_id, or a generated variable name such as PROVIDER_COOKIE.",
         hits.len(),
         names.join(", ")
     ))
