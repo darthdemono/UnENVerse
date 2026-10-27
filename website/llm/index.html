@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UnENVerse for LLMs and AI agents</title>
+  <meta name="description" content="How an LLM or AI coding agent uses UnENVerse: the unv command line, generated environment variable names, redacted output and why it costs few tokens.">
+  <link rel="canonical" href="{{SITE_URL}}/llm/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="UnENVerse for LLMs and AI agents">
+  <meta property="og:description" content="How an LLM or AI coding agent uses UnENVerse: the unv command line, generated environment variable names, redacted output and why it costs few tokens.">
+  <meta property="og:url" content="{{SITE_URL}}/llm/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <p class="small"><a href="/guides/">Guides</a> / LLM support</p>
+      <h1>UnENVerse for LLMs and AI agents</h1>
+      <p class="lead">An agent needs to use a credential, not read it. UnENVerse gives it a command line that does the first and refuses the second, in as few tokens as the job allows.</p>
+
+      <h2 id="cli">The command line is the interface</h2>
+      <p>There is no separate agent protocol to install. An agent drives <code>unv</code> the way it drives <code>git</code>. The desktop app, the CLI and <code>unv-server</code> share one Rust core and one vault, so what the app shows is what the CLI returns. The app does not need a model in the loop; the CLI is where an agent works.</p>
+      <p>The project looked at an MCP server and chose not to build one. An MCP server adds a long-running process and a tool list that the model has to load into its context on every session. <code>unv</code> adds nothing to the context until the agent runs a command. If your agent only speaks MCP, wrap <code>unv</code> in a thin tool of your own; the contract below is stable enough for that.</p>
+
+      <h2 id="tokens">Why it costs few tokens</h2>
+      <ul>
+        <li><strong>One call describes everything.</strong> <code>unv describe</code> prints the whole command tree, every flag, the exit codes and the output envelope as JSON, generated from the same definition the binary runs on. The agent reads it once instead of guessing from error messages or paging through help.</li>
+        <li><strong>Output is small and fixed.</strong> With <code>--json</code> every command answers with the same envelope. A stored value is printed as a fingerprint and a length (<code>sha256:d4291adb444f</code>, 40 characters), never as the value.</li>
+        <li><strong>Equal fingerprints mean equal secrets.</strong> The agent can check for drift and duplicates without any value entering its context.</li>
+        <li><strong>Exit codes carry the answer.</strong> Not found, ambiguous, denied, conflict and invalid input each have their own code, so a retry loop needs no parsing of prose.</li>
+      </ul>
+
+      <h2 id="names">Name a secret by its variable, not by an id</h2>
+      <p>Every value an entry holds becomes an environment variable named <code>PROVIDER_ROLE</code>: <code>X_KEY</code>, <code>X_COOKIE</code>, <code>X_USER</code>, <code>X_PASSWORD</code>. The role says what the value is. That name is the handle:</p>
+<pre><code>unv get X_COOKIE --field api_key --reveal
+unv exec --entry X_COOKIE -- ./scraper</code></pre>
+      <p>Two entries for the same site that differ by role (a key and a cookie) need no key id to tell them apart. A key id, label or version is only for two credentials of the same role, such as a second API key. A bare provider name that matches several entries is refused with exit code 4 and the candidates, never guessed.</p>
+
+      <h2 id="use">Use a secret without reading it</h2>
+<pre><code>unv exec --entry GitHub -- gh api user      # run a program with the value in its environment
+unv render nginx.conf.tpl --out nginx.conf  # build a file from ${Entry/field} references
+unv get GitHub                              # fingerprint and length only</code></pre>
+      <p>Only <code>--reveal</code>, <code>--out</code>, <code>exec</code> and <code>render</code> materialise a value. A vault-wide export to the terminal is refused, not masked. This protects the conversation with the agent, not the machine: a process started by <code>unv exec</code> can read its own environment.</p>
+
+      <h2 id="features">Every AI feature</h2>
+      <ul>
+        <li><strong>Redacted by default.</strong> Every stored value prints as a fingerprint and a length; <code>--reveal</code> is opt-in and meant for a human at a terminal. A <code>${ref}</code> is never masked, so an agent can wire configs together blind.</li>
+        <li><strong>Use without reading.</strong> <code>unv exec</code> runs a program with the value in its environment, <code>unv render</code> and <code>unv get --out</code> write it to a file, and <code>env</code>, <code>emit</code>, <code>curl</code>, <code>cookie</code> and <code>file write</code> do the same for other shapes. None of them print the value.</li>
+        <li><strong>Secrets nobody sees.</strong> <code>unv entry add NAME --generate</code> and <code>entry rotate NAME --generate</code> create the value inside the process that stores it; the caller gets a fingerprint back. <code>user token new</code> checks the output policy before it mints.</li>
+        <li><strong>Output shield.</strong> <code>unv shield -- COMMAND</code> runs a command and replaces known vault values in its stdout and stderr, so a tool that echoes a token does not put it in the transcript. It is explicit; normal output is untouched.</li>
+        <li><strong>One contract, one call.</strong> <code>unv describe</code> prints every command, flag, exit code and the output envelope as JSON, generated from the same definition the binary runs on.</li>
+        <li><strong>Machine-readable results.</strong> With <code>--json</code> every command answers <code>{ok, command, data}</code> or <code>{ok:false, error:{code, message, details}}</code>. Ten exit codes separate not found (3), ambiguous (4), denied (5), conflict (6), unavailable (7), needs confirmation (8), redacted (9) and invalid (10), so a retry loop never parses prose.</li>
+        <li><strong>Never guesses, never assumes yes.</strong> An ambiguous name exits 4 with <code>details.candidates</code>; a destructive command with no <code>--yes</code> and no terminal exits 8; <code>--dry-run</code> is enforced inside the single write point, so a command that forgets to check it still cannot write.</li>
+        <li><strong>Least privilege for the agent.</strong> <code>unv user token new</code> mints a scoped API token for a sub-user; classes and <code>perm</code> limit what that user can read or write, and strict-write can be switched on per user or class. The agent gets a token, not the master password.</li>
+        <li><strong>Key pools.</strong> Several interchangeable keys for one service; <code>unv pool next openai</code> returns the next one that is not cooling and a rate-limited key can be marked cooling, so an agent rotates through keys without a human.</li>
+        <li><strong>Web sessions.</strong> A cookie entry holds the jar and what it was minted against (User-Agent, origin, header recipes such as <code>x-csrf-token</code> copied from a cookie); <code>unv curl</code> and <code>unv cookie</code> use it without printing it.</li>
+        <li><strong>Checks an agent can run.</strong> <code>unv scan</code> reports weak, expiring, duplicated and stale-reference secrets, <code>unv doctor</code> checks vault integrity, and <code>unv audit</code> verifies a hash-chained audit log. Each exits non-zero when something is wrong.</li>
+        <li><strong>Project context.</strong> <code>unv use</code> pins a project and environment to the current directory, so an agent in that folder needs no flags.</li>
+        <li><strong>The password stays out of argv.</strong> <code>--password-command</code>, <code>--password-file</code>, <code>--env-file</code> and <code>UNV_PASSWORD</code> keep the master password off the command line and out of the process list.</li>
+        <li><strong>A human gate for production.</strong> A node can require a signed approval before the hub pushes a config to a host, so an agent can propose a change and only you can ship it.</li>
+        <li><strong>Readable by models.</strong> This site publishes <code>/llms.txt</code>, <code>/llms-full.txt</code> and <code>/agents.txt</code>.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>
