@@ -13,6 +13,7 @@ import { saveFile, showConfirm, showPasswordPrompt, showToast } from './utils';
 import { buildCopyText, type CopyProfile, type MetadataStyle } from './copy-profile';
 import { html, setHtml } from './html';
 import { inTauri, invokeTauri } from './tauri';
+import { GROUP_ORDER, groupLabel, groupOrder } from './secret-types';
 
 // ── Theme definitions ──────────────────────────────────────────────────────
 
@@ -75,6 +76,47 @@ const DEFAULT_SIDEBAR_SECTIONS: AppSettings['sidebarSections'] = [
   'pools',
   'prefixes',
 ];
+
+/** Up/down editor for the order of the "Group by secret type" headings. */
+export function buildTypeOrderEditor() {
+  const container = document.getElementById('s-type-order');
+  if (!container) return;
+  const order = groupOrder(GROUP_ORDER, Settings.get('typeOrder') || []);
+  setHtml(container, '');
+  order.forEach((type, i) => {
+    const row = document.createElement('div');
+    row.className = 'sidebar-order-row';
+    setHtml(
+      row,
+      html`<span class="sidebar-order-label">${groupLabel(type)}</span>
+        <div class="sidebar-order-btns">
+          <button class="btn-xs" data-type="${type}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>
+            ▲
+          </button>
+          <button
+            class="btn-xs"
+            data-type="${type}"
+            data-dir="1"
+            ${i === order.length - 1 ? 'disabled' : ''}
+          >
+            ▼
+          </button>
+        </div>`,
+    );
+    container.appendChild(row);
+  });
+  container.onclick = (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-dir]');
+    if (!btn) return;
+    const from = order.indexOf(btn.dataset.type!);
+    const to = from + Number(btn.dataset.dir);
+    if (from < 0 || to < 0 || to >= order.length) return;
+    [order[from], order[to]] = [order[to], order[from]];
+    Settings.set('typeOrder', order);
+    triggerRender();
+    buildTypeOrderEditor();
+  };
+}
 
 export function buildSidebarOrderEditor() {
   const container = document.getElementById('s-sidebar-sections');
@@ -843,6 +885,7 @@ export function openSettings() {
 
   buildThemeSwatches();
   buildSidebarOrderEditor();
+  buildTypeOrderEditor();
   buildPanelOrderEditor();
 
   (document.getElementById('s-accent') as HTMLInputElement).value = s.accentColor;
@@ -869,6 +912,8 @@ export function openSettings() {
   renderCopyPreview();
   (document.getElementById('s-custom-css') as HTMLTextAreaElement).value = s.customCss || '';
   (document.getElementById('s-group-by-type') as HTMLInputElement).checked = s.groupByType;
+  (document.getElementById('s-created-precision') as HTMLSelectElement).value =
+    s.createdPrecision || 'date';
   (document.getElementById('s-remember-filters') as HTMLInputElement).checked =
     s.rememberFilters !== false;
   (document.getElementById('s-experimental-ptypes') as HTMLInputElement).checked =
@@ -1026,6 +1071,8 @@ export function saveSettings() {
     envIncludePrefix: (document.getElementById('s-env-include-prefix') as HTMLInputElement).checked,
     customCss: (document.getElementById('s-custom-css') as HTMLTextAreaElement).value,
     groupByType: (document.getElementById('s-group-by-type') as HTMLInputElement).checked,
+    createdPrecision: ((document.getElementById('s-created-precision') as HTMLSelectElement)
+      .value || 'date') as AppSettings['createdPrecision'],
     rememberFilters: (document.getElementById('s-remember-filters') as HTMLInputElement).checked,
     experimentalProjectTypes: (document.getElementById('s-experimental-ptypes') as HTMLInputElement)
       .checked,

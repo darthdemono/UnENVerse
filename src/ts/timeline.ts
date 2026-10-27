@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright the UnENVerse contributors.
-import { st, earliestEvidence, inTauri, RemoteVaultStore } from './state';
+import { st, earliestEvidence, inTauri, RemoteVaultStore, Settings } from './state';
 import type { VaultEntry } from './types';
 import { showToast, showConfirm, clipboardWrite } from './utils';
 import { relativeTime } from './ui-qol';
@@ -56,6 +56,20 @@ function shortDate(iso: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/** The created time at the precision the user chose; the stored value always has seconds. */
+function createdText(iso: string): string {
+  const precision = Settings.get('createdPrecision');
+  if (precision !== 'minute' && precision !== 'second') return shortDate(iso);
+  return new Date(iso).toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(precision === 'second' ? { second: '2-digit' } : {}),
+  });
+}
+
 /**
  * What the Created column says for one entry, and how sure it is.
  *
@@ -69,7 +83,7 @@ export function createdCell(e: VaultEntry): {
   certainty: 'known' | 'bound' | 'unknown';
 } {
   if (e.created_at && !Number.isNaN(Date.parse(e.created_at))) {
-    return { text: shortDate(e.created_at), certainty: 'known' };
+    return { text: createdText(e.created_at), certainty: 'known' };
   }
   const bound = earliestEvidence(e);
   if (bound) return { text: `before ${shortDate(bound)}`, certainty: 'bound' };

@@ -766,7 +766,7 @@ describe('Group by secret type, with bundles and pools', () => {
     Settings.set('groupBundles', true);
     Settings.set('groupByType', true);
     renderGrid();
-    expect(headers()).toEqual(['Bundles', 'API Keys', 'Passwords']);
+    expect(headers()).toEqual(['Bundles', 'Key Pools', 'API Keys', 'Passwords']);
     Settings.set('groupByType', false);
   });
 
@@ -779,15 +779,28 @@ describe('Group by secret type, with bundles and pools', () => {
     Settings.set('groupByType', true);
     renderGrid();
     const kids = [...grid().children];
-    const header = kids.findIndex((k) => k.textContent === 'API Keys');
+    const header = kids.findIndex((k) => k.textContent === 'Key Pools');
     const pool = kids.findIndex(
       (k) => k.classList.contains('pool-card-wrap') && !k.classList.contains('bundle-card-wrap'),
     );
     expect(pool).toBeGreaterThan(header);
     expect(header).toBeGreaterThanOrEqual(0);
-    expect(headers()).toContain('API Keys');
+    expect(headers()).toContain('Key Pools');
     Settings.set('groupByType', false);
     Settings.set('groupPools', false);
+  });
+
+  it('follows the order of secret types the user chose', () => {
+    // A user who wants API keys before bundles sets `typeOrder`; types it omits keep the built-in order.
+    vaultWith();
+    Settings.set('groupByType', true);
+    Settings.set('groupPools', true);
+    Settings.set('typeOrder', ['api_key', 'bundle']);
+    renderGrid();
+    expect(headers()).toEqual(['API Keys', 'Bundles', 'Key Pools', 'Passwords']);
+    Settings.set('typeOrder', []);
+    Settings.set('groupPools', false);
+    Settings.set('groupByType', false);
   });
 
   it('groups a vault with no bundle, with a type that has no heading of its own last', () => {
