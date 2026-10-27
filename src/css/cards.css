@@ -196,7 +196,7 @@
 }
 
 .si-fallback {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: calc(var(--cs-icon) * 0.38);
   font-weight: 700;
   color: var(--accent);
@@ -247,7 +247,7 @@
 }
 
 .card-account {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: var(--cs-acct);
   color: var(--text2);
   line-height: 1.4;
@@ -307,7 +307,7 @@
 
 /* Badges */
 .badge {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   line-height: 1.4;
   letter-spacing: 0.03em;
@@ -492,7 +492,7 @@
   gap: 6px;
   cursor: pointer;
   color: var(--accent);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
@@ -529,7 +529,7 @@
 
 .env-format-badge {
   flex: 0 0 auto;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text3);
   background: var(--surface2);
@@ -584,7 +584,7 @@
 }
 
 .key-label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text3);
   text-transform: uppercase;
@@ -594,7 +594,7 @@
 }
 
 .key-value {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text2);
   flex: 1;
@@ -637,7 +637,7 @@
   align-items: center;
   gap: 7px;
   cursor: pointer;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   color: var(--text2);
   font-weight: 600;
@@ -685,7 +685,7 @@
 }
 
 .meta-key {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text3);
   text-transform: uppercase;
@@ -698,7 +698,7 @@
 .meta-val {
   color: var(--text2);
   flex: 1;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   line-height: 1.5;
   /* Break between words first and inside a word only when one cannot fit (a long URL).
@@ -723,7 +723,7 @@
 }
 
 .scope-pill {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text2);
   background: var(--surface2);
@@ -740,7 +740,7 @@
 }
 
 .cat-pill {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--accent);
   background: var(--accent-dim);
@@ -769,7 +769,7 @@
 }
 
 .empty-state small {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -777,7 +777,7 @@
   background: rgba(88, 180, 220, 0.12);
   color: #58b4dc;
   border-color: rgba(88, 180, 220, 0.25);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
 }
 
 .badge-compromised {
@@ -805,7 +805,7 @@
 }
 
 .usedby-badge {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: #58b4dc;
   background: rgba(88, 180, 220, 0.1);
@@ -838,7 +838,7 @@
 
 /* Chunk type card — env-style field rows */
 .chunk-field-row .chunk-field-key {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text2);
   text-transform: none;
@@ -865,8 +865,9 @@
    squeezed into a single card's column width. */
 .pool-card-wrap {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg2);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r);
+  background: var(--surface);
   overflow: hidden;
 }
 .pool-card-wrap.expanded {
@@ -874,56 +875,23 @@
 }
 .pool-card-summary {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   min-height: var(--cs-card-h, 236px);
 }
 .pool-card-wrap.expanded .pool-card-summary {
   min-height: 0;
 }
-.pool-card-expand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  flex-shrink: 0;
+.pool-head {
+  cursor: default;
 }
-.pool-card-chevron {
-  transition: transform 0.15s;
+.pool-card-wrap.expanded .card-chevron svg {
+  transform: rotate(180deg);
 }
-.pool-card-wrap.expanded .pool-card-chevron {
-  transform: rotate(90deg);
-}
-.pool-card-icon {
-  font-size: 16px;
+.pool-tile {
   color: var(--accent);
-  flex-shrink: 0;
-}
-.pool-card-name {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pool-card-badge {
-  margin-left: auto;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  color: var(--text3);
-  white-space: nowrap;
-}
-.pool-card-copy {
-  flex-shrink: 0;
 }
 .pool-card-members {
   display: grid;

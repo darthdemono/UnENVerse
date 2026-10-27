@@ -61,7 +61,7 @@
 }
 
 .project-count {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   background: var(--surface3);
   border-radius: 4px;
@@ -237,7 +237,7 @@
   cursor: pointer;
 }
 .env-link-key {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text);
   overflow: hidden;

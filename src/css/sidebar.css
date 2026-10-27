@@ -81,7 +81,7 @@
   gap: 7px;
   cursor: pointer;
   color: var(--text2);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
   transition: all 0.12s;
@@ -113,7 +113,7 @@
 }
 
 .sidebar-count {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   color: var(--text3);
   background: var(--surface3);
@@ -182,7 +182,7 @@
   border: 1px solid var(--border2);
   border-radius: 6px;
   color: var(--text);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   padding: 4px 8px;
   outline: none;
@@ -240,7 +240,7 @@
 }
 
 .lock-status {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   color: var(--text3);
   padding: 4px 9px;
@@ -263,4 +263,22 @@
    shorter than the glyphs; give it room instead of letting overflow slice it. */
 .sidebar-item .sidebar-label {
   line-height: 1.4;
+}
+
+/* Key pool rows: same shape as every other sidebar row, a small stacked-disc glyph
+   in place of the price dot, the name in the sidebar's own face. */
+.pool-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  color: var(--accent);
+}
+.pool-dot svg {
+  width: 14px;
+  height: 14px;
+}
+.pool-filter-btn.active .pool-dot {
+  color: var(--text);
 }
