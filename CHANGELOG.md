@@ -4,6 +4,22 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.61.2 (2026-10-28)
+
+### Added
+
+- An entry is selected by its generated variable name: `unv get X_COOKIE` and `unv exec --entry X_COOKIE` need no key id when two entries of one provider differ by role.
+- `unv entry add` accepts a second entry for a provider when its generated primary variable differs (a key and a cookie for one site), where it used to demand `--key-id`.
+- Key pools are their own heading under "Group by secret type", and the order of the type headings can be changed in Settings.
+- Settings has a "Created time shown to" choice: the day, the minute or the second, used by the Timeline.
+- The website has an LLM support page, and the README gains a section on working with LLMs and AI agents, listing every agent-facing feature.
+
+### Changed
+
+- Key pool cards, the Key Pools sidebar rows and the Key Pools pane use the bundle card styling.
+- One UI font and one mono font are used everywhere, and form controls inherit the page font.
+- The website's left rail shows an icon with a label, like the app's activity bar.
+
 ## 0.61.1 (2026-10-26)
 
 ### Changed

@@ -201,6 +201,7 @@ unv render config.tpl --out config.conf   # fill ${references} in a template
 - [Projects, chunks and exports](#projects-chunks-and-exports)
 - [Tools](#tools)
 - [Settings, shortcuts and auto-lock](#settings-shortcuts-and-auto-lock)
+- [Working with LLMs and AI agents](#working-with-llms-and-ai-agents)
 - [The CLI](#the-cli)
 - [Entropy sources](#entropy-sources)
 - [Key pools](#key-pools)
@@ -544,6 +545,35 @@ Auto-lock and lock-on-hide are both suspended while you are [serving to the LAN]
 ### Window state
 
 Size, position and maximized state persist across restarts. Visibility deliberately does not. The tray handler hides the window, so saving visibility would mean that hiding to the tray and quitting restores an _invisible_ window next launch, and the app appears to start and do nothing with only the tray icon as a way back. The plugin also skips restoring a position that no connected monitor intersects, so unplugging a second display cannot strand the window off-screen.
+
+## Working with LLMs and AI agents
+
+An agent needs to use a credential, not read it. The `unv` command line is the whole interface, so there is nothing to install into the model's context: it costs tokens only when a command runs.
+
+- **The app and the CLI are one core.** The desktop app, `unv` and `unv-server` share one Rust core and one vault. The agent works through the CLI; the app shows the same data to you.
+- **Few tokens.** `unv describe` prints the whole command tree, flags, exit codes and output envelope as one JSON document, so the agent reads the contract once. Every stored value prints as a fingerprint and a length, never as the value, and exit codes carry the answer (not found, ambiguous, denied, conflict, invalid).
+- **No MCP server.** One was considered and not built: it adds a running process and a tool list in every session. If your agent only speaks MCP, wrap `unv` in a thin tool of your own.
+- **Name a secret by its variable.** Entries generate `PROVIDER_ROLE` variables (`X_KEY`, `X_COOKIE`, `X_USER`), and that name selects the entry: `unv exec --entry X_COOKIE -- ./scraper`. A key id is only needed to tell apart two credentials of the same role.
+
+### Every AI feature
+
+- **Redacted by default.** Every stored value prints as a fingerprint and a length; `--reveal` is opt-in. A `${ref}` is never masked, so an agent can wire configs together blind.
+- **Use without reading.** `unv exec` runs a program with the value in its environment; `render` and `get --out` write it to a file; `env`, `emit`, `curl`, `cookie` and `file write` cover other shapes. None print the value.
+- **Secrets nobody sees.** `entry add --generate` and `entry rotate --generate` create the value inside the process that stores it and return a fingerprint. `user token new` checks the output policy before it mints.
+- **Output shield.** `unv shield -- COMMAND` runs a command and replaces known vault values in its stdout and stderr. It is explicit; normal output is untouched.
+- **One contract, one call.** `unv describe` prints every command, flag, exit code and the output envelope as JSON, generated from the definition the binary runs on.
+- **Machine-readable results.** With `--json` every command answers `{ok, command, data}` or `{ok:false, error:{code, message, details}}`, and ten exit codes separate not found, ambiguous, denied, conflict, unavailable, needs confirmation, redacted and invalid.
+- **Never guesses, never assumes yes.** An ambiguous name exits 4 with `details.candidates`; a destructive command with no `--yes` and no terminal exits 8; `--dry-run` is enforced at the single write point.
+- **Least privilege for the agent.** Least privilege: `user token new` mints a scoped token for a sub-user; classes and `perm` limit what that user can read or write, and strict-write can be switched on per user or class. The agent gets a token, not the master password.
+- **Key pools.** Several interchangeable keys for one service; `unv pool next openai` returns the next key that is not cooling, and a rate-limited key can be marked cooling.
+- **Web sessions.** A cookie entry holds the jar and what it was minted against (User-Agent, origin, header recipes); `unv curl` and `unv cookie` use it without printing it.
+- **Checks an agent can run.** `unv scan` reports weak, expiring, duplicated and stale-reference secrets, `unv doctor` checks vault integrity, `unv audit` verifies a hash-chained audit log.
+- **Project context.** `unv use` pins a project and environment to the current directory, so an agent in that folder needs no flags.
+- **The password stays out of argv.** `--password-command`, `--password-file`, `--env-file` and `UNV_PASSWORD` keep the master password off the command line.
+- **A human gate for production.** A node can require a signed approval before the hub pushes a config to a host, so an agent can propose a change and only you can ship it.
+- **Readable by models.** The site publishes `llms.txt`, `llms-full.txt` and `agents.txt`.
+
+The site has the same guide at `/llm/`.
 
 ## The CLI
 
