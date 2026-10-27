@@ -56,7 +56,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text3);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -258,7 +258,7 @@
 }
 
 .mono-sm {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text2);
 }
@@ -297,7 +297,7 @@
   font-size: 10px;
   white-space: nowrap;
   z-index: 10;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   color: var(--text);
 }
 
@@ -323,7 +323,7 @@
   background: transparent;
   border: none;
   color: var(--text2);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   padding: 5px 8px;
   cursor: pointer;
@@ -382,7 +382,7 @@
 }
 
 .badge-coming {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 8.5px;
   padding: 2px 5px;
   border-radius: 4px;

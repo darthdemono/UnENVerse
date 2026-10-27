@@ -23,7 +23,7 @@
 }
 
 .result-count {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text3);
 }
@@ -44,7 +44,7 @@
   border-radius: 999px;
   background: var(--bg2);
   color: var(--text2);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   cursor: pointer;
   transition:
@@ -79,7 +79,7 @@
   border: 1px solid var(--border2);
   border-radius: 6px;
   color: var(--text);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   padding: 4px 8px;
   outline: none;
@@ -105,7 +105,7 @@
 }
 
 .load-banner code {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   color: var(--accent);
   font-size: 12px;
 }

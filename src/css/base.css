@@ -42,6 +42,7 @@
   --surface0: var(--surface);
   --surface1: var(--surface2);
   --text1: var(--text);
+  --font-ui: "Syne", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   color-scheme: dark;
 }
@@ -165,10 +166,19 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Form controls do not inherit the page font by default, so every input, select and
+   button that no class styled came out in the system face. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   min-height: 100vh;
   overflow: hidden;
   transition:

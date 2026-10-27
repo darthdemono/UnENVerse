@@ -103,7 +103,7 @@
 
 .form-section-title {
   margin: 0;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -137,7 +137,7 @@
    would silently lose what the user originally wrote. */
 .form-hint {
   margin-top: 5px;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   line-height: 1.5;
   color: var(--text2);
@@ -160,7 +160,7 @@
 }
 
 .form-label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   color: var(--text2);
   text-transform: uppercase;
@@ -186,7 +186,7 @@
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
 }
 
 .form-label[title] {
@@ -198,7 +198,7 @@
   border: 1px solid var(--border2);
   border-radius: 7px;
   color: var(--text);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   padding: 8px 11px;
   outline: none;
@@ -207,7 +207,7 @@
 }
 
 .form-input.mono {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -280,7 +280,7 @@ select.form-input {
 }
 
 .cat-chip {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   padding: 4px 10px;
   border-radius: 5px;
@@ -342,7 +342,7 @@ select.form-input {
 }
 
 .icon-item-name {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 8.5px;
   color: var(--text2);
   text-align: center;

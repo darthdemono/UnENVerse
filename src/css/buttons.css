@@ -1,6 +1,6 @@
 /* ── BUTTONS ───────────────────────────────────────── */
 .btn {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -29,7 +29,7 @@
   background: transparent;
   color: var(--text2);
   cursor: pointer;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   transition: all 0.12s;
 }
 

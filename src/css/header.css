@@ -65,7 +65,7 @@ html:has(#relock-overlay.open) #header {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   padding: 3px 8px;
   cursor: default;
