@@ -923,27 +923,6 @@ pub fn cmd_add(
     };
     let mut vault = access.load_vault_or_empty()?;
     let projs = projects(&vault);
-    let existing = data::entries(&vault).iter().any(|e| {
-        data::provider_of(e) == provider
-            && e.get("key_id").and_then(|v| v.as_str())
-                == fields.key_id.as_deref().filter(|s| !s.is_empty())
-    });
-    if existing {
-        // Idempotency for orchestrators: re-running a provisioning script must
-        // not be an error, but it must also not silently overwrite a secret.
-        if if_missing {
-            out::ok(
-                "entry.add",
-                json!({ "provider": provider, "created": false, "reason": "exists" }),
-                || println!("'{provider}' already exists — left alone"),
-            );
-            return Ok(());
-        }
-        return Err(CliError::conflict(format!(
-            "An entry named '{provider}' already exists — use `unv entry set` to change it, or pass a distinct --key-id"
-        )));
-    }
-
     let mut entry = json!({
         "id": uuid::Uuid::new_v4().to_string(),
         "provider": provider,
@@ -987,6 +966,33 @@ pub fn cmd_add(
         let role = default_role(entry.get("secretType").and_then(|v| v.as_str()));
         entry["primary_role"] = json!(role);
     }
+    // Same provider and key id is a duplicate only when the generated variable is the
+    // same too: a key and a cookie for one site are two names and need no key id.
+    let new_var = crate::envfile::primary_name(&entry, None, false);
+    let existing = data::entries(&vault).iter().any(|e| {
+        data::provider_of(e) == provider
+            && e.get("key_id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                == fields.key_id.as_deref().filter(|s| !s.is_empty())
+            && crate::envfile::primary_name(e, None, false) == new_var
+    });
+    if existing {
+        // Idempotency for orchestrators: re-running a provisioning script must
+        // not be an error, but it must also not silently overwrite a secret.
+        if if_missing {
+            out::ok(
+                "entry.add",
+                json!({ "provider": provider, "created": false, "reason": "exists" }),
+                || println!("'{provider}' already exists — left alone"),
+            );
+            return Ok(());
+        }
+        return Err(CliError::conflict(format!(
+            "An entry named '{provider}' already exists — use `unv entry set` to change it, or pass a distinct --key-id"
+        )));
+    }
+
     let fingerprint = out::fingerprint(entry.get("api_key").and_then(|v| v.as_str()).unwrap_or(""));
     let id = entry
         .get("id")

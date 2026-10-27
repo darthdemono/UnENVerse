@@ -365,3 +365,28 @@ fn a_value_from_a_template_is_a_new_entry_not_an_overwrite() {
     assert_eq!(again.code, 6, "{}", again.all());
     assert_eq!(v.reveal_field("Gh", "api_key"), "k-1234567890");
 }
+
+/// Bug: two entries of one provider that differ only by role (a key and a cookie for X)
+/// could be told apart only with `provider:key_id`, so a cookie forced an id on its owner.
+/// The generated variable name (`X_COOKIE`) must name the entry on its own.
+#[test]
+fn a_generated_variable_name_selects_the_entry_without_a_key_id() {
+    let v = Vault::new("entries-by-variable");
+    v.ok(&["entry", "add", "Xsite", "--key", "key-value-1"]);
+    v.ok(&[
+        "entry",
+        "add",
+        "Xsite",
+        "--type",
+        "cookie",
+        "--key",
+        "cookie-value-2",
+    ]);
+    assert_eq!(v.reveal_field("XSITE_COOKIE", "api_key"), "cookie-value-2");
+    assert_eq!(v.reveal_field("xsite_key", "api_key"), "key-value-1");
+    assert_eq!(
+        v.run(&["get", "Xsite", "--field", "api_key"]).code,
+        4,
+        "the bare name stays ambiguous"
+    );
+}

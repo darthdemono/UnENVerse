@@ -138,7 +138,7 @@ pub fn describe(cmd: &Command) -> Value {
         },
         "conventions": {
             "lookup": "Entries resolve by exact provider, then unique case-insensitive substring. \
-                       An ambiguous name is refused (exit 4), never guessed. Disambiguate with 'provider:key_id'.",
+                       An ambiguous name is refused (exit 4), never guessed. Disambiguate with a generated variable name (X_COOKIE) or 'provider:key_id'.",
             "idempotency": "`entry set --create` and `project add --if-missing` are safe to re-run.",
             "confirmation": "Destructive commands need --yes when stdin is not a terminal.",
         },
