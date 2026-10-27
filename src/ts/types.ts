@@ -1052,6 +1052,10 @@ export interface AppSettings {
   )[];
   /** When `true`, the main grid renders section headers grouping cards by secret type. */
   groupByType: boolean;
+  /** How precisely a key's created time is shown (Timeline). Stored values always carry seconds. */
+  createdPrecision: 'date' | 'minute' | 'second';
+  /** The user's own order of the "Group by secret type" headings; types not listed follow the built-in order. */
+  typeOrder: string[];
   /**
    * When `true` (default), entries sharing a key pool collapse into one card
    * in the grid — Phase 24.2. The Key Pools tool pane is unaffected; it always

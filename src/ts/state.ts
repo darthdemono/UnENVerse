@@ -1308,6 +1308,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customCss: '',
   sidebarSections: ['all', 'price', 'env', 'category', 'project', 'tags', 'pools', 'prefixes'],
   groupByType: false,
+  createdPrecision: 'date' as const,
+  typeOrder: [] as string[],
   groupPools: true,
   groupBundles: true,
   configCheckAll: false,

@@ -80,3 +80,38 @@ export function maskWholeFor(secretType: string | null | undefined): boolean {
 export function emittersFor(secretType: string | null | undefined): string[] {
   return secretType ? (findSecretType(secretType)?.emitters ?? []) : [];
 }
+
+/** Section order and headings of "Group by secret type". */
+export const GROUP_ORDER: string[] = [
+  'bundle',
+  'pool',
+  'api_key',
+  'password',
+  'env_var',
+  'connection_string',
+  'ssh_key',
+  'certificate',
+  'file_blob',
+];
+const GROUP_LABELS: Record<string, string> = {
+  bundle: 'Bundles',
+  pool: 'Key Pools',
+  api_key: 'API Keys',
+  password: 'Passwords',
+  env_var: 'Env Variables',
+  connection_string: 'Connections',
+  ssh_key: 'SSH Keys',
+  certificate: 'Certificates',
+  file_blob: 'File Blobs',
+};
+export const groupLabel = (t: string): string =>
+  GROUP_LABELS[t] ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ');
+/**
+ * Types in display order: the user's own order first (`typeOrder` setting), then the
+ * built-in order, then anything else. Only types in `present` are returned.
+ */
+export const groupOrder = (present: Iterable<string>, custom: string[] = []): string[] => {
+  const have = new Set(present);
+  const ranked = [...new Set([...custom, ...GROUP_ORDER])];
+  return [...ranked.filter((t) => have.has(t)), ...[...have].filter((t) => !ranked.includes(t))];
+};

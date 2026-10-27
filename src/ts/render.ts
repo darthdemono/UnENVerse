@@ -32,7 +32,7 @@ import { newStackChunk, stackAdapter, stackAdapters, stackChunkSpec } from './st
 import { iconHTML } from './icons';
 import { normalizeRateLimit } from './ratelimit';
 import { poolsOf, poolBadgeInfo } from './pools';
-import { secretTypeLabel } from './secret-types';
+import { secretTypeLabel, groupLabel, groupOrder } from './secret-types';
 import { hasTotp, startTotpTicker, stopTotpTicker } from './totp';
 import { codeStatus } from './recovery-codes';
 import { renderComposite, renderErrorMessage } from './composite';
@@ -307,7 +307,8 @@ function renderPoolSection(all: VaultEntry[]) {
           data-pool="${name}"
           title="${`${members.length} interchangeable credential${members.length === 1 ? '' : 's'}`}"
         >
-          <span class="pool-chip-sidebar">${name}</span>
+          <span class="pool-dot" aria-hidden="true">${poolSVG}</span>
+          <span class="sidebar-label" title="${name}">${name}</span>
           <span class="sidebar-count">${members.length}</span>
         </button>
       </div>`;
@@ -718,10 +719,7 @@ export function renderGrid() {
           consumedPools.add(poolName);
           const partialMatch =
             !!st.searchQ && poolMembers.length < fullPoolsOf.get(poolName)!.length;
-          put(
-            entry.secretType || 'api_key',
-            buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch),
-          );
+          put('pool', buildPoolCard(poolName, poolMembers, idxOf, animIdx++, partialMatch));
           continue;
         }
         put(entry.secretType || 'api_key', buildCard(entry, idxOf(entry), animIdx++));
@@ -748,7 +746,10 @@ export function renderGrid() {
       );
     }
     if (Settings.get('groupByType')) {
-      groupOrder(cards.map((c) => c.type)).forEach((type) => {
+      groupOrder(
+        cards.map((c) => c.type),
+        Settings.get('typeOrder'),
+      ).forEach((type) => {
         const hdr = document.createElement('div');
         hdr.className = 'type-group-header';
         hdr.textContent = groupLabel(type);
@@ -760,38 +761,6 @@ export function renderGrid() {
     }
   }
 }
-
-/** Section order and headings of "Group by secret type". */
-const GROUP_ORDER: SecretType[] = [
-  'bundle',
-  'api_key',
-  'password',
-  'env_var',
-  'connection_string',
-  'ssh_key',
-  'certificate',
-  'file_blob',
-];
-const GROUP_LABELS: Record<string, string> = {
-  bundle: 'Bundles',
-  api_key: 'API Keys',
-  password: 'Passwords',
-  env_var: 'Env Variables',
-  connection_string: 'Connections',
-  ssh_key: 'SSH Keys',
-  certificate: 'Certificates',
-  file_blob: 'File Blobs',
-};
-const groupLabel = (t: string): string =>
-  GROUP_LABELS[t] ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ');
-/** Types in display order: the listed ones first, anything else after them. */
-const groupOrder = (present: Iterable<string>): string[] => {
-  const have = new Set(present);
-  return [
-    ...GROUP_ORDER.filter((t) => have.has(t)),
-    ...[...have].filter((t) => !GROUP_ORDER.includes(t as SecretType)),
-  ];
-};
 
 function buildBundleCard(
   bundle: VaultEntry,
@@ -1151,6 +1120,8 @@ function buildBundleCard(
  * rendering rule (masking, the 2FA row, cookie handling) already lives there,
  * and a pool member is still, in full, whatever type it is.
  */
+const poolSVG = html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a8 3 0 0 1 16 0 8 3 0 0 1-16 0z"/><path d="M4 7v5a8 3 0 0 0 16 0V7"/><path d="M4 12v5a8 3 0 0 0 16 0v-5"/></svg>`;
+
 function buildPoolCard(
   poolName: string,
   members: VaultEntry[],
@@ -1170,38 +1141,37 @@ function buildPoolCard(
   setHtml(
     summary,
     html`
-      <button
-        type="button"
-        class="pool-card-expand"
-        data-action="pool-card-toggle"
-        data-pool="${poolName}"
-        aria-expanded="${String(expanded)}"
-        title="${expanded ? 'Collapse' : 'Expand'} pool"
-      >
-        <svg
-          class="pool-card-chevron"
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
+      <div class="card-head pool-head">
+        <div class="provider-icon-wrap pool-tile" aria-hidden="true">${poolSVG}</div>
+        <div class="card-meta">
+          <div class="card-provider">
+            <span class="card-provider-name" title="${poolName}">${poolName}</span>
+            <span class="badge badge-keyid pool-card-badge" id="${badgeId}">pool: ${members.length}</span>
+          </div>
+          <div class="card-account">rotates through ${members.length} keys</div>
+        </div>
+        <button
+          type="button"
+          class="card-chevron"
+          data-action="pool-card-toggle"
+          data-pool="${poolName}"
+          aria-expanded="${String(expanded)}"
+          aria-label="${(expanded ? 'Collapse ' : 'Expand ') + poolName}"
         >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
-      <span class="pool-card-icon" aria-hidden="true">⧉</span>
-      <span class="pool-card-name">${poolName}</span>
-      <span class="pool-card-badge" id="${badgeId}">pool: ${members.length}</span>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm pool-card-copy"
-        data-action="pool-card-copy"
-        data-pool="${poolName}"
-        title="Copy the next available key and advance the cursor"
-      >
-        Copy
-      </button>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      </div>
+      <div class="card-foot">
+        <button
+          type="button"
+          class="env-copy-btn"
+          data-action="pool-card-copy"
+          data-pool="${poolName}"
+          title="Copy the next available key and advance the cursor"
+        >${copySVG}<span>Copy next key</span></button>
+      </div>
     `,
   );
   wrap.appendChild(summary);
