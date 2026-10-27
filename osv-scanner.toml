@@ -24,3 +24,7 @@ reason = "basic-toml unmaintained: reached through age's i18n macros, reads age'
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0387"
 reason = "crypto-bigint 0.5.5 timing variability: reached only through ssh-key's p256 (elliptic-curve 0.13); UnENVerse generates and parses Ed25519 keys and never signs with ECDSA. The patched 0.7 line cannot replace 0.5 under elliptic-curve 0.13. Ends when ssh-key moves to an elliptic-curve built on crypto-bigint 0.7.6 or later."
+
+[[IgnoredVulns]]
+id = "GHSA-qwgh-2vcv-g2f7"
+reason = "block-buffer 0.10.4 EagerBuffer/ReadBuffer cursor corruption after a caught panic: reached only through the RustCrypto digests, whose compression callbacks never panic and are never run under catch_unwind here. No patched 0.10 release exists. Ends when the RustCrypto 0.10 digest line is retired."
