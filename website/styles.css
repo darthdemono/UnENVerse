@@ -163,7 +163,7 @@ figure.frame img { border-radius: 12px; border: 1px solid var(--line); box-shado
 /* App shell: the site is laid out like the vault window (top bar, activity rail, sidebar, content). */
 body { display: grid; grid-template-columns: 100%; grid-template-rows: var(--header-h) auto 1fr auto; min-height: 100vh; }
 @media (min-width: 900px) {
-  body { grid-template-columns: 48px 232px minmax(0, 1fr); grid-template-rows: var(--header-h) 1fr auto; }
+  body { grid-template-columns: 68px 232px minmax(0, 1fr); grid-template-rows: var(--header-h) 1fr auto; }
   header.site { grid-column: 1 / -1; grid-row: 1; }
   nav.rail { grid-column: 1; grid-row: 2 / 4; }
   aside.side { grid-column: 2; grid-row: 2 / 4; }
@@ -199,10 +199,10 @@ nav.rail { display: none; }
     position: sticky; top: var(--header-h); height: calc(100vh - var(--header-h)); align-self: start;
   }
 }
-nav.rail a, nav.rail button { position: relative; border: 0; background: none; cursor: pointer; padding: 0; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; color: var(--muted); }
+nav.rail a, nav.rail button { position: relative; border: 0; background: none; cursor: pointer; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 58px; height: 54px; border-radius: 8px; color: var(--muted); font: 600 0.62rem var(--font-head); letter-spacing: 0.02em; }
 nav.rail a:hover, nav.rail button:hover { color: var(--ink); background: var(--surface2); }
 nav.rail a[aria-current="page"], nav.rail button[aria-pressed="true"] { color: var(--accent); background: var(--accent-dim); }
-nav.rail a[aria-current="page"]::before, nav.rail button[aria-pressed="true"]::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
+nav.rail a[aria-current="page"]::before, nav.rail button[aria-pressed="true"]::before { content: ""; position: absolute; left: -5px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
 
 aside.side { display: flex; gap: 6px; overflow-x: auto; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
 aside.side .side-h { display: none; }

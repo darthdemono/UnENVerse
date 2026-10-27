@@ -313,6 +313,7 @@ const NAV = [
   'importing',
   'cli',
   'nodes',
+  'llm',
 ];
 /** Sections that also have an icon in the activity rail. */
 const RAIL = ['home', 'download', 'guides', 'security'];

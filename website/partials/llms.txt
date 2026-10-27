@@ -27,6 +27,7 @@
 - [Guides index]({{SITE_URL}}/guides/)
 - [The unv command line]({{SITE_URL}}/guides/cli/): get, exec, render, bundles, web sessions, OAuth and recovery codes.
 - [Importing from another password manager]({{SITE_URL}}/guides/importing/): Bitwarden, 1Password, KeePass, Proton Pass and others.
+- [LLM support]({{SITE_URL}}/llm/): how an agent uses unv, generated variable names, redacted output and token cost.
 - [Nodes]({{SITE_URL}}/guides/nodes/): deploy rendered configs to your own machines, with approvals.
 
 ## Reference
