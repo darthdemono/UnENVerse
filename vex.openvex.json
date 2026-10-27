@@ -7,6 +7,19 @@
   "statements": [
     {
       "vulnerability": {
+        "name": "GHSA-qwgh-2vcv-g2f7"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/darthdemono/UnENVerse"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "block-buffer 0.10.4 EagerBuffer/ReadBuffer cursor corruption after a caught panic: reached only through the RustCrypto digests, whose compression callbacks never panic and are never run under catch_unwind here. No patched 0.10 release exists. Ends when the RustCrypto 0.10 digest line is retired."
+    },
+    {
+      "vulnerability": {
         "name": "RUSTSEC-2023-0071"
       },
       "products": [
