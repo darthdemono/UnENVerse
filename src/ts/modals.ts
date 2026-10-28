@@ -3052,6 +3052,11 @@ const _dropdownCallbacks = new Map<number, DropdownItem['fn']>();
 let _dropdownItemId = 0;
 let _ddCleanup: (() => void) | null = null;
 
+/** Dismiss the open dropdown or context menu, if any. */
+export function closeDropdown() {
+  _ddClose();
+}
+
 function _ddClose() {
   if (_ddCleanup) {
     _ddCleanup();
