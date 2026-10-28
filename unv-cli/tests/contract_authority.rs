@@ -194,3 +194,29 @@ fn a_delegate_cannot_assign_a_class_at_or_above_their_own_authority() {
         "the allowed assignment took effect: {low}"
     );
 }
+
+/// Bug: `user strict-write` exited 7 against a server although the server has
+/// the route; the owner can now set it there and a non-owner is denied.
+#[test]
+fn strict_write_can_be_set_on_a_server_by_the_owner_only() {
+    let w = World::new("authority-strict");
+    w.owner(&["user", "strict-write", "low"]);
+    let shown = w.v.on(&w.s, &["perm", "show", "user", "low"]);
+    assert_eq!(
+        shown.json()["data"]["strict_write"],
+        true,
+        "{}",
+        shown.all()
+    );
+    w.owner(&["user", "strict-write", "low", "--off"]);
+    w.denied("mod1", &["user", "strict-write", "low"]);
+}
+
+/// A class takes the flag through the same route, and a missing subject is 3.
+#[test]
+fn strict_write_on_a_class_and_on_a_missing_subject_over_a_server() {
+    let w = World::new("authority-strict-class");
+    w.owner(&["user", "strict-write", "low"]);
+    let o = w.v.on(&w.s, &["user", "strict-write", "ghost"]);
+    assert_eq!(o.code, 3, "{}", o.all());
+}

@@ -253,10 +253,9 @@ pub fn user_passwd(access: &Access, query: &str, clear: bool) -> CliResult {
 /// Turn strict write scoping on or off for a user or a class.
 ///
 /// Under strict mode a write must satisfy **every** scope the subject has, not
-/// any one of them. Local mode only for now: the server has no route for it, and
-/// inventing one silently would leave the flag looking set on a remote vault
-/// while writes carried on as before — the worst outcome available for a
-/// security control.
+/// any one of them. Against a server the owner sets it through
+/// `PUT /api/{users|classes}/{id}/strict-write`; a refusal comes back as an
+/// error, never as a flag that looks set while writes carry on as before.
 pub fn set_strict(access: &Access, kind: &str, query: &str, strict: bool) -> CliResult {
     let id = match kind {
         "user" => resolve_user(access, query)?,
@@ -264,11 +263,13 @@ pub fn set_strict(access: &Access, kind: &str, query: &str, strict: bool) -> Cli
         other => return Err(CliError::invalid(format!("unknown subject kind '{other}'"))),
     };
     match access {
-        Access::Remote(_) => {
-            return Err(CliError::unavailable(
-                "Strict write scoping is a local-vault setting for now — run this against \
-                 the vault file (no --server).",
-            ))
+        Access::Remote(c) => {
+            let collection = if kind == "user" { "users" } else { "classes" };
+            c.send_json(
+                Method::PUT,
+                &format!("/api/{collection}/{id}/strict-write"),
+                Some(&json!({ "strict": strict })),
+            )?;
         }
         Access::Local(_) => {
             let conn = access.conn()?;
@@ -740,6 +741,20 @@ pub fn perm_show(access: &Access, subject_kind: &str, query: &str) -> CliResult 
                 .flatten()
                 .map(|e| e.to_string());
             (strict, eff)
+        }
+        (Access::Remote(c), "user") => {
+            // The user list carries the flag; the effective expression is
+            // evaluated server-side and is not served, so it stays unset.
+            let strict = c
+                .get_json("/api/users")?
+                .as_array()
+                .and_then(|rows| {
+                    rows.iter()
+                        .find(|u| u.get("id").and_then(|v| v.as_str()) == Some(id.as_str()))
+                })
+                .and_then(|u| u.get("strict_write").and_then(|v| v.as_bool()))
+                .unwrap_or(false);
+            (strict, None)
         }
         _ => (false, None),
     };
