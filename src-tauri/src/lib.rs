@@ -2368,6 +2368,15 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // `unenverse --version` prints the version like any command line tool; it
+    // used to open the window.
+    if std::env::args()
+        .nth(1)
+        .is_some_and(|a| a == "--version" || a == "-V")
+    {
+        println!("unenverse {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
     // Structured logging first, so anything the platform setup below reports is
     // captured. `info` matches the server: a desktop session is long-lived and
     // its log is read after the fact, when something has already gone wrong.
