@@ -58,12 +58,12 @@ use std::path::PathBuf;
 
 /// Where `pools.json` lives.
 ///
-/// `$XDG_STATE_HOME/envv/` on Unix, `%LOCALAPPDATA%\envv\` on Windows, falling
+/// `$XDG_STATE_HOME/unv/` on Unix, `%LOCALAPPDATA%\unv\` on Windows, falling
 /// back to `~/.local/state/unv/`. The same directory as the CLI's
 /// `sessions.json`.
 ///
 /// Returns `None` rather than guessing when there is no home directory to work
-/// from. There is deliberately no `.` fallback: a per-directory rotation cursor
+/// from (the CLI's `session::state_file` has no such escape and exits 7 there). There is deliberately no `.` fallback: a per-directory rotation cursor
 /// is its own quiet bug, where the same pool restarts at the first key every
 /// time you change directory.
 pub fn state_path() -> Option<PathBuf> {

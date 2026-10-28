@@ -22,7 +22,7 @@ use std::path::PathBuf;
 
 /// Where cached sessions live.
 ///
-/// `$XDG_STATE_HOME/envv/` on Unix, `%LOCALAPPDATA%\envv\` on Windows. The
+/// `$XDG_STATE_HOME/unv/` on Unix, `%LOCALAPPDATA%\unv\` on Windows. The
 /// Windows path matters beyond tidiness: `LOCALAPPDATA` is per-user and excluded
 /// from roaming profiles, so a session token cannot be synced onto another
 /// machine by a domain profile the user never thinks about.
