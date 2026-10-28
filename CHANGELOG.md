@@ -4,6 +4,10 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Documentation
+
+- The README lists `UNV_ADMIN_PASSWORD` (default admin of `unv-server`), `UNV_PG_ADMIN_PASSWORD` (`unv rotate` for PostgreSQL) and `UNV_ENV`.
+
 ## 0.62.0 (2026-10-28)
 
 ### Fixed
@@ -271,12 +275,16 @@ Not changed, by decision: the unauthenticated `/api/stats` counters, the first c
 
 ## 0.43.0 (2026-10-11)
 
+No git tag exists for this version.
+
 ### Changed
 
 - Dependency modernisation across crypto, backup, TOTP, node and server transport code, with a reviewed OpenAPI snapshot added to catch API drift.
 - YAML tools use typed parsing and serialization.
 
 ## 0.42.7 (2026-10-11)
+
+No git tag exists for this version.
 
 ### Fixed
 
