@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { st, Settings } from '../src/ts/state';
-import { doCopyEnv, openCopyEnvMenu, copyField } from '../src/ts/modals';
+import { doCopyEnv, openCopyEnvMenu, copyField, closeDropdown } from '../src/ts/modals';
 import { loadRealIndexHtml, makeEntry, makeVault, resetState } from './helpers';
 
 const toasts: [string, string?][] = [];
@@ -69,6 +69,10 @@ beforeEach(() => {
   delete (window as any).__TAURI__;
 });
 afterEach(() => {
+  // Bug: a menu left open kept its 50 ms arming timer alive past the end of the file, and
+  // when it fired the jsdom document was gone ("document is not defined", an unhandled
+  // error that failed the release gate on a run that had passed on the pull request).
+  closeDropdown();
   delete (window as any).__TAURI__;
 });
 
@@ -560,5 +564,22 @@ describe('the dropdown itself', () => {
     expect(
       [...document.querySelectorAll('#dropdown .dropdown-item')].map((i) => i.textContent),
     ).toEqual(['B']);
+  });
+});
+
+describe('dismissing a menu', () => {
+  it('cancels the pending outside-click arming, so no timer outlives the menu', () => {
+    vi.useFakeTimers();
+    try {
+      put({});
+      openCopyEnvMenu(ev(), 0);
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      closeDropdown();
+      const armed = vi.getTimerCount();
+      vi.advanceTimersByTime(100);
+      expect(armed).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
