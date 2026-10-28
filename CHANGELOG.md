@@ -4,6 +4,16 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Fixed
+
+- `unv get X_COOKIE` selects an entry by its generated variable name, as the 0.61.2 notes promised.
+- `unv user strict-write` works against a server (owner only) instead of exiting 7.
+- `unv backup recovery-key` asks before replacing an existing recovery identity (exit 8 without `--yes` and a terminal).
+
+### Changed
+
+- `unv import FILE --json` (full-vault JSON export) is now `--vault-json`, so the global `--json` envelope flag can be combined with importing a `.env`.
+
 ## 0.61.2 (2026-10-28)
 
 ### Added
