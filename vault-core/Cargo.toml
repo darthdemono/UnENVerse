@@ -1,6 +1,6 @@
 [package]
 name    = "vault-core"
-version = "0.61.2"
+version = "0.63.0"
 edition = "2021"
 rust-version.workspace = true
 publish = false

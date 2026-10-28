@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.63.0 (2026-10-28)
+
 ### Fixed
 
 - `unv get X_COOKIE` selects an entry by its generated variable name, as the 0.61.2 notes promised.
