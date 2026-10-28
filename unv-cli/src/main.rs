@@ -522,6 +522,11 @@ enum Commands {
     ///
     /// Package-manager installs are never overwritten; the error names the
     /// manager's own update command.
+    ///
+    /// A build with no update key pinned cannot verify a manifest, so `update`
+    /// refuses. Upgrade by hand: download the release archive for your platform
+    /// from the GitHub releases page, check it against `SHA256SUMS`, and replace
+    /// the `unv` executable.
     Update {
         #[command(subcommand)]
         cmd: unv_app::update_cmd::UpdateCmd,
@@ -1669,13 +1674,28 @@ enum EntryCmd {
     },
     /// Change fields on an existing entry.
     Set {
-        /// Provider name, or provider:key_id.
-        provider: String,
+        /// Provider name, provider:key_id, a generated variable name, or an entry id.
+        provider: Option<String>,
         #[command(flatten)]
         fields: EntryFields,
         /// Create the entry when it does not exist yet (idempotent upsert).
         #[arg(long)]
         create: bool,
+        /// Change every entry matching FIELD=VALUE, or FIELD=missing, instead of one.
+        #[arg(long = "where", value_name = "FIELD=VALUE", conflicts_with_all = ["provider", "create"])]
+        r#where: Option<String>,
+    },
+    /// Print the environment variable names entries generate (never values).
+    Names { provider: Option<String> },
+    /// List entries missing metadata fields (exit 10 when any are).
+    Lint {
+        /// Fields every entry must have.
+        #[arg(
+            long,
+            value_delimiter = ',',
+            default_value = "environment,price_type,description,primary_role"
+        )]
+        require: Vec<String>,
     },
     /// Rename an entry, rewriting every ${ref} that points at it.
     Rename { provider: String, new_name: String },
@@ -4040,7 +4060,14 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 provider,
                 fields,
                 create,
-            } => entries::cmd_set(a, provider, fields, *create),
+                r#where,
+            } => match (provider, r#where) {
+                (_, Some(cond)) => entries::cmd_set_where(a, cond, fields, yes),
+                (Some(p), None) => entries::cmd_set(a, p, fields, *create, yes),
+                (None, None) => Err(CliError::invalid("entry set needs a selector or --where")),
+            },
+            EntryCmd::Names { provider } => entries::cmd_names(a, provider.as_deref()),
+            EntryCmd::Lint { require } => entries::cmd_lint(a, require),
             EntryCmd::Rename { provider, new_name } => entries::cmd_rename(a, provider, new_name),
             EntryCmd::Rm { provider } => entries::cmd_rm(a, provider, yes),
             EntryCmd::Forget { provider } => entries::cmd_forget(a, provider, yes, cli.dry_run),

@@ -1098,9 +1098,14 @@ pub fn cmd_totp_add(
     Ok(())
 }
 
-pub fn cmd_set(access: &Access, query: &str, fields: &EntryFields, create: bool) -> CliResult {
+pub fn cmd_set(
+    access: &Access,
+    query: &str,
+    fields: &EntryFields,
+    create: bool,
+    yes: bool,
+) -> CliResult {
     let mut vault = access.load_vault_or_empty()?;
-    let projs = projects(&vault);
     let idx = match find_entry_index(&vault, query) {
         Ok(i) => i,
         // `--create` makes set an upsert, so a provisioning script can run once
@@ -1110,7 +1115,22 @@ pub fn cmd_set(access: &Access, query: &str, fields: &EntryFields, create: bool)
         }
         Err(e) => return Err(e),
     };
-    let mut entry = data::entries(&vault)[idx].clone();
+    set_at(access, &mut vault, idx, fields, yes, true)
+}
+
+/// Apply `fields` to the entry at `idx`, save, and report. `report_save` is false
+/// for a bulk run that saves once at the end.
+fn set_at(
+    access: &Access,
+    vault: &mut Value,
+    idx: usize,
+    fields: &EntryFields,
+    yes: bool,
+    save: bool,
+) -> CliResult {
+    let projs = projects(vault);
+    let original = data::entries(vault)[idx].clone();
+    let mut entry = original.clone();
     let before = entry
         .get("api_key")
         .and_then(|v| v.as_str())
@@ -1133,26 +1153,224 @@ pub fn cmd_set(access: &Access, query: &str, fields: &EntryFields, create: bool)
         .unwrap_or("")
         .to_string();
     let provider = data::provider_of(&entry).to_string();
-    entries_mut(&mut vault)[idx] = entry;
-    access.save(&vault)?;
+
+    // Changing a role or a key id renames the variable the entry produces, and
+    // whatever reads the old name stops working. Say so before it happens.
+    let renamed = renamed_variables(&original, &entry);
+    if !renamed.is_empty() && !out::dry_run() {
+        let list = renamed
+            .iter()
+            .map(|(o, n)| format!("{o} -> {n}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !confirm(
+            &format!("'{provider}' changes its environment variable ({list}); anything reading the old name stops working."),
+            yes,
+        )? {
+            println!("Cancelled.");
+            return Ok(());
+        }
+    }
+    let changes = changed_fields(&original, &entry);
+    entries_mut(vault)[idx] = entry;
+    if save {
+        access.save(vault)?;
+    }
 
     let changed = before != after;
+    let dry = out::dry_run();
+    let vars: Vec<Value> = renamed
+        .iter()
+        .map(|(o, n)| json!({ "from": o, "to": n }))
+        .collect();
     out::ok(
         "entry.set",
         json!({
             "provider": provider,
             "created": false,
+            "dry_run": dry,
             "secret_changed": changed,
             "fingerprint": out::fingerprint(&after),
+            "changes": changes.iter().map(|(k, _)| k).collect::<Vec<_>>(),
+            "renamed_variables": vars,
         }),
         || {
-            println!("Updated '{provider}'");
-            if changed {
+            if dry {
+                println!("Would update '{provider}' (nothing written)");
+                for (k, shown) in &changes {
+                    println!("  {k}: {shown}");
+                }
+            } else {
+                println!("Updated '{provider}'");
+            }
+            for (o, n) in &renamed {
+                println!("  variable {o} -> {n}");
+            }
+            if changed && !dry {
                 println!("Secret now {}", out::fingerprint(&after));
             }
         },
     );
     Ok(())
+}
+
+/// Environment variables the entry produced before and no longer does, paired
+/// with the names that replaced them, in emission order.
+fn renamed_variables(old: &Value, new: &Value) -> Vec<(String, String)> {
+    let names = |e: &Value| -> Vec<String> {
+        crate::envfile::names_generated_by(e, None, false)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect()
+    };
+    let (o, n) = (names(old), names(new));
+    let gone: Vec<&String> = o.iter().filter(|x| !n.contains(x)).collect();
+    let fresh: Vec<&String> = n.iter().filter(|x| !o.contains(x)).collect();
+    gone.into_iter()
+        .zip(fresh)
+        .map(|(a, b)| (a.clone(), b.clone()))
+        .collect()
+}
+
+/// `(field, "old -> new")` for every field that differs. A secret field shows
+/// only that it changes, never a value.
+fn changed_fields(old: &Value, new: &Value) -> Vec<(String, String)> {
+    let (Some(o), Some(n)) = (old.as_object(), new.as_object()) else {
+        return Vec::new();
+    };
+    let mut keys: Vec<&String> = o.keys().chain(n.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    let text = |m: &serde_json::Map<String, Value>, k: &str| match m.get(k) {
+        None | Some(Value::Null) => "(none)".to_string(),
+        Some(Value::String(s)) if s.is_empty() => "(none)".to_string(),
+        Some(Value::String(s)) => s.clone(),
+        Some(v) => v.to_string(),
+    };
+    keys.into_iter()
+        .filter(|k| text(o, k) != text(n, k) && k.as_str() != "id")
+        .map(|k| {
+            let shown = if out::SECRET_FIELDS.contains(&k.as_str()) || !out::is_public_field(k) {
+                "changed".to_string()
+            } else {
+                format!("{} -> {}", text(o, k), text(n, k))
+            };
+            (k.clone(), shown)
+        })
+        .collect()
+}
+
+/// `entry set --where FIELD=VALUE|missing`: apply `fields` to every entry that matches.
+pub fn cmd_set_where(access: &Access, cond: &str, fields: &EntryFields, yes: bool) -> CliResult {
+    let (field, want) = cond
+        .split_once('=')
+        .ok_or_else(|| CliError::invalid("--where takes FIELD=VALUE or FIELD=missing"))?;
+    if out::SECRET_FIELDS.contains(&field) {
+        return Err(CliError::invalid("--where cannot filter on a secret field"));
+    }
+    let mut vault = access.load_vault()?;
+    let hits: Vec<usize> = data::entries(&vault)
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            let v = e.get(field).and_then(|x| x.as_str()).unwrap_or("");
+            if want == "missing" {
+                v.is_empty()
+            } else {
+                v.eq_ignore_ascii_case(want)
+            }
+        })
+        .map(|(i, _)| i)
+        .collect();
+    for i in &hits {
+        set_at(access, &mut vault, *i, fields, yes, false)?;
+    }
+    if !hits.is_empty() {
+        access.save(&vault)?;
+    }
+    if hits.is_empty() {
+        println!("No entry matches '{cond}'.");
+    }
+    Ok(())
+}
+
+/// `entry names [SELECTOR]`: the variable names each entry generates, never a value.
+pub fn cmd_names(access: &Access, query: Option<&str>) -> CliResult {
+    let vault = access.load_vault()?;
+    let list = data::entries(&vault);
+    let picked: Vec<Value> = match query {
+        Some(q) => vec![list[find_entry_index(&vault, q)?].clone()],
+        None => list,
+    };
+    let rows: Vec<Value> = picked
+        .iter()
+        .flat_map(|e| {
+            let provider = data::provider_of(e).to_string();
+            let id = e
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            crate::envfile::names_generated_by(e, None, false)
+                .into_iter()
+                .map(move |(name, _)| json!({ "name": name, "provider": provider, "id": id }))
+        })
+        .collect();
+    out::ok("entry.names", json!({ "names": rows }), || {
+        for r in &rows {
+            println!(
+                "{}\t{}\t{}",
+                r["name"].as_str().unwrap_or(""),
+                r["provider"].as_str().unwrap_or(""),
+                r["id"].as_str().unwrap_or("")
+            );
+        }
+    });
+    Ok(())
+}
+
+/// `entry lint`: list entries that miss a required metadata field. Exit 10 when any do.
+pub fn cmd_lint(access: &Access, require: &[String]) -> CliResult {
+    let vault = access.load_vault()?;
+    let mut gaps = serde_json::Map::new();
+    let mut total = 0;
+    for f in require {
+        let missing: Vec<String> = data::entries(&vault)
+            .iter()
+            .filter(|e| e.get("secretType").and_then(|v| v.as_str()) != Some("bundle"))
+            .filter(|e| {
+                e.get(f.as_str())
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .is_empty()
+            })
+            .map(|e| data::provider_of(e).to_string())
+            .collect();
+        total += missing.len();
+        gaps.insert(f.clone(), json!(missing));
+    }
+    let failure = (total > 0).then(|| CliError::invalid(format!("{total} missing field value(s)")));
+    out::ok_or_fail(
+        "entry.lint",
+        Value::Object(gaps.clone()),
+        || {
+            for (f, names) in &gaps {
+                let names: Vec<&str> = names
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|n| n.as_str())
+                    .collect();
+                if !names.is_empty() {
+                    println!("{f}: {} missing: {}", names.len(), names.join(", "));
+                }
+            }
+            if total == 0 {
+                println!("Every entry has {}.", require.join(", "));
+            }
+        },
+        failure,
+    )
 }
 
 pub fn cmd_rm(access: &Access, query: &str, yes: bool) -> CliResult {

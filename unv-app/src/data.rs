@@ -162,6 +162,14 @@ pub fn find_entry_index(vault: &Value, query: &str) -> CliResult<usize> {
         }
     }
 
+    // The stable id is the one selector that is never ambiguous.
+    if let Some(i) = list
+        .iter()
+        .position(|e| id_of(e).eq_ignore_ascii_case(query))
+    {
+        return Ok(i);
+    }
+
     let exact: Vec<usize> = list
         .iter()
         .enumerate()
@@ -170,6 +178,16 @@ pub fn find_entry_index(vault: &Value, query: &str) -> CliResult<usize> {
         .collect();
     if exact.len() == 1 {
         return Ok(exact[0]);
+    }
+    // Several entries of one provider: the bare name means the one with no key
+    // id, when exactly one such entry exists.
+    let unkeyed: Vec<usize> = exact
+        .iter()
+        .copied()
+        .filter(|i| key_id_of(&list[*i]).is_empty())
+        .collect();
+    if exact.len() > 1 && unkeyed.len() == 1 {
+        return Ok(unkeyed[0]);
     }
     // A generated variable name (`X_COOKIE`) names its entry with no key id, so
     // two entries of one provider that differ by role need no id to be told apart.
@@ -190,9 +208,30 @@ pub fn find_entry_index(vault: &Value, query: &str) -> CliResult<usize> {
         .collect();
     match fuzzy.len() {
         1 => Ok(fuzzy[0]),
-        0 => Err(CliError::not_found(format!("No entry matching '{query}'"))),
+        0 => by_id_prefix(&list, query)
+            .ok_or_else(|| CliError::not_found(format!("No entry matching '{query}'"))),
         _ => Err(ambiguous(query, &fuzzy, &list)),
     }
+}
+
+fn id_of(e: &Value) -> &str {
+    e.get("id").and_then(|v| v.as_str()).unwrap_or("")
+}
+
+fn key_id_of(e: &Value) -> &str {
+    e.get("key_id").and_then(|v| v.as_str()).unwrap_or("")
+}
+
+/// An id prefix of at least 6 characters that picks exactly one entry.
+fn by_id_prefix(list: &[Value], query: &str) -> Option<usize> {
+    let q = query.to_lowercase();
+    if q.len() < 6 || !q.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+        return None;
+    }
+    let hits: Vec<usize> = (0..list.len())
+        .filter(|i| id_of(&list[*i]).to_lowercase().starts_with(&q))
+        .collect();
+    (hits.len() == 1).then(|| hits[0])
 }
 
 /// Entries that generate the environment variable `var` (case-insensitive).
@@ -209,22 +248,34 @@ fn entries_generating(list: &[Value], var: &str) -> Vec<usize> {
 }
 
 fn ambiguous(query: &str, hits: &[usize], list: &[Value]) -> CliError {
-    let names: Vec<String> = hits
+    let base: Vec<String> = hits
         .iter()
         .map(|i| {
             let e = &list[*i];
-            match e
-                .get("key_id")
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-            {
+            match Some(key_id_of(e)).filter(|s| !s.is_empty()) {
                 Some(k) => format!("{}:{k}", provider_of(e)),
                 None => provider_of(e).to_string(),
             }
         })
         .collect();
+    // Two candidates that read the same cannot be chosen by name: show the id
+    // prefix, which `find_entry_index` accepts as a selector.
+    let names: Vec<String> = hits
+        .iter()
+        .zip(&base)
+        .map(|(i, n)| {
+            if base.iter().filter(|m| *m == n).count() > 1 {
+                format!(
+                    "{n} (id {})",
+                    id_of(&list[*i]).chars().take(8).collect::<String>()
+                )
+            } else {
+                n.clone()
+            }
+        })
+        .collect();
     CliError::ambiguous(format!(
-        "'{query}' matches {} entries: {}\nBe exact, use provider:key_id, or a generated variable name such as PROVIDER_COOKIE.",
+        "'{query}' matches {} entries: {}\nBe exact, use provider:key_id, an entry id (or its first 8 characters), or a generated variable name such as PROVIDER_COOKIE.",
         hits.len(),
         names.join(", ")
     ))

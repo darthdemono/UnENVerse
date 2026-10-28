@@ -252,7 +252,7 @@ const PUBLIC_FIELDS_R07: [&str; 5] = [
 ];
 
 /// True when a field is known not to hold secret material.
-fn is_public_field(name: &str) -> bool {
+pub fn is_public_field(name: &str) -> bool {
     PUBLIC_FIELDS.contains(&name)
         || PUBLIC_FIELDS_EXTRA.contains(&name)
         || PUBLIC_FIELDS_P23.contains(&name)
