@@ -121,6 +121,7 @@
   - [0001: local-first storage](adr/0001-local-first.md)
   - [0002: redacted CLI defaults](adr/0002-redacted-cli.md)
   - [0003: native export writes](adr/0003-native-export-writes.md)
+  - [0004: Read Caps Lock state from the operating system](adr/0004-caps-lock-state.md)
   - [0005: Aria-labelledby on a settings row points at a span around the title, n](adr/0005-aria-labelledby-on-a-settings-row-points-at-a.md)
   - [0006: Skipping the onboarding wizard marks it complete and commits nothing](adr/0006-skipping-the-onboarding-wizard-marks-it-complete-and-commits.md)
   - [0007: The onboarding wizard is built and destroyed per showing](adr/0007-the-onboarding-wizard-is-built-and-destroyed-per-showing.md)

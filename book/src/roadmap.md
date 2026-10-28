@@ -114,7 +114,7 @@ limit what the agent can read and reach. UnENVerse is not a sandbox and cannot
 detect a backdoored model, but it can make the stolen thing worthless and the
 theft visible. Five phases, planned after 1.0.0 (see [the queue](phases/roadmap-queue.md)):
 
-- **Phase 76, R30: ref-only project files.** `unv env --refs` writes a file of
+- **Phase 76, R30: ref-only project files.** `unv env --refs` (not shipped yet) writes a file of
   `${refs}`, not values; a migrate command replaces a plaintext `.env` with it; the
   health scan reports plaintext secret files in a project directory.
 - **Phase 77, R31: per-command secret release.** A secret is released only to the

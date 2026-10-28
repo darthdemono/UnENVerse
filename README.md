@@ -359,18 +359,18 @@ Note: `secretType` is `api_key` for every entry ever written, so "is this field 
 
 ### Importing existing secrets
 
-Four importers, all of them preview-first (the vendor ones are also in the app, under Tools, Import, with the same rules):
+`unv import FILE` writes the entries at once. The seven `import-vault` importers are preview-first: a dry run unless you add `--apply` (they are also in the app, under Tools, Import, with the same rules):
 
-| Command                        | Reads                                                     |
-| ------------------------------ | --------------------------------------------------------- |
-| `unv import FILE`              | A `.env` file, or a full-vault JSON export with `--json`  |
-| `unv import-vault bitwarden`   | A Bitwarden plaintext JSON or ZIP-with-attachments export |
-| `unv import-vault onepassword` | A 1Password JSON or `.1pux` export                        |
-| `unv import-vault keepass`     | A KeePassXC or KeePass KDBX3/KDBX4 database               |
-| `unv import-vault proton`      | A Proton Pass JSON export                                 |
-| `unv import-vault sops`        | A SOPS file, or a folder of them, through your `sops`     |
-| `unv import-vault pass`        | A `pass` store, through your `gpg`                        |
-| `unv import-vault gopass`      | The gopass store your `gopass` is configured for          |
+| Command                        | Reads                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unv import FILE`              | A `.env` file, or a full-vault JSON export with `--vault-json` |
+| `unv import-vault bitwarden`   | A Bitwarden plaintext JSON or ZIP-with-attachments export                                                                                         |
+| `unv import-vault onepassword` | A 1Password JSON or `.1pux` export                                                                                                                |
+| `unv import-vault keepass`     | A KeePassXC or KeePass KDBX3/KDBX4 database                                                                                                       |
+| `unv import-vault proton`      | A Proton Pass JSON export                                                                                                                         |
+| `unv import-vault sops`        | A SOPS file, or a folder of them, through your `sops`                                                                                             |
+| `unv import-vault pass`        | A `pass` store, through your `gpg`                                                                                                                |
+| `unv import-vault gopass`      | The gopass store your `gopass` is configured for                                                                                                  |
 
 Bitwarden, 1Password and KeePass are durable source migrations. The CLI plans first, then, with `--apply`, writes entry rows, source identities and encrypted source archives in one transaction. Re-importing an unchanged source is a no-op; a changed source and a separately changed vault entry produce a named conflict. Attachments, documents, unsupported records and the original source stay encrypted in the vault archive, so an import never claims that it silently dropped them.
 
@@ -562,7 +562,7 @@ An agent needs to use a credential, not read it. The `unv` command line is the w
 - **Secrets nobody sees.** `entry add --generate` and `entry rotate --generate` create the value inside the process that stores it and return a fingerprint. `user token new` checks the output policy before it mints.
 - **Output shield.** `unv shield -- COMMAND` runs a command and replaces known vault values in its stdout and stderr. It is explicit; normal output is untouched.
 - **One contract, one call.** `unv describe` prints every command, flag, exit code and the output envelope as JSON, generated from the definition the binary runs on.
-- **Machine-readable results.** With `--json` every command answers `{ok, command, data}` or `{ok:false, error:{code, message, details}}`, and ten exit codes separate not found, ambiguous, denied, conflict, unavailable, needs confirmation, redacted and invalid.
+- **Machine-readable results.** With `--json` every command answers `{ok, command, data}` or `{ok:false, error:{code, message, details}}`, and eleven exit codes (0 to 10) separate success, unclassified error, usage, not found, ambiguous, denied, conflict, unavailable, needs confirmation, redacted and invalid.
 - **Never guesses, never assumes yes.** An ambiguous name exits 4 with `details.candidates`; a destructive command with no `--yes` and no terminal exits 8; `--dry-run` is enforced at the single write point.
 - **Least privilege for the agent.** Least privilege: `user token new` mints a scoped token for a sub-user; classes and `perm` limit what that user can read or write, and strict-write can be switched on per user or class. The agent gets a token, not the master password.
 - **Key pools.** Several interchangeable keys for one service; `unv pool next openai` returns the next key that is not cooling, and a rate-limited key can be marked cooling.
@@ -605,14 +605,14 @@ Two rules that are easy to get wrong:
 Three, and none of them touch stdout:
 
 ```bash
-unv get GitHub --out token.txt          # straight to a file
+unv get GitHub --profile basic --out token.txt   # a .env-style file, straight to disk (0600)
 unv exec -- ./deploy.sh                 # into the child's environment
 unv render nginx.conf.tpl --out /etc/nginx/nginx.conf
 ```
 
 This is enforced by construction rather than by discipline. `Resolver::for_output` redacts, `Resolver::materialising` does not, and an exporter cannot obtain a real value without being handed the latter.
 
-A vault-wide `export` to stdout is refused outright, with exit code 9, rather than masked. A masked `.env` looks deployable and is not. Project exports mask instead, since their structure is worth reading.
+A vault-wide `export --format env` to stdout is refused outright, with exit code 9, rather than masked. A masked `.env` looks deployable and is not. `export --format json` and project exports mask instead (values print as `sha256:` fingerprints), since their structure is worth reading.
 
 ### 3. Secrets that are never seen at all
 
@@ -740,11 +740,27 @@ Writing `doctor` immediately found two real defects. The vault database and its 
 ```bash
 unv --password-command 'pass show unv' list
 unv --password-file /run/secrets/vault-pw list
-unv --env-file /srv/envv/.env enrich --online --apply
+unv --env-file /srv/unv/.env enrich --online --apply
 UNV_PASSWORD=... unv list
 ```
 
 `--password-command` uses `cmd /C` on Windows, since there is no `sh`. `--env-file` reads `UNV_PASSWORD` and `UNV_SERVER_URL` out of the file `docker compose` already uses, so one copy of the password exists and the compose stack owns it.
+
+Every global flag has an environment form, shown as `[env: ...]` in `--help`. The ones not named elsewhere:
+
+| Variable                                    | Same as / meaning                                                                      |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `UNV_TOKEN`, `UNV_USER`, `UNV_TOTP`         | `--token`, `--user`, and the second-factor code for a `--user` login with TOTP enabled |
+| `UNV_PASSWORD_FILE`, `UNV_PASSWORD_COMMAND` | `--password-file`, `--password-command`                                                |
+| `UNV_CA_CERT`, `UNV_FINGERPRINT`            | `--ca-cert`, `--fingerprint`: how a self-signed `--server` is trusted                  |
+| `UNV_DB_PATH`, `UNV_SALT_PATH`              | Use this `vault.db` / `vault.salt` instead of the desktop app's (local mode)           |
+| `UNV_PROJECT`                               | Project to act on when none is given; overrides `.unv.json`                            |
+| `UNV_ENV_CASE`, `UNV_ENV_PREFIX`            | Case of generated variable names (`upper`, `preserve`, `lower`) and a name prefix      |
+| `UNV_ENTROPY_SOURCE`                        | Extra entropy source for generators (`--entropy-source`)                               |
+| `UNV_NODE_DIR`                              | Directory of the node agent's state                                                    |
+| `UNV_LOG`, `UNV_LOG_FORMAT`                 | Log level on stderr (default `error`); `json` for one JSON object per line             |
+| `UNV_SESSION_FILE`, `UNV_POOL_FILE`         | Path of `sessions.json` / `pools.json` instead of the state directory                  |
+| `UNV_CATALOGUE_FILE`                        | Path of the provider catalogue instead of the data directory                           |
 
 ### Signing in as a named user
 
@@ -820,7 +836,7 @@ The cursor indexes the **full** member list, not the available subset. Filter fi
 
 Exhaustion is reported, not detected. `unv exec` never sees the child's HTTP responses, so nothing here can notice a 429 on your behalf. You tell it, with `pool report`. When every member is cooling, exit 7, naming the one that frees up first.
 
-The Tools pane reads the same file over IPC rather than reimplementing the format. The app's `app_data_dir` and the CLI's `dirs::data_dir()/io.unenverse` resolve to the same directory, and that was verified rather than assumed. If it ever stops being true, the panel silently shows a different vault's cursors.
+The Tools pane reads the same file over IPC rather than reimplementing the format. Both call `vault_core::pool::state_path()`, which resolves to `$XDG_STATE_HOME/unv/pools.json` (or `~/.local/state/unv/pools.json`), so the app and the CLI cannot disagree about where the cursors live.
 
 ## Backups, and the one thing you cannot recover
 
@@ -1163,14 +1179,15 @@ Reads are deliberately not audited. Every `GET /api/vault` used to write a row, 
 
 On Linux:
 
-|                    | Path                                                                                         |
-| ------------------ | -------------------------------------------------------------------------------------------- |
-| Database           | `~/.local/share/io.unenverse/vault.db`                                                       |
-| Salt               | `~/.local/share/io.unenverse/vault.salt`                                                     |
-| Settings           | The webview's local storage (themes, layout, copy settings). Not in the vault, not encrypted |
-| Provider catalogue | `~/.local/share/io.unenverse/catalogue.json`, re-verified on every load                      |
-| CLI sessions       | `$XDG_STATE_HOME/envv/sessions.json`, mode 0600                                              |
-| Pool state         | Beside the sessions file, mode 0600                                                          |
+|                            | Path                                                                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Database                   | `~/.local/share/io.unenverse/vault.db`                                                                                                 |
+| Salt                       | `~/.local/share/io.unenverse/vault.salt`                                                                                               |
+| Settings                   | The webview's local storage (themes, layout, copy settings). Not in the vault, not encrypted                                           |
+| Provider catalogue         | `~/.local/share/io.unenverse/catalogue.json`, re-verified on every load                                                                |
+| CLI sessions               | `$XDG_STATE_HOME/unv/sessions.json`, mode 0600                                                                                         |
+| Pool state                 | Beside the sessions file, mode 0600                                                                                                    |
+| Server data (`unv-server`) | `~/.local/share/envv-server/`: the directory keeps its pre-rename spelling on purpose, so existing installs find their data (ADR-0149) |
 
 On Windows the CLI keeps sessions in `%LOCALAPPDATA%` rather than the roaming profile, since a cached session token should not follow you onto another machine.
 
