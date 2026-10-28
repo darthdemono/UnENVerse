@@ -136,7 +136,7 @@ fn damaged_vault(tag: &str) -> Vault {
     let file = source.path("damaged.json");
     std::fs::write(&file, doc.to_string()).unwrap();
     let v = Vault::new(tag);
-    let o = v.run_text(&["import", file.to_str().unwrap(), "--json"]);
+    let o = v.run_text(&["import", file.to_str().unwrap(), "--vault-json"]);
     assert_eq!(o.code, 0, "{}", o.all());
     v
 }
