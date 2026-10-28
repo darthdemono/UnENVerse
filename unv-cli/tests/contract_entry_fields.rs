@@ -323,3 +323,42 @@ fn a_new_secret_starts_on_a_value_role_and_an_explicit_role_wins() {
     v.ok(&["entry", "add", "Empty"]);
     assert_eq!(v.run(&["get", "Empty", "--field", "primary_role"]).code, 3);
 }
+
+/// Bug: `unv get SONARR_KEY` answered "No entry matching" although `exec`,
+/// `diff` and `curl` all select an entry by its generated variable name; the
+/// plain `get` path only filtered by provider substring.
+#[test]
+fn get_selects_an_entry_by_its_generated_variable_name() {
+    let v = Vault::new("fields-get-var");
+    v.ok(&["entry", "add", "Sonarr", "--key", "k"]);
+    let o = v.run(&["get", "SONARR_KEY"]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(o.json()["data"]["count"], 1, "{}", o.all());
+    assert_eq!(v.run(&["get", "NOPE_KEY"]).code, 3);
+}
+
+/// A name that is a substring of a provider still lists every match (the old
+/// behaviour), and the variable-name fallback only runs when nothing matched.
+#[test]
+fn get_by_substring_still_lists_matches_and_the_variable_name_is_only_a_fallback() {
+    let v = Vault::new("fields-get-substr");
+    v.ok(&["entry", "add", "Sonarr", "--key", "k"]);
+    v.ok(&["entry", "add", "Sonarr4K", "--key", "k2"]);
+    let o = v.run(&["get", "sonarr"]);
+    assert_eq!(o.json()["data"]["count"], 2, "{}", o.all());
+    // `SONARR4K_KEY` is no provider substring, only a generated name: one entry.
+    let o = v.run(&["get", "SONARR4K_KEY"]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(o.json()["data"]["count"], 1, "{}", o.all());
+    assert_eq!(o.json()["data"]["entries"][0]["provider"], "Sonarr4K");
+}
+
+/// The variable-name path redacts like every other `get`.
+#[test]
+fn get_by_variable_name_never_prints_the_value() {
+    let v = Vault::new("fields-get-var-redact");
+    v.ok(&["entry", "add", "Radarr", "--key", "radarr-secret-value-123"]);
+    let o = v.run(&["get", "RADARR_KEY"]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert!(!o.all().contains("radarr-secret-value-123"), "{}", o.all());
+}
