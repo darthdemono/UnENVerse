@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.62.1 (2026-10-28)
+
 ### Documentation
 
 - The README lists `UNV_ADMIN_PASSWORD` (default admin of `unv-server`), `UNV_PG_ADMIN_PASSWORD` (`unv rotate` for PostgreSQL) and `UNV_ENV`.
