@@ -4,7 +4,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
-## 0.63.0 (2026-10-28)
+## 0.62.0 (2026-10-28)
 
 ### Fixed
 

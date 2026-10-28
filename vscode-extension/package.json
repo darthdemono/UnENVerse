@@ -2,7 +2,7 @@
   "name": "unenverse",
   "displayName": "UnENVerse",
   "description": "References, fingerprints and secret-aware tasks for an UnENVerse vault, through the unv CLI. It never shows a secret value.",
-  "version": "0.63.0",
+  "version": "0.62.0",
   "publisher": "darthdemono",
   "license": "Apache-2.0",
   "engines": {
