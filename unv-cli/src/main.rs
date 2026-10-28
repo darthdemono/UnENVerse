@@ -394,7 +394,7 @@ enum Commands {
     },
     /// Import entries from a .env file (creates/updates env_var entries).
     Import {
-        /// Path to the .env file, or a full-vault JSON export with --json.
+        /// Path to the .env file, or a full-vault JSON export with --vault-json.
         file: PathBuf,
         /// Assign imported variables to this project.
         #[arg(long)]
@@ -412,8 +412,9 @@ enum Commands {
         #[arg(long)]
         allow_duplicates: bool,
         /// Treat the file as a full-vault JSON export and replace the vault with it.
-        #[arg(long)]
-        json: bool,
+        /// Not `--json`: that name is the global envelope flag.
+        #[arg(long = "vault-json")]
+        vault_json: bool,
     },
     /// Show the append-only audit log, or verify its hash chain.
     Audit {
@@ -3851,9 +3852,9 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             env,
             price,
             allow_duplicates,
-            json,
+            vault_json,
         } => {
-            if *json {
+            if *vault_json {
                 envfile::import_json(a, file, yes)
             } else {
                 let project = scoped_project(a, project.as_deref())?;
@@ -4290,7 +4291,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     out::ok("backup.dest.rm", serde_json::json!({ "id": id }), || println!("Removed destination {id}"));
                 }),
             },
-            BackupCmd::RecoveryKey => recovery_ops::create_recovery_identity(a).map(|(recipient, identity)| {
+            BackupCmd::RecoveryKey => recovery_ops::create_recovery_identity(a, yes).map(|(recipient, identity)| {
                 // The external recovery copy is shown once. The vault also has a
                 // SQLCipher-encrypted copy strictly for an unlocked drill; no
                 // later command can print or export it.

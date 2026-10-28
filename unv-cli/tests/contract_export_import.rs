@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright the UnENVerse contributors.
-//! Whole-vault `unv export` and `unv import --json`, as README describes them:
+//! Whole-vault `unv export` and `unv import --vault-json`, as README describes them:
 //!
 //! * the flat formats (dotenv, yaml, k8s Secret, tfvars) carry real values, so they
 //!   go to `--out` or need `--reveal`, never to a terminal by default;
@@ -9,7 +9,7 @@
 //! * `--profile full` writes every entry's metadata, so vault-wide it is refused;
 //! * an unknown format is invalid input;
 //! * the JSON export is the vault: importing it into another vault with
-//!   `import --json` replaces what was there with the same entries, values,
+//!   `import --vault-json` replaces what was there with the same entries, values,
 //!   projects and categories, and a document that is not a vault export is
 //!   refused without touching anything.
 
@@ -151,9 +151,9 @@ fn a_json_export_imports_back_as_the_same_vault_and_replaces_what_was_there() {
 
     let target = Vault::new("export-roundtrip-dst");
     target.ok(&["entry", "add", "Leftover", "--key", "will-be-replaced"]);
-    let done = target.run_text(&["import", file.to_str().unwrap(), "--json"]);
+    let done = target.run(&["import", file.to_str().unwrap(), "--vault-json"]);
     assert_eq!(done.code, 0, "{}", done.all());
-    // `import --json` names the input format and also puts the answer in an envelope.
+    // The input format is `--vault-json`; the global `--json` only shapes the answer.
     assert_eq!(done.json()["data"]["entries"], 2, "{}", done.stdout);
 
     let names: Vec<String> = target.ok(&["list"])["entries"]
@@ -181,8 +181,33 @@ fn a_document_that_is_not_a_vault_export_is_refused_and_nothing_changes() {
     for (name, body) in [("array.json", "[1,2]"), ("garbage.json", "not json at all")] {
         let f = v.path(name);
         std::fs::write(&f, body).unwrap();
-        let o = v.run_text(&["import", f.to_str().unwrap(), "--json"]);
+        let o = v.run_text(&["import", f.to_str().unwrap(), "--vault-json"]);
         assert_ne!(o.code, 0, "{name}: {}", o.all());
     }
     assert_eq!(v.ok(&["list"])["count"], 2, "the vault is untouched");
+}
+
+/// Bug: the global `--json` and the import's own `--json` shared a name, so
+/// `unv --json import x.env` tried to parse the `.env` as a vault export and
+/// answered "Not valid JSON". The envelope flag now only shapes the answer.
+#[test]
+fn a_dotenv_imports_while_the_envelope_flag_is_on() {
+    let v = Vault::new("import-env-envelope");
+    let env = v.path("a.env");
+    std::fs::write(&env, "ALPHA_KEY=alpha-secret-value-1\n").unwrap();
+    let o = v.run(&["import", env.to_str().unwrap()]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(v.reveal_field("Alpha", "key"), "alpha-secret-value-1");
+}
+
+/// The old spelling is gone: `--json` is the envelope flag now, so a vault
+/// export given with it is read as a `.env` and must not replace the vault.
+#[test]
+fn the_old_import_json_spelling_does_not_replace_the_vault() {
+    let v = Vault::new("import-old-json");
+    v.ok(&["entry", "add", "Keep", "--key", "keep-secret-value-1"]);
+    let file = v.path("export.json");
+    std::fs::write(&file, "{\"entries\": []}").unwrap();
+    let _ = v.run(&["import", file.to_str().unwrap(), "--json"]);
+    assert_eq!(v.reveal_field("Keep", "key"), "keep-secret-value-1");
 }
