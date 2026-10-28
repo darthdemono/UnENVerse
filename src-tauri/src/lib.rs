@@ -2370,6 +2370,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
 pub fn run() {
     // `unenverse --version` prints the version like any command line tool; it
     // used to open the window.
+    // nosemgrep: rust.lang.security.args.args -- a version flag, not a security decision
     if std::env::args()
         .nth(1)
         .is_some_and(|a| a == "--version" || a == "-V")
