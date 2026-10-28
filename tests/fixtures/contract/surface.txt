@@ -94,7 +94,7 @@ unv history snapshot [project]
 unv history stats
 unv history verify
 unv history where <sha256>
-unv import <file> --allow-duplicates --category= --env= --json --price= --project=
+unv import <file> --allow-duplicates --category= --env= --price= --project= --vault-json
 unv import-service <service> --addr= --apply --category= --endpoint= --environment= --identity-entry= --include-previous --keep-folders --mount= --namespace= --path= --project-id= --project= --region= --secret-path= --token-entry=
 unv import-vault <vendor> <file> --apply --category= --force --keep-folders --key-file= --no-password --project=
 unv list --category= --env= --json --project= --search= --tag= --type=
