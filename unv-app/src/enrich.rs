@@ -692,7 +692,12 @@ pub fn plan_entry(entry: &Value, force: bool) -> EntryPlan {
         };
     }
 
-    let matched = lookup(secret);
+    // A bare `sk-` is shared by every OpenAI-compatible gateway (OmniRoute,
+    // OpenCode, ...). It only names OpenAI when the entry is called that too; a
+    // provider the user named differently is never relabelled by the prefix.
+    let matched = lookup(secret).filter(|h| {
+        h.prefix != "sk-" || provider.to_lowercase().contains(&h.issuer.to_lowercase())
+    });
 
     if let Some(s) = matched.as_ref() {
         let why = format!(
@@ -1466,6 +1471,16 @@ mod axis_tests {
         let admin = json!({ "provider": "X", "api_key": "sk-admin-abcdef" });
         let plan = plan_entry(&admin, false);
         assert_eq!(field_of(&plan, "acts_as"), Some(&json!("admin")));
+    }
+
+    #[test]
+    fn a_bare_sk_key_does_not_relabel_a_gateway_as_openai() {
+        // The offline pass proposed OpenAI for OmniRoute and OpenCode keys, which
+        // start with `sk-` as well. Applying it would have mislabelled them.
+        let gateway = json!({ "provider": "OmniRoute", "api_key": "sk-abcdef" });
+        assert!(plan_entry(&gateway, false).proposals.is_empty());
+        let openai = json!({ "provider": "OpenAI", "api_key": "sk-abcdef" });
+        assert!(field_of(&plan_entry(&openai, false), "secretType").is_some());
     }
 
     #[test]
