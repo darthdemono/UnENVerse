@@ -361,16 +361,16 @@ Note: `secretType` is `api_key` for every entry ever written, so "is this field 
 
 `unv import FILE` writes the entries at once. The seven `import-vault` importers are preview-first: a dry run unless you add `--apply` (they are also in the app, under Tools, Import, with the same rules):
 
-| Command                        | Reads                                                                                                                                             |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Command                        | Reads                                                          |
+| ------------------------------ | -------------------------------------------------------------- |
 | `unv import FILE`              | A `.env` file, or a full-vault JSON export with `--vault-json` |
-| `unv import-vault bitwarden`   | A Bitwarden plaintext JSON or ZIP-with-attachments export                                                                                         |
-| `unv import-vault onepassword` | A 1Password JSON or `.1pux` export                                                                                                                |
-| `unv import-vault keepass`     | A KeePassXC or KeePass KDBX3/KDBX4 database                                                                                                       |
-| `unv import-vault proton`      | A Proton Pass JSON export                                                                                                                         |
-| `unv import-vault sops`        | A SOPS file, or a folder of them, through your `sops`                                                                                             |
-| `unv import-vault pass`        | A `pass` store, through your `gpg`                                                                                                                |
-| `unv import-vault gopass`      | The gopass store your `gopass` is configured for                                                                                                  |
+| `unv import-vault bitwarden`   | A Bitwarden plaintext JSON or ZIP-with-attachments export      |
+| `unv import-vault onepassword` | A 1Password JSON or `.1pux` export                             |
+| `unv import-vault keepass`     | A KeePassXC or KeePass KDBX3/KDBX4 database                    |
+| `unv import-vault proton`      | A Proton Pass JSON export                                      |
+| `unv import-vault sops`        | A SOPS file, or a folder of them, through your `sops`          |
+| `unv import-vault pass`        | A `pass` store, through your `gpg`                             |
+| `unv import-vault gopass`      | The gopass store your `gopass` is configured for               |
 
 Bitwarden, 1Password and KeePass are durable source migrations. The CLI plans first, then, with `--apply`, writes entry rows, source identities and encrypted source archives in one transaction. Re-importing an unchanged source is a no-op; a changed source and a separately changed vault entry produce a named conflict. Attachments, documents, unsupported records and the original source stay encrypted in the vault archive, so an import never claims that it silently dropped them.
 
