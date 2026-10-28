@@ -2109,10 +2109,16 @@ pub fn cmd_get(access: &Access, query: &str, field: Option<&str>) -> CliResult {
     let found: Vec<Value> = if query.starts_with("bundle:") {
         vec![data::entries(&vault)[find_entry_index(&vault, query)?].clone()]
     } else {
-        data::entries(&vault)
+        let by_name: Vec<Value> = data::entries(&vault)
             .into_iter()
             .filter(|e| data::provider_of(e).to_lowercase().contains(&q))
-            .collect()
+            .collect();
+        // A generated variable name (`X_COOKIE`) is no substring of any provider,
+        // so it falls through to the resolver every other command uses.
+        match by_name.is_empty().then(|| find_entry_index(&vault, query)) {
+            Some(Ok(i)) => vec![data::entries(&vault)[i].clone()],
+            _ => by_name,
+        }
     };
     if found.is_empty() {
         return Err(CliError::not_found(format!("No entry matching '{query}'")));
