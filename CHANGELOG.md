@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.62.2 (2026-10-28)
+
 ### Added
 
 - An entry id, or an unambiguous prefix of 6 or more characters, selects an entry in every command that takes a selector.
