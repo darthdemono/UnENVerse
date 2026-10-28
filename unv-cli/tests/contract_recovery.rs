@@ -239,3 +239,26 @@ fn a_directory_with_a_changed_database_fails_verification() {
     let verify = p.vault.run(&["recover", "verify", to.to_str().unwrap()]);
     assert_ne!(verify.code, 0, "{}", verify.all());
 }
+
+/// Bug: a second `backup recovery-key` silently replaced the retained identity,
+/// so packages made afterwards no longer opened with the key the owner had saved.
+#[test]
+fn a_second_recovery_key_is_not_made_without_confirmation() {
+    let v = Vault::new("recovery-key-twice");
+    v.ok(&["backup", "recovery-key"]);
+    let o = v.run_no_yes(&["backup", "recovery-key"]);
+    assert_eq!(o.code, 8, "{}", o.all());
+    v.ok(&["backup", "recovery-key"]);
+}
+
+/// The refusal names the cause and the retained identity still opens the
+/// package made before the attempt.
+#[test]
+fn a_refused_second_recovery_key_leaves_the_first_one_working() {
+    let p = packaged("recovery-key-kept");
+    let o = p.vault.run_no_yes(&["backup", "recovery-key"]);
+    assert_eq!(o.code, 8, "{}", o.all());
+    assert!(o.all().contains("already exists"), "{}", o.all());
+    let again = p.vault.ok(&["backup", "package", "--dest", "main"]);
+    assert_eq!(again["receipt"]["manifest"]["entry_count"], 1, "{again}");
+}

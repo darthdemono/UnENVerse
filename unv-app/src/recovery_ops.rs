@@ -771,8 +771,18 @@ fn package_for_paths_stoppable(
     Ok(receipt)
 }
 
-pub fn create_recovery_identity(access: &Access) -> CliResult<(String, String)> {
+pub fn create_recovery_identity(access: &Access, yes: bool) -> CliResult<(String, String)> {
     let conn = access.conn()?;
+    // A second identity replaces the first: packages made from now on open only
+    // with the new one, so replacing must be a decision, not a side effect.
+    if recovery::recipient(&conn).map_err(CliError::from)?.is_some()
+        && !crate::fmt::confirm(
+            "A recovery identity already exists. Replace it? New packages will open only with the new identity.",
+            yes,
+        )?
+    {
+        return Err(CliError::conflict("Recovery identity kept."));
+    }
     let (recipient, identity) = recovery::generate_identity();
     recovery::set_recipient(&conn, &recipient).map_err(CliError::from)?;
     recovery::set_drill_identity(&conn, &identity).map_err(CliError::from)?;
