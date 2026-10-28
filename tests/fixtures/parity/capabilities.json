@@ -516,6 +516,18 @@
       "cli_flags": []
     },
     {
+      "id": "entry-names-lint",
+      "status": "exempt",
+      "cli": [
+        "unv entry names",
+        "unv entry lint"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Scripting aids: `entry names` prints the generated variable names with entry ids and no value, `entry lint` reports entries missing metadata with exit 10. The app shows the same names in the copy menu and the gaps in the Health pane.",
+      "cli_flags": []
+    },
+    {
       "id": "import-vault",
       "status": "exempt",
       "cli": [
