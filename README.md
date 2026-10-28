@@ -788,6 +788,10 @@ unv project add Web --if-missing
 
 Re-running a provisioning script is not an error, and it does not overwrite a secret.
 
+### Selecting entries
+
+A selector is a provider name, `provider:key_id`, a generated variable name (`SONARR_KEY`), or the entry id (`unv entry names` prints it; the first 8 characters are enough). A bare provider name picks the entry with no key id when several share it. `unv entry names` lists the variables without values, `unv entry lint` lists entries missing `environment`, `price_type`, `description` or `primary_role`, and `unv entry set --where environment=missing --env production` fills a field on every entry that lacks it. Changing a role renames the variable an entry produces, so `entry set` prints `variable OLD -> NEW` and asks for `--yes`.
+
 ## Entropy sources
 
 Every generator can draw from a hardware source instead of the OS CSPRNG alone:

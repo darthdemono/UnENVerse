@@ -4,6 +4,22 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Added
+
+- An entry id, or an unambiguous prefix of 6 or more characters, selects an entry in every command that takes a selector.
+- `unv entry names [SELECTOR]` lists the environment variables entries generate, with the entry id and never a value.
+- `unv entry lint [--require FIELDS]` lists entries missing `environment`, `price_type`, `description` or `primary_role`; exit 10 when any are.
+- `unv entry set --where FIELD=VALUE|missing` changes every matching entry in one save.
+- `unenverse --version` prints the version instead of opening the window.
+
+### Fixed
+
+- A bare provider name selects the one entry with no key id when several share the name; ambiguous candidates that read the same show their id.
+- `entry set --dry-run` prints `Would update` with the field changes and writes nothing, where it printed `Updated`.
+- `entry set` shows the environment variable a role change renames (`variable A -> B`) and needs `--yes` before it does it.
+- `unv enrich` no longer proposes OpenAI for a bare `sk-` key on an entry named something else (OmniRoute, OpenCode).
+- `unv update --help` describes the manual upgrade for builds with no pinned update key.
+
 ## 0.62.1 (2026-10-28)
 
 ### Documentation
