@@ -168,7 +168,7 @@
       "name": "Apache-2.0"
     },
     "title": "UnENVerse Server",
-    "version": "0.62.0"
+    "version": "0.62.1"
   },
   "openapi": "3.1.0",
   "paths": {
