@@ -126,10 +126,11 @@ jobs:
           chmod 600 good.conf
           # No kernel interface is needed: wg reads the whole file before it
           # touches a device, so a syntax error always prints "Configuration
-          # parsing error" and a clean parse fails only at the device. The
-          # "./" matters: wg-quick reads a bare name as an interface under
-          # /etc/wireguard and a path as a file.
-          check() { wg-quick strip "./$1" | wg setconf wgparse /dev/stdin 2>&1 || true; }
+          # parsing error" and a clean parse fails only at the device.
+          # `wg-quick strip` re-runs itself through sudo, which the runner now refuses,
+          # so drop the wg-quick-only keys here; `wg setconf` takes what is left.
+          strip() { grep -viE '^[[:space:]]*(Address|DNS|MTU|Table|PreUp|PostUp|PreDown|PostDown|SaveConfig)[[:space:]]*=' "$1"; }
+          check() { strip "$1" | wg setconf wgparse /dev/stdin 2>&1 || true; }
           out=$(check good.conf)
           echo "$out"
           case "$out" in
