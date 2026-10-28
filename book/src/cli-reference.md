@@ -72,13 +72,15 @@ Contract version 1.
 | `unv entry forget <provider>` | Purge the entry's old values from this vault's history and stored config copies |
 | `unv entry get <provider>` | Print one entry, or one of its fields |
 | `unv entry history <provider>` | Show previous values of an entry's secret |
+| `unv entry lint` | List entries missing metadata fields (exit 10 when any are) |
 | `unv entry ls` | List entries (same filters as `unv list`) |
+| `unv entry names [provider]` | Print the environment variable names entries generate (never values) |
 | `unv entry pin <provider>` | Pin an entry to the top of every view |
 | `unv entry rename <provider> <new_name>` | Rename an entry, rewriting every ${ref} that points at it |
 | `unv entry restore <provider>` | Restore a previous value by its position in `entry history` |
 | `unv entry rm <provider>` | Delete an entry (its credential keeps working at the provider; revoke it there) |
 | `unv entry rotate <provider>` | Record a rotation, optionally storing the new secret |
-| `unv entry set <provider>` | Change fields on an existing entry |
+| `unv entry set [provider]` | Change fields on an existing entry |
 | `unv entry tag <provider>` | Add or remove tags |
 | `unv entry timeline <provider>` | Show secret-free lifecycle events and credential generations |
 | `unv entry verify <provider>` | Record that a stored browser session still works |
