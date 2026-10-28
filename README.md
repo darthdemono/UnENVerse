@@ -748,19 +748,21 @@ UNV_PASSWORD=... unv list
 
 Every global flag has an environment form, shown as `[env: ...]` in `--help`. The ones not named elsewhere:
 
-| Variable                                    | Same as / meaning                                                                      |
-| ------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `UNV_TOKEN`, `UNV_USER`, `UNV_TOTP`         | `--token`, `--user`, and the second-factor code for a `--user` login with TOTP enabled |
-| `UNV_PASSWORD_FILE`, `UNV_PASSWORD_COMMAND` | `--password-file`, `--password-command`                                                |
-| `UNV_CA_CERT`, `UNV_FINGERPRINT`            | `--ca-cert`, `--fingerprint`: how a self-signed `--server` is trusted                  |
-| `UNV_DB_PATH`, `UNV_SALT_PATH`              | Use this `vault.db` / `vault.salt` instead of the desktop app's (local mode)           |
-| `UNV_PROJECT`                               | Project to act on when none is given; overrides `.unv.json`                            |
-| `UNV_ENV_CASE`, `UNV_ENV_PREFIX`            | Case of generated variable names (`upper`, `preserve`, `lower`) and a name prefix      |
-| `UNV_ENTROPY_SOURCE`                        | Extra entropy source for generators (`--entropy-source`)                               |
-| `UNV_NODE_DIR`                              | Directory of the node agent's state                                                    |
-| `UNV_LOG`, `UNV_LOG_FORMAT`                 | Log level on stderr (default `error`); `json` for one JSON object per line             |
-| `UNV_SESSION_FILE`, `UNV_POOL_FILE`         | Path of `sessions.json` / `pools.json` instead of the state directory                  |
-| `UNV_CATALOGUE_FILE`                        | Path of the provider catalogue instead of the data directory                           |
+| Variable                                    | Same as / meaning                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `UNV_TOKEN`, `UNV_USER`, `UNV_TOTP`         | `--token`, `--user`, and the second-factor code for a `--user` login with TOTP enabled       |
+| `UNV_PASSWORD_FILE`, `UNV_PASSWORD_COMMAND` | `--password-file`, `--password-command`                                                      |
+| `UNV_CA_CERT`, `UNV_FINGERPRINT`            | `--ca-cert`, `--fingerprint`: how a self-signed `--server` is trusted                        |
+| `UNV_DB_PATH`, `UNV_SALT_PATH`              | Use this `vault.db` / `vault.salt` instead of the desktop app's (local mode)                 |
+| `UNV_PROJECT`, `UNV_ENV`                    | Project and environment to act on when none is given; override `.unv.json`                   |
+| `UNV_ADMIN_PASSWORD`                        | `unv-server` only: password of the default `admin` user; unset, a random one is printed once |
+| `UNV_PG_ADMIN_PASSWORD`                     | `unv rotate` for PostgreSQL: the admin role's password, never an argument                    |
+| `UNV_ENV_CASE`, `UNV_ENV_PREFIX`            | Case of generated variable names (`upper`, `preserve`, `lower`) and a name prefix            |
+| `UNV_ENTROPY_SOURCE`                        | Extra entropy source for generators (`--entropy-source`)                                     |
+| `UNV_NODE_DIR`                              | Directory of the node agent's state                                                          |
+| `UNV_LOG`, `UNV_LOG_FORMAT`                 | Log level on stderr (default `error`); `json` for one JSON object per line                   |
+| `UNV_SESSION_FILE`, `UNV_POOL_FILE`         | Path of `sessions.json` / `pools.json` instead of the state directory                        |
+| `UNV_CATALOGUE_FILE`                        | Path of the provider catalogue instead of the data directory                                 |
 
 ### Signing in as a named user
 
