@@ -4,6 +4,13 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.62.3 (2026-10-30)
+
+### Changed
+
+- The license now carries the copyright year and owner name.
+- Dependency updates: vite 8.3.5, `@tauri-apps/cli` 2.12.4, typescript-eslint 8.72.0 and the grouped GitHub Actions bumps.
+
 ## 0.62.2 (2026-10-28)
 
 ### Added
