@@ -98,9 +98,21 @@ updates:
     # live under /.github/workflows, and the local composite action under
     # /.github/actions/*.
     directories: ["/", "/.github/actions/*"]
+    # cosign-installer 4 installs cosign 3, which changes the signing output. Stay on 3
+    # until a release signs and verifies with it; a major bump cannot be tried on a branch.
+    ignore:
+      - dependency-name: sigstore/cosign-installer
+        update-types: ["version-update:semver-major"]
     groups:
       actions:
         update-types: [minor, patch]
+  - package-ecosystem: pip
+    # The hash-pinned semgrep install the security workflow uses.
+    directory: "/.github/requirements"
+    schedule: { interval: weekly }
+    # A release gets a week to be yanked or reported before it is proposed.
+    cooldown:
+      default-days: 7
   - package-ecosystem: docker
     # The digest pins in these Dockerfiles only stay current if Dependabot
     # watches them: it rewrites tag and digest together.
