@@ -109,7 +109,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install semgrep
-        run: pip install --no-cache-dir semgrep==1.182.0
+        run: pip install --no-cache-dir --require-hashes -r .github/requirements/semgrep.txt
       # `temp-dir` is excluded because every remaining use is inside a test module that makes a
       # per-test unique directory; tests/rust-hygiene.test.ts fails if production code gains one.
       - name: Scan
