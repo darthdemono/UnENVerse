@@ -138,3 +138,21 @@ export function hoverText(
   }
   return `**${what}**: \`${shown.fingerprint}\`${shown.length ? `, ${shown.length} characters` : ''}\n\nThe value is never shown here; equal fingerprints mean equal secrets.`;
 }
+
+/** The `${…}` text that stands for an entry (or one of its fields) in a file. */
+export function referenceFor(provider: string, field?: string): string {
+  return field ? `\${${provider}/${field}}` : `\${${provider}}`;
+}
+
+/** Entry names from `unv --json list`, in either envelope shape, sorted and unique. */
+export function entryNames(
+  data: { entries?: { provider?: string }[] } | { provider?: string }[],
+): string[] {
+  const list = Array.isArray(data) ? data : (data.entries ?? []);
+  return [...new Set(list.map((e) => e.provider ?? '').filter(Boolean))].sort();
+}
+
+/** Whether `unv` said the vault is locked, as opposed to missing or broken. */
+export function looksLocked(message: string): boolean {
+  return /locked|not unlocked|password|login/i.test(message);
+}

@@ -10,7 +10,11 @@ Puts the vault where the work happens, by calling the `unv` CLI. **It never show
   { "type": "unv", "label": "run api", "project": "api", "command": ["node", "server.js"] }
   ```
 
-- **Warnings on save** at each line holding a value that is a secret in your vault (`unv scan --exposed`), with the fingerprint, never the value.
+- **Insert a reference** (`Ctrl+Alt+U`, or the status bar key): pick an entry, get `${Entry}` at the cursor.
+- **Vault entries view** in the activity bar: names only; click to insert, inline button to copy the reference.
+- **Status bar**: shows the entry count, or that the vault is locked or `unv` is missing.
+- **Check the workspace**: one `unv scan --exposed` over the folder, results in the Problems panel.
+- **Warnings on save** at each line holding a value that is a secret in your vault (`unv scan --exposed`), with the fingerprint, never the value. Values shorter than 8 characters are not flagged: a vault value like `true` or a port number would otherwise mark every such token in a JSON file.
 
 It uses whatever credentials your shell would: a cached session from `unv login`, or `UNV_PASSWORD`. With the vault locked it says nothing rather than guess.
 

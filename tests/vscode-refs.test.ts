@@ -11,6 +11,9 @@ import { join } from 'node:path';
 import {
   FIELD_NAMES,
   completionContext,
+  entryNames,
+  looksLocked,
+  referenceFor,
   execArgs,
   hoverText,
   parseExposureReport,
@@ -131,5 +134,30 @@ describe('hoverText', () => {
   });
   it('says what it does not know instead of inventing', () => {
     expect(hoverText(ref, null)).toContain('not found in the vault, or the vault is locked');
+  });
+});
+
+describe('referenceFor', () => {
+  it('writes the reference the CLI resolves', () => {
+    expect(referenceFor('GitHub')).toBe('${GitHub}');
+    expect(referenceFor('GitHub', 'TOKEN')).toBe('${GitHub/TOKEN}');
+  });
+});
+
+describe('entryNames', () => {
+  it('reads both envelope shapes, drops blanks and duplicates, sorts', () => {
+    expect(entryNames([{ provider: 'b' }, { provider: 'a' }, { provider: 'a' }, {}])).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(entryNames({ entries: [{ provider: 'z' }] })).toEqual(['z']);
+    expect(entryNames({})).toEqual([]);
+  });
+});
+
+describe('looksLocked', () => {
+  it('tells a locked vault from a missing program', () => {
+    expect(looksLocked('Vault not unlocked by owner')).toBe(true);
+    expect(looksLocked('spawn unv ENOENT')).toBe(false);
   });
 });
