@@ -44,6 +44,20 @@ impl Engine {
         Self::from_values(data::entries(vault).iter().flat_map(out::secret_values))
     }
 
+    /// For `unv scan --exposed` (editor warnings). Redaction must hide a value of any
+    /// length, but a *warning* about a one-to-seven character value flags every `true`,
+    /// `name` or port number in a JSON file that happens to match (the VS Code extension
+    /// marked random JSON elements as keys), so this matcher skips values shorter than
+    /// [`crate::exposure::SHORT`].
+    pub fn for_exposure(vault: &Value) -> Self {
+        Self::from_values(
+            data::entries(vault)
+                .iter()
+                .flat_map(out::secret_values)
+                .filter(|v| v.chars().count() >= crate::exposure::SHORT),
+        )
+    }
+
     fn from_values(values: impl IntoIterator<Item = String>) -> Self {
         let values: Vec<String> = values
             .into_iter()
@@ -439,6 +453,24 @@ mod tests {
         let report = exposure_report(&findings);
         assert!(!report.contains("vault-value"));
         assert!(report.contains(&out::fingerprint("vault-value")));
+    }
+
+    // Bug: `--exposed` matched a vault value of any length as a substring, so a vault
+    // holding "true" or "8080" flagged every such token in an editor's JSON file.
+    #[test]
+    fn exposure_scan_ignores_values_too_short_to_mean_anything() {
+        let vault = json!({ "api_keys": [
+            { "provider": "A", "api_key": "true" },
+            { "provider": "B", "api_key": "a-real-long-secret" }
+        ]});
+        let engine = Engine::for_exposure(&vault);
+        let mut scanner = FileScanner::new(&engine);
+        scanner
+            .read(Cursor::new(b"{\"on\": true, \"k\": \"a-real-long-secret\"}".to_vec()))
+            .unwrap();
+        assert_eq!(scanner.findings.len(), 1);
+        // Redaction keeps every length: a short secret must still never print.
+        assert_eq!(Engine::from_vault(&vault).patterns.len(), 2);
     }
 
     #[test]

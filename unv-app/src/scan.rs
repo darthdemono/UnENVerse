@@ -498,7 +498,7 @@ pub fn cmd_exposed(
             "An exposure report names sensitive locations. Pass --out <file>; it is never printed.",
         ));
     };
-    let engine = crate::shield::Engine::from_vault(&access.load_vault()?);
+    let engine = crate::shield::Engine::for_exposure(&access.load_vault()?);
     let findings = engine.scan_path(path)?;
     let report = crate::shield::exposure_report(&findings);
     crate::fmt::write_secret_file(out_path, &report)?;

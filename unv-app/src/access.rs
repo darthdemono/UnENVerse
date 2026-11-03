@@ -273,7 +273,13 @@ impl RemoteClient {
             429 | 503 => Code::Unavailable,
             _ => Code::Error,
         };
-        CliError::new(code, format!("Server error {status}: {msg}"))
+        // A locked server is fixed by its owner, not by retrying: say how.
+        let hint = if status.as_u16() == 503 && msg.contains("not unlocked") {
+            " (the server is locked: its owner unlocks it once with the master password, with no username)"
+        } else {
+            ""
+        };
+        CliError::new(code, format!("Server error {status}: {msg}{hint}"))
             .with_details(serde_json::json!({ "http_status": status.as_u16() }))
     }
 
