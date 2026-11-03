@@ -392,6 +392,20 @@ describe('connecting', { timeout: 30000 }, () => {
     expect(finished).toBe(0);
   });
 
+  it('a locked server offers the owner unlock, then signs the user in', async () => {
+    await boot();
+    const { ServerLockedError } = await import('../src/ts/state');
+    const remote = new RemoteVaultStore('http://vault.test');
+    const auth = vi
+      .spyOn(remote, 'authUser')
+      .mockRejectedValueOnce(new ServerLockedError())
+      .mockResolvedValueOnce(true);
+    const unlock = vi.spyOn(remote, 'unlock').mockResolvedValue(true);
+    expect(await panel.authUserInteractive(remote, 'alice', 'pw')).toBe(true);
+    expect(unlock).toHaveBeenCalledWith('pw');
+    expect(auth).toHaveBeenCalledTimes(2);
+  });
+
   it('any other sign-in error is passed on rather than swallowed', async () => {
     await boot();
     const remote = new RemoteVaultStore('http://vault.test');

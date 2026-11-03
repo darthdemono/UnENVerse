@@ -12,6 +12,7 @@ import {
   RemoteVaultStore,
   TauriVaultStore,
   TotpRequiredError,
+  ServerLockedError,
   VaultConflictError,
   conflictEntries,
 } from '../src/ts/state';
@@ -112,6 +113,14 @@ describe('signing in', () => {
     reply({ body: { token: 'T3' } });
     await s.authUser('alice', 'pw', '123456');
     expect(requests[1].body).toEqual({ username: 'alice', password: 'pw', totp: '123456' });
+  });
+
+  // Bug: a user signing in to a server nobody had unlocked got a bare
+  // "Vault not unlocked by owner" with no way forward (found on a fresh Windows laptop).
+  it('a locked server is a typed error the screen can act on', async () => {
+    const s = new RemoteVaultStore(BASE);
+    reply({ status: 503, body: { error: 'Vault not unlocked by owner' } });
+    await expect(s.authUser('alice', 'pw')).rejects.toBeInstanceOf(ServerLockedError);
   });
 
   it('a correct password that still needs a code is a prompt, not a failure', async () => {
