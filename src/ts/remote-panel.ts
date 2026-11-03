@@ -6,6 +6,7 @@ import {
   Settings,
   RemoteVaultStore,
   TotpRequiredError,
+  ServerLockedError,
   TauriVaultStore,
   LocalVaultStore,
   inTauri,
@@ -39,6 +40,16 @@ export async function authUserInteractive(
   try {
     return await remote.authUser(username, password);
   } catch (e) {
+    if (e instanceof ServerLockedError) {
+      // A freshly started server holds no key until its owner unlocks it, and a
+      // named user cannot. Offer the unlock here instead of a dead-end error.
+      const master = await showPasswordPrompt(
+        `This server is locked. Enter its master password to unlock it, then "${username}" is signed in.`,
+      );
+      if (master === null) return false;
+      if (!(await remote.unlock(master))) return false;
+      return authUserInteractive(remote, username, password);
+    }
     if (!(e instanceof TotpRequiredError)) throw e;
     const code = await showPrompt(`Two-factor code for "${username}":`);
     // Cancelling is not a failed login — it is no login. Reported as false so

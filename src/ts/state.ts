@@ -221,6 +221,13 @@ const _invoke = (command: string, args?: unknown) => invokeTauri(command, args);
  * A distinct type rather than a message match: the string is server-supplied and
  * a caller branching on it would break the moment the wording changed.
  */
+export class ServerLockedError extends Error {
+  constructor() {
+    super('Server is locked');
+    this.name = 'ServerLockedError';
+  }
+}
+
 export class TotpRequiredError extends Error {
   constructor() {
     super('Second factor required');
@@ -350,6 +357,8 @@ export class RemoteVaultStore implements VaultStore {
       const body = await r.json().catch(() => ({}));
       if (r.status === 401 && jsonObject(body).totp_required === true)
         throw new TotpRequiredError();
+      // 503 = nobody holds the key. A user cannot fix that; the owner can.
+      if (r.status === 503) throw new ServerLockedError();
       throw new Error(jsonError(body, `Auth failed ${r.status}`));
     }
     const token = jsonObject(await r.json()).token;
