@@ -81,6 +81,65 @@
       {
         "command": "unenverse.scanThisFile",
         "title": "UnENVerse: Check this file for exposed secrets"
+      },
+      {
+        "command": "unenverse.insertReference",
+        "title": "UnENVerse: Insert a vault reference",
+        "icon": "$(key)"
+      },
+      {
+        "command": "unenverse.insertEntry",
+        "title": "UnENVerse: Insert this reference"
+      },
+      {
+        "command": "unenverse.copyReference",
+        "title": "UnENVerse: Copy reference"
+      },
+      {
+        "command": "unenverse.scanWorkspace",
+        "title": "UnENVerse: Check the workspace for exposed secrets"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "unenverse",
+          "title": "UnENVerse",
+          "icon": "$(key)"
+        }
+      ]
+    },
+    "views": {
+      "unenverse": [
+        {
+          "id": "unenverse.entries",
+          "name": "Vault entries",
+          "contextualTitle": "UnENVerse"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "unenverse.copyReference",
+          "when": "view == unenverse.entries",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "unenverse.refresh",
+          "when": "view == unenverse.entries",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "unenverse.insertReference",
+        "key": "ctrl+alt+u",
+        "mac": "cmd+alt+u",
+        "when": "editorTextFocus"
       }
     ]
   },
