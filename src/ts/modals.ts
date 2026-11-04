@@ -557,6 +557,8 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
       : undefined,
     compromised:
       (document.getElementById('f-compromised') as HTMLInputElement | null)?.checked || undefined,
+    local_scripts:
+      (document.getElementById('f-local-scripts') as HTMLInputElement | null)?.checked || undefined,
     scopes,
     api_description: getVal('f-apidesc') || undefined,
     description: getVal('f-desc') || undefined,
@@ -1005,6 +1007,8 @@ export function fillForm(entry: Partial<VaultEntry>) {
   rotEl.value = entry.rotation_days ? String(entry.rotation_days) : '';
   const compEl = document.getElementById('f-compromised') as HTMLInputElement;
   compEl.checked = !!entry.compromised;
+  const lsEl = document.getElementById('f-local-scripts') as HTMLInputElement | null;
+  if (lsEl) lsEl.checked = entry.local_scripts === true;
   (document.getElementById('f-scopes') as HTMLInputElement).value = (entry.scopes || []).join(', ');
   (document.getElementById('f-apidesc') as HTMLInputElement).value = entry.api_description || '';
   (document.getElementById('f-desc') as HTMLInputElement).value = entry.description || '';

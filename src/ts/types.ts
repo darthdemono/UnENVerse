@@ -559,6 +559,8 @@ export interface VaultEntry {
   rotation_days?: number | null;
   /** Marks a credential as known-leaked / emergency-rotate. Surfaces as a critical health issue. */
   compromised?: boolean;
+  /** Served to local scripts through the unlocked desktop (R18). Default off. */
+  local_scripts?: boolean;
   /** Free-form tags for quick cross-cutting labelling (separate from categories/projects). */
   tags?: string[];
   /** When true the entry floats to the top of all filtered views. */

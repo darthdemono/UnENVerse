@@ -33,6 +33,9 @@ pub struct LanServer {
 /// The LAN server, when one is running. `None` means we are not serving.
 pub struct LanState(pub Mutex<Option<LanServer>>);
 
+/// The desktop bridge socket (R18), present only while unlocked with Allow local scripts on.
+pub struct BridgeState(pub Mutex<Option<unv_app::bridge::BridgeServer>>);
+
 /// The unlocked-only durable operations executor. It owns a second copy of the
 /// derived key, so locking must stop and join it before the vault key is wiped.
 pub struct OpsState(pub Mutex<Option<unv_app::recovery_ops::Executor>>);
@@ -111,6 +114,45 @@ fn retain_unlocked_session(
     Ok(())
 }
 
+fn bridge_flag_path<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|d| d.join("bridge.enabled"))
+        .map_err(|e| e.to_string())
+}
+
+fn bridge_enabled<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
+    bridge_flag_path(app).map(|p| p.exists()).unwrap_or(false)
+}
+
+/// Bring the bridge in line with "unlocked and switched on". Always stops the old listener
+/// first, so a lock, a quit or a switch-off unlinks the socket before the key is wiped.
+fn bridge_apply<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    bridge: &Mutex<Option<unv_app::bridge::BridgeServer>>,
+    key: Option<VaultKey>,
+) -> Result<(), String> {
+    let mut g = bridge.lock().map_err(|_| "Bridge state lock poisoned")?;
+    drop(g.take());
+    let Some(key) = key else { return Ok(()) };
+    if !bridge_enabled(app) {
+        return Ok(());
+    }
+    let db = db_path(app)?;
+    let key = zeroize::Zeroizing::new(key);
+    let provider: std::sync::Arc<dyn Fn() -> Result<serde_json::Value, String> + Send + Sync> =
+        std::sync::Arc::new(move || {
+            let conn = vault_core::open_db(&db, &key)?;
+            let (_, doc) = vault_core::snapshot_vault(&conn)?;
+            doc.ok_or_else(|| "Vault is empty".to_string())
+        });
+    *g = Some(unv_app::bridge::serve(
+        unv_app::bridge::socket_path(),
+        provider,
+    )?);
+    Ok(())
+}
+
 /// A taken name says so, in words, instead of the SQL text of the constraint
 /// that refused it (the server's `rejected` does the same for the same reason).
 fn taken(e: String) -> String {
@@ -168,6 +210,7 @@ mod commands {
         app: AppHandle<R>,
         state: State<VaultState>,
         ops: State<OpsState>,
+        bridge: State<BridgeState>,
         password: String,
     ) -> Result<bool, String> {
         let db = db_path(&app)?;
@@ -207,6 +250,10 @@ mod commands {
         vault_core::ensure_owner_user(&conn)?;
 
         retain_unlocked_session(&state.0, &ops.0, key, recovery_paths(&app)?)?;
+        // A failure to open the socket must not fail the unlock: scripts just fall back to a prompt.
+        if let Err(e) = bridge_apply(&app, &bridge.0, Some(key)) {
+            eprintln!("Local scripts bridge not started: {e}");
+        }
         Ok(true)
     }
 
@@ -215,11 +262,14 @@ mod commands {
     /// Stops the LAN server first: it holds a copy of the key, so leaving it up
     /// would mean "locked" on screen while peers kept reading and writing.
     #[tauri::command]
-    pub fn lock_vault(
+    pub fn lock_vault<R: tauri::Runtime>(
+        app: AppHandle<R>,
         state: State<VaultState>,
         lan: State<LanState>,
         ops: State<OpsState>,
+        bridge: State<BridgeState>,
     ) -> Result<(), String> {
+        bridge_apply(&app, &bridge.0, None)?;
         // Join before LAN shutdown or key zeroization: the executor uses its
         // own key copy and marks any in-flight run paused on this path.
         if let Some(mut executor) = ops
@@ -238,6 +288,50 @@ mod commands {
         Ok(())
     }
 
+    /// Whether local scripts may read flagged entries through this unlocked desktop (R18).
+    #[derive(serde::Serialize)]
+    pub struct BridgeStatus {
+        pub enabled: bool,
+        pub serving: bool,
+        pub socket: String,
+    }
+
+    #[tauri::command]
+    pub fn bridge_status<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        bridge: State<BridgeState>,
+    ) -> Result<BridgeStatus, String> {
+        Ok(BridgeStatus {
+            enabled: bridge_enabled(&app),
+            serving: bridge
+                .0
+                .lock()
+                .map_err(|_| "Bridge state lock poisoned")?
+                .is_some(),
+            socket: unv_app::bridge::socket_path().display().to_string(),
+        })
+    }
+
+    /// Switch "Allow local scripts" on or off. Takes effect at once when unlocked.
+    #[tauri::command]
+    pub fn bridge_set_enabled<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+        bridge: State<BridgeState>,
+        enabled: bool,
+    ) -> Result<BridgeStatus, String> {
+        let flag = bridge_flag_path(&app)?;
+        if enabled {
+            ensure_parent(&flag)?;
+            fs::write(&flag, b"1").map_err(|e| e.to_string())?;
+        } else {
+            let _ = fs::remove_file(&flag);
+        }
+        let key = *state.0.lock().map_err(|_| "State lock poisoned")?;
+        bridge_apply(&app, &bridge.0, key)?;
+        bridge_status(app, bridge)
+    }
+
     #[tauri::command]
     pub fn vault_is_unlocked(state: State<VaultState>) -> bool {
         state.0.lock().map(|g| g.is_some()).unwrap_or(false)
@@ -251,10 +345,12 @@ mod commands {
     #[tauri::command]
     pub fn reset_vault<R: tauri::Runtime>(
         app: AppHandle<R>,
+        bridge: State<BridgeState>,
         state: State<VaultState>,
         lan: State<LanState>,
         ops: State<OpsState>,
     ) -> Result<(), String> {
+        bridge_apply(&app, &bridge.0, None)?;
         if let Some(mut executor) = ops
             .0
             .lock()
@@ -845,10 +941,12 @@ mod commands {
         state: State<VaultState>,
         lan: State<LanState>,
         ops: State<OpsState>,
+        bridge: State<BridgeState>,
         text: String,
         password: String,
     ) -> Result<(), String> {
         let (db, salt) = unv_app::backup::open_archive(&text, &password).map_err(|e| e.message)?;
+        bridge_apply(&app, &bridge.0, None)?;
         if let Some(mut executor) = ops
             .0
             .lock()
@@ -1895,6 +1993,15 @@ mod commands {
         pub peers: usize,
         /// Seconds since a peer last made a request; drives the idle shutdown.
         pub idle_secs: u64,
+        /// Set only by the call that created a sign-in account for the share.
+        pub invite: Option<LanInvite>,
+    }
+
+    /// The account made for a share that had none; shown to the owner once.
+    #[derive(serde::Serialize)]
+    pub struct LanInvite {
+        pub username: String,
+        pub password: String,
     }
 
     /// Serve this vault to the local network.
@@ -1928,16 +2035,11 @@ mod commands {
         let salt = salt_path(&app)?;
         let conn = vault_core::open_db(&db, &key)?;
 
-        // Peers can only authenticate as users. Starting without one would
-        // advertise a server nobody can log into, so refuse and say why.
-        let users = vault_core::list_users(&conn)?;
-        if !users.iter().any(|u| u.has_password && !u.is_owner) {
-            return Err(
-                "No user account exists yet. Create one in the Users panel first — \
-                 peers sign in with a username and password, never the master password."
-                    .into(),
-            );
-        }
+        // Peers can only authenticate as users, never with the master password. With no
+        // user yet, make one and hand its credentials back once: the owner should not have
+        // to leave the share button, find the Users panel and invent an account first.
+        let invite = vault_core::ensure_peer_account(&conn)?
+            .map(|(username, password)| LanInvite { username, password });
         let owner_id = vault_core::ensure_owner_user(&conn)?;
         drop(conn);
 
@@ -1997,6 +2099,7 @@ mod commands {
             fingerprint: fingerprint.clone(),
             peers: 0,
             idle_secs: 0,
+            invite,
         };
 
         *lan.0.lock().map_err(|_| "State lock poisoned")? = Some(LanServer {
@@ -2035,6 +2138,7 @@ mod commands {
                 fingerprint: s.fingerprint.clone(),
                 peers: s.state.peer_count(),
                 idle_secs: s.state.idle_secs(),
+                invite: None,
             },
         })
     }
@@ -2266,6 +2370,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         .manage(VaultState(Mutex::new(None)))
         .manage(LanState(Mutex::new(None)))
         .manage(OpsState(Mutex::new(None)))
+        .manage(BridgeState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             commands::unlock_vault,
             commands::caps_lock_state,
@@ -2355,6 +2460,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::get_user_permissions,
             commands::set_user_permissions,
             commands::get_audit_log,
+            commands::bridge_status,
+            commands::bridge_set_enabled,
             commands::lan_start,
             commands::lan_stop,
             commands::lan_status,
@@ -2443,8 +2550,18 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running UnENVerse");
+        .build(tauri::generate_context!())
+        .expect("error while running UnENVerse")
+        .run(|app, event| {
+            // Quit takes the local-scripts socket down with it, so no stale file is left.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(b) = app.try_state::<BridgeState>() {
+                    if let Ok(mut g) = b.0.lock() {
+                        drop(g.take());
+                    }
+                }
+            }
+        });
 }
 
 #[cfg(test)]

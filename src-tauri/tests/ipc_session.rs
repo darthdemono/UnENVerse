@@ -432,16 +432,11 @@ fn an_archive_round_trips_with_its_password_and_a_wrong_one_restores_nothing() {
 #[test]
 fn open_to_lan_needs_a_user_serves_the_vault_and_does_not_outlive_the_lock() {
     let d = unlocked("lan");
-    let refused = d
-        .call("lan_start", json!({ "port": 38744, "tls": false }))
-        .unwrap_err();
-    assert!(
-        refused
-            .as_str()
-            .unwrap()
-            .contains("No user account exists yet"),
-        "{refused}"
-    );
+    // Bug it replaces: with no user the share refused to start. It now makes a guest account
+    // and returns its credentials once.
+    let st = d.ok("lan_start", json!({ "port": 38744, "tls": false }));
+    assert_eq!(st["invite"]["username"], "guest", "{st}");
+    d.ok("lan_stop", json!({}));
     d.ok(
         "create_user",
         json!({ "username": "peer", "password": "peer-password-123456" }),

@@ -96,6 +96,7 @@ describe('saving a new entry', { timeout: 30000 }, () => {
     set('f-tags-input', 'alpha  beta');
     set('f-env-prefixes', 'VITE_, NEXT');
     check('f-compromised');
+    check('f-local-scripts');
     await save();
     expect(last()).toMatchObject({
       provider: 'Acme',
@@ -118,6 +119,7 @@ describe('saving a new entry', { timeout: 30000 }, () => {
       tags: ['alpha', 'beta'],
       env_prefixes: ['VITE', 'NEXT'],
       compromised: true,
+      local_scripts: true,
       secretType: 'api_key',
     });
     expect(last().id).toBeTruthy();

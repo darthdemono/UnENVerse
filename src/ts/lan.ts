@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright the UnENVerse contributors.
-import { st, applyUsersPanelVisibility, switchPanel, inTauri } from './state';
+import { st, applyUsersPanelVisibility, inTauri } from './state';
 import { showToast, showConfirm, clipboardWrite, errorMessage } from './utils';
 import { invokeTauri } from './tauri';
 import { html, setHtml } from './html';
@@ -14,6 +14,8 @@ export interface LanStatus {
   fingerprint: string | null;
   peers: number;
   idle_secs: number;
+  /** Present only on the call that created a sign-in account for the share. */
+  invite?: { username: string; password: string } | null;
 }
 
 const EMPTY: LanStatus = {
@@ -94,6 +96,17 @@ export async function startLan(): Promise<void> {
     startPolling();
     render();
     showToast(`Serving at ${_status.url}`, 'ok', 4000);
+    const invite = _status.invite;
+    if (invite) {
+      // Shown once: the password is not stored anywhere readable. Copy it before closing.
+      _status = { ..._status, invite: null };
+      await clipboardWrite(`${invite.username} / ${invite.password}`);
+      await showConfirm(
+        `Peers sign in with the account created for this share (copied to your clipboard):\n\n` +
+          `User: ${invite.username}\nPassword: ${invite.password}\n\n` +
+          `Change it or add people later in the Users panel.`,
+      );
+    }
     // Auto-lock stays suspended for as long as we serve — resetLock reads
     // st.lanServerRunning and stands down.
     const m = await import('./lock');
@@ -101,11 +114,6 @@ export async function startLan(): Promise<void> {
   } catch (e) {
     const msg = errorMessage(e);
     render();
-    if (msg.includes('No user account exists')) {
-      showToast('Create a user account first — peers sign in with one', 'err', 5000);
-      switchPanel('users');
-      return;
-    }
     showToast(`Could not open to LAN: ${msg}`, 'err', 5000);
   }
 }
