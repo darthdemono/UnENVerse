@@ -3,6 +3,7 @@
 ## How you checked it
 
 - [ ] `npm run preflight` passes (or the part of it that applies, and why)
+- [ ] `CHANGELOG.md` has a line for a change a user can see
 - [ ] A bug fix has a regression test that fails without the fix
 - [ ] A UI change has a matching CLI change (or an entry in `tests/fixtures/parity/capabilities.json`)
 - [ ] Test data does not look like a real credential
