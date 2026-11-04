@@ -133,7 +133,7 @@ fn bridge_apply<R: tauri::Runtime>(
     key: Option<VaultKey>,
 ) -> Result<(), String> {
     let mut g = bridge.lock().map_err(|_| "Bridge state lock poisoned")?;
-    drop(g.take());
+    let _ = g.take();
     let Some(key) = key else { return Ok(()) };
     if !bridge_enabled(app) {
         return Ok(());
@@ -2557,7 +2557,7 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 if let Some(b) = app.try_state::<BridgeState>() {
                     if let Ok(mut g) = b.0.lock() {
-                        drop(g.take());
+                        let _ = g.take();
                     }
                 }
             }
