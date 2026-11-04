@@ -6,14 +6,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error plain ES module without declarations
-import {
-  apply,
-  generate,
-  model,
-  releasedVersion,
-  renderMarkdown,
-} from '../scripts/roadmap-status.mjs';
+// @ts-expect-error plain .mjs without types
+import * as status from '../scripts/roadmap-status.mjs';
+
+const { apply, generate, model, releasedVersion, renderMarkdown } = status;
 
 const root = path.resolve(__dirname, '..');
 const read = (p: string) => fs.readFileSync(path.join(root, p), 'utf8');
