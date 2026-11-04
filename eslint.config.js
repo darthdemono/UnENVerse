@@ -10,13 +10,13 @@
 //    `--fix` into a loop. Add stylistic opinions to `.prettierrc.json`, never
 //    here.
 //
-// 2. It does not lint `index.html`. CLAUDE.md records a formatter silently
+// 2. It does not lint `index.html`. CONTRIBUTING.md records a formatter silently
 //    deleting `#new-category-form` from that file, and the app queries element
 //    ids that no tool can prove are still present. `index.html` is edited by
 //    hand and verified by `tests/modals.test.ts`'s id-contract block.
 //
 // The rule selection is weighted towards the bug class this codebase actually
-// suffers from: a reference that outlives the thing it points at (CLAUDE.md,
+// suffers from: a reference that outlives the thing it points at (CONTRIBUTING.md,
 // "Invariants"), and unawaited promises around vault writes.
 
 import js from '@eslint/js';
