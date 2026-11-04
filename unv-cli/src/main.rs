@@ -175,6 +175,14 @@ struct Cli {
     #[arg(long, env = "UNV_PASSWORD_COMMAND", global = true)]
     password_command: Option<String>,
 
+    /// Do not use the unlocked desktop's local-scripts bridge, even when its socket exists.
+    #[arg(long, global = true)]
+    no_bridge: bool,
+
+    /// When the desktop bridge is locked or closed, ask for the password instead of exiting 7.
+    #[arg(long, global = true)]
+    allow_prompt: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -2925,6 +2933,26 @@ fn run(cli: &Cli) -> CliResult {
         session_token: cached.as_deref(),
         totp: cli.totp.as_deref(),
         init: cli.init,
+        // Only commands that read and materialise values may use the desktop bridge; the rest
+        // would be refused on a read-only snapshot, so they keep their ordinary password path.
+        bridge: if cli.no_bridge
+            || !matches!(
+                cli.command,
+                Commands::Exec { .. }
+                    | Commands::Render { .. }
+                    | Commands::Get { .. }
+                    | Commands::Env { .. }
+                    | Commands::Curl { .. }
+                    | Commands::Cookie { .. }
+                    | Commands::File { .. }
+                    | Commands::Shield { .. }
+            ) {
+            unv_app::access::Bridge::Off
+        } else if cli.allow_prompt {
+            unv_app::access::Bridge::UseOrPrompt
+        } else {
+            unv_app::access::Bridge::Use
+        },
     };
 
     match &cli.command {
@@ -3067,6 +3095,7 @@ fn cmd_login(cli: &Cli, password: Option<&str>) -> CliResult {
         session_token: None,
         totp: cli.totp.as_deref(),
         init: false,
+        bridge: unv_app::access::Bridge::Off,
     };
     let access = open_access(&auth)?;
     let Some(remote) = access.remote() else {
@@ -4854,6 +4883,11 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
 
 fn cmd_audit(access: &Access, limit: usize) -> CliResult {
     let rows: Vec<serde_json::Value> = match access {
+        Access::Bridge(_) => {
+            return Err(CliError::denied(
+                "The desktop bridge does not serve the audit log",
+            ))
+        }
         Access::Local(_) => {
             let conn = access.conn()?;
             vault_core::load_audit(&conn)

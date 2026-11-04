@@ -78,6 +78,7 @@ impl Member {
 /// — the same reasoning as `resetViewState` on a vault switch in the app.
 pub fn vault_key(access: &crate::access::Access) -> String {
     match access {
+        crate::access::Access::Bridge(_) => "desktop".to_string(),
         crate::access::Access::Local(_) => {
             state::local_vault_key(&crate::access::default_db_path())
         }

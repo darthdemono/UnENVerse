@@ -466,7 +466,9 @@ mod tests {
         let engine = Engine::for_exposure(&vault);
         let mut scanner = FileScanner::new(&engine);
         scanner
-            .read(Cursor::new(b"{\"on\": true, \"k\": \"a-real-long-secret\"}".to_vec()))
+            .read(Cursor::new(
+                b"{\"on\": true, \"k\": \"a-real-long-secret\"}".to_vec(),
+            ))
             .unwrap();
         assert_eq!(scanner.findings.len(), 1);
         // Redaction keeps every length: a short secret must still never print.

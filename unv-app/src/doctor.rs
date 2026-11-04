@@ -90,6 +90,12 @@ impl Finding {
 /// nothing has read yet.
 fn check_integrity(access: &Access) -> Finding {
     match access {
+        Access::Bridge(_) => Finding::at(
+            "integrity",
+            Level::Note,
+            "Served by the desktop bridge".to_string(),
+            "",
+        ),
         Access::Remote(_) => Finding::at(
             "integrity",
             Level::Note,

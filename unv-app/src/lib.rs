@@ -12,6 +12,7 @@ pub mod agentio;
 pub mod authreq;
 pub mod backup;
 pub mod blast_cmd;
+pub mod bridge;
 pub mod bundle_cmd;
 pub mod catalogue_cmd;
 pub mod check_cmd;
