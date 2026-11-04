@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "_comment": "Phase 24.5 — web session provider presets. Each names the cookies a session needs, the header a copy derives, and what the session is bound to. Nothing here is fetched or verified automatically; the form flags a missing required cookie by name. 'verified_on' is the date the shape was last checked against a real capture, per CLAUDE.md's own honesty rule about which of these are sourced vs unverified.",
+  "_comment": "Phase 24.5 — web session provider presets. Each names the cookies a session needs, the header a copy derives, and what the session is bound to. Nothing here is fetched or verified automatically; the form flags a missing required cookie by name. 'verified_on' is the date the shape was last checked against a real capture, per the project's own honesty rule about which of these are sourced vs unverified.",
   "presets": [
     {
       "id": "x-twitter",

@@ -285,7 +285,7 @@ export interface VaultEntry {
    * limited. Membership is **explicit**: two keys for the same provider do not
    * pool automatically, because `unv get GitHub` refusing an ambiguous match
    * is the behaviour that stops a command from silently acting on a credential
-   * the caller did not mean (see the invariants in CLAUDE.md).
+   * the caller did not mean (see the invariants in CONTRIBUTING.md).
    *
    * Swap state — cursor, cooldowns, use counts — is deliberately NOT stored
    * here. It lives in a per-machine sidecar; see `unv-cli/src/pool.rs`.
