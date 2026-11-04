@@ -64,7 +64,7 @@ const START = /(<!-- roadmap-status:start -->)[\s\S]*?(<!-- roadmap-status:end -
 
 export function apply(text, block) {
   if (!START.test(text)) throw new Error('missing roadmap-status markers');
-  return text.replace(START, (_, a, b) => `${a}\n${block}\n${b}`);
+  return text.replace(START, (_, a, b) => `${a}\n\n${block}\n\n${b}`);
 }
 
 export function generate() {
