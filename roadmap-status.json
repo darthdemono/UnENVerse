@@ -1,0 +1,185 @@
+{
+  "_comment": "Single source of the roadmap phase states. scripts/roadmap-status.mjs writes them into README.md, book/src/roadmap.md and website/roadmap/index.html between roadmap-status markers; a test fails when those copies are stale. Update the state here when a phase moves.",
+  "phases": [
+    {
+      "id": "R00",
+      "title": "baseline + instruction split",
+      "state": "done"
+    },
+    {
+      "id": "R01",
+      "title": "security hotfixes",
+      "state": "done"
+    },
+    {
+      "id": "R02",
+      "title": "CI release gating + speed",
+      "state": "done"
+    },
+    {
+      "id": "R03",
+      "title": "dependency modernisation",
+      "state": "done"
+    },
+    {
+      "id": "R04",
+      "title": "unv-app extraction",
+      "state": "done"
+    },
+    {
+      "id": "R05",
+      "title": "ops runtime + local recovery",
+      "state": "done"
+    },
+    {
+      "id": "R06",
+      "title": "SFTP, retention, restore drill",
+      "state": "done"
+    },
+    {
+      "id": "R07",
+      "title": "metadata + lifecycle core",
+      "state": "done"
+    },
+    {
+      "id": "R08",
+      "title": "config parsers + migration core",
+      "state": "done"
+    },
+    {
+      "id": "R09",
+      "title": "password-manager sources",
+      "state": "done"
+    },
+    {
+      "id": "R26",
+      "title": "signed desktop + CLI updates",
+      "state": "partial"
+    },
+    {
+      "id": "R10",
+      "title": "git sources + cutover",
+      "state": "partial"
+    },
+    {
+      "id": "R11",
+      "title": "service sources",
+      "state": "partial"
+    },
+    {
+      "id": "R12",
+      "title": "desktop hub + deployment",
+      "state": "partial"
+    },
+    {
+      "id": "R13",
+      "title": "rotation engine",
+      "state": "partial"
+    },
+    {
+      "id": "R14",
+      "title": "plugin foundation",
+      "state": "partial"
+    },
+    {
+      "id": "R15",
+      "title": "UI QoL",
+      "state": "partial"
+    },
+    {
+      "id": "R16",
+      "title": "platform parity",
+      "state": "partial"
+    },
+    {
+      "id": "R17",
+      "title": "upstream experiments",
+      "state": "done"
+    },
+    {
+      "id": "R18",
+      "title": "desktop CLI bridge",
+      "state": "partial"
+    },
+    {
+      "id": "R19",
+      "title": "vault identity + single writer",
+      "state": "partial"
+    },
+    {
+      "id": "R20",
+      "title": "delete / forget / rekey",
+      "state": "partial"
+    },
+    {
+      "id": "R21",
+      "title": "compatibility contract + catalogue URL",
+      "state": "done"
+    },
+    {
+      "id": "R22",
+      "title": "unENVerse website",
+      "state": "done"
+    },
+    {
+      "id": "R23",
+      "title": "SL2 + PingDD site fixes",
+      "state": "planned"
+    },
+    {
+      "id": "R24",
+      "title": "site truth generation",
+      "state": "planned"
+    },
+    {
+      "id": "R25",
+      "title": "community files + support bundle",
+      "state": "partial"
+    },
+    {
+      "id": "R26.1",
+      "title": "package-manager channels",
+      "state": "planned"
+    },
+    {
+      "id": "R27",
+      "title": "compose file secrets",
+      "state": "planned"
+    },
+    {
+      "id": "R28",
+      "title": "scripts + sibling tools",
+      "state": "planned"
+    },
+    {
+      "id": "R29",
+      "title": "home Assistant recipe",
+      "state": "planned"
+    },
+    {
+      "id": "R30",
+      "title": "ref-only project files",
+      "state": "planned"
+    },
+    {
+      "id": "R31",
+      "title": "per-command secret release",
+      "state": "planned"
+    },
+    {
+      "id": "R32",
+      "title": "SSH agent",
+      "state": "planned"
+    },
+    {
+      "id": "R33",
+      "title": "canary entries",
+      "state": "planned"
+    },
+    {
+      "id": "R34",
+      "title": "sandboxed exec",
+      "state": "planned"
+    }
+  ]
+}
