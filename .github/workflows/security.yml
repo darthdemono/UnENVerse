@@ -71,8 +71,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The action's own installer downloads from get.trivy.dev, a host that stopped resolving, so
+      # the binary comes straight from the GitHub release and is checked against its checksum file.
+      - name: Install trivy
+        env:
+          TRIVY_VERSION: "0.70.0"
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          tar_name="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 5 -O "${base}/${tar_name}"
+          curl -fsSL --retry 5 -O "${base}/trivy_${TRIVY_VERSION}_checksums.txt"
+          grep " ${tar_name}\$" "trivy_${TRIVY_VERSION}_checksums.txt" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$tar_name" -C "$HOME/.local/bin" trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          skip-setup-trivy: true
           scan-type: fs
           scanners: vuln,secret,misconfig
           severity: HIGH,CRITICAL

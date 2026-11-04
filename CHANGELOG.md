@@ -4,6 +4,11 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Fixed
+
+- The Security audit trivy job installs the scanner from the GitHub release and checks its SHA-256, because the action's own installer downloads from `get.trivy.dev`, which no longer resolves.
+- Dependabot now watches `vscode-extension/`, the PR template asks for a changelog line, and code comments point at `CONTRIBUTING.md` instead of the untracked `CLAUDE.md`.
+
 ## 0.63.0 (2026-11-04)
 
 ### Added
