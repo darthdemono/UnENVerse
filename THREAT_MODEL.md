@@ -28,7 +28,10 @@ the parts and actors are described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Not defended against
 
-Root on a running machine while the vault is unlocked (the key is in memory), a
+Root on a running machine while the vault is unlocked (the key is in memory), any
+process of your own OS user while **Allow local scripts** is on (it can read the
+entries you flagged through the desktop's 0600 socket; off by default, per entry,
+ADR-0172), a
 forgotten master password (there is no recovery service), and files you copy out
 of the program.
 
