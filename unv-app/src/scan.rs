@@ -533,6 +533,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 /// which was right.
 pub fn verify_chain(access: &Access) -> CliResult<usize> {
     let rows: Vec<Value> = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Local(_) => {
             let conn = access.conn()?;
             vault_core::load_audit(&conn)?
@@ -649,6 +650,7 @@ pub fn cmd_verify(access: &Access) -> CliResult {
 
 pub fn cmd_status(access: &Access) -> CliResult {
     let (mode, location, fingerprint) = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Local(_) => (
             "local",
             crate::access::default_db_path().display().to_string(),
@@ -670,6 +672,7 @@ pub fn cmd_status(access: &Access) -> CliResult {
     // when they are about to move a vault between machines, which is exactly
     // when they are about to copy vault.db and leave vault.salt behind.
     let salt_info = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Local(_) => {
             let p = crate::access::default_salt_path();
             Some((p.display().to_string(), p.exists()))

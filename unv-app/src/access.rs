@@ -446,9 +446,19 @@ thread_local! {
 pub enum Access {
     Local(VaultKey),
     Remote(RemoteClient),
+    /// The unlocked desktop's served snapshot (R18): flagged entries only, read-only.
+    Bridge(serde_json::Value),
 }
 
 impl Access {
+    /// The desktop bridge only reads the entries a user flagged for scripts.
+    pub(crate) fn bridge_refusal() -> CliError {
+        CliError::denied(
+            "The desktop bridge is read-only and serves only entries flagged for local scripts. \
+             Pass --no-bridge to use the vault directly.",
+        )
+    }
+
     pub fn load_vault(&self) -> CliResult<serde_json::Value> {
         let doc = self.load_vault_raw()?;
         // For the materialisation log (Phase 36): later writers can say which
@@ -458,6 +468,7 @@ impl Access {
             &match self {
                 Access::Local(_) => "local".to_string(),
                 Access::Remote(c) => c.base.clone(),
+                Access::Bridge(_) => "desktop".to_string(),
             },
         );
         Ok(doc)
@@ -478,6 +489,7 @@ impl Access {
                 doc.ok_or_else(|| CliError::not_found("Vault is empty"))
             }
             Access::Remote(c) => c.get_vault(),
+            Access::Bridge(v) => Ok(v.clone()),
         }
     }
 
@@ -503,6 +515,7 @@ impl Access {
                 vault_core::get_expiring_entries(&conn, days).map_err(CliError::from)
             }
             Access::Remote(c) => c.get_expiring(days),
+            Access::Bridge(_) => Err(Self::bridge_refusal()),
         }
     }
 
@@ -514,6 +527,7 @@ impl Access {
             return Ok(());
         }
         match self {
+            Access::Bridge(_) => Err(Self::bridge_refusal()),
             Access::Local(key) => {
                 let conn = open_db(&default_db_path(), key)?;
                 // Local CLI access is by definition the master-password holder.
@@ -594,7 +608,7 @@ impl Access {
     pub fn local_conn(&self) -> CliResult<Option<vault_core::SqlConnection>> {
         match self {
             Access::Local(key) => Ok(Some(open_db(&default_db_path(), key)?)),
-            Access::Remote(_) => Ok(None),
+            Access::Remote(_) | Access::Bridge(_) => Ok(None),
         }
     }
 
@@ -602,7 +616,7 @@ impl Access {
     pub fn remote(&self) -> Option<&RemoteClient> {
         match self {
             Access::Remote(c) => Some(c),
-            Access::Local(_) => None,
+            Access::Local(_) | Access::Bridge(_) => None,
         }
     }
 
@@ -614,6 +628,7 @@ impl Access {
             Access::Remote(_) => Err(CliError::invalid(
                 "This command needs direct database access and cannot run in remote mode",
             )),
+            Access::Bridge(_) => Err(Self::bridge_refusal()),
         }
     }
 }
@@ -634,6 +649,19 @@ pub struct AuthOpts<'a> {
     pub totp: Option<&'a str>,
     /// Create the local vault if it does not exist yet (`--init`).
     pub init: bool,
+    /// Whether to use the unlocked desktop's bridge when no password source was given.
+    pub bridge: Bridge,
+}
+
+/// R18: how `open_access` treats a socket from the unlocked desktop.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Bridge {
+    /// `--no-bridge`, or a command that must not use it.
+    Off,
+    /// Use it when its socket exists; a locked or closed desktop is exit 7.
+    Use,
+    /// As `Use`, but ask for the password when the desktop cannot answer (`--allow-prompt`).
+    UseOrPrompt,
 }
 
 pub fn open_access(opts: &AuthOpts<'_>) -> CliResult<Access> {
@@ -661,6 +689,15 @@ pub fn open_access(opts: &AuthOpts<'_>) -> CliResult<Access> {
         return Err(CliError::invalid(
             "--user / --token require --server (they authenticate against unv-server)",
         ));
+    }
+    // No explicit password source: the unlocked desktop may serve its flagged entries.
+    if opts.bridge != Bridge::Off && opts.password.is_none() && !opts.init {
+        match crate::bridge::fetch_snapshot() {
+            Ok(Some(vault)) => return Ok(Access::Bridge(vault)),
+            Ok(None) => {}
+            Err(e) if opts.bridge == Bridge::Use => return Err(e),
+            Err(_) => {}
+        }
     }
     if !default_db_path().exists() && !opts.init {
         return Err(CliError::unavailable(format!(

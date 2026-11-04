@@ -24,6 +24,7 @@ fn a_no_changes_nothing_and_a_yes_does_it() {
         session_token: None,
         totp: None,
         init: true,
+        bridge: unv_app::access::Bridge::Off,
     })
     .unwrap();
     let conn = a.conn().unwrap();

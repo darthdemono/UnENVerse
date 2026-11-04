@@ -1139,6 +1139,25 @@
       "tauri": [],
       "note": "A demo vault is a file generator for bug reports and needs no unlocked vault, so it has no place in the app.",
       "cli_flags": []
+    },
+    {
+      "id": "local-scripts",
+      "status": "both",
+      "cli": [],
+      "ui": [
+        "id:s-bridge",
+        "id:f-local-scripts"
+      ],
+      "tauri": [
+        "bridge_status",
+        "bridge_set_enabled"
+      ],
+      "note": "R18: the app switches the desktop bridge on and flags entries; the CLI side is --no-bridge, --allow-prompt and --local-scripts on entry add/set, and it reads through the socket when one exists.",
+      "cli_flags": [
+        "--no-bridge",
+        "--allow-prompt",
+        "--local-scripts"
+      ]
     }
   ]
 }

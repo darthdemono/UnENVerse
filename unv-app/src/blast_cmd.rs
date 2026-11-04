@@ -32,6 +32,7 @@ pub fn run(a: &Access, host: &str, since: Option<&str>) -> CliResult {
 fn local(a: &Access, since: Option<&str>) -> CliResult<Value> {
     let vault = a.load_vault()?;
     let label = match a {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Local(_) => "local".to_string(),
         Access::Remote(c) => c.base.clone(),
     };

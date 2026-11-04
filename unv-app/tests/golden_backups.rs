@@ -43,6 +43,7 @@ fn open_local(pw: &str) -> access::Access {
         session_token: None,
         totp: None,
         init: false,
+        bridge: unv_app::access::Bridge::Off,
     })
     .expect("open local vault")
 }

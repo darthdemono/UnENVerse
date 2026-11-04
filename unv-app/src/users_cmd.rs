@@ -17,6 +17,7 @@ use serde_json::{json, Value};
 
 pub fn user_ls(access: &Access, json_out: bool) -> CliResult {
     let rows: Vec<Value> = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c
             .get_json("/api/users")?
             .as_array()
@@ -76,6 +77,7 @@ pub fn user_ls(access: &Access, json_out: bool) -> CliResult {
 /// Resolve a username or id to a user id.
 fn resolve_user(access: &Access, query: &str) -> CliResult<String> {
     let rows: Vec<Value> = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c
             .get_json("/api/users")?
             .as_array()
@@ -133,6 +135,7 @@ pub fn user_add(
 ) -> CliResult {
     let pw = prompt_optional_password(password, !no_password)?;
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             let body = json!({ "username": username, "password": pw });
             let created = c.send_json(Method::POST, "/api/users", Some(&body))?;
@@ -167,6 +170,7 @@ pub fn user_rm(access: &Access, query: &str, yes: bool) -> CliResult {
         return Ok(());
     }
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(Method::DELETE, &format!("/api/users/{id}"), None)?;
         }
@@ -186,6 +190,7 @@ pub fn user_rm(access: &Access, query: &str, yes: bool) -> CliResult {
 pub fn user_rename(access: &Access, query: &str, new_name: &str) -> CliResult {
     let id = resolve_user(access, query)?;
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(
                 Method::PUT,
@@ -221,6 +226,7 @@ pub fn user_passwd(access: &Access, query: &str, clear: bool) -> CliResult {
         Some(p)
     };
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(
                 Method::PUT,
@@ -263,6 +269,7 @@ pub fn set_strict(access: &Access, kind: &str, query: &str, strict: bool) -> Cli
         other => return Err(CliError::invalid(format!("unknown subject kind '{other}'"))),
     };
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             let collection = if kind == "user" { "users" } else { "classes" };
             c.send_json(
@@ -297,6 +304,7 @@ pub fn user_class(access: &Access, query: &str, class: Option<&str>) -> CliResul
         None => None,
     };
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(
                 Method::PUT,
@@ -330,6 +338,7 @@ pub fn user_class(access: &Access, query: &str, class: Option<&str>) -> CliResul
 pub fn token_ls(access: &Access, query: &str) -> CliResult {
     let id = resolve_user(access, query)?;
     let rows: Vec<Value> = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c
             .get_json(&format!("/api/users/{id}/tokens"))?
             .as_array()
@@ -400,6 +409,7 @@ pub fn token_new(
 
     let id = resolve_user(access, query)?;
     let (token_id, plaintext) = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             let body = json!({ "description": description, "expires_at": expires });
             let created = c.send_json(
@@ -468,6 +478,7 @@ pub fn token_revoke(access: &Access, query: &str, token_id: &str, yes: bool) -> 
         return Ok(());
     }
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(
                 Method::DELETE,
@@ -492,6 +503,7 @@ pub fn token_revoke(access: &Access, query: &str, token_id: &str, yes: bool) -> 
 
 fn class_rows(access: &Access) -> CliResult<Vec<Value>> {
     match access {
+        Access::Bridge(_) => Err(Access::bridge_refusal()),
         Access::Remote(c) => Ok(c
             .get_json("/api/classes")?
             .as_array()
@@ -581,6 +593,7 @@ pub struct ClassCaps {
 
 pub fn class_add(access: &Access, name: &str, description: &str, caps: &ClassCaps) -> CliResult {
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             let body = json!({
                 "name": name, "description": description,
@@ -641,6 +654,7 @@ pub fn class_set(
     });
 
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             let body = json!({
                 "name": name, "description": description,
@@ -683,6 +697,7 @@ pub fn class_rm(access: &Access, query: &str, yes: bool) -> CliResult {
         return Ok(());
     }
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(Method::DELETE, &format!("/api/classes/{id}"), None)?;
         }
@@ -708,6 +723,7 @@ pub fn perm_show(access: &Access, subject_kind: &str, query: &str) -> CliResult 
         _ => (resolve_class(access, query)?, "classes"),
     };
     let exprs: Value = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c.get_json(&format!("/api/{path}/{id}/permissions"))?,
         Access::Local(_) => {
             let conn = access.conn()?;
@@ -816,6 +832,7 @@ pub fn perm_set(
     // Read the current pair first: the server's PUT replaces both expressions at
     // once, so sending only the changed one would silently wipe the other.
     let current: Value = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c.get_json(&format!("/api/{path}/{id}/permissions"))?,
         Access::Local(_) => {
             let conn = access.conn()?;
@@ -831,6 +848,7 @@ pub fn perm_set(
         write.unwrap_or_else(|| current.get("write").and_then(|v| v.as_str()).unwrap_or(""));
 
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(
                 Method::PUT,
@@ -893,6 +911,7 @@ pub fn totp_enroll(access: &Access, query: &str, out_path: Option<&std::path::Pa
     }
     let id = resolve_user(access, query)?;
     let st: Value = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c.send_json(
             Method::POST,
             &format!("/api/users/{id}/totp/enroll"),
@@ -941,6 +960,7 @@ pub fn totp_enroll(access: &Access, query: &str, out_path: Option<&std::path::Pa
 pub fn totp_confirm(access: &Access, query: &str, code: &str) -> CliResult {
     let id = resolve_user(access, query)?;
     let ok = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             let r: Value = c.send_json(
                 Method::POST,
@@ -975,6 +995,7 @@ pub fn totp_disable(access: &Access, query: &str, yes: bool) -> CliResult {
         return Err(CliError::invalid("Cancelled"));
     }
     match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => {
             c.send_json(
                 Method::DELETE,
@@ -998,6 +1019,7 @@ pub fn totp_disable(access: &Access, query: &str, yes: bool) -> CliResult {
 pub fn totp_status(access: &Access, query: &str) -> CliResult {
     let id = resolve_user(access, query)?;
     let st: Value = match access {
+        Access::Bridge(_) => return Err(Access::bridge_refusal()),
         Access::Remote(c) => c.get_json(&format!("/api/users/{id}/totp"))?,
         Access::Local(_) => {
             let conn = access.conn()?;

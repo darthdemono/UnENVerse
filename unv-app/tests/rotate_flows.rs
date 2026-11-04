@@ -45,6 +45,7 @@ fn the_entry_store_the_connector_choice_and_the_refusals() {
         session_token: None,
         totp: None,
         init: true,
+        bridge: unv_app::access::Bridge::Off,
     })
     .unwrap();
     let old = format!("old-{}", vault_core::new_uuid());

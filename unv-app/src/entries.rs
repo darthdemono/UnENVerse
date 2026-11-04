@@ -170,6 +170,9 @@ pub struct EntryFields {
     /// automatically. Pass an empty string to leave the pool.
     #[arg(long)]
     pub pool: Option<String>,
+    /// Serve this entry to scripts through the unlocked desktop (R18). Default false.
+    #[arg(long, value_name = "true|false")]
+    pub local_scripts: Option<bool>,
     /// ISO date (YYYY-MM-DD).
     #[arg(long)]
     pub expires: Option<String>,
@@ -778,6 +781,9 @@ impl EntryFields {
         }
         if let Some(v) = &self.pool {
             set_str(entry, "pool", v.trim());
+        }
+        if let Some(v) = self.local_scripts {
+            entry["local_scripts"] = json!(v);
         }
         if let Some(v) = &self.expires {
             if !v.is_empty() && !expiry_is_valid(v) {
