@@ -136,17 +136,24 @@ describe('start', () => {
     expect(confirms).toHaveLength(1);
   });
 
-  it('explains a missing user account, and any other failure', async () => {
-    let msg = 'No user account exists yet';
+  it('shows the account made for a share that had none, once', async () => {
+    const { lan } = await boot((cmd) =>
+      cmd === 'lan_start' ? status({ invite: { username: 'guest', password: 'pw123' } }) : null,
+    );
+    await lan.startLan();
+    expect(confirms[0]).toContain('User: guest');
+    expect(confirms[0]).toContain('Password: pw123');
+    expect(lan.lanStatus().invite).toBeNull();
+  });
+
+  it('explains a failure to open the share', async () => {
+    const msg = 'port busy';
     const { lan } = await boot((cmd) => {
       if (cmd === 'lan_start') throw new Error(msg);
       return null;
     });
     await lan.startLan();
-    expect(toasts[0][0]).toContain('Create a user account first');
-    msg = 'port busy';
-    await lan.startLan();
-    expect(toasts[1][0]).toBe('Could not open to LAN: port busy');
+    expect(toasts[0][0]).toBe('Could not open to LAN: port busy');
   });
 });
 

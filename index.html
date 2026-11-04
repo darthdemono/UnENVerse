@@ -1250,6 +1250,12 @@
             Mark as compromised <span class="opt">flags as critical until rotated</span>
           </label>
         </div>
+        <div class="form-group" id="f-local-scripts-group">
+          <label for="f-local-scripts" class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="f-local-scripts" style="width:auto;margin:0">
+            Let local scripts read this <span class="opt">through the unlocked desktop, when Allow local scripts is on</span>
+          </label>
+        </div>
         </section>
       </div><!-- /.modal-body -->
       <div class="modal-footer">
@@ -1400,6 +1406,16 @@
                 <div class="settings-hint" id="s-lock-on-hide-hint">Locks the moment you alt-tab or minimise. Off by default — the inactivity timer above already covers walking away.</div>
               </div>
               <label class="toggle"><input type="checkbox" id="s-lock-on-hide" aria-labelledby="s-lock-on-hide-label" aria-describedby="s-lock-on-hide-hint"><span class="toggle-track"></span></label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Scripts</div>
+            <div class="settings-row">
+              <div class="settings-label">
+                <span class="settings-label-text" id="s-bridge-label">Allow local scripts</span>
+                <div class="settings-hint" id="s-bridge-hint">While this app is unlocked, <code>unv exec</code>, <code>get</code> and <code>render</code> on this computer can read the entries you flagged "Let local scripts read this", without asking for the master password. Any program run by your own user can do the same. Off by default; takes effect at once; stops when you lock or quit.</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="s-bridge" aria-labelledby="s-bridge-label" aria-describedby="s-bridge-hint"><span class="toggle-track"></span></label>
             </div>
           </div>
           <div class="settings-section">

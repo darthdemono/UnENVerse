@@ -1484,6 +1484,30 @@ pub fn seed_default_admin(
     })
 }
 
+/// Gives a LAN share someone to sign in as. Peers authenticate as named users, never with the
+/// master password, so a vault with no such user would be advertised and unreachable (the
+/// desktop used to refuse to start and send the owner off to the Users panel). Returns the
+/// credentials of the account it created, to be shown once, or `None` when one already exists.
+pub fn ensure_peer_account(conn: &Connection) -> Result<Option<(String, String)>, String> {
+    if list_users(conn)?
+        .iter()
+        .any(|u| u.has_password && !u.is_owner)
+    {
+        return Ok(None);
+    }
+    let mut raw = [0u8; 12];
+    rand::rng().fill_bytes(&mut raw);
+    let password = hex::encode(raw);
+    let taken: Vec<String> = list_users(conn)?.into_iter().map(|u| u.username).collect();
+    let username = std::iter::once("guest".to_string())
+        .chain((2..).map(|n| format!("guest{n}")))
+        .find(|n| !taken.contains(n))
+        .expect("an unbounded range has a free name");
+    let user = create_user(conn, &username, Some(&password), false)?;
+    assign_user_class(conn, &user.id, Some("cls-admin"))?;
+    Ok(Some((username, password)))
+}
+
 // ── Token management ──────────────────────────────────────────────────────────
 
 /// Creates a token for `user_id`.
@@ -2128,6 +2152,18 @@ mod tests {
     use serde_json::json;
 
     // ── Glob matching ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn peer_account_is_created_once_and_can_sign_in() {
+        let conn = scratch_conn("peer-account");
+        let (name, pw) = ensure_peer_account(&conn)
+            .unwrap()
+            .expect("first call creates");
+        assert_eq!(name, "guest");
+        assert!(verify_user_password(&conn, &name, &pw).unwrap().is_some());
+        // Bug it replaces: a second call (or any existing password user) must not add another.
+        assert!(ensure_peer_account(&conn).unwrap().is_none());
+    }
 
     #[test]
     fn glob_exact_and_wildcards() {

@@ -118,13 +118,13 @@ pub mod totp_import;
 pub use users::{
     assign_user_class, authority_tier, class_authority_tier, class_member_count, create_user,
     create_user_class, create_user_token, delete_user, delete_user_class,
-    effective_permission_expr, ensure_owner_user, filter_vault_for_user, get_class_permissions,
-    get_permission_expr, get_user_capabilities, get_user_permissions, glob_matches,
-    init_users_schema, list_user_classes, list_user_tokens, list_users, merge_user_vault_write,
-    rename_user, revoke_user_token, seed_default_admin, set_class_permissions, set_permission_expr,
-    set_user_password, set_user_permissions, token_user_id, update_user_class, user_authority_tier,
-    verify_user_password, verify_user_token, AdminSeed, ClassPermission, PermissionRecord,
-    TokenRecord, UserClass, UserRecord,
+    effective_permission_expr, ensure_owner_user, ensure_peer_account, filter_vault_for_user,
+    get_class_permissions, get_permission_expr, get_user_capabilities, get_user_permissions,
+    glob_matches, init_users_schema, list_user_classes, list_user_tokens, list_users,
+    merge_user_vault_write, rename_user, revoke_user_token, seed_default_admin,
+    set_class_permissions, set_permission_expr, set_user_password, set_user_permissions,
+    token_user_id, update_user_class, user_authority_tier, verify_user_password, verify_user_token,
+    AdminSeed, ClassPermission, PermissionRecord, TokenRecord, UserClass, UserRecord,
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────────

@@ -385,6 +385,34 @@ function wireCatalogueRow(): void {
   };
 }
 
+/** R18: the "Allow local scripts" switch. Applies at once; it is a system setting, not a preference. */
+function wireBridgeRow(): void {
+  const box = document.getElementById('s-bridge') as HTMLInputElement | null;
+  if (!box) return;
+  if (!inTauri) {
+    box.disabled = true;
+    box.checked = false;
+    return;
+  }
+  box.disabled = false;
+  invokeTauri<{ enabled: boolean }>('bridge_status')
+    .then((b) => (box.checked = b.enabled))
+    .catch(() => (box.checked = false));
+  // Assignment, not addEventListener: this pane is opened repeatedly (invariant 9).
+  box.onchange = () => {
+    const want = box.checked;
+    invokeTauri<{ enabled: boolean }>('bridge_set_enabled', { enabled: want })
+      .then((b) => {
+        box.checked = b.enabled;
+        showToast(b.enabled ? 'Local scripts allowed' : 'Local scripts off', 'ok', 1500);
+      })
+      .catch((e: unknown) => {
+        box.checked = !want;
+        showToast(`Could not change it: ${String(e)}`, 'err', 3000);
+      });
+  };
+}
+
 // ── Full-fidelity archive (Phase 33.3) ──────────────────────────────────────
 // `unv backup archive` / `restore-archive`. The cryptography and the checks are
 // Rust (`unv_cli::backup`); this only collects a password and a file.
@@ -932,6 +960,7 @@ export function openSettings() {
     };
 
   wireCatalogueRow();
+  wireBridgeRow();
   wireArchiveRows();
   wireRecoveryRows();
   void wireEntropyRow(s.entropySource || 'os');
