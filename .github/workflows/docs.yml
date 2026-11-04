@@ -228,6 +228,7 @@ jobs:
 
   deploy:
     name: Deploy to Pages
+    timeout-minutes: 40
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -239,3 +240,6 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          # Pages can sit in updating_pages for longer than the action's 10 minute default.
+          timeout: 1800000

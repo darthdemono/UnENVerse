@@ -4,6 +4,10 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Fixed
+
+- The Docs deploy waits up to 30 minutes for GitHub Pages instead of 10, after a push run failed while Pages stayed in `updating_pages`.
+
 ## 0.64.0 (2026-11-04)
 
 ### Added
