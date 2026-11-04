@@ -29,6 +29,15 @@ updates:
         update-types: [minor, patch]
       minor-and-patch:
         update-types: [minor, patch]
+  # The VS Code extension has its own lockfile and ships as a .vsix in every release.
+  - package-ecosystem: npm
+    directory: /vscode-extension
+    schedule: { interval: weekly }
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: cargo
     directory: /
     schedule: { interval: weekly }
