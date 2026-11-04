@@ -4,6 +4,24 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.63.0 (2026-11-04)
+
+### Added
+
+- Local scripts can read from the unlocked desktop (R18, ADR-0172). Settings, Security, "Allow local scripts" opens a private Unix socket while the app is unlocked; `unv exec`, `render`, `get`, `env`, `curl`, `cookie`, `file` and `shield` use it when no password was given. Only entries flagged "Let local scripts read this" (`unv entry set --local-scripts true`) are served, read-only. A locked or closed desktop is exit 7 within a second; `--allow-prompt` asks for the password instead and `--no-bridge` skips the desktop. Not on Windows yet.
+- The VS Code extension has a "Vault entries" view, an "Insert a vault reference" command (`Ctrl+Alt+U`), a status bar item showing the entry count or that the vault is locked, and a workspace-wide exposure check.
+
+### Contract
+
+- Added `unv entry add|set --local-scripts <true|false>` and the global flags `--no-bridge` and `--allow-prompt`. Nothing was removed or renamed, so `contract_version` stays 1.
+
+### Fixed
+
+- Opening a vault to the LAN no longer refuses when it has no user account: it creates a `guest` account and shows its password once, instead of sending the owner to the Users panel.
+- Signing in as a named user to a server nobody had unlocked ended in "Vault not unlocked by owner" with no way forward. The sign-in now offers to unlock the server with its master password and then signs the user in; the CLI error says how the owner unlocks it.
+- The exposure check (`unv scan --exposed`, the VS Code warnings) flagged any JSON line containing a short vault value such as `true` or a port number. It now ignores values under eight characters; redaction still covers every length.
+- russh 0.65 (CVE-2026-116794), pageant 0.2.5 and minimatch 11 clear the open dependency advisories.
+
 ## 0.62.3 (2026-10-30)
 
 ### Changed

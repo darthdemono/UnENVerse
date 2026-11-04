@@ -11,6 +11,7 @@
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
 - [Plugins](plugins.md)
+- [Use UnENVerse from scripts](scripts.md)
 - [Platforms](platforms.md)
 - [Using UnENVerse on two computers](two-computers.md)
 - [Phases](phases/index.md)
@@ -289,3 +290,4 @@
   - [0169: The env naming schema, from one key to an organisation](adr/0169-the-env-naming-schema-from-one-key-to-an-organisation.md)
   - [0170: macOS builds and a launchd node install](adr/0170-macos-builds-and-a-launchd-node-install.md)
   - [0171: Leak-scan import and ACME certificates through installed tools](adr/0171-leak-scan-import-and-acme-through-installed-tools.md)
+  - [0172: Local scripts read flagged entries through the unlocked desktop](adr/0172-local-scripts-read-flagged-entries-through-the-unlocked-desktop.md)
