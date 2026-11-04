@@ -4,6 +4,16 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.64.0 (2026-11-04)
+
+### Added
+
+- The roadmap status in the README, the book and the website is generated from `roadmap-status.json` by `scripts/roadmap-status.mjs`, and a test fails when a page is stale (first slice of R24).
+
+### Changed
+
+- Dependencies updated through Dependabot: simple-icons, typescript-eslint, the minor and patch group, taiki-e/install-action and the Debian base image.
+
 ### Fixed
 
 - The Security audit trivy job installs the scanner from the GitHub release and checks its SHA-256, because the action's own installer downloads from `get.trivy.dev`, which no longer resolves.

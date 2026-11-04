@@ -10,7 +10,7 @@ before new features. The same plan is on the
 
 <!-- roadmap-status:start -->
 
-Status as of release 0.63.0:
+Status as of release 0.64.0:
 
 - **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website.
 - **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R12 desktop hub + deployment; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle.
