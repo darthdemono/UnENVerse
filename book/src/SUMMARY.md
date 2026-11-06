@@ -9,6 +9,7 @@
 - [Config we write, and what checks it](integrations.md)
 - [CLI guide](cli.md)
 - [The scripting contract](contract.md)
+- [Paste guard](paste-guard.md)
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
 - [Plugins](plugins.md)
