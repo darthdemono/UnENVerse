@@ -30,6 +30,8 @@ pub enum Code {
     Redacted = 9,
     /// The request was well-formed but the input was not valid.
     Invalid = 10,
+    /// `unv exec` refused: the secret may only be released to other commands (R31).
+    Released = 11,
 }
 
 impl Code {
@@ -45,6 +47,7 @@ impl Code {
             Code::NeedsConfirmation => "needs_confirmation",
             Code::Redacted => "redacted",
             Code::Invalid => "invalid",
+            Code::Released => "released",
         }
     }
 }

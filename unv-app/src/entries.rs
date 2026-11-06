@@ -173,6 +173,14 @@ pub struct EntryFields {
     /// Serve this entry to scripts through the unlocked desktop (R18). Default false.
     #[arg(long, value_name = "true|false")]
     pub local_scripts: Option<bool>,
+    /// A command `unv exec` may hand this secret to (R31): an argv prefix such as
+    /// `npm run deploy`. Repeatable. With none set, any command may receive it. Pass one empty
+    /// string to remove the rule.
+    #[arg(long, value_name = "ARGV_PREFIX")]
+    pub release: Vec<String>,
+    /// Allow a release prefix that is only a shell, interpreter or downloader (`sh -c`, `curl`).
+    #[arg(long)]
+    pub i_understand: bool,
     /// ISO date (YYYY-MM-DD).
     #[arg(long)]
     pub expires: Option<String>,
@@ -788,6 +796,24 @@ impl EntryFields {
         }
         if let Some(v) = self.local_scripts {
             entry["local_scripts"] = json!(v);
+        }
+        if !self.release.is_empty() {
+            let rules: Vec<String> = self
+                .release
+                .iter()
+                .map(|r| r.trim().to_string())
+                .filter(|r| !r.is_empty())
+                .collect();
+            for r in &rules {
+                crate::release::check_prefix(r, self.i_understand).map_err(CliError::invalid)?;
+            }
+            if rules.is_empty() {
+                if let Some(o) = entry.as_object_mut() {
+                    o.remove("release");
+                }
+            } else {
+                entry["release"] = json!(rules);
+            }
         }
         if let Some(v) = &self.expires {
             if !v.is_empty() && !expiry_is_valid(v) {

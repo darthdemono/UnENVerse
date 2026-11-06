@@ -4042,6 +4042,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 pools: pool_specs,
                 prefix: prefix.as_deref(),
                 clean: *clean,
+                argv,
             };
             let code = exec::run(a, &opts, argv)?;
             if code != 0 {
