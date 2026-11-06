@@ -67,6 +67,7 @@ pub mod release;
 pub mod render;
 pub mod reset_cmd;
 pub mod rotate_cmd;
+pub mod sandbox;
 pub mod scan;
 #[cfg(feature = "aws")]
 pub mod service_aws;
