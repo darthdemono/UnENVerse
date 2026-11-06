@@ -448,6 +448,64 @@ pub struct ImportOpts<'a> {
     pub allow_duplicates: bool,
 }
 
+/// Adds each variable as an `env_var` entry named after its key, or updates the entry that already
+/// carries the key. Returns how many were added and how many changed.
+fn upsert_vars(
+    vault: &mut Value,
+    vars: &[EnvVar],
+    opts: &ImportOpts<'_>,
+    project_ids: &[String],
+    categories: &[String],
+) -> (usize, usize) {
+    let mut added = 0usize;
+    let mut updated = 0usize;
+    for v in vars {
+        let existing = if opts.allow_duplicates {
+            None
+        } else {
+            data::entries(vault).iter().position(|e| {
+                data::provider_of(e) == v.name
+                    && e.get("secretType")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("api_key")
+                        == "env_var"
+            })
+        };
+        match existing {
+            Some(idx) => {
+                let entries = entries_mut(vault);
+                if entries[idx].get("api_key").and_then(|k| k.as_str()) != Some(v.value.as_str()) {
+                    entries[idx]["api_key"] = json!(v.value);
+                    updated += 1;
+                }
+            }
+            None => {
+                let mut entry = json!({
+                    "id": uuid::Uuid::new_v4().to_string(),
+                    "provider": v.name,
+                    "api_key": v.value,
+                    "price_type": opts.price,
+                    "secretType": "env_var",
+                    "categories": categories,
+                    "projectIds": project_ids,
+                    "scopes": [],
+                    // When it entered *this* vault. An imported credential is
+                    // usually older than that, and there is nothing in a .env
+                    // that says how much older.
+                    "created_at": vault_core::iso_now(),
+                });
+                if let Some(e) = opts.environment.filter(|s| !s.is_empty()) {
+                    entry["environment"] = json!(e);
+                }
+                entries_mut(vault).push(entry);
+                added += 1;
+            }
+        }
+    }
+
+    (added, updated)
+}
+
 /// Import a `.env` into the vault.
 ///
 /// Existing keys are **updated** rather than appended by default. The previous
@@ -487,51 +545,7 @@ pub fn import(access: &Access, file: &PathBuf, opts: &ImportOpts<'_>) -> CliResu
         .map(|c| vec![c.to_string()])
         .unwrap_or_default();
 
-    let mut added = 0usize;
-    let mut updated = 0usize;
-    for v in &vars {
-        let existing = if opts.allow_duplicates {
-            None
-        } else {
-            data::entries(&vault).iter().position(|e| {
-                data::provider_of(e) == v.name
-                    && e.get("secretType")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("api_key")
-                        == "env_var"
-            })
-        };
-        match existing {
-            Some(idx) => {
-                let entries = entries_mut(&mut vault);
-                if entries[idx].get("api_key").and_then(|k| k.as_str()) != Some(v.value.as_str()) {
-                    entries[idx]["api_key"] = json!(v.value);
-                    updated += 1;
-                }
-            }
-            None => {
-                let mut entry = json!({
-                    "id": uuid::Uuid::new_v4().to_string(),
-                    "provider": v.name,
-                    "api_key": v.value,
-                    "price_type": opts.price,
-                    "secretType": "env_var",
-                    "categories": categories,
-                    "projectIds": project_ids,
-                    "scopes": [],
-                    // When it entered *this* vault. An imported credential is
-                    // usually older than that, and there is nothing in a .env
-                    // that says how much older.
-                    "created_at": vault_core::iso_now(),
-                });
-                if let Some(e) = opts.environment.filter(|s| !s.is_empty()) {
-                    entry["environment"] = json!(e);
-                }
-                entries_mut(&mut vault).push(entry);
-                added += 1;
-            }
-        }
-    }
+    let (added, updated) = upsert_vars(&mut vault, &vars, opts, &project_ids, &categories);
 
     if added == 0 && updated == 0 {
         out::ok(
@@ -548,6 +562,165 @@ pub fn import(access: &Access, file: &PathBuf, opts: &ImportOpts<'_>) -> CliResu
         || println!("{added} added, {updated} updated from {}", file.display()),
     );
     Ok(())
+}
+
+/// The ref-only form of a `.env` (R30): every `KEY=value` line becomes `KEY=${KEY}`, which resolves
+/// to the `env_var` entry [`upsert_vars`] makes for it. Comments, blank lines, empty values and
+/// lines that are already pointers are kept as written. Returns the new text and the keys that
+/// were replaced. Refuses what it cannot rewrite line for line: a backslash continuation, or a
+/// key that is not a plain identifier (it could not be named in a `${…}` reference).
+pub fn refs_text(raw: &str) -> Result<(String, Vec<String>), String> {
+    let mut keys: Vec<String> = Vec::new();
+    let mut lines: Vec<String> = Vec::new();
+    for line in raw.split('\n') {
+        let body = line.trim_end_matches('\r');
+        let t = body.trim();
+        if t.is_empty() || t.starts_with('#') {
+            lines.push(body.to_string());
+            continue;
+        }
+        if t.ends_with('\\') {
+            return Err(
+                "a line ends in a backslash; multi-line values cannot be migrated line by line"
+                    .into(),
+            );
+        }
+        let Some(eq) = t.find('=') else {
+            lines.push(body.to_string());
+            continue;
+        };
+        let mut key = t[..eq].trim();
+        if key.to_uppercase().starts_with("EXPORT ") {
+            key = key[7..].trim();
+        }
+        let value = t[eq + 1..].trim();
+        if value.is_empty() || crate::refs::is_ref(value) {
+            lines.push(body.to_string());
+            continue;
+        }
+        if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(format!(
+                "`{key}` is not a plain variable name, so a reference to it cannot be written"
+            ));
+        }
+        keys.push(key.to_string());
+        lines.push(format!("{key}=${{{key}}}"));
+    }
+    Ok((lines.join("\n"), keys))
+}
+
+/// `unv env <project> --migrate PATH` (R30): put the plaintext values of a `.env` into the vault,
+/// check that each one resolves back to exactly what the file held, and only then replace the file
+/// with its ref-only form. The vault is saved before the file is touched and the file is replaced
+/// by renaming a finished copy, so a crash between the two loses nothing: the values are in the
+/// vault and the old file is still whole. `--dry-run` reports the keys and writes nothing.
+pub fn migrate(access: &Access, project: &str, path: &std::path::Path) -> CliResult {
+    let raw = std::fs::read_to_string(path)
+        .map_err(|e| CliError::from(format!("Cannot read {}: {e}", path.display())))?;
+    let (new_text, keys) = refs_text(&raw).map_err(CliError::invalid)?;
+    if keys.is_empty() {
+        out::ok(
+            "env.migrate",
+            json!({ "file": path.display().to_string(), "migrated": 0 }),
+            || println!("{} holds no plaintext values.", path.display()),
+        );
+        return Ok(());
+    }
+    if out::dry_run() {
+        out::ok(
+            "env.migrate",
+            json!({ "file": path.display().to_string(), "dry_run": true, "keys": keys }),
+            || {
+                println!(
+                    "would move {} value(s) into the vault: {}",
+                    keys.len(),
+                    keys.join(", ")
+                )
+            },
+        );
+        return Ok(());
+    }
+    // Only the lines that are being replaced are imported, so a value that was already a pointer
+    // is never copied into an entry named after its own key.
+    let vars: Vec<EnvVar> = parse_env_file(&raw)
+        .into_iter()
+        .filter(|v| keys.contains(&v.name))
+        .collect();
+    let mut vault = access.load_vault_or_empty()?;
+    let pi = find_project_index(&vault, project)?;
+    let id = projects(&vault)[pi]
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Universal")
+        .to_string();
+    let project_ids: Vec<String> = if id == "Universal" {
+        vec!["Universal".into()]
+    } else {
+        vec![id, "Universal".into()]
+    };
+    let opts = ImportOpts {
+        project: Some(project),
+        category: None,
+        environment: None,
+        price: "local",
+        allow_duplicates: false,
+    };
+    upsert_vars(&mut vault, &vars, &opts, &project_ids, &[]);
+    access.save(&vault)?;
+
+    // Round trip from what was actually stored, not from what was just built.
+    let stored = access.load_vault()?;
+    let r = crate::refs::Resolver::materialising(&stored);
+    for v in &vars {
+        let got = r.resolve(&format!("${{{}}}", v.name)).value;
+        if got.as_deref() != Some(v.value.as_str()) {
+            return Err(CliError::new(
+                crate::error::Code::Error,
+                format!(
+                    "{} did not resolve back to the value in the file; {} was left unchanged",
+                    v.name,
+                    path.display()
+                ),
+            ));
+        }
+    }
+    let tmp = path.with_extension("env.migrating");
+    write_private(&tmp, &new_text)?;
+    std::fs::rename(&tmp, path)
+        .map_err(|e| CliError::from(format!("Cannot replace {}: {e}", path.display())))?;
+    out::ok(
+        "env.migrate",
+        json!({ "file": path.display().to_string(), "migrated": keys.len(), "keys": keys }),
+        || {
+            println!(
+                "Moved {} value(s) into the vault and rewrote {} as references.",
+                keys.len(),
+                path.display()
+            )
+        },
+    );
+    Ok(())
+}
+
+/// Writes `text` to `path` readable only by the owner.
+fn write_private(path: &std::path::Path, text: &str) -> CliResult {
+    use std::io::Write;
+    #[cfg(unix)]
+    let mut f = {
+        use std::os::unix::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+    }
+    .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
+    #[cfg(not(unix))]
+    let mut f = std::fs::File::create(path)
+        .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))?;
+    f.write_all(text.as_bytes())
+        .map_err(|e| CliError::from(format!("Cannot write {}: {e}", path.display())))
 }
 
 pub fn watch(access: &Access, file: &PathBuf, opts: &ImportOpts<'_>) -> CliResult {
@@ -780,5 +953,36 @@ mod schema_tests {
             .map(|(n, _)| n)
             .collect();
         assert_eq!(names, vec!["ELTE_PASSWORD"]);
+    }
+}
+
+#[cfg(test)]
+mod refs_text_tests {
+    use super::*;
+
+    #[test]
+    fn plaintext_lines_become_pointers_and_everything_else_is_kept() {
+        let raw = "# top\nA=secret-one\n\nexport B=\"secret two\"\nC=\nD=${Other/field}\nnot an assignment\n";
+        let (text, keys) = refs_text(raw).unwrap();
+        assert_eq!(keys, vec!["A", "B"]);
+        assert_eq!(
+            text,
+            "# top\nA=${A}\n\nB=${B}\nC=\nD=${Other/field}\nnot an assignment\n"
+        );
+        assert!(!text.contains("secret"));
+    }
+
+    #[test]
+    fn a_continuation_or_an_odd_key_is_refused() {
+        assert!(refs_text("A=x\\\ny\n").is_err());
+        assert!(refs_text("MY KEY=value\n").is_err());
+        assert!(refs_text("A-B=value\n").is_err());
+    }
+
+    #[test]
+    fn crlf_endings_are_normalised_without_losing_lines() {
+        let (text, keys) = refs_text("A=1\r\nB=2\r\n").unwrap();
+        assert_eq!(keys, vec!["A", "B"]);
+        assert_eq!(text, "A=${A}\nB=${B}\n");
     }
 }
