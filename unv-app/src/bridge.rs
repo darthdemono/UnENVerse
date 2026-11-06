@@ -146,6 +146,7 @@ mod unix {
         let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
         // SAFETY: `cred` and `len` are live locals of exactly the size passed, and the fd is a
         // connected socket owned by `s` for the whole call.
+        // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage (one getsockopt call; both pointers are live locals of the size passed)
         let rc = unsafe {
             libc::getsockopt(
                 s.as_raw_fd(),
