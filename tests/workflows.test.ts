@@ -362,6 +362,26 @@ describe('schedules and Dependabot', () => {
     }
   });
 
+  it('keeps @types/vscode off the automatic path, because vsce refuses it above engines.vscode', () => {
+    const ext = dep.updates.find(
+      (u) => u['package-ecosystem'] === 'npm' && u.directory === '/vscode-extension',
+    );
+    const rule = ext?.ignore?.find((i) => i['dependency-name'] === '@types/vscode');
+    expect(rule, 'an ignore rule for @types/vscode in /vscode-extension').toBeDefined();
+    // The declared floor and the types must agree, or `vsce package` fails.
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(root, 'vscode-extension/package.json'), 'utf8'),
+    ) as { engines: { vscode: string }; devDependencies: Record<string, string> };
+    const floor = (v: string) =>
+      v
+        .replace(/^[\^~]/, '')
+        .split('.')
+        .map(Number);
+    const [em, en] = floor(pkg.engines.vscode);
+    const [tm, tn] = floor(pkg.devDependencies['@types/vscode']);
+    expect(tm * 1000 + tn).toBeLessThanOrEqual(em * 1000 + en);
+  });
+
   it('never sets both directory and directories on one ecosystem', () => {
     for (const u of dep.updates)
       expect(Boolean(u.directory) && Boolean(u.directories), u['package-ecosystem']).toBe(false);

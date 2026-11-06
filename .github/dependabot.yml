@@ -38,6 +38,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # @types/vscode must not be newer than engines.vscode in package.json: `vsce package` refuses
+    # it. Raise the two together, by hand, when the extension's minimum VS Code version moves.
+    ignore:
+      - dependency-name: "@types/vscode"
   - package-ecosystem: cargo
     directory: /
     schedule: { interval: weekly }
