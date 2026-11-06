@@ -70,6 +70,7 @@ pub fn handle(request: &[u8], vault: Result<&Value, &str>) -> Value {
                 Ok(v) => {
                     let mut s = summarise(text, v);
                     s["ok"] = json!(true);
+                    s["spans"] = json!(crate::guard_cmd::spans(text, v));
                     s
                 }
                 Err(why) => json!({ "ok": false, "error": "unavailable", "message": why }),
@@ -262,6 +263,8 @@ mod tests {
         assert_eq!(a[0]["ok"], true);
         assert_eq!(a[0]["blocking"], 1);
         assert_eq!(a[0]["hits"][0]["entry"], "GitHub");
+        assert_eq!(a[0]["spans"][0]["start"], 2);
+        assert_eq!(a[0]["spans"][0]["ref"], "${GitHub}");
         assert!(!String::from_utf8_lossy(&out).contains("plain-token-with-no-known-prefix-9"));
         assert_eq!(a[1]["clean"], true);
     }

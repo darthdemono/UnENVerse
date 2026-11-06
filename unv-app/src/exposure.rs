@@ -82,6 +82,28 @@ impl Matcher {
         out.sort_by(|a, b| (&a.entry_id, &a.field).cmp(&(&b.entry_id, &b.field)));
         out
     }
+
+    /// Where each secret sits in `text`, as non-overlapping byte ranges left to right, with the
+    /// entries that own the matched value. Positions only: the value itself is not returned.
+    pub fn spans(&self, text: &str) -> Vec<Span> {
+        let Some(ac) = &self.ac else {
+            return Vec::new();
+        };
+        ac.find_iter(text)
+            .map(|m| Span {
+                start: m.start(),
+                end: m.end(),
+                owners: self.owners[m.pattern().as_usize()].clone(),
+            })
+            .collect()
+    }
+}
+
+/// One match of a vault value in some text.
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+    pub owners: Vec<Exposed>,
 }
 
 /// What the vault holds for each entry now, for the "is it still live" check.

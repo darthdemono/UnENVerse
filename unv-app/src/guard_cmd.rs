@@ -38,6 +38,34 @@ pub fn summarise(text: &str, vault: &Value) -> Value {
     })
 }
 
+/// The `${…}` reference to offer in place of a found value: only for an entry's main secret, whose
+/// reference is just the provider name. Any other field has no reference this code can vouch for.
+pub fn reference_for(provider: &str, field: &str) -> Option<String> {
+    (field == "api_key" && !provider.is_empty() && !provider.contains(['{', '}', '$']))
+        .then(|| format!("${{{provider}}}"))
+}
+
+/// Where the secrets sit in `text` as UTF-16 offsets (what a browser's strings use), the entry and
+/// field that owns each, and the reference to put there. Short values are left out: replacing a
+/// string that may be there by chance would mangle ordinary text.
+pub fn spans(text: &str, vault: &Value) -> Vec<Value> {
+    let utf16 = |byte: usize| text[..byte].encode_utf16().count();
+    Matcher::from_vault(vault)
+        .spans(text)
+        .into_iter()
+        .filter_map(|sp| {
+            let owner = sp.owners.iter().find(|o| !o.short)?;
+            Some(json!({
+                "start": utf16(sp.start),
+                "end": utf16(sp.end),
+                "entry": owner.provider,
+                "field": owner.field,
+                "ref": reference_for(&owner.provider, &owner.field),
+            }))
+        })
+        .collect()
+}
+
 pub fn check(access: &Access) -> CliResult {
     let mut text = String::new();
     std::io::stdin()
@@ -137,6 +165,30 @@ mod tests {
         let err = run("x plain-token-with-no-known-prefix-9 y", &vault()).unwrap_err();
         assert_eq!(err.code, crate::error::Code::Invalid);
         assert!(!err.message.contains("plain-token"), "{}", err.message);
+    }
+
+    #[test]
+    fn spans_are_utf16_offsets_with_a_reference_and_no_value() {
+        let text = "caf\u{e9} \u{1f600} plain-token-with-no-known-prefix-9 end";
+        let sp = spans(text, &vault());
+        assert_eq!(sp.len(), 1);
+        // "café " is 5 units, the emoji is 2 (a surrogate pair), then a space: the value starts at 8.
+        assert_eq!(sp[0]["start"], 8);
+        assert_eq!(sp[0]["end"], 8 + "plain-token-with-no-known-prefix-9".len());
+        assert_eq!(sp[0]["ref"], "${GitHub}");
+        assert!(!sp[0].to_string().contains("plain-token"), "{}", sp[0]);
+    }
+
+    #[test]
+    fn a_short_value_gets_no_span_and_only_the_main_secret_gets_a_reference() {
+        assert!(spans("abc123 here", &vault()).is_empty());
+        assert_eq!(
+            reference_for("GitHub", "api_key").as_deref(),
+            Some("${GitHub}")
+        );
+        assert_eq!(reference_for("GitHub", "api_secret"), None);
+        assert_eq!(reference_for("We}ird", "api_key"), None);
+        assert_eq!(reference_for("", "api_key"), None);
     }
 
     #[test]
