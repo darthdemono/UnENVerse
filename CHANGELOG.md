@@ -14,7 +14,6 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - A run row can record which build of each plugin it used (`ops::record_plugin_provenance`).
 - `book/src/integrations.md` lists each generated config format and the real tool that checks it, written from the exporter validation jobs by `scripts/integrations-status.mjs`.
 - A weekly `Live services` workflow runs the OpenBao importer against a real dev server.
-- Golden vault, backup and archive files written by release 0.60.0, with reader tests.
 - Roadmap phase R35, a paste guard that matches pasted text against the exact values the vault holds (planned).
 
 ### Changed
