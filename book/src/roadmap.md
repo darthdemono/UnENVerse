@@ -14,7 +14,7 @@ Status as of release 0.65.0:
 
 - **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website.
 - **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R12 desktop hub + deployment; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle.
-- **Not started:** R23 SL2 + PingDD site fixes; R24 site truth generation; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools; R29 Home Assistant recipe; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec.
+- **Not started:** R23 SL2 + PingDD site fixes; R24 site truth generation; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools; R29 Home Assistant recipe; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec; R35 paste guard.
 
 <!-- roadmap-status:end -->
 
@@ -135,6 +135,9 @@ theft visible. Five phases, planned after 1.0.0 (see [the queue](phases/roadmap-
   prevents nothing.
 - **Phase 80, R34: sandboxed exec.** An opt-in launcher with filesystem and
   egress limits, failing closed on a platform that cannot enforce them.
+- **Phase 81, R35: paste guard.** `unv guard check` matches pasted text against the exact
+  values the vault holds, with no pattern guessing, and answers with names only. It
+  cannot stop screenshots, typing by hand or secrets that are not in the vault.
 
 ## Criteria for 1.0.0
 

@@ -180,6 +180,11 @@
       "id": "R34",
       "title": "sandboxed exec",
       "state": "planned"
+    },
+    {
+      "id": "R35",
+      "title": "paste guard",
+      "state": "planned"
     }
   ]
 }
