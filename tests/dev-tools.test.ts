@@ -540,4 +540,34 @@ describe('passphrase generator', () => {
         .every((w) => /^[A-Z][a-z]+$/.test(w)),
     ).toBe(true);
   });
+  it('says so, and writes nothing, when the chosen entropy source has no bytes ready', async () => {
+    const { setEntropySource } = await import('../src/ts/generators');
+    (window as any).__TAURI__ = { core: { invoke: async () => 'abababab' } };
+    await setEntropySource('dev');
+    try {
+      setv('ph-count', '8');
+      setv('ph-output', 'keep');
+      click('ph-generate');
+      expect(toasts[toasts.length - 1][1]).toBe('err');
+      expect(val('ph-output')).toBe('keep');
+    } finally {
+      await setEntropySource('os');
+      delete (window as any).__TAURI__;
+    }
+  });
+
+  it('shows the word count, copies the phrase and injects it into the open form', async () => {
+    const n = $<HTMLInputElement>('ph-count');
+    n.value = '9';
+    n.dispatchEvent(new Event('input'));
+    expect($('ph-count-display').textContent).toBe('9');
+    setv('ph-output', 'alpha-beta-gamma-delta');
+    click('ph-copy');
+    await flush();
+    expect(copied).toEqual(['alpha-beta-gamma-delta']);
+    $('modal-overlay').classList.add('open');
+    click('ph-inject');
+    expect(val('f-key')).toBe('alpha-beta-gamma-delta');
+    $('modal-overlay').classList.remove('open');
+  });
 });
