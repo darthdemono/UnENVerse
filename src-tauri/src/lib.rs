@@ -332,6 +332,46 @@ mod commands {
         bridge_status(app, bridge)
     }
 
+    /// R25: the support bundle (`unv support bundle`): versions, counts and check results only.
+    /// The text is returned to the page, which asks where to save it; the person reads it first.
+    #[tauri::command]
+    pub fn support_bundle<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+    ) -> Result<String, String> {
+        let g = state.0.lock().map_err(|_| "State lock poisoned")?;
+        let key = *g.as_ref().ok_or("Vault is locked")?;
+        unv_app::access::set_paths(Some(db_path(&app)?), Some(salt_path(&app)?));
+        let b = unv_app::support_cmd::build(&unv_app::access::Access::Local(key))
+            .map_err(|e| e.message)?;
+        serde_json::to_string_pretty(&b).map_err(|e| e.to_string())
+    }
+
+    /// R19: which instance of the vault this is (the same record `unv vault status` prints).
+    #[tauri::command]
+    pub fn vault_identity<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+    ) -> Result<vault_core::identity::Identity, String> {
+        let g = state.0.lock().map_err(|_| "State lock poisoned")?;
+        let key = g.as_ref().ok_or("Vault is locked")?;
+        let conn = vault_core::open_db(&db_path(&app)?, key)?;
+        vault_core::identity::ensure(&conn)
+    }
+
+    /// R19: make this instance the live one (`unv vault activate`). The desktop asks the person
+    /// whether the old instance is retired before it calls this; the epoch only ever goes up.
+    #[tauri::command]
+    pub fn vault_activate<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+    ) -> Result<vault_core::identity::Identity, String> {
+        let g = state.0.lock().map_err(|_| "State lock poisoned")?;
+        let key = g.as_ref().ok_or("Vault is locked")?;
+        let conn = vault_core::open_db(&db_path(&app)?, key)?;
+        vault_core::identity::activate(&conn)
+    }
+
     #[tauri::command]
     pub fn vault_is_unlocked(state: State<VaultState>) -> bool {
         state.0.lock().map(|g| g.is_some()).unwrap_or(false)
@@ -2462,6 +2502,9 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::get_audit_log,
             commands::bridge_status,
             commands::bridge_set_enabled,
+            commands::vault_identity,
+            commands::vault_activate,
+            commands::support_bundle,
             commands::lan_start,
             commands::lan_stop,
             commands::lan_status,

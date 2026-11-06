@@ -514,3 +514,45 @@ fn a_remote_request_reaches_a_plain_server_and_reports_status_etag_and_body() {
         .unwrap()
         .contains("failed"));
 }
+
+#[test]
+fn the_desktop_shows_the_instance_and_activation_raises_the_epoch_once() {
+    let d = unlocked("instance");
+    let before = d.ok("vault_identity", json!({}));
+    assert_eq!(before["role"], "active");
+    let epoch = before["epoch"].as_u64().unwrap();
+    // The same call the CLI makes: activating bumps the epoch and keeps the vault id.
+    let after = d.ok("vault_activate", json!({}));
+    assert_eq!(after["role"], "active");
+    assert_eq!(after["epoch"].as_u64().unwrap(), epoch + 1);
+    assert_eq!(after["vault_id"], before["vault_id"]);
+    // A locked vault answers in words, not with a path or a SQL error.
+    d.ok("lock_vault", json!({}));
+    assert_eq!(
+        d.call("vault_identity", json!({})).unwrap_err(),
+        json!("Vault is locked")
+    );
+    assert_eq!(
+        d.call("vault_activate", json!({})).unwrap_err(),
+        json!("Vault is locked")
+    );
+}
+
+#[test]
+fn the_support_bundle_from_the_desktop_holds_counts_and_no_values() {
+    let d = unlocked("supportbundle");
+    let doc = json!({ "api_keys": [{ "id": "k1", "provider": "SecretName", "api_key": "bundle-canary-value-123" }], "projects": [], "user_categories": [] });
+    d.ok("save_vault", json!({ "data": doc, "expectVersion": null }));
+    let text = d.ok("support_bundle", json!({}));
+    let text = text.as_str().unwrap();
+    let v: Value = serde_json::from_str(text).unwrap();
+    assert_eq!(v["bundle_version"], 1);
+    // Bug class it pins: a bundle that carried a name or a value would leak on every report.
+    assert!(!text.contains("bundle-canary-value-123"));
+    assert!(!text.contains("SecretName"));
+    d.ok("lock_vault", json!({}));
+    assert_eq!(
+        d.call("support_bundle", json!({})).unwrap_err(),
+        json!("Vault is locked")
+    );
+}

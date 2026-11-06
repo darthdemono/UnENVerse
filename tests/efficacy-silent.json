@@ -36,5 +36,7 @@
   "chunk-edit-close": "Closes a dialog that is not open at probe time; nothing to close, nothing claimed.",
   "chunk-edit-cancel": "Closes a dialog that is not open at probe time; nothing to close, nothing claimed.",
   "env-link-close": "Closes a dialog that is not open at probe time; nothing to close, nothing claimed.",
-  "env-link-cancel": "Closes a dialog that is not open at probe time; nothing to close, nothing claimed."
+  "env-link-cancel": "Closes a dialog that is not open at probe time; nothing to close, nothing claimed.",
+  "s-instance-activate": "R19: hidden and unwired outside the desktop app (it needs the Tauri vault_identity command); the Tauri path is driven by tests/instance-row.test.ts.",
+  "s-support-bundle": "R25: hidden outside the desktop app (it needs the Tauri support_bundle command); the Tauri path is driven by tests/support-row.test.ts."
 }

@@ -1088,14 +1088,19 @@
     },
     {
       "id": "vault-instance",
-      "status": "exempt",
+      "status": "both",
       "cli": [
         "unv vault status",
         "unv vault activate"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "Activating an instance changes which copy of the vault nodes obey, so it is a deliberate command-line act that asks whether the old instance is retired; the desktop shows nothing for it yet.",
+      "ui": [
+        "id:s-instance-activate"
+      ],
+      "tauri": [
+        "vault_identity",
+        "vault_activate"
+      ],
+      "note": "R19: Settings, Vault instance shows the same identity as `unv vault status` and asks whether the old instance is retired before it calls the same vault_core::identity::activate as `unv vault activate`.",
       "cli_flags": []
     },
     {
@@ -1122,13 +1127,17 @@
     },
     {
       "id": "support-bundle",
-      "status": "exempt",
+      "status": "both",
       "cli": [
         "unv support bundle"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "R25 support bundle reads versions, counts and doctor outcomes only; a Settings, Help button that calls the same vault-side builder is a later slice.",
+      "ui": [
+        "id:s-support-bundle"
+      ],
+      "tauri": [
+        "support_bundle"
+      ],
+      "note": "R25: Settings, Support saves the text built by the same unv_app::support_cmd::build as `unv support bundle`; versions, counts and check results only.",
       "cli_flags": []
     },
     {
