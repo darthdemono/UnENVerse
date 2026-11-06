@@ -457,8 +457,13 @@ enum Commands {
         out: Option<PathBuf>,
         /// Keep every value as its `${Entry}` pointer instead of resolving it, so the file holds
         /// no secret. Refuses a field that holds a literal value.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "migrate")]
         refs: bool,
+        /// Move the plaintext values of this `.env` into the vault under the project, check that
+        /// each one resolves back to what the file held, then rewrite the file as `${Entry}`
+        /// pointers. `--dry-run` lists the keys and writes nothing.
+        #[arg(long, value_name = "PATH", conflicts_with_all = ["refs", "out"])]
+        migrate: Option<PathBuf>,
     },
     /// Create, edit and delete secret entries.
     /// Key pools — several interchangeable credentials for one service.
@@ -2981,7 +2986,7 @@ fn run(cli: &Cli) -> CliResult {
                 Commands::Exec { .. }
                     | Commands::Render { .. }
                     | Commands::Get { .. }
-                    | Commands::Env { .. }
+                    | Commands::Env { migrate: None, .. }
                     | Commands::Curl { .. }
                     | Commands::Cookie { .. }
                     | Commands::File { .. }
@@ -4007,8 +4012,15 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 },
             )
         }
-        Commands::Env { project, out, refs } => {
-            if *refs {
+        Commands::Env {
+            project,
+            out,
+            refs,
+            migrate,
+        } => {
+            if let Some(path) = migrate {
+                envfile::migrate(a, project, path)
+            } else if *refs {
                 chunks::export_refs(a, project, out.as_deref())
             } else {
                 chunks::export(a, project, Some("env"), out.as_deref())

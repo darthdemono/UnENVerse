@@ -83,3 +83,80 @@ fn a_literal_value_is_refused_by_name_and_never_written() {
         "nothing may be written when a literal is found"
     );
 }
+
+const API: &str = "plain-api-value-for-the-env-file-5519";
+
+fn env_file(v: &Vault, name: &str) -> std::path::PathBuf {
+    let path = v.db().with_file_name(name);
+    std::fs::write(
+        &path,
+        format!("# service settings\nAPI_KEY={API}\nEMPTY=\nexport REGION=eu-west-1\nALREADY=${{GitHub}}\n"),
+    )
+    .unwrap();
+    path
+}
+
+#[test]
+fn migrating_moves_values_into_the_vault_and_leaves_pointers_in_the_file() {
+    let v = Vault::new("env-migrate");
+    project(&v);
+    let path = env_file(&v, "migrate.env");
+    let o = v.run(&["env", "Web", "--migrate", path.to_str().unwrap()]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert!(!o.all().contains(API), "{}", o.all());
+    let after = std::fs::read_to_string(&path).unwrap();
+    assert!(after.contains("# service settings"), "{after}");
+    assert!(after.contains("API_KEY=${API_KEY}"), "{after}");
+    assert!(after.contains("REGION=${REGION}"), "{after}");
+    assert!(after.contains("ALREADY=${GitHub}"), "{after}");
+    assert!(after.contains("EMPTY="), "{after}");
+    assert!(
+        !after.contains(API) && !after.contains("eu-west-1"),
+        "{after}"
+    );
+    // The vault now holds what the file held.
+    assert_eq!(v.reveal_field("API_KEY", "api_key"), API);
+    assert_eq!(v.reveal_field("REGION", "api_key"), "eu-west-1");
+    // And the rewritten file renders back to the original values.
+    let r = v.run(&["render", path.to_str().unwrap(), "--reveal"]);
+    assert_eq!(r.code, 0, "{}", r.all());
+    assert!(r.stdout.contains(&format!("API_KEY={API}")), "{}", r.stdout);
+}
+
+#[test]
+fn a_dry_run_names_the_keys_and_changes_neither_the_file_nor_the_vault() {
+    let v = Vault::new("env-migrate-dry");
+    project(&v);
+    let path = env_file(&v, "dry.env");
+    let before = std::fs::read_to_string(&path).unwrap();
+    let o = v.run_with(
+        &["--dry-run"],
+        &["env", "Web", "--migrate", path.to_str().unwrap()],
+    );
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert!(
+        o.all().contains("API_KEY") && o.all().contains("REGION"),
+        "{}",
+        o.all()
+    );
+    assert!(!o.all().contains(API), "{}", o.all());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+    let list = v.run(&["list"]);
+    assert!(!list.all().contains("API_KEY"), "{}", list.all());
+}
+
+#[test]
+fn a_file_that_cannot_be_rewritten_line_by_line_is_refused_untouched() {
+    let v = Vault::new("env-migrate-multiline");
+    project(&v);
+    let path = v.db().with_file_name("multi.env");
+    let original = format!("KEY={API}\\\ncontinued\n");
+    std::fs::write(&path, &original).unwrap();
+    let o = v.run(&["env", "Web", "--migrate", path.to_str().unwrap()]);
+    assert_eq!(o.code, 10, "{}", o.all());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+    assert!(
+        !v.run(&["list"]).all().contains("KEY"),
+        "nothing may be imported"
+    );
+}
