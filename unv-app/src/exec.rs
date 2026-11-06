@@ -37,6 +37,38 @@ pub struct ExecOpts<'a> {
     pub prefix: Option<&'a str>,
     /// Start from an empty environment instead of inheriting this process's.
     pub clean: bool,
+    /// The command about to run, which an entry's `release` rule (R31) is checked against.
+    pub argv: &'a [String],
+}
+
+/// Refuses (exit 11) when `entry` carries a release rule and `argv` is not covered by it. The
+/// refusal is written to the audit chain with the command, so a rejected attempt is on record;
+/// a dry run writes nothing.
+fn check_release(access: &Access, entry: &Value, argv: &[String]) -> CliResult {
+    let rules = crate::release::rules_of(entry);
+    if crate::release::allows(&rules, argv) {
+        return Ok(());
+    }
+    let provider = data::provider_of(entry).to_string();
+    if !out::dry_run() {
+        if let Ok(Some(conn)) = access.local_conn() {
+            let _ = vault_core::record_event(
+                &conn,
+                "exec.refused",
+                &provider,
+                Some(&argv.join(" ")),
+                None,
+            );
+        }
+    }
+    Err(CliError::new(
+        crate::error::Code::Released,
+        format!(
+            "'{provider}' may only be released to: {}",
+            rules.join(" | ")
+        ),
+    )
+    .with_details(json!({ "entry": provider, "allowed": rules })))
 }
 
 /// Variables that carry the way into this vault. A child process the user runs under `exec` or
@@ -124,6 +156,7 @@ pub fn build_env_and_files(access: &Access, opts: &ExecOpts<'_>) -> CliResult<En
         };
         let idx = data::find_entry_index(&vault, query)?;
         let entry = &data::entries(&vault)[idx];
+        check_release(access, entry, opts.argv)?;
         // `--entry Provider=VAR:field` selects a field other than the secret.
         // With no `=VAR`, the name comes from the **template** (Phase 23), so a
         // variable injected here is spelled exactly as an export of the same
@@ -168,6 +201,7 @@ pub fn build_env_and_files(access: &Access, opts: &ExecOpts<'_>) -> CliResult<En
         };
         let picked = crate::pool::select(access, &vault, name)?;
         let entry = &data::entries(&vault)[picked.idx];
+        check_release(access, entry, opts.argv)?;
         let value = crate::refs::entry_field(entry, &field).ok_or_else(|| {
             CliError::not_found(format!(
                 "'{}' from pool '{name}' has no value in field '{field}'",

@@ -116,6 +116,7 @@ pub fn describe(cmd: &Command) -> Value {
             "8":  "needs_confirmation — destructive command without --yes on a non-tty",
             "9":  "redacted — output would contain secrets; use --out or --reveal",
             "10": "invalid — well-formed request, invalid input",
+            "11": "released — unv exec refused: the secret may only be released to other commands",
         },
         "secret_handling": {
             "default": "Secret values are redacted on stdout. A redacted value is \
