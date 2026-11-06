@@ -2353,6 +2353,17 @@ enum RecoverCmd {
 enum GuardCmd {
     /// Does the text on stdin hold a value this vault holds? (names only, no network call)
     Check,
+    /// Serve the browser paste guard over native messaging on stdin and stdout (the browser starts it)
+    Host,
+    /// Register the native messaging host with a browser so its paste guard extension can reach this vault
+    InstallHost {
+        /// chrome, chromium or firefox.
+        #[arg(long, value_parser = ["chrome", "chromium", "firefox"])]
+        browser: String,
+        /// The extension id shown on chrome://extensions (Chrome and Chromium only).
+        #[arg(long)]
+        extension_id: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -4473,6 +4484,11 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
         ),
         Commands::Guard { cmd } => match cmd {
             GuardCmd::Check => unv_app::guard_cmd::check(a),
+            GuardCmd::Host => unv_app::guard_host::run(a),
+            GuardCmd::InstallHost {
+                browser,
+                extension_id,
+            } => unv_app::guard_host::install(browser, extension_id.as_deref()),
         },
         Commands::Scan {
             severity,

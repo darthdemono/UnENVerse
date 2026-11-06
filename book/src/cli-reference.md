@@ -96,6 +96,8 @@ Contract version 1.
 | `unv gen ssh` | An ed25519 SSH keypair |
 | `unv get [provider]` | Print full details of a single entry |
 | `unv guard check` | Does the text on stdin hold a value this vault holds? (names only, no network call) |
+| `unv guard host` | Serve the browser paste guard over native messaging on stdin and stdout (the browser starts it) |
+| `unv guard install-host` | Register the native messaging host with a browser so its paste guard extension can reach this vault |
 | `unv history diff [project]` | Unified diff between two snapshots of one config; by default the newest two. A rotated secret shows as a changed fingerprint |
 | `unv history diff-file <file> [project]` | Compare a stored snapshot with a file on this machine - typically a node's live config fetched with `unv node pull`. Without `--reveal` only the names of the differing lines are shown, never what follows them |
 | `unv history ls [project]` | List snapshots, newest first. Shows names, times and hashes, never content |
