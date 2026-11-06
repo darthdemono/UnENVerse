@@ -17,6 +17,9 @@ import {
   execArgs,
   hoverText,
   parseExposureReport,
+  pastedText,
+  guardHits,
+  PASTE_MIN_CHARS,
   refAt,
 } from '../vscode-extension/src/refs';
 
@@ -159,5 +162,47 @@ describe('looksLocked', () => {
   it('tells a locked vault from a missing program', () => {
     expect(looksLocked('Vault not unlocked by owner')).toBe(true);
     expect(looksLocked('spawn unv ENOENT')).toBe(false);
+  });
+});
+
+describe('paste guard (R35)', () => {
+  it('treats only a long single insertion as a paste', () => {
+    const long = 'x'.repeat(PASTE_MIN_CHARS);
+    expect(
+      pastedText([{ text: 'a' }, { text: '' }, { text: 'x'.repeat(PASTE_MIN_CHARS - 1) }]),
+    ).toBe('');
+    expect(pastedText([{ text: long }])).toBe(long);
+    expect(pastedText([{ text: long }, { text: 'tiny' }, { text: long + 'y' }])).toBe(
+      `${long}\n${long}y`,
+    );
+  });
+
+  it('reads the entry names from the failed check, the clean check, and nothing else', () => {
+    const failed = JSON.stringify({
+      ok: false,
+      error: {
+        code: 'invalid',
+        message: '1 vault secret(s) found in the text',
+        details: {
+          clean: false,
+          blocking: 2,
+          hits: [
+            { entry: 'GitHub', field: 'api_key', short: false },
+            { entry: 'GitHub', field: 'api_secret', short: false },
+            { entry: 'Tiny', field: 'api_key', short: true },
+          ],
+        },
+      },
+    });
+    // Names only, once each, and a short value is a warning the extension does not raise.
+    expect(guardHits(failed)).toEqual(['GitHub']);
+    const clean = JSON.stringify({ ok: true, data: { clean: true, blocking: 0, hits: [] } });
+    expect(guardHits(clean)).toEqual([]);
+  });
+
+  it('stays quiet when the answer cannot be read, so a locked vault is not a false alarm', () => {
+    expect(guardHits('')).toBeNull();
+    expect(guardHits('not json')).toBeNull();
+    expect(guardHits(JSON.stringify({ ok: false, error: { code: 'unavailable' } }))).toBeNull();
   });
 });

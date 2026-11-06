@@ -18,18 +18,21 @@ export function runUnv(
   args: string[],
   cwd?: string,
   timeoutMs = 15000,
+  input?: string,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     // execFile: no shell, so a file name or a provider name is never parsed as one.
-    execFile(
+    const child = execFile(
       exe,
       args,
       { cwd, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 },
       (err, stdout, stderr) => {
-        if (err) reject(new Error((stderr || err.message).trim()));
+        // A failed command still printed its JSON envelope; keep it for callers that read it.
+        if (err) reject(Object.assign(new Error((stderr || err.message).trim()), { stdout }));
         else resolve(stdout);
       },
     );
+    if (input !== undefined) child.stdin?.end(input);
   });
 }
 
