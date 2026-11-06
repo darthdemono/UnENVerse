@@ -36,6 +36,7 @@ import { SECRET_TEMPLATES } from './templates';
 import {
   generateRandomBytes,
   generatePassword,
+  generatePhrase,
   guardEntropy,
   passwordCharset,
   generateApiKeyPattern,
@@ -510,6 +511,35 @@ export function initTools() {
     fill.style.background = pct < 30 ? '#e44' : pct < 55 ? '#fa0' : pct < 75 ? '#4af' : '#0c9';
   };
   document.getElementById('pg-generate')!.addEventListener('click', pgGenerate);
+
+  // ── PASSPHRASE GENERATOR ──
+  const phCount = document.getElementById('ph-count') as HTMLInputElement;
+  phCount.addEventListener('input', () => {
+    document.getElementById('ph-count-display')!.textContent = phCount.value;
+  });
+  const phGenerate = () => {
+    const n = parseInt(phCount.value);
+    const sep = (document.getElementById('ph-sep') as HTMLInputElement).value;
+    const cap = (document.getElementById('ph-cap') as HTMLInputElement).checked;
+    const phrase = guardEntropy(
+      () => generatePhrase(n, sep, cap),
+      (m) => showToast(m, 'err'),
+    );
+    if (phrase === undefined) return;
+    (document.getElementById('ph-output') as HTMLInputElement).value = phrase;
+    const pct = Math.min(100, ((n * 11) / 128) * 100);
+    const fill = document.getElementById('ph-strength-fill')!;
+    fill.style.width = pct + '%';
+    fill.style.background = pct < 30 ? '#e44' : pct < 55 ? '#fa0' : pct < 75 ? '#4af' : '#0c9';
+  };
+  document.getElementById('ph-generate')!.addEventListener('click', phGenerate);
+  document.getElementById('ph-copy')!.addEventListener('click', () => {
+    copyOrExplain((document.getElementById('ph-output') as HTMLInputElement).value);
+  });
+  document.getElementById('ph-inject')!.addEventListener('click', () => {
+    const v = (document.getElementById('ph-output') as HTMLInputElement).value;
+    if (v) injectIntoForm(v);
+  });
   document.getElementById('pg-copy')!.addEventListener('click', () => {
     const v = (document.getElementById('pg-output') as HTMLInputElement).value;
     copyOrExplain(v);

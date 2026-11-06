@@ -18,6 +18,10 @@
  * reaching into the other's markup.
  */
 
+import wordList from '../../vault-core/data/bip39-english.txt?raw';
+
+const WORDS = wordList.split('\n').filter(Boolean);
+
 // ── Entropy source (Phase 33.4) ──────────────────────────────────────────────
 // The CLI's `--entropy-source` in the app. Generators here are synchronous, the
 // Rust side is not, so a non-OS source works from a pool the app tops up over IPC
@@ -148,6 +152,21 @@ export function generatePassword(opts: PasswordOptions): string | null {
   return Array.from(buf)
     .map((n) => chars[n % chars.length])
     .join('');
+}
+
+/**
+ * A passphrase of `words` random words from the same 2048-word list the Rust
+ * `unv gen phrase` uses (one file, imported raw). 11 bits a word; two random
+ * bytes masked to 11 bits, so no modulo bias.
+ */
+export function generatePhrase(words: number, separator: string, capitalize: boolean): string {
+  const buf = fillRandom(new Uint8Array(words * 2));
+  const out: string[] = [];
+  for (let i = 0; i < words; i++) {
+    const w = WORDS[((buf[2 * i + 1] << 8) | buf[2 * i]) & 0x7ff];
+    out.push(capitalize ? w.charAt(0).toUpperCase() + w.slice(1) : w);
+  }
+  return out.join(separator);
 }
 
 /** Shannon entropy in bits for a password of this length over this many symbols. */

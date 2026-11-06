@@ -306,8 +306,17 @@ export function getEntryFieldValue(entry: VaultEntry, field: string): string | n
     } as Record<string, string | null | undefined>
   )[canonical];
   if (builtin != null && builtin !== '') return builtin;
-  return entry.extra_vars?.find((v) => v.key === field || v.key === canonical)?.value;
+  const exact = entry.extra_vars?.find((v) => v.key === field || v.key === canonical);
+  if (exact) return exact.value;
+  // A migrated API Secret is an additional value called SECRET, so every spelling of the
+  // secret alias reaches it.
+  if (canonical === 'api_secret') {
+    return entry.extra_vars?.find((v) => SECRET_ALIASES.has(v.key.toUpperCase()))?.value;
+  }
+  return undefined;
 }
+
+const SECRET_ALIASES = new Set(['SECRET', 'API_SECRET', 'CLIENT_SECRET', 'SHARED_SECRET']);
 
 /** Whether the reference target is explicitly public; unknown values fail closed. */
 export function isEntryFieldPublic(entry: VaultEntry, field: string): boolean {

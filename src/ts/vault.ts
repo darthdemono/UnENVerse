@@ -21,6 +21,7 @@ import {
   entryId,
   ensureEntryIds,
   backfillCreatedAt,
+  migrateLegacySecrets,
   applyUsersPanelVisibility,
   applySidebarLayout,
   saveViewState,
@@ -308,6 +309,8 @@ async function finishInit() {
       // Backfill stable ids for vaults written before the field existed, and
       // repair any duplicates. Runs once; afterwards every entry carries an id.
       if (ensureEntryIds(st.vault.api_keys)) needsSave = true;
+      // The old API Secret and Secret role pair becomes an additional value of the same name.
+      if (migrateLegacySecrets(st.vault.api_keys)) needsSave = true;
 
       // Creation dates, from the audit log's `add` rows. Wrapped because the
       // audit read can fail in ways that must not stop a vault opening: a
