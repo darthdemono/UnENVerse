@@ -223,6 +223,37 @@ fn gen_password_honours_length_and_character_sets() {
     assert_ne!(pw(&[]), pw(&[]));
 }
 
+#[test]
+fn gen_phrase_draws_listed_words_and_reports_eleven_bits_each() {
+    let v = Vault::new("phrase");
+    let list: std::collections::HashSet<&str> =
+        include_str!("../../vault-core/data/bip39-english.txt")
+            .lines()
+            .collect();
+    let d = data(
+        &v,
+        &["--reveal"],
+        &["gen", "phrase", "--words", "8", "--separator", " "],
+    );
+    let phrase = d["value"].as_str().unwrap();
+    let words: Vec<&str> = phrase.split(' ').collect();
+    assert_eq!(words.len(), 8);
+    assert!(words.iter().all(|w| list.contains(w)), "{phrase}");
+    assert_eq!(d["entropy_bits"], 88.0);
+    let cap = data(&v, &["--reveal"], &["gen", "phrase", "--capitalize"]);
+    assert!(cap["value"].as_str().unwrap().split('-').all(|w| w
+        .chars()
+        .next()
+        .unwrap()
+        .is_uppercase()));
+    // Masked by default.
+    assert!(data(&v, &[], &["gen", "phrase"])["value"]
+        .get("length")
+        .is_some());
+    // Out-of-range word counts are refused.
+    assert_ne!(v.run(&["gen", "phrase", "--words", "3"]).code, 0);
+}
+
 // ---- entropy sources
 
 #[test]

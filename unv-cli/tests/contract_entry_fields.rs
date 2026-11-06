@@ -241,6 +241,24 @@ fn a_mistyped_expiry_is_refused_instead_of_silently_disabling_the_warning() {
 }
 
 #[test]
+fn created_sets_the_creation_date_and_refuses_a_bad_one() {
+    let v = Vault::new("fields-created");
+    v.ok(&[
+        "entry",
+        "add",
+        "Old",
+        "--key",
+        "k",
+        "--created",
+        "2019-04-05",
+    ]);
+    let got = v.run(&["--reveal", "entry", "get", "Old", "--field", "created_at"]);
+    assert!(got.all().contains("2019-04-05T00:00:00Z"), "{}", got.all());
+    let bad = v.run(&["entry", "add", "E", "--key", "k", "--created", "yesterday"]);
+    assert_eq!(bad.code, 10, "{}", bad.all());
+}
+
+#[test]
 fn extra_variables_are_key_value_pairs_and_a_bang_marks_one_secret() {
     let v = Vault::new("fields-var");
     v.ok(&[

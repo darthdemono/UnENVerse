@@ -90,6 +90,7 @@ Contract version 1.
 | `unv file write <provider>` | Write the credential to disk and print the `.env` line that names it |
 | `unv gen cert <common_name>` | A self-signed certificate and its private key |
 | `unv gen password` | A password from the selected character sets |
+| `unv gen phrase` | A passphrase of random words (11 bits of entropy per word) |
 | `unv gen secret` | Random bytes as hex / base64 / base64url |
 | `unv gen sources` | List entropy sources and whether each one works on this machine |
 | `unv gen ssh` | An ed25519 SSH keypair |
