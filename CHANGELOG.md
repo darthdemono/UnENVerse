@@ -4,6 +4,23 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.66.0 (2026-11-06)
+
+### Added
+
+- Settings gains a Vault instance row (shows whether this copy is live or standby, and makes a standby copy live after a confirm), a Support row that saves the support bundle, a read-only Plugins list, and in Security a Change master password action and a Forget old values action. Each calls the same Rust code as `unv vault activate`, `unv support bundle`, `unv plugin ls`, `unv vault rekey` and `unv entry forget`.
+- The desktop locks the vault from the Rust side when the page stops reporting activity, a minute after the page's own auto-lock would have fired. It pauses while a LAN server runs.
+- The desktop bridge keeps the last 50 connections with the connecting process id on Linux.
+- A run row can record which build of each plugin it used (`ops::record_plugin_provenance`).
+- `book/src/integrations.md` lists each generated config format and the real tool that checks it, written from the exporter validation jobs by `scripts/integrations-status.mjs`.
+- A weekly `Live services` workflow runs the OpenBao importer against a real dev server.
+- Golden vault, backup and archive files written by release 0.60.0, with reader tests.
+- Roadmap phase R35, a paste guard that matches pasted text against the exact values the vault holds (planned).
+
+### Changed
+
+- The desktop window no longer allows its own connections to `https:` hosts; every https request already goes through the Rust proxy.
+
 ## 0.65.0 (2026-11-06)
 
 ### Added
