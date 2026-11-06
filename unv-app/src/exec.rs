@@ -39,6 +39,10 @@ pub struct ExecOpts<'a> {
     pub clean: bool,
     /// The command about to run, which an entry's `release` rule (R31) is checked against.
     pub argv: &'a [String],
+    /// Run the command in the bubblewrap sandbox (R34); refuses where it cannot be enforced.
+    pub sandbox: bool,
+    /// With `sandbox`, leave the network on. Off by default.
+    pub sandbox_net: bool,
 }
 
 /// Refuses (exit 11) when `entry` carries a release rule and `argv` is not covered by it. The
@@ -292,8 +296,13 @@ pub fn run(access: &Access, opts: &ExecOpts<'_>, argv: &[String]) -> CliResult<i
         &env.values().cloned().collect::<Vec<_>>().join("\n"),
     );
 
-    let mut cmd = std::process::Command::new(program);
-    cmd.args(args);
+    let mut cmd = if opts.sandbox {
+        crate::sandbox::command(argv, opts.sandbox_net, scratch.as_ref().map(|d| d.path()))?
+    } else {
+        let mut c = std::process::Command::new(program);
+        c.args(args);
+        c
+    };
     if opts.clean {
         cmd.env_clear();
         // A few variables have to survive or the child cannot run at all.
