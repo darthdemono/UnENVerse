@@ -413,6 +413,74 @@ pub fn analyse(vault: &Value) -> Vec<Issue> {
     issues
 }
 
+/// How many lines of a `.env` file hold a plaintext value: `KEY=value` with a non-empty value that
+/// is not a `${…}` pointer. Comments, blanks and empty values do not count. The values themselves
+/// are never kept or returned.
+pub fn plain_env_values(text: &str) -> usize {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter_map(|l| l.split_once('='))
+        .filter(|(k, _)| !k.trim().is_empty())
+        .filter(|(_, v)| {
+            let v = v.trim().trim_matches(|c| c == '"' || c == '\'');
+            !v.is_empty() && !crate::refs::is_ref(v)
+        })
+        .count()
+}
+
+/// Whether a file name is a real environment file rather than a template that is meant to be
+/// committed (`.env.example` and its kin hold placeholders).
+fn is_env_file_name(name: &str) -> bool {
+    if name != ".env" && !name.starts_with(".env.") {
+        return false;
+    }
+    !["example", "sample", "template", "dist", "tpl"]
+        .iter()
+        .any(|suffix| name.ends_with(&format!(".{suffix}")))
+}
+
+/// Plaintext secret files an agent could read (R30): the `.env` and `.env.*` files in the
+/// directory that holds the nearest `.unv.json`, and in each of its parents. Findings name the file
+/// and how many values it holds, never a value. Without a `.unv.json` there is no project
+/// directory to speak of, so nothing is reported.
+pub fn plaintext_env_issues(start: &std::path::Path) -> Vec<Issue> {
+    let Some(ctx) = crate::context::find_file(start) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    let mut dir = ctx.parent();
+    while let Some(d) = dir {
+        if let Ok(read) = std::fs::read_dir(d) {
+            let mut names: Vec<_> = read
+                .filter_map(Result::ok)
+                .filter(|e| e.path().is_file())
+                .filter(|e| is_env_file_name(&e.file_name().to_string_lossy()))
+                .map(|e| e.path())
+                .collect();
+            names.sort();
+            for path in names {
+                let n = std::fs::read_to_string(&path)
+                    .map(|t| plain_env_values(&t))
+                    .unwrap_or(0);
+                if n > 0 {
+                    out.push(Issue {
+                        severity: Severity::Med,
+                        subject: path.display().to_string(),
+                        message: format!(
+                            "{n} plaintext value(s) in a file an agent can read; point each at an entry with ${{Entry}} and write the file with `unv env --refs`"
+                        ),
+                        secret_type: String::new(),
+                        field: String::new(),
+                    });
+                }
+            }
+        }
+        dir = d.parent();
+    }
+    out
+}
+
 pub fn cmd_scan(access: &Access, min_severity: &str, json_out: bool) -> CliResult {
     let vault = access.load_vault()?;
     let floor = match min_severity {
@@ -420,10 +488,17 @@ pub fn cmd_scan(access: &Access, min_severity: &str, json_out: bool) -> CliResul
         "med" => Severity::Med,
         _ => Severity::Low,
     };
-    let issues: Vec<Issue> = analyse(&vault)
+    let mut issues: Vec<Issue> = analyse(&vault)
         .into_iter()
         .filter(|i| i.severity <= floor)
         .collect();
+    if let Ok(cwd) = std::env::current_dir() {
+        issues.extend(
+            plaintext_env_issues(&cwd)
+                .into_iter()
+                .filter(|i| i.severity <= floor),
+        );
+    }
 
     let high = issues
         .iter()
@@ -785,5 +860,88 @@ mod finding_shape_tests {
         assert_eq!(wallet.field, "api_key");
         // The phrase itself never appears in a finding.
         assert!(!wallet.message.contains("abandon"));
+    }
+}
+
+#[cfg(test)]
+mod plaintext_env_tests {
+    use super::*;
+
+    fn dir(tag: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("unv-plainenv-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn only_non_empty_non_pointer_values_count() {
+        let text = "# comment\n\nA=real-secret\nB=${GitHub}\nC=\nD=\"quoted-secret\"\nE='${Other/field}'\n=nokey\nnoequals\n";
+        // A and D are plaintext; B and E are pointers, C is empty, the rest are not assignments.
+        assert_eq!(plain_env_values(text), 2);
+    }
+
+    #[test]
+    fn templates_are_not_env_files_but_real_ones_are() {
+        for yes in [".env", ".env.local", ".env.production"] {
+            assert!(is_env_file_name(yes), "{yes}");
+        }
+        for no in [
+            ".env.example",
+            ".env.sample",
+            ".env.template",
+            ".envrc",
+            "env",
+            "x.env",
+        ] {
+            assert!(!is_env_file_name(no), "{no}");
+        }
+    }
+
+    #[test]
+    fn a_project_dir_and_its_parents_are_reported_by_name_and_count_never_by_value() {
+        let root = dir("walk");
+        let project = root.join("app");
+        std::fs::create_dir_all(project.join("src")).unwrap();
+        std::fs::write(project.join(".unv.json"), "{}").unwrap();
+        std::fs::write(
+            project.join(".env"),
+            "TOKEN=super-secret-value-1\nURL=${Web/url}\n",
+        )
+        .unwrap();
+        std::fs::write(project.join(".env.example"), "TOKEN=changeme\n").unwrap();
+        std::fs::write(root.join(".env.local"), "A=1\nB=2\n").unwrap();
+        let issues = plaintext_env_issues(&project.join("src"));
+        let subjects: Vec<_> = issues.iter().map(|i| i.subject.clone()).collect();
+        assert_eq!(
+            subjects,
+            vec![
+                project.join(".env").display().to_string(),
+                root.join(".env.local").display().to_string()
+            ]
+        );
+        assert!(
+            issues[0].message.starts_with("1 plaintext"),
+            "{}",
+            issues[0].message
+        );
+        assert!(
+            issues[1].message.starts_with("2 plaintext"),
+            "{}",
+            issues[1].message
+        );
+        for i in &issues {
+            assert!(!format!("{} {}", i.subject, i.message).contains("super-secret-value-1"));
+            assert!(i.severity == Severity::Med);
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn without_a_project_context_nothing_is_reported() {
+        let root = dir("noctx");
+        std::fs::write(root.join(".env"), "TOKEN=secret-secret\n").unwrap();
+        assert!(plaintext_env_issues(&root).is_empty());
+        let _ = std::fs::remove_dir_all(root);
     }
 }
