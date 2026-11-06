@@ -385,6 +385,69 @@ function wireCatalogueRow(): void {
   };
 }
 
+interface InstanceIdentity {
+  vault_id: string;
+  instance_id: string;
+  epoch: number;
+  role: 'active' | 'standby';
+}
+
+/** R19: show which instance of the vault this is, and let a standby copy be made the live one. */
+function wireInstanceRow(): void {
+  const hint = document.getElementById('s-instance-hint');
+  const btn = document.getElementById('s-instance-activate') as HTMLButtonElement | null;
+  if (!hint || !btn) return;
+  btn.hidden = true;
+  if (!inTauri) return;
+  const show = (id: InstanceIdentity) => {
+    const standby = id.role === 'standby';
+    hint.textContent = standby
+      ? `Standby (epoch ${id.epoch}): this copy was restored or copied, so it will not push to nodes or run schedules.`
+      : `Live (epoch ${id.epoch}): nodes obey this copy.`;
+    btn.hidden = !standby;
+  };
+  invokeTauri<InstanceIdentity>('vault_identity')
+    .then(show)
+    .catch(() => (hint.textContent = 'Unlock the vault to see which copy this is.'));
+  // Assignment, not addEventListener: this pane is opened repeatedly (invariant 9).
+  btn.onclick = () => {
+    void (async () => {
+      const ok = await showConfirm(
+        'Make this the live instance of the vault? Nodes will refuse any other instance from now on. Is the old one retired?',
+      );
+      if (!ok) return;
+      try {
+        const id = await invokeTauri<InstanceIdentity>('vault_activate');
+        show(id);
+        showToast(`Active at epoch ${id.epoch}`, 'ok', 2000);
+      } catch (e) {
+        showToast(`Could not activate: ${String(e)}`, 'err', 3500);
+      }
+    })();
+  };
+}
+
+/** R25: save the support bundle the CLI would write (`unv support bundle`). */
+function wireSupportRow(): void {
+  const btn = document.getElementById('s-support-bundle') as HTMLButtonElement | null;
+  if (!btn) return;
+  btn.hidden = !inTauri;
+  if (!inTauri) return;
+  // Assignment, not addEventListener: this pane is opened repeatedly (invariant 9).
+  btn.onclick = () => {
+    void (async () => {
+      try {
+        const text = await invokeTauri<string>('support_bundle');
+        const r = await saveFile(`${text}\n`, 'unenverse-support-bundle.json', 'application/json');
+        if (r.ok) showToast('Support bundle saved. Read it before you send it.', 'ok', 3000);
+        else showToast(`Not saved: ${r.error}`, 'err', 3500);
+      } catch (e) {
+        showToast(`Could not build the bundle: ${String(e)}`, 'err', 3500);
+      }
+    })();
+  };
+}
+
 /** R18: the "Allow local scripts" switch. Applies at once; it is a system setting, not a preference. */
 function wireBridgeRow(): void {
   const box = document.getElementById('s-bridge') as HTMLInputElement | null;
@@ -961,6 +1024,8 @@ export function openSettings() {
 
   wireCatalogueRow();
   wireBridgeRow();
+  wireInstanceRow();
+  wireSupportRow();
   wireArchiveRows();
   wireRecoveryRows();
   void wireEntropyRow(s.entropySource || 'os');
