@@ -455,6 +455,10 @@ enum Commands {
         /// Write to this file instead of stdout.
         #[arg(long, short = 'o')]
         out: Option<PathBuf>,
+        /// Keep every value as its `${Entry}` pointer instead of resolving it, so the file holds
+        /// no secret. Refuses a field that holds a literal value.
+        #[arg(long)]
+        refs: bool,
     },
     /// Create, edit and delete secret entries.
     /// Key pools — several interchangeable credentials for one service.
@@ -4003,7 +4007,13 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 },
             )
         }
-        Commands::Env { project, out } => chunks::export(a, project, Some("env"), out.as_deref()),
+        Commands::Env { project, out, refs } => {
+            if *refs {
+                chunks::export_refs(a, project, out.as_deref())
+            } else {
+                chunks::export(a, project, Some("env"), out.as_deref())
+            }
+        }
 
         Commands::Exec {
             project,

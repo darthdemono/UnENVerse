@@ -76,7 +76,7 @@ unv entry set [provider] --account= --app-name= --app-purpose= --auth-param= --a
 unv entry tag <provider> --add= --remove=
 unv entry timeline <provider>
 unv entry verify <provider> --off
-unv env <project> --out=
+unv env <project> --out= --refs
 unv exec <argv> --clean --entry= --pool= --prefix= --project=
 unv export --format= --metadata= --name= --out= --profile= --project=
 unv file write <provider> --out=
