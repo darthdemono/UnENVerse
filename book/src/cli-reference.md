@@ -95,6 +95,7 @@ Contract version 1.
 | `unv gen sources` | List entropy sources and whether each one works on this machine |
 | `unv gen ssh` | An ed25519 SSH keypair |
 | `unv get [provider]` | Print full details of a single entry |
+| `unv guard check` | Does the text on stdin hold a value this vault holds? (names only, no network call) |
 | `unv history diff [project]` | Unified diff between two snapshots of one config; by default the newest two. A rotated secret shows as a changed fingerprint |
 | `unv history diff-file <file> [project]` | Compare a stored snapshot with a file on this machine - typically a node's live config fetched with `unv node pull`. Without `--reveal` only the names of the differing lines are shown, never what follows them |
 | `unv history ls [project]` | List snapshots, newest first. Shows names, times and hashes, never content |
