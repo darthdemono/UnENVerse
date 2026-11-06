@@ -470,6 +470,30 @@ pub fn default_format_for(ptype: &str) -> &'static str {
     }
 }
 
+/// `unv env --refs <project>` (R30): the project's `.env` with every value left as its `${…}`
+/// pointer. Refuses when a field holds a literal, naming the field and never its value, because
+/// writing it would put a plaintext secret in the file this command exists to keep clean.
+pub fn export_refs(access: &Access, project: &str, out: Option<&Path>) -> CliResult {
+    let vault = access.load_vault()?;
+    let pi = find_project_index(&vault, project)?;
+    let p = projects(&vault)[pi].clone();
+    let e = exporters::export_project_env_refs(&p);
+    if !e.had_chunks {
+        return Err(CliError::not_found(format!(
+            "Project '{}' has no env_file chunks",
+            p.get("name").and_then(|v| v.as_str()).unwrap_or(project)
+        )));
+    }
+    if !e.literals.is_empty() {
+        return Err(CliError::invalid(format!(
+            "{} field(s) hold a literal value, not a ${{Entry}} reference: {}. Put each value in an entry and point the field at it, then run this again.",
+            e.literals.len(),
+            e.literals.join(", ")
+        )));
+    }
+    emit(&e.text, out)
+}
+
 /// Renders one project to the single file a node target names.
 ///
 /// This is the hub's render path: it always resolves `${…}` to real values,

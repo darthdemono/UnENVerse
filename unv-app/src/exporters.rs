@@ -414,6 +414,54 @@ pub struct EnvOut {
     pub had_chunks: bool,
 }
 
+/// A `.env` whose values are still `${…}` pointers (R30). Nothing is resolved and nothing is masked,
+/// so the file holds no secret and a copy of it is worth nothing without the vault. A field whose
+/// value is a literal rather than a reference is **not** written: the text would carry the
+/// literal, so its `chunk/KEY` is listed in `literals` instead and the caller refuses.
+pub struct EnvRefsOut {
+    pub text: String,
+    pub had_chunks: bool,
+    /// `chunk/KEY` of every field holding a literal value. Names only.
+    pub literals: Vec<String>,
+}
+
+pub fn export_project_env_refs(project: &Value) -> EnvRefsOut {
+    let mut out: Vec<String> = Vec::new();
+    let mut literals: Vec<String> = Vec::new();
+    let mut had_chunks = false;
+    for chunk in chunks_of(project) {
+        if s(&chunk, "chunk_type") != "env_file" {
+            continue;
+        }
+        had_chunks = true;
+        let name = match s(&chunk, "name") {
+            "" => "env",
+            n => n,
+        };
+        out.push(format!("# {name}"));
+        for f in fields_of(&chunk) {
+            let key = s(&f, "key");
+            if key.is_empty() {
+                continue;
+            }
+            let raw = s(&f, "value");
+            if crate::refs::is_ref(raw) {
+                out.push(format!("{key}={}", raw.trim()));
+            } else if raw.is_empty() {
+                out.push(format!("{key}="));
+            } else {
+                literals.push(format!("{name}/{key}"));
+            }
+        }
+        out.push(String::new());
+    }
+    EnvRefsOut {
+        text: out.join("\n"),
+        had_chunks,
+        literals,
+    }
+}
+
 pub fn export_project_env(project: &Value, r: &Resolver) -> EnvOut {
     let mut out: Vec<String> = Vec::new();
     let mut unresolved: Vec<String> = Vec::new();
