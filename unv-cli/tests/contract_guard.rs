@@ -31,7 +31,7 @@ fn text_holding_a_vault_value_fails_with_exit_10_and_names_the_entry_only() {
 #[test]
 fn the_json_report_has_names_and_counts_and_no_value() {
     let v = vault("guard-json");
-    let o = v.run_stdin(&["--json", "guard", "check"], &format!("a {SECRET} b"));
+    let o = v.run_stdin(&["guard", "check"], &format!("a {SECRET} b"));
     assert_eq!(o.code, 10, "{}", o.all());
     assert!(!o.all().contains(SECRET), "{}", o.all());
     let d = &o.json()["error"]["details"];
@@ -44,7 +44,7 @@ fn the_json_report_has_names_and_counts_and_no_value() {
 fn ordinary_text_and_token_shaped_text_outside_the_vault_pass() {
     let v = vault("guard-clean");
     let o = v.run_stdin(
-        &["--json", "guard", "check"],
+        &["guard", "check"],
         "no secrets here, only ghp_0123456789abcdefghij and AKIAIOSFODNN7EXAMPLE",
     );
     assert_eq!(o.code, 0, "{}", o.all());
