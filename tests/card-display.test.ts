@@ -103,26 +103,22 @@ describe('masking', { timeout: 30000 }, () => {
       }),
     ]);
     expect(value('Pub', 'kv-key-0')).toBe('publishable-key-123');
-    expect(value('Pub', 'kv-secret-0')).toBe('sec-value-123456');
+    // The old API Secret is now an additional value, public when it was marked public.
+    expect(card('Pub').textContent).toContain('sec-value-123456');
     st.revealed[`key-${st.vault.api_keys[0].id}`] = false;
     (await import('../src/ts/render')).renderGrid();
     expect(value('Pub', 'kv-key-0')).not.toContain('publishable-key-123');
   });
 
-  it('masks the secret half separately from the key', async () => {
+  it('masks the old secret half, now an additional value, separately from the key', async () => {
     await show([
       entry('a', 'Pair', { api_key: 'key-part-value-1', api_secret: 'secret-part-value-2' }),
     ]);
-    expect(value('Pair', 'kv-secret-0')).not.toContain('secret-part-value-2');
-    expect(card('Pair').querySelector('#reveal-secret-0')!.getAttribute('aria-pressed')).toBe(
-      'false',
-    );
-    st.revealed[`secret-${st.vault.api_keys[0].id}`] = true;
-    (await import('../src/ts/render')).renderGrid();
-    expect(value('Pair', 'kv-secret-0')).toBe('secret-part-value-2');
-    expect(card('Pair').querySelector('#reveal-secret-0')!.getAttribute('aria-pressed')).toBe(
-      'true',
-    );
+    expect(st.vault.api_keys[0].api_secret).toBeUndefined();
+    expect(st.vault.api_keys[0].extra_vars).toEqual([
+      { key: 'SECRET', value: 'secret-part-value-2', secret: true },
+    ]);
+    expect(card('Pair').textContent).not.toContain('secret-part-value-2');
   });
 });
 
@@ -272,9 +268,9 @@ describe('toggle buttons say whether they are pressed', { timeout: 30000 }, () =
   it('writes "false" as well as "true" for every toggle on a card and the chip bar', async () => {
     // Regression: a false value rendered as an empty attribute, which assistive tech reads
     // as "not a toggle button" instead of "not pressed".
-    await show([entry('a', 'Tog', { api_secret: 'secret-part-value-2' })]);
+    await show([entry('a', 'Tog', { api_key: 'key-part-value-1' })]);
     const c = card('Tog');
-    for (const sel of ['#reveal-key-0', '#reveal-secret-0', '[data-action="pin"]'])
+    for (const sel of ['#reveal-key-0', '[data-action="pin"]'])
       expect(c.querySelector(sel)!.getAttribute('aria-pressed'), sel).toBe('false');
     expect(c.querySelector('[data-action="bulk-toggle"]')!.getAttribute('aria-checked')).toBe(
       'false',

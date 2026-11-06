@@ -523,3 +523,21 @@ describe('JSON / YAML formatter', () => {
     expect(copied[0]).toContain('"a": 1');
   });
 });
+
+describe('passphrase generator', () => {
+  it('makes the chosen number of listed words with the separator and capitals', () => {
+    setv('ph-count', '8');
+    setv('ph-sep', ' ');
+    click('ph-generate');
+    const words = val('ph-output').split(' ');
+    expect(words).toHaveLength(8);
+    expect(words.every((w) => /^[a-z]+$/.test(w))).toBe(true);
+    $<HTMLInputElement>('ph-cap').checked = true;
+    click('ph-generate');
+    expect(
+      val('ph-output')
+        .split(' ')
+        .every((w) => /^[A-Z][a-z]+$/.test(w)),
+    ).toBe(true);
+  });
+});
