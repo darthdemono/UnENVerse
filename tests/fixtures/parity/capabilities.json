@@ -1074,7 +1074,6 @@
       "id": "plugins",
       "status": "exempt",
       "cli": [
-        "unv plugin ls",
         "unv plugin install",
         "unv plugin enable",
         "unv plugin disable",
@@ -1083,7 +1082,22 @@
       ],
       "ui": [],
       "tauri": [],
-      "note": "Plugins run with the user's rights, so installing and enabling one is a deliberate command-line act with a written warning; the conformance suite needs a directory, not a vault. A read-only Settings, Plugins list is a later UI slice.",
+      "note": "Plugins run with the user's rights, so installing and enabling one is a deliberate command-line act with a written warning; the conformance suite needs a directory, not a vault.",
+      "cli_flags": []
+    },
+    {
+      "id": "plugin-list",
+      "status": "both",
+      "cli": [
+        "unv plugin ls"
+      ],
+      "ui": [
+        "id:s-plugin-list"
+      ],
+      "tauri": [
+        "plugin_list"
+      ],
+      "note": "R14: Settings, Plugins shows what `unv plugin ls` shows, read only, from the same unv_app::plugin_cmd::listing.",
       "cli_flags": []
     },
     {

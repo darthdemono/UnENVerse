@@ -44,7 +44,16 @@ fn find(dir: &Path, name: &str) -> CliResult<Discovered> {
         })
 }
 
-pub fn ls(access: &Access, dir: Option<&Path>) -> CliResult {
+/// What `unv plugin ls` shows and the desktop Settings list reads: installed plugins, the ones
+/// found in the plugin directory but not installed, and why any folder was skipped.
+pub struct Listing {
+    pub dir: PathBuf,
+    pub installed: Vec<plugin::Installed>,
+    pub available: Vec<serde_json::Value>,
+    pub problems: Vec<String>,
+}
+
+pub fn listing(access: &Access, dir: Option<&Path>) -> CliResult<Listing> {
     let c = conn(access)?;
     let installed = plugin::list(&c).map_err(CliError::from)?;
     let dir = plugins_dir(dir);
@@ -54,6 +63,28 @@ pub fn ls(access: &Access, dir: Option<&Path>) -> CliResult {
         .filter(|d| !installed.iter().any(|i| i.name == d.manifest.name))
         .map(|d| json!({ "name": d.manifest.name, "version": d.manifest.version, "capabilities": d.manifest.capabilities }))
         .collect();
+    Ok(Listing {
+        dir,
+        installed,
+        available,
+        problems,
+    })
+}
+
+impl Listing {
+    /// The shape both `unv plugin ls --json` and the desktop return.
+    pub fn to_json(&self) -> serde_json::Value {
+        json!({ "dir": self.dir, "installed": self.installed, "available": self.available, "problems": self.problems })
+    }
+}
+
+pub fn ls(access: &Access, dir: Option<&Path>) -> CliResult {
+    let Listing {
+        dir,
+        installed,
+        available,
+        problems,
+    } = listing(access, dir)?;
     out::ok(
         "plugin.ls",
         json!({ "dir": dir, "installed": installed, "available": available, "problems": problems }),

@@ -1449,6 +1449,16 @@
               <button type="button" class="btn btn-secondary" id="s-instance-activate" aria-describedby="s-instance-hint" hidden>Make this the live instance</button>
             </div>
           </div>
+          <div class="settings-section" id="s-plugins-section">
+            <div class="settings-section-title">Plugins</div>
+            <div class="settings-row">
+              <div class="settings-label">
+                <span class="settings-label-text" id="s-plugin-label">Installed plugins</span>
+                <div class="settings-hint" id="s-plugin-hint">A plugin runs with your rights. Installing and enabling one is a command-line step (<code>unv plugin install</code>, <code>unv plugin enable</code>); this list is read only.</div>
+              </div>
+            </div>
+            <ul class="settings-list" id="s-plugin-list" aria-labelledby="s-plugin-label" aria-live="polite"></ul>
+          </div>
           <div class="settings-section" id="s-support-section">
             <div class="settings-section-title">Support</div>
             <div class="settings-row">

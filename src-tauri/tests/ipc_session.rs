@@ -607,3 +607,16 @@ fn forgetting_names_the_entry_by_id_and_refuses_an_unknown_one() {
         json!("Vault is locked")
     );
 }
+
+#[test]
+fn the_desktop_plugin_list_is_read_only_and_needs_an_unlocked_vault() {
+    let d = unlocked("pluginlist");
+    let l = d.ok("plugin_list", json!({}));
+    assert!(l["installed"].as_array().unwrap().is_empty());
+    assert!(l["available"].is_array() && l["problems"].is_array());
+    d.ok("lock_vault", json!({}));
+    assert_eq!(
+        d.call("plugin_list", json!({})).unwrap_err(),
+        json!("Vault is locked")
+    );
+}
