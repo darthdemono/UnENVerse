@@ -581,4 +581,29 @@ mod tests {
         assert_eq!(got["other"], "bb22");
         assert!(record_plugin_provenance(&conn, "missing", "ntfy", "x").is_err());
     }
+
+    #[test]
+    fn a_run_with_an_empty_or_unreadable_plugin_record_is_handled() {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        create_run_with_kind(&conn, "r1", None, "backup.package", 0, None).unwrap();
+        // An empty string reads as "no plugin" and is replaced by the first record.
+        conn.execute(
+            "UPDATE ops_runs SET plugin_provenance = '' WHERE id = 'r1'",
+            [],
+        )
+        .unwrap();
+        assert!(plugin_provenance(&conn, "r1").unwrap().is_empty());
+        record_plugin_provenance(&conn, "r1", "ntfy", "aa11").unwrap();
+        assert_eq!(plugin_provenance(&conn, "r1").unwrap()["ntfy"], "aa11");
+        // A damaged record is an error, never silently overwritten.
+        conn.execute(
+            "UPDATE ops_runs SET plugin_provenance = 'not json' WHERE id = 'r1'",
+            [],
+        )
+        .unwrap();
+        assert!(plugin_provenance(&conn, "r1").is_err());
+        assert!(record_plugin_provenance(&conn, "r1", "ntfy", "bb22").is_err());
+        assert!(plugin_provenance(&conn, "missing").is_err());
+    }
 }

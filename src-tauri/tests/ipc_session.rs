@@ -578,12 +578,31 @@ fn a_wrong_current_password_changes_nothing_and_the_new_one_opens_the_vault() {
         .unwrap_err();
     assert!(short.as_str().unwrap().contains("at least 12"), "{short}");
     assert_eq!(d.ok("vault_is_unlocked", json!({})), json!(true));
+    let same = d
+        .call(
+            "change_master_password",
+            json!({ "current": "session-master-password-1", "newPassword": "session-master-password-1" }),
+        )
+        .unwrap_err();
+    assert_eq!(
+        same,
+        json!("The new master password is the same as the old one")
+    );
     d.ok(
         "change_master_password",
         json!({ "current": "session-master-password-1", "newPassword": "a-brand-new-password-1" }),
     );
     // The change locks the vault; only the new password opens it.
     assert_eq!(d.ok("vault_is_unlocked", json!({})), json!(false));
+    // Nothing to change while locked.
+    assert_eq!(
+        d.call(
+            "change_master_password",
+            json!({ "current": "a-brand-new-password-1", "newPassword": "yet-another-password-12" })
+        )
+        .unwrap_err(),
+        json!("Vault is locked")
+    );
     assert!(d.unlock("session-master-password-1").is_err());
     assert_eq!(d.unlock("a-brand-new-password-1").unwrap(), json!(true));
 }
@@ -591,6 +610,12 @@ fn a_wrong_current_password_changes_nothing_and_the_new_one_opens_the_vault() {
 #[test]
 fn forgetting_names_the_entry_by_id_and_refuses_an_unknown_one() {
     let d = unlocked("forgetdesk");
+    // Nothing has been saved yet, so there is no entry to name.
+    assert_eq!(
+        d.call("forget_entry_history", json!({ "entryId": "k1" }))
+            .unwrap_err(),
+        json!("The vault is empty")
+    );
     let doc = json!({ "api_keys": [{ "id": "k1", "provider": "GitHub", "api_key": "ghp_secret_value_123456" }], "projects": [], "user_categories": [] });
     d.ok("save_vault", json!({ "data": doc, "expectVersion": null }));
     let report = d.ok("forget_entry_history", json!({ "entryId": "k1" }));
@@ -619,4 +644,47 @@ fn the_desktop_plugin_list_is_read_only_and_needs_an_unlocked_vault() {
         d.call("plugin_list", json!({})).unwrap_err(),
         json!("Vault is locked")
     );
+}
+
+#[test]
+fn the_idle_backstop_locks_only_after_the_page_timer_plus_its_grace() {
+    use std::time::{Duration, Instant};
+    let d = unlocked("idletick");
+    let app = d.handle();
+    let minutes = |m: u64| Duration::from_secs(m * 60);
+    let far = Instant::now() + minutes(600);
+    // Off by default: no amount of silence locks it.
+    assert!(!unenverse_lib::idle_tick(&app, far));
+    d.ok(
+        "idle_lock_configure",
+        json!({ "minutes": 5, "paused": false }),
+    );
+    // The page's own timer fires at five minutes; the backstop waits a minute longer.
+    assert!(!unenverse_lib::idle_tick(&app, Instant::now() + minutes(5)));
+    // Paused while a LAN server runs.
+    d.ok(
+        "idle_lock_configure",
+        json!({ "minutes": 5, "paused": true }),
+    );
+    assert!(!unenverse_lib::idle_tick(&app, far));
+    d.ok(
+        "idle_lock_configure",
+        json!({ "minutes": 5, "paused": false }),
+    );
+    assert!(unenverse_lib::idle_tick(&app, Instant::now() + minutes(7)));
+    assert_eq!(d.ok("vault_is_unlocked", json!({})), json!(false));
+    // Already locked: nothing to do.
+    assert!(!unenverse_lib::idle_tick(&app, far));
+}
+
+#[test]
+fn an_app_without_the_idle_state_is_left_alone() {
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+    let app = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("app");
+    assert!(!unenverse_lib::idle_tick(
+        app.handle(),
+        std::time::Instant::now()
+    ));
 }

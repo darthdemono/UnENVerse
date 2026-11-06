@@ -68,6 +68,41 @@ impl Default for IdleState {
 /// How long after the page's own timer the backstop waits, so the page always locks first.
 pub const IDLE_GRACE: Duration = Duration::from_secs(60);
 
+/// One pass of the idle backstop, called every ten seconds by the watcher thread. Locks the vault
+/// the way `lock_vault` does when [`idle_expired`] says so, and returns whether it did. `now` is a
+/// parameter so a test can move the clock forward instead of waiting.
+pub fn idle_tick<R: tauri::Runtime>(app: &AppHandle<R>, now: Instant) -> bool {
+    let Some(idle) = app.try_state::<IdleState>() else {
+        return false;
+    };
+    let silent = idle
+        .last_touch
+        .lock()
+        .map(|t| now.saturating_duration_since(*t))
+        .unwrap_or_default();
+    let unlocked = app
+        .try_state::<VaultState>()
+        .map(|v| v.0.lock().map(|g| g.is_some()).unwrap_or(false))
+        .unwrap_or(false);
+    let paused = idle.paused.load(Ordering::SeqCst);
+    if !idle_expired(
+        idle.minutes.load(Ordering::SeqCst),
+        silent,
+        unlocked,
+        paused,
+    ) {
+        return false;
+    }
+    commands::lock_vault(
+        app.clone(),
+        app.state(),
+        app.state(),
+        app.state(),
+        app.state(),
+    )
+    .is_ok()
+}
+
 /// Whether the backstop should lock now. Pure, so the rule is testable without a clock.
 pub fn idle_expired(minutes: u64, silent: Duration, unlocked: bool, paused: bool) -> bool {
     unlocked && !paused && minutes > 0 && silent >= Duration::from_secs(minutes * 60) + IDLE_GRACE
@@ -2716,28 +2751,7 @@ pub fn run() {
             let handle = app.handle().clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(10));
-                let Some(idle) = handle.try_state::<IdleState>() else {
-                    continue;
-                };
-                let silent = idle
-                    .last_touch
-                    .lock()
-                    .map(|t| t.elapsed())
-                    .unwrap_or_default();
-                let unlocked = handle
-                    .try_state::<VaultState>()
-                    .map(|v| v.0.lock().map(|g| g.is_some()).unwrap_or(false))
-                    .unwrap_or(false);
-                let paused = idle.paused.load(Ordering::SeqCst);
-                if idle_expired(idle.minutes.load(Ordering::SeqCst), silent, unlocked, paused) {
-                    let _ = commands::lock_vault(
-                        handle.clone(),
-                        handle.state(),
-                        handle.state(),
-                        handle.state(),
-                        handle.state(),
-                    );
-                }
+                let _ = idle_tick(&handle, Instant::now());
             });
 
             // Global hotkey removed — Ctrl+Shift+V conflicts with paste in
