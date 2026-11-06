@@ -39,6 +39,7 @@ describe('Copy buttons on the generator and converter panes', () => {
   const pairs: [string, string][] = [
     ['sg-copy', 'sg-output'],
     ['pg-copy', 'pg-output'],
+    ['ph-copy', 'ph-output'],
     ['uu-copy', 'uu-output'],
     ['ak-copy', 'ak-output'],
     ['hg-copy', 'hg-output'],

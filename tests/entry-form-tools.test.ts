@@ -154,6 +154,25 @@ describe('the generator popover', { timeout: 30000 }, () => {
     expect($('gp-output').textContent).toMatch(/^[a-z]+(-[a-z]+){6}$/);
   });
 
+  it('reports an empty entropy pool for the security phrase and leaves the output alone', async () => {
+    const { setEntropySource } = await import('../src/ts/generators');
+    await openAdd();
+    $('f-key-generate-caret').click();
+    document.querySelector<HTMLElement>('.gen-tab-btn[data-gen-tab="password"]')!.click();
+    $<HTMLInputElement>('gp-pw-phrase').checked = true;
+    set('gp-pw-words', '8');
+    (window as any).__TAURI__ = { core: { invoke: async () => 'abababab' } };
+    await setEntropySource('dev');
+    try {
+      await gen();
+      expect(toasts.some(([, kind]) => kind === 'err')).toBe(true);
+      expect($('gp-output').textContent).toBe('');
+    } finally {
+      await setEntropySource('os');
+      delete (window as any).__TAURI__;
+    }
+  });
+
   it('generates a key in a known pattern', async () => {
     await openAdd();
     $('f-key-generate-caret').click();
