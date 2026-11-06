@@ -6,6 +6,7 @@
 - [Use UnENVerse with Docker Compose secrets](compose-secrets.md)
 - [If something leaks](compromise.md)
 - [Formats we read](format-policy.md)
+- [Config we write, and what checks it](integrations.md)
 - [CLI guide](cli.md)
 - [The scripting contract](contract.md)
 - [Roadmap](roadmap.md)
