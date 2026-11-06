@@ -47,6 +47,9 @@ export default tseslint.config(
       'vscode-extension/out/**',
       'vscode-extension/src/extension.ts',
       'vscode-extension/src/unv.ts',
+      // The browser paste guard is plain browser scripts (no build step, no tsconfig).
+      // tests/browser-extension.test.ts exercises them and Prettier formats them.
+      'browser-extension/**',
       '**/*.d.ts',
     ],
   },
