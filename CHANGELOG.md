@@ -4,8 +4,20 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.65.0 (2026-11-06)
+
+### Added
+
+- `unv gen phrase` makes a passphrase of 4 to 24 random words (11 bits each) with `--separator` and `--capitalize`. The Add/Edit password generator has a "security phrase" option and Tools has a Passphrase Gen pane.
+- A Created field in the form and `unv entry add|set --created YYYY-MM-DD` set when a credential was made. Editing never rewrites a stored creation time.
+
+### Changed
+
+- The old API Secret and Secret role move into Additional values on load, keeping the same variable name. `${Provider/SECRET}`, `API_SECRET`, `CLIENT_SECRET` and `SHARED_SECRET` still resolve.
+
 ### Fixed
 
+- The "already generated" refusal names the variable that really collides. Saving a Spotify session that carried a captured URL blamed `SPOTIFY_COOKIE` when the clash was `SPOTIFY_URL`, and now also suggests clearing the URL.
 - The Docs deploy waits up to 30 minutes for GitHub Pages instead of 10, after a push run failed while Pages stayed in `updating_pages`.
 
 ## 0.64.0 (2026-11-04)
