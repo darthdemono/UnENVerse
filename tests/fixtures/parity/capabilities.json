@@ -356,12 +356,14 @@
       "cli": [
         "unv gen secret",
         "unv gen password",
+        "unv gen phrase",
         "unv gen cert",
         "unv gen ssh"
       ],
       "ui": [
         "tool:secret-gen",
         "tool:password-gen",
+        "tool:phrase-gen",
         "tool:pem-cert-gen",
         "tool:ssh-keygen"
       ],
