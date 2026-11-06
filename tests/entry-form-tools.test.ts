@@ -144,6 +144,16 @@ describe('the generator popover', { timeout: 30000 }, () => {
     expect(toasts).toContainEqual(['Select at least one character set', 'err']);
   });
 
+  it('offers a security phrase instead of characters, with the chosen number of words', async () => {
+    await openAdd();
+    $('f-key-generate-caret').click();
+    document.querySelector<HTMLElement>('.gen-tab-btn[data-gen-tab="password"]')!.click();
+    $<HTMLInputElement>('gp-pw-phrase').checked = true;
+    set('gp-pw-words', '7');
+    await gen();
+    expect($('gp-output').textContent).toMatch(/^[a-z]+(-[a-z]+){6}$/);
+  });
+
   it('generates a key in a known pattern', async () => {
     await openAdd();
     $('f-key-generate-caret').click();

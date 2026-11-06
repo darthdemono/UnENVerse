@@ -578,7 +578,9 @@ describe('fillForm → formToEntry round trip', () => {
 
     expect(out.provider).toBe('GitHub');
     expect(out.api_key).toBe('sk-123');
-    expect(out.api_secret).toBe('shh');
+    // The old API Secret opens as an additional value and saves back as one.
+    expect(out.api_secret).toBeUndefined();
+    expect(out.extra_vars).toContainEqual(expect.objectContaining({ key: 'SECRET', value: 'shh' }));
     expect(out.price_type).toBe('paid');
     expect(out.environment).toBe('production');
     expect(out.scopes).toEqual(['read', 'write']);
