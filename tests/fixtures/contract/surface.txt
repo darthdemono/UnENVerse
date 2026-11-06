@@ -87,6 +87,7 @@ unv gen secret --bytes= --format=
 unv gen sources
 unv gen ssh --comment= --save-as=
 unv get [provider] --field= --metadata= --out= --pool= --profile=
+unv guard check
 unv history diff [project] --exporter= --from= --out= --to=
 unv history diff-file <file> [project] --exporter= --seq=
 unv history ls [project] --exporter= --limit= --since=

@@ -1164,6 +1164,17 @@
       "cli_flags": []
     },
     {
+      "id": "paste-guard",
+      "status": "exempt",
+      "cli": [
+        "unv guard check"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R35 slice 1: a pipe filter for terminal agents and editors that reads text on stdin; the desktop has no stdin. The browser extension that guards web chats is a later slice and will call the same matcher.",
+      "cli_flags": []
+    },
+    {
       "id": "demo-vault",
       "status": "exempt",
       "cli": [
