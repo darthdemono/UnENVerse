@@ -24,6 +24,11 @@
           "default": "unv",
           "description": "The unv executable. The extension runs it with the credentials your shell would use (a cached `unv login` session, or UNV_PASSWORD)."
         },
+        "unenverse.guardPaste": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when text just pasted or inserted holds a value that is a secret in the vault. The text goes to `unv guard check` on stdin and nowhere else."
+        },
         "unenverse.scanOnSave": {
           "type": "boolean",
           "default": true,

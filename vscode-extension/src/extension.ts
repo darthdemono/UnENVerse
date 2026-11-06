@@ -14,6 +14,8 @@ import {
   execArgs,
   hoverText,
   parseExposureReport,
+  pastedText,
+  guardHits,
   refAt,
   type ExecTask,
 } from './refs';
@@ -86,6 +88,36 @@ class EntryTree implements vscode.TreeDataProvider<string> {
   }
   getChildren(): string[] {
     return names;
+  }
+}
+
+let guardBusy = false;
+
+/**
+ * Warn when text just inserted holds a value the vault holds (R35). VS Code offers no way to stop
+ * a paste, so this warns after it and says how to undo; the text goes to `unv guard check` on
+ * stdin and nowhere else, and only the entry names come back.
+ */
+async function guardPaste(e: vscode.TextDocumentChangeEvent): Promise<void> {
+  if (guardBusy || e.document.uri.scheme === 'output') return;
+  const text = pastedText(e.contentChanges);
+  if (!text) return;
+  guardBusy = true;
+  try {
+    let out: string;
+    try {
+      out = await runUnv(exe(), ['--json', 'guard', 'check'], undefined, 30000, text);
+    } catch (err) {
+      out = (err as { stdout?: string }).stdout ?? '';
+    }
+    const found = guardHits(out);
+    if (found && found.length) {
+      void vscode.window.showWarningMessage(
+        `UnENVerse: this text holds a secret from your vault (${found.join(', ')}). Undo it and use a \${Provider/field} reference instead.`,
+      );
+    }
+  } finally {
+    guardBusy = false;
   }
 }
 
@@ -162,6 +194,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
     vscode.workspace.onDidSaveTextDocument((doc) => {
       if (vscode.workspace.getConfiguration('unenverse').get<boolean>('scanOnSave'))
         void scanFile(doc);
+    }),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      if (vscode.workspace.getConfiguration('unenverse').get<boolean>('guardPaste'))
+        void guardPaste(e);
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => diagnostics.delete(doc.uri)),
 
