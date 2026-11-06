@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml, makeEntry, makeVault, resetState } from './helpers';
 
 // Answers for the dialogs, set per test. showPasswordPrompt is asked in order.
-const prompts: Array<string | null> = [];
+const prompts: (string | null)[] = [];
 let confirmAnswer = true;
 vi.mock('../src/ts/utils', async (importOriginal) => {
   const real = await importOriginal<typeof import('../src/ts/utils')>();

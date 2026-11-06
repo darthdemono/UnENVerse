@@ -594,7 +594,7 @@ fn forgetting_names_the_entry_by_id_and_refuses_an_unknown_one() {
     let doc = json!({ "api_keys": [{ "id": "k1", "provider": "GitHub", "api_key": "ghp_secret_value_123456" }], "projects": [], "user_categories": [] });
     d.ok("save_vault", json!({ "data": doc, "expectVersion": null }));
     let report = d.ok("forget_entry_history", json!({ "entryId": "k1" }));
-    assert!(report["unreachable"].as_array().unwrap().len() >= 1);
+    assert!(!report["unreachable"].as_array().unwrap().is_empty());
     assert_eq!(report["history_versions"], 0);
     let err = d
         .call("forget_entry_history", json!({ "entryId": "nope" }))
