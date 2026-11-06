@@ -73,4 +73,29 @@ describe('vault instance settings row', () => {
     expect(btn().hidden).toBe(true);
     expect(hint().textContent).toContain('Unlock the vault');
   });
+
+  it('reports a refused activation and stays standby', async () => {
+    const invoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'vault_activate') throw new Error('Vault is locked');
+      return id('standby', 4);
+    });
+    tauri(invoke);
+    const m = await import('../src/ts/settings-panel');
+    m.openSettings();
+    await tick();
+    btn().click();
+    await tick();
+    document.getElementById('confirm-ok')?.dispatchEvent(new Event('click'));
+    await tick();
+    await tick();
+    expect(called(invoke)).toBe(true);
+    expect(btn().hidden).toBe(false);
+    expect(document.body.textContent).toContain('Could not activate');
+  });
+
+  it('does nothing when the markup lacks the row', async () => {
+    document.getElementById('s-instance-activate')?.remove();
+    const m = await import('../src/ts/settings-panel');
+    expect(() => m.openSettings()).not.toThrow();
+  });
 });

@@ -34,6 +34,13 @@ describe('plugin list', () => {
             capabilities: ['notify'],
             enabled: false,
           },
+          {
+            name: 'hook',
+            version: '2.0.0',
+            hash: 'ff',
+            capabilities: [],
+            enabled: true,
+          },
         ],
         available: [{ name: '<img src=x onerror=alert(1)>', version: '0.1.0' }],
         problems: ['plugins/bad: no manifest'],
@@ -44,6 +51,7 @@ describe('plugin list', () => {
     await tick();
     expect(items()).toEqual([
       'ntfy 1.0.0 [notify] disabled sha256:abcdef012345',
+      'hook 2.0.0 [] enabled sha256:ff',
       '<img src=x onerror=alert(1)> 0.1.0 (not installed)',
       'Problem: plugins/bad: no manifest',
     ]);
@@ -67,5 +75,11 @@ describe('plugin list', () => {
     m.openSettings();
     await tick();
     expect(items()).toEqual(['Unlock the vault to see the plugins.']);
+  });
+
+  it('does nothing when the markup lacks the list', async () => {
+    document.getElementById('s-plugin-list')?.remove();
+    const m = await import('../src/ts/settings-panel');
+    expect(() => m.openSettings()).not.toThrow();
   });
 });

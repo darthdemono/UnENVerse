@@ -69,6 +69,10 @@ impl Drop for Desk {
 }
 
 impl Desk {
+    /// The app handle, for tests that drive something other than an IPC command.
+    pub fn handle(&self) -> tauri::AppHandle<tauri::test::MockRuntime> {
+        self._app.handle().clone()
+    }
     pub fn call(&self, cmd: &str, body: Value) -> Result<Value, Value> {
         let res = get_ipc_response(
             &self.window,

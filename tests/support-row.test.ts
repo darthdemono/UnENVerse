@@ -3,10 +3,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { loadRealIndexHtml } from './helpers';
 
-const saveFile = vi.fn(async (_c: string, _n: string, _m?: string) => ({
-  ok: true as const,
+let saveResult: { ok: true; path: string } | { ok: false; error: string } = {
+  ok: true,
   path: '/tmp/x',
-}));
+};
+const saveFile = vi.fn(async (_c: string, _n: string, _m?: string) => saveResult);
 vi.mock('../src/ts/utils', async (importOriginal) => {
   const real = await importOriginal<typeof import('../src/ts/utils')>();
   return { ...real, saveFile: (c: string, n: string, m?: string) => saveFile(c, n, m) };
@@ -18,6 +19,7 @@ describe('support bundle settings row', () => {
     loadRealIndexHtml();
     vi.resetModules();
     saveFile.mockClear();
+    saveResult = { ok: true, path: '/tmp/x' };
     delete (window as unknown as { __TAURI__?: unknown }).__TAURI__;
   });
   const btn = () => document.getElementById('s-support-bundle') as HTMLButtonElement;
@@ -61,5 +63,25 @@ describe('support bundle settings row', () => {
     await tick();
     await tick();
     expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  it('says so when the file could not be saved', async () => {
+    saveResult = { ok: false, error: 'disk full' };
+    (window as unknown as { __TAURI__: unknown }).__TAURI__ = {
+      core: { invoke: vi.fn(async () => '{}') },
+    };
+    const m = await import('../src/ts/settings-panel');
+    m.openSettings();
+    btn().click();
+    await tick();
+    await tick();
+    expect(saveFile).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain('Not saved: disk full');
+  });
+
+  it('does nothing when the markup lacks the row', async () => {
+    btn().remove();
+    const m = await import('../src/ts/settings-panel');
+    expect(() => m.openSettings()).not.toThrow();
   });
 });
