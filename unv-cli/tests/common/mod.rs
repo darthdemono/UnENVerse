@@ -156,6 +156,17 @@ impl Vault {
         Self::collect(c, None)
     }
 
+    /// Same as [`Vault::run`], with the child started in `dir`.
+    pub fn run_in(&self, dir: &Path, args: &[&str]) -> Out {
+        let mut c = self.base();
+        c.current_dir(dir)
+            .arg("--db-path")
+            .arg(self.db())
+            .args(["--init", "--yes", "--json"])
+            .args(args);
+        Self::collect(c, None)
+    }
+
     /// Same, with the human (non-JSON) output.
     pub fn run_text(&self, args: &[&str]) -> Out {
         let mut c = self.base();
