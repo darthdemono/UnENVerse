@@ -431,6 +431,12 @@ pub fn mark_used(entry: &Value, code: Option<&str>, date: &str) -> Result<String
 
 const BIP39: &str = include_str!("../data/bip39-english.txt");
 
+/// The 2048-word BIP39 English list, in order. The passphrase generator draws
+/// from it, so one list serves the wallet check and `unv gen phrase`.
+pub fn bip39_words() -> Vec<&'static str> {
+    BIP39.lines().collect()
+}
+
 /// Validates a BIP39 mnemonic against the bundled English wordlist **and its
 /// checksum**. A mistyped word is otherwise discovered when the funds are needed.
 pub fn bip39_validate(mnemonic: &str) -> Result<(), String> {

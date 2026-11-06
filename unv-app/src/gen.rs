@@ -171,6 +171,37 @@ pub fn password(o: &PwOpts, source: &Source) -> CliResult<(String, f64)> {
     Ok((pwd, entropy))
 }
 
+/// A passphrase of `words` random words from the bundled 2048-word list (11 bits
+/// each). Two bytes per word masked to 11 bits: 2048 divides 65536, so there is
+/// no modulo bias to reject.
+pub fn phrase(
+    words: usize,
+    separator: &str,
+    capitalize: bool,
+    source: &Source,
+) -> CliResult<(String, f64)> {
+    if !(4..=24).contains(&words) {
+        return Err(CliError::invalid("Use 4 to 24 words"));
+    }
+    let list = vault_core::type_emit::bip39_words();
+    let mut pool = vec![0u8; words * 2];
+    vault_core::entropy::fill(source, "phrase", &mut pool).map_err(CliError::from)?;
+    let picked: Vec<String> = (0..words)
+        .map(|i| {
+            let w = list[(u16::from_le_bytes([pool[2 * i], pool[2 * i + 1]]) & 0x7ff) as usize];
+            if capitalize {
+                let mut ch = w.chars();
+                ch.next()
+                    .map(|f| f.to_uppercase().collect::<String>() + ch.as_str())
+                    .unwrap_or_default()
+            } else {
+                w.to_string()
+            }
+        })
+        .collect();
+    Ok((picked.join(separator), words as f64 * 11.0))
+}
+
 pub fn certificate(common_name: &str, days: u32, source: &Source) -> CliResult<serde_json::Value> {
     vault_core::generate_certificate(common_name, days, source).map_err(CliError::from)
 }
