@@ -349,6 +349,58 @@ pub fn create_run_fenced(
     create_run(conn, id, schedule, missed_occurrences, Some(epoch))
 }
 
+/// Records which plugin programs a run used, as `{ "<plugin>": "<sha256 of the program>" }`
+/// (R14). The hash is the install-time provenance re-checked at start, so a run row says
+/// which build of a plugin did the work even after the plugin is upgraded or removed.
+/// A second call for the same plugin replaces its hash; other plugins are kept.
+pub fn record_plugin_provenance(
+    conn: &Connection,
+    run_id: &str,
+    plugin: &str,
+    hash: &str,
+) -> Result<(), String> {
+    let current: Option<String> = conn
+        .query_row(
+            "SELECT plugin_provenance FROM ops_runs WHERE id = ?1",
+            [run_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("No run {run_id}"))?;
+    let mut map: serde_json::Map<String, serde_json::Value> = match current {
+        Some(t) if !t.is_empty() => serde_json::from_str(&t).map_err(|e| e.to_string())?,
+        _ => Default::default(),
+    };
+    map.insert(plugin.into(), hash.into());
+    conn.execute(
+        "UPDATE ops_runs SET plugin_provenance = ?2 WHERE id = ?1",
+        params![run_id, serde_json::Value::Object(map).to_string()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// The plugin hashes recorded for a run, empty when it used no plugin.
+pub fn plugin_provenance(
+    conn: &Connection,
+    run_id: &str,
+) -> Result<std::collections::BTreeMap<String, String>, String> {
+    let text: Option<String> = conn
+        .query_row(
+            "SELECT plugin_provenance FROM ops_runs WHERE id = ?1",
+            [run_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("No run {run_id}"))?;
+    match text {
+        Some(t) if !t.is_empty() => serde_json::from_str(&t).map_err(|e| e.to_string()),
+        _ => Ok(Default::default()),
+    }
+}
+
 pub fn get_run(conn: &Connection, id: &str) -> Result<Option<Run>, String> {
     conn.query_row(
         &format!("SELECT {RUN_COLUMNS} FROM ops_runs WHERE id = ?1"),
@@ -512,5 +564,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn a_run_remembers_which_plugin_build_it_used() {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        create_run_with_kind(&conn, "r1", None, "backup.package", 0, None).unwrap();
+        assert!(plugin_provenance(&conn, "r1").unwrap().is_empty());
+        record_plugin_provenance(&conn, "r1", "ntfy", "aa11").unwrap();
+        record_plugin_provenance(&conn, "r1", "other", "bb22").unwrap();
+        // The plugin is upgraded mid-history: the later hash replaces its own, not the other's.
+        record_plugin_provenance(&conn, "r1", "ntfy", "cc33").unwrap();
+        let got = plugin_provenance(&conn, "r1").unwrap();
+        assert_eq!(got["ntfy"], "cc33");
+        assert_eq!(got["other"], "bb22");
+        assert!(record_plugin_provenance(&conn, "missing", "ntfy", "x").is_err());
     }
 }
