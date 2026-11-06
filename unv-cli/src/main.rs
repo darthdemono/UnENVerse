@@ -804,6 +804,14 @@ enum Commands {
         /// Do not inherit this process's environment (PATH is kept).
         #[arg(long)]
         clean: bool,
+        /// Run the command in a bubblewrap sandbox: read-only file system, an empty home
+        /// directory, `.env*` files in the working directory hidden, no network. Linux only;
+        /// refuses (exit 7) where it cannot be enforced instead of running unsandboxed.
+        #[arg(long)]
+        sandbox: bool,
+        /// With --sandbox, leave the network on.
+        #[arg(long, requires = "sandbox")]
+        sandbox_net: bool,
         /// The command to run, after `--`.
         #[arg(last = true, required = true)]
         argv: Vec<String>,
@@ -4033,6 +4041,8 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             pools: pool_specs,
             prefix,
             clean,
+            sandbox,
+            sandbox_net,
             argv,
         } => {
             let project = scoped_project(a, project.as_deref())?;
@@ -4043,6 +4053,8 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 prefix: prefix.as_deref(),
                 clean: *clean,
                 argv,
+                sandbox: *sandbox,
+                sandbox_net: *sandbox_net,
             };
             let code = exec::run(a, &opts, argv)?;
             if code != 0 {
