@@ -190,6 +190,6 @@ describe('master password and forget rows', () => {
     m.openSettings();
     await tick();
     expect(el('s-forget').disabled).toBe(true);
-    el('s-forget').onclick?.(new MouseEvent('click'));
+    el('s-forget').click();
   });
 });
