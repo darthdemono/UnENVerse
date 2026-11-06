@@ -13,6 +13,7 @@ import {
   envName,
   primaryEnvName,
   namesGeneratedBy,
+  migrateLegacySecret,
   duplicateNamesWithin,
   defaultRoleForType,
   primaryIsOptional,
@@ -58,6 +59,7 @@ import {
 import {
   generateRandomBytes,
   generatePassword,
+  generatePhrase,
   guardEntropy,
   generateApiKeyPattern,
   generateHash,
@@ -552,6 +554,9 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
     app_purpose: getVal('f-app-purpose') || undefined,
     pool: getVal('f-pool') || undefined,
     expires_at: getVal('f-expires') || undefined,
+    // Keeps the stored timestamp when the shown date was not touched, so editing an
+    // entry never rewrites its creation time to midnight.
+    created_at: createdFromForm(getVal('f-created'), base?.created_at),
     rotation_days: getVal('f-rotation-days')
       ? parseInt(getVal('f-rotation-days')) || undefined
       : undefined,
@@ -922,7 +927,10 @@ function applyUnknownSecretType(rawType: string | null): void {
   }
 }
 
-export function fillForm(entry: Partial<VaultEntry>) {
+export function fillForm(source: Partial<VaultEntry>) {
+  // An entry still holding the old API Secret opens with it as an additional value.
+  const entry = { ...source };
+  migrateLegacySecret(entry);
   (document.getElementById('f-provider') as HTMLInputElement).value = entry.provider || '';
   (document.getElementById('f-account') as HTMLInputElement).value =
     entry.account_name || Settings.get('defaultAccount') || '';
@@ -1003,6 +1011,9 @@ export function fillForm(entry: Partial<VaultEntry>) {
   (document.getElementById('f-app-purpose') as HTMLInputElement).value = entry.app_purpose || '';
   (document.getElementById('f-pool') as HTMLInputElement).value = entry.pool || '';
   (document.getElementById('f-expires') as HTMLInputElement).value = entry.expires_at || '';
+  (document.getElementById('f-created') as HTMLInputElement).value = entry.created_at
+    ? entry.created_at.slice(0, 10)
+    : '';
   const rotEl = document.getElementById('f-rotation-days') as HTMLInputElement;
   rotEl.value = entry.rotation_days ? String(entry.rotation_days) : '';
   const compEl = document.getElementById('f-compromised') as HTMLInputElement;
@@ -1107,6 +1118,18 @@ export function populateProjectSelect() {
   // every option is a tab stop makes a twenty-project vault twenty Tab presses
   // deep.
   if (items[0]) items[0].tabIndex = 0;
+}
+
+/**
+ * The `created_at` a form date means. An unchanged date keeps the stored
+ * timestamp (time of day included); a changed one becomes midnight UTC of that
+ * day; a blank one clears it, which renders as "unknown" like any pre-field entry.
+ */
+export function createdFromForm(shown: string, stored?: string | null): string | undefined {
+  const d = shown.trim();
+  if (!d) return undefined;
+  if (stored?.slice(0, 10) === d) return stored;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00.000Z` : stored || undefined;
 }
 
 // ── The generated-name preview ────────────────────────────────────────────
@@ -1796,6 +1819,22 @@ function wireGeneratorPopover(): void {
         );
         if (out !== undefined) setOutput(out);
       } else if (activeTab === 'password') {
+        // "Security phrase": random words instead of random characters.
+        if ((document.getElementById('gp-pw-phrase') as HTMLInputElement).checked) {
+          const words = Math.min(
+            24,
+            Math.max(
+              4,
+              parseInt((document.getElementById('gp-pw-words') as HTMLInputElement).value, 10) || 6,
+            ),
+          );
+          const phrase = guardEntropy(
+            () => generatePhrase(words, '-', false),
+            (m) => showToast(m, 'err'),
+          );
+          if (phrase !== undefined) setOutput(phrase);
+          return;
+        }
         const upper = (document.getElementById('gp-pw-upper') as HTMLInputElement).checked;
         const lower = (document.getElementById('gp-pw-lower') as HTMLInputElement).checked;
         const digits = (document.getElementById('gp-pw-digits') as HTMLInputElement).checked;
@@ -2341,18 +2380,29 @@ export async function saveModal() {
     const mine = namesGeneratedBy(entry).filter((g) => !before.has(g.name.toUpperCase()));
     if (mine.length) {
       const mineSet = new Set(mine.map((g) => g.name.toUpperCase()));
+      // The name that actually collides, not the first one the entry generates: a session
+      // whose captured URL fills SPOTIFY_URL clashes on that, while SPOTIFY_COOKIE is free,
+      // and a toast naming SPOTIFY_COOKIE sends the user to fix the wrong thing.
+      let clashName = '';
       const clash = st.vault.api_keys.find((other) => {
         if (other === old || (old?.id && other.id === old.id)) return false;
-        if (!namesGeneratedBy(other).some((g) => mineSet.has(g.name.toUpperCase()))) return false;
+        const shared = namesGeneratedBy(other).find((g) => mineSet.has(g.name.toUpperCase()));
+        if (!shared) return false;
         const pool = (entry.pool ?? '').trim();
         if (pool && pool === (other.pool ?? '').trim()) return false;
         const a = (entry.account_name ?? '').trim().toLowerCase();
         const b = (other.account_name ?? '').trim().toLowerCase();
-        return !(a && b && a !== b);
+        if (a && b && a !== b) return false;
+        clashName = mine.find((g) => g.name.toUpperCase() === shared.name.toUpperCase())!.name;
+        return true;
       });
       if (clash) {
+        const urlHint =
+          clashName.toUpperCase().endsWith('_URL') && entry.api_url
+            ? ' Or clear the URL field if this entry does not need it.'
+            : '';
         showToast(
-          `${mine[0].name} is already generated by ${clash.provider}. Give this one a key ID, a name label or its own account.`,
+          `${clashName} is already generated by ${clash.provider}. Give this one a key ID, a name label or its own account.${urlHint}`,
           'err',
           6000,
         );
@@ -2482,7 +2532,7 @@ export async function saveModal() {
       const created = {
         ...entry,
         id: newEntryId(),
-        created_at: new Date().toISOString(),
+        created_at: entry.created_at || new Date().toISOString(),
       };
       const bundle = _pendingBundleId
         ? st.vault.api_keys.find((e) => e.id === _pendingBundleId && e.secretType === 'bundle')

@@ -885,6 +885,40 @@ export function newEntryId(): string {
  *
  * @returns true when anything was assigned, so callers can persist the migration.
  */
+/**
+ * Move a legacy `api_secret` (and its `secret_role`) into Additional values.
+ *
+ * The variable it generates keeps its name: the role is the value's key, `SECRET`
+ * when none was set. A secret whose name is already taken by an additional value
+ * is left where it is rather than overwritten. Returns true when it changed.
+ */
+export function migrateLegacySecret(entry: Partial<VaultEntry>): boolean {
+  if (!entry.api_secret) return false;
+  const key = (entry.secret_role || 'SECRET').trim();
+  const taken = (entry.extra_vars ?? []).some((v) => v.key.toUpperCase() === key.toUpperCase());
+  if (taken) return false;
+  entry.extra_vars = [
+    ...(entry.extra_vars ?? []),
+    {
+      key,
+      value: entry.api_secret,
+      secret: entry.secret_public !== true,
+      ...(entry.secret_public === true ? { public: true } : {}),
+    },
+  ];
+  delete entry.api_secret;
+  delete entry.secret_role;
+  delete entry.secret_public;
+  return true;
+}
+
+/** Migrate every entry; true when any changed. */
+export function migrateLegacySecrets(entries: VaultEntry[]): boolean {
+  let changed = false;
+  for (const e of entries) if (migrateLegacySecret(e)) changed = true;
+  return changed;
+}
+
 export function ensureEntryIds(entries: VaultEntry[]): boolean {
   const seen = new Set<string>();
   let changed = false;

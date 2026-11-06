@@ -70,6 +70,27 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Passphrase Generator -->
+        <div id="tool-phrase-gen" class="tool-pane" style="display:none">
+          <div class="tool-header"><h3>Passphrase Generator</h3><p>Random words, 11 bits of entropy each.</p></div>
+          <div class="tool-body">
+            <div class="tool-row"><label class="tool-label">Words: <span id="ph-count-display">6</span></label>
+              <input type="range" id="ph-count" min="4" max="24" value="6" class="tool-range">
+            </div>
+            <div class="tool-row"><label class="tool-label">Separator</label>
+              <input type="text" id="ph-sep" value="-" maxlength="4" class="tool-number">
+              <label><input type="checkbox" id="ph-cap"> Capitalise</label>
+            </div>
+            <input id="ph-output" class="tool-output mono" readonly placeholder="Output…">
+            <div id="ph-strength" class="strength-bar"><div id="ph-strength-fill"></div></div>
+            <div class="tool-actions">
+              <button id="ph-generate" class="btn btn-accent btn-sm">Generate</button>
+              <button id="ph-copy" class="btn btn-ghost btn-sm">Copy</button>
+              <button id="ph-inject" class="btn btn-ghost btn-sm">→ Inject</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Tool: UUID / ULID -->
         <div id="tool-uuid-ulid" class="tool-pane" style="display:none">
           <div class="tool-header"><h3>UUID / ULID Generator</h3><p>Universally unique identifiers.</p></div>

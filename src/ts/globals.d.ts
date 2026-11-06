@@ -4,3 +4,8 @@ interface Window {
   __unvBulkToggle?: (index: number) => boolean;
   __unvIsBulkMode?: () => boolean;
 }
+
+declare module '*.txt?raw' {
+  const text: string;
+  export default text;
+}
