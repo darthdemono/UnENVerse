@@ -569,6 +569,13 @@ enum Commands {
         #[command(subcommand)]
         cmd: RecoverCmd,
     },
+    /// Check text on stdin against the exact values this vault holds, before it is pasted into a
+    /// chat or an agent prompt. Prints the entry and field names found, never a value; exits 10
+    /// when a value of eight or more characters is in the text.
+    Guard {
+        #[command(subcommand)]
+        cmd: GuardCmd,
+    },
     /// Inspect and control durable backup operation records.
     Ops {
         #[command(subcommand)]
@@ -2340,6 +2347,12 @@ enum RecoverCmd {
     },
     /// Verify hashes, SQLCipher, storage, audit and configuration history.
     Verify { directory: PathBuf },
+}
+
+#[derive(Subcommand)]
+enum GuardCmd {
+    /// Does the text on stdin hold a value this vault holds? (names only, no network call)
+    Check,
 }
 
 #[derive(Subcommand)]
@@ -4458,6 +4471,9 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             *json,
             *all_projects,
         ),
+        Commands::Guard { cmd } => match cmd {
+            GuardCmd::Check => unv_app::guard_cmd::check(a),
+        },
         Commands::Scan {
             severity,
             json,
