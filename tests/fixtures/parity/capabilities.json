@@ -1167,7 +1167,9 @@
       "id": "paste-guard",
       "status": "exempt",
       "cli": [
-        "unv guard check"
+        "unv guard check",
+        "unv guard host",
+        "unv guard install-host"
       ],
       "ui": [],
       "tauri": [],
