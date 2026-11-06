@@ -3,6 +3,8 @@
 import type { AppSettings, VaultEntry } from './types';
 import {
   Settings,
+  st,
+  entryId,
   triggerRender,
   applySidebarOrder,
   applyActivityBar,
@@ -382,6 +384,76 @@ function wireCatalogueRow(): void {
         showToast('Catalogue not updated', 'err', 2500);
       })
       .finally(() => (btn.disabled = false));
+  };
+}
+
+interface ForgetReport {
+  history_versions: number;
+  snapshots: number;
+  pending_values: number;
+  unreachable: string[];
+}
+
+/** R20: change the master password, and forget the old values of one entry. */
+function wirePasswordRows(): void {
+  const rekey = document.getElementById('s-rekey') as HTMLButtonElement | null;
+  const pick = document.getElementById('s-forget-entry') as HTMLSelectElement | null;
+  const forget = document.getElementById('s-forget') as HTMLButtonElement | null;
+  const hint = document.getElementById('s-forget-hint');
+  if (!rekey || !pick || !forget || !hint) return;
+  rekey.hidden = pick.hidden = forget.hidden = !inTauri;
+  if (!inTauri) return;
+  pick.replaceChildren(
+    ...st.vault.api_keys.map((e) => {
+      const o = document.createElement('option');
+      o.value = entryId(e);
+      o.textContent = e.provider;
+      return o;
+    }),
+  );
+  forget.disabled = pick.options.length === 0;
+  // Assignment, not addEventListener: this pane is opened repeatedly (invariant 9).
+  rekey.onclick = () => {
+    void (async () => {
+      const current = await showPasswordPrompt('Current master password');
+      if (!current) return;
+      const next = await showPasswordPrompt('New master password (at least 12 characters)');
+      if (!next) return;
+      const again = await showPasswordPrompt('Repeat the new master password');
+      if (again !== next) {
+        showToast('The two passwords differ', 'err', 3000);
+        return;
+      }
+      const ok = await showConfirm(
+        'Change the master password? The vault locks now and opens with the new password. Backups made earlier still need the old one.',
+      );
+      if (!ok) return;
+      try {
+        await invokeTauri('change_master_password', { current, newPassword: next });
+        showToast('Master password changed. Unlock with the new one.', 'ok', 3000);
+        setTimeout(() => window.location.reload(), 800);
+      } catch (e) {
+        showToast(`Not changed: ${String(e)}`, 'err', 4000);
+      }
+    })();
+  };
+  forget.onclick = () => {
+    const id = pick.value;
+    const name = pick.selectedOptions[0]?.textContent ?? '';
+    if (!id) return;
+    void (async () => {
+      const ok = await showConfirm(
+        `Permanently remove the old values of '${name}' from history and stored config copies? The current value stays. This cannot be undone.`,
+      );
+      if (!ok) return;
+      try {
+        const r = await invokeTauri<ForgetReport>('forget_entry_history', { entryId: id });
+        hint.textContent = `Forgot ${r.history_versions} old value(s) and ${r.snapshots} stored config copy(ies). Not reachable from here: ${r.unreachable.join('; ')}. Rotate the credential at its provider if the old value was ever exposed.`;
+        showToast('Old values forgotten', 'ok', 2500);
+      } catch (e) {
+        showToast(`Not forgotten: ${String(e)}`, 'err', 4000);
+      }
+    })();
   };
 }
 
@@ -1024,6 +1096,7 @@ export function openSettings() {
 
   wireCatalogueRow();
   wireBridgeRow();
+  wirePasswordRows();
   wireInstanceRow();
   wireSupportRow();
   wireArchiveRows();

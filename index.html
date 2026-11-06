@@ -1419,6 +1419,26 @@
               <label class="toggle"><input type="checkbox" id="s-lock-on-hide" aria-labelledby="s-lock-on-hide-label" aria-describedby="s-lock-on-hide-hint"><span class="toggle-track"></span></label>
             </div>
           </div>
+          <div class="settings-section" id="s-password-section">
+            <div class="settings-section-title">Master password and history</div>
+            <div class="settings-row">
+              <div class="settings-label">
+                <span class="settings-label-text" id="s-rekey-label">Change master password</span>
+                <div class="settings-hint" id="s-rekey-hint">Re-encrypts the vault under a new password and locks it. Backups made earlier still open with the old password. Recovery packages are not affected.</div>
+              </div>
+              <button type="button" class="btn btn-secondary" id="s-rekey" aria-describedby="s-rekey-hint" hidden>Change password</button>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">
+                <label class="settings-label-text" for="s-forget-entry" id="s-forget-label">Forget old values of an entry</label>
+                <div class="settings-hint" id="s-forget-hint" aria-live="polite">Removes replaced values from its version history and stored config copies. The current value stays. This cannot be undone.</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <select id="s-forget-entry" class="form-input" aria-describedby="s-forget-hint" hidden></select>
+                <button type="button" class="btn btn-secondary" id="s-forget" aria-describedby="s-forget-hint" hidden>Forget</button>
+              </div>
+            </div>
+          </div>
           <div class="settings-section" id="s-instance-section">
             <div class="settings-section-title">Vault instance</div>
             <div class="settings-row">

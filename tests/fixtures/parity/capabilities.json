@@ -1105,24 +1105,32 @@
     },
     {
       "id": "vault-rekey",
-      "status": "exempt",
+      "status": "both",
       "cli": [
         "unv vault rekey"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "R20 master-password change re-encrypts the whole vault and swaps two files, so it ships first as a command-line act that asks first; the desktop Change master password action is a later slice and will call the same vault_core::rekey.",
+      "ui": [
+        "id:s-rekey"
+      ],
+      "tauri": [
+        "change_master_password"
+      ],
+      "note": "R20: Settings, Security checks the current password, locks the vault, then calls the same vault_core::rekey::rekey as `unv vault rekey`; the person unlocks with the new password.",
       "cli_flags": []
     },
     {
       "id": "entry-forget",
-      "status": "exempt",
+      "status": "both",
       "cli": [
         "unv entry forget"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "R20 forget purges old values from history and stored config copies and cannot be undone, so it ships first as a command that asks first and prints what it cannot reach; the desktop action is a later slice and will call the same vault_core::forget.",
+      "ui": [
+        "id:s-forget"
+      ],
+      "tauri": [
+        "forget_entry_history"
+      ],
+      "note": "R20: Settings, Security asks first, then calls the same vault_core::forget::forget_entry as `unv entry forget` and prints what it cannot reach.",
       "cli_flags": []
     },
     {

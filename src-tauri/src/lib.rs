@@ -332,6 +332,66 @@ mod commands {
         bridge_status(app, bridge)
     }
 
+    /// R20: change the master password (`unv vault rekey`). The current password is checked
+    /// first, so a typo does not lock the session for nothing. Then the vault is locked the way
+    /// `lock_vault` does it (the executor, LAN server and bridge all hold the old key), the files
+    /// are re-encrypted, and the person unlocks again with the new password.
+    #[tauri::command]
+    pub fn change_master_password<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+        lan: State<LanState>,
+        ops: State<OpsState>,
+        bridge: State<BridgeState>,
+        current: String,
+        new_password: String,
+    ) -> Result<(), String> {
+        if state.0.lock().map_err(|_| "State lock poisoned")?.is_none() {
+            return Err("Vault is locked".into());
+        }
+        // The same two refusals as `rekey`, asked before the vault is locked: a short or
+        // unchanged password must not cost the person their unlocked session.
+        let min = vault_core::rekey::MIN_PASSWORD_CHARS;
+        if new_password.chars().count() < min {
+            return Err(format!(
+                "The new master password must be at least {min} characters"
+            ));
+        }
+        if new_password == current {
+            return Err("The new master password is the same as the old one".into());
+        }
+        let db = db_path(&app)?;
+        let salt_file = salt_path(&app)?;
+        vault_core::check_salt_pairing(&db, &salt_file)?;
+        let salt = vault_core::read_or_create_salt(&salt_file)?;
+        let key = vault_core::derive_key(&current, &salt)?;
+        // Fails with "Wrong master password" before anything is stopped.
+        drop(vault_core::open_db(&db, &key)?);
+        lock_vault(app, state, lan, ops, bridge)?;
+        vault_core::rekey::rekey(&db, &salt_file, &current, &new_password)?;
+        Ok(())
+    }
+
+    /// R20: purge the old values of one entry from history and stored config copies
+    /// (`unv entry forget`). The current value stays. The report names what no command reaches.
+    #[tauri::command]
+    pub fn forget_entry_history<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+        entry_id: String,
+    ) -> Result<vault_core::forget::Report, String> {
+        let g = state.0.lock().map_err(|_| "State lock poisoned")?;
+        let key = g.as_ref().ok_or("Vault is locked")?;
+        let conn = vault_core::open_db(&db_path(&app)?, key)?;
+        let vault = vault_core::load_vault(&conn)?.ok_or("The vault is empty")?;
+        let provider = unv_app::data::entries(&vault)
+            .iter()
+            .find(|e| e.get("id").and_then(|v| v.as_str()) == Some(entry_id.as_str()))
+            .map(|e| unv_app::data::provider_of(e).to_string())
+            .ok_or_else(|| format!("No entry with id {entry_id}"))?;
+        vault_core::forget::forget_entry(&conn, &entry_id, &provider, None)
+    }
+
     /// R25: the support bundle (`unv support bundle`): versions, counts and check results only.
     /// The text is returned to the page, which asks where to save it; the person reads it first.
     #[tauri::command]
@@ -2505,6 +2565,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::vault_identity,
             commands::vault_activate,
             commands::support_bundle,
+            commands::change_master_password,
+            commands::forget_entry_history,
             commands::lan_start,
             commands::lan_stop,
             commands::lan_status,

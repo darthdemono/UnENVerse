@@ -556,3 +556,54 @@ fn the_support_bundle_from_the_desktop_holds_counts_and_no_values() {
         json!("Vault is locked")
     );
 }
+
+#[test]
+fn a_wrong_current_password_changes_nothing_and_the_new_one_opens_the_vault() {
+    let d = unlocked("rekeydesk");
+    // A typo must not lock the session or touch the files.
+    let err = d
+        .call(
+            "change_master_password",
+            json!({ "current": "not-the-password-1", "newPassword": "a-brand-new-password-1" }),
+        )
+        .unwrap_err();
+    assert_eq!(err, json!("Wrong master password"));
+    assert_eq!(d.ok("vault_is_unlocked", json!({})), json!(true));
+    // A short new password is refused in words, and the vault stays unlocked.
+    let short = d
+        .call(
+            "change_master_password",
+            json!({ "current": "session-master-password-1", "newPassword": "short" }),
+        )
+        .unwrap_err();
+    assert!(short.as_str().unwrap().contains("at least 12"), "{short}");
+    assert_eq!(d.ok("vault_is_unlocked", json!({})), json!(true));
+    d.ok(
+        "change_master_password",
+        json!({ "current": "session-master-password-1", "newPassword": "a-brand-new-password-1" }),
+    );
+    // The change locks the vault; only the new password opens it.
+    assert_eq!(d.ok("vault_is_unlocked", json!({})), json!(false));
+    assert!(d.unlock("session-master-password-1").is_err());
+    assert_eq!(d.unlock("a-brand-new-password-1").unwrap(), json!(true));
+}
+
+#[test]
+fn forgetting_names_the_entry_by_id_and_refuses_an_unknown_one() {
+    let d = unlocked("forgetdesk");
+    let doc = json!({ "api_keys": [{ "id": "k1", "provider": "GitHub", "api_key": "ghp_secret_value_123456" }], "projects": [], "user_categories": [] });
+    d.ok("save_vault", json!({ "data": doc, "expectVersion": null }));
+    let report = d.ok("forget_entry_history", json!({ "entryId": "k1" }));
+    assert!(report["unreachable"].as_array().unwrap().len() >= 1);
+    assert_eq!(report["history_versions"], 0);
+    let err = d
+        .call("forget_entry_history", json!({ "entryId": "nope" }))
+        .unwrap_err();
+    assert_eq!(err, json!("No entry with id nope"));
+    d.ok("lock_vault", json!({}));
+    assert_eq!(
+        d.call("forget_entry_history", json!({ "entryId": "k1" }))
+            .unwrap_err(),
+        json!("Vault is locked")
+    );
+}
