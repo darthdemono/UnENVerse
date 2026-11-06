@@ -917,7 +917,8 @@
         "vault_exists",
         "get_vault_path",
         "vault_version",
-        "caps_lock_state"
+        "caps_lock_state",
+        "idle_lock_configure"
       ],
       "note": "App lifecycle and window plumbing; the CLI opens the vault per command.",
       "cli_flags": []
