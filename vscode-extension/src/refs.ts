@@ -156,3 +156,42 @@ export function entryNames(
 export function looksLocked(message: string): boolean {
   return /locked|not unlocked|password|login/i.test(message);
 }
+
+/** The shortest insertion treated as a paste. Typing and snippet completions are shorter. */
+export const PASTE_MIN_CHARS = 20;
+
+/**
+ * The text a document change inserted in one go, when it is long enough to be a paste. VS Code has
+ * no stable paste event, so a long single insertion is the signal; the check that follows costs a
+ * key derivation, which is why short edits are not sent.
+ */
+export function pastedText(changes: readonly { text: string }[]): string {
+  return changes
+    .map((c) => c.text)
+    .filter((t) => t.length >= PASTE_MIN_CHARS)
+    .join('\n');
+}
+
+/**
+ * What `unv --json guard check` said: the names of the entries found (`FOUND` when the check
+ * failed with exit 10, so the envelope is an error carrying `details.hits`), an empty list when
+ * it was clean, or `null` when the answer cannot be read, so the caller stays quiet instead of
+ * guessing. Only names are ever read: the report holds no value.
+ */
+export function guardHits(stdout: string): string[] | null {
+  let doc: unknown;
+  try {
+    doc = JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+  const d = doc as {
+    ok?: boolean;
+    data?: { hits?: { entry?: string; short?: boolean }[] };
+    error?: { details?: { hits?: { entry?: string; short?: boolean }[] } };
+  };
+  const hits = d.error?.details?.hits ?? d.data?.hits;
+  if (!Array.isArray(hits)) return null;
+  const names = hits.filter((h) => !h.short && typeof h.entry === 'string').map((h) => h.entry!);
+  return [...new Set(names)];
+}
