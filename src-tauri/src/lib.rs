@@ -10,7 +10,9 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 use vault_core::VaultKey;
 use zeroize::Zeroize;
@@ -35,6 +37,41 @@ pub struct LanState(pub Mutex<Option<LanServer>>);
 
 /// The desktop bridge socket (R18), present only while unlocked with Allow local scripts on.
 pub struct BridgeState(pub Mutex<Option<unv_app::bridge::BridgeServer>>);
+
+/// R15: the idle lock kept on the Rust side. The page's own timer locks first; this is the
+/// backstop for a page that has stopped running (a hung webview), which would otherwise leave an
+/// unlocked vault open with nobody looking at it.
+pub struct IdleState {
+    /// Minutes of silence before the lock; 0 is off.
+    pub minutes: AtomicU64,
+    pub last_touch: Mutex<Instant>,
+    /// The page paused auto-lock (LAN serving), so the backstop pauses too.
+    pub paused: std::sync::atomic::AtomicBool,
+}
+
+impl IdleState {
+    pub fn new() -> Self {
+        Self {
+            minutes: AtomicU64::new(0),
+            last_touch: Mutex::new(Instant::now()),
+            paused: std::sync::atomic::AtomicBool::new(false),
+        }
+    }
+}
+
+impl Default for IdleState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// How long after the page's own timer the backstop waits, so the page always locks first.
+pub const IDLE_GRACE: Duration = Duration::from_secs(60);
+
+/// Whether the backstop should lock now. Pure, so the rule is testable without a clock.
+pub fn idle_expired(minutes: u64, silent: Duration, unlocked: bool, paused: bool) -> bool {
+    unlocked && !paused && minutes > 0 && silent >= Duration::from_secs(minutes * 60) + IDLE_GRACE
+}
 
 /// The unlocked-only durable operations executor. It owns a second copy of the
 /// derived key, so locking must stop and join it before the vault key is wiped.
@@ -405,6 +442,24 @@ mod commands {
         unv_app::plugin_cmd::listing(&unv_app::access::Access::Local(key), None)
             .map(|l| l.to_json())
             .map_err(|e| e.message)
+    }
+
+    /// R15: tell the Rust idle lock how long to wait, and whether the page paused auto-lock.
+    #[tauri::command]
+    pub fn idle_lock_configure(idle: State<IdleState>, minutes: u64, paused: bool) {
+        idle.minutes.store(minutes, Ordering::SeqCst);
+        idle.paused.store(paused, Ordering::SeqCst);
+        if let Ok(mut t) = idle.last_touch.lock() {
+            *t = Instant::now();
+        }
+    }
+
+    /// R15: the person did something; restart the idle clock.
+    #[tauri::command]
+    pub fn idle_lock_touch(idle: State<IdleState>) {
+        if let Ok(mut t) = idle.last_touch.lock() {
+            *t = Instant::now();
+        }
     }
 
     /// R25: the support bundle (`unv support bundle`): versions, counts and check results only.
@@ -2486,6 +2541,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         .manage(LanState(Mutex::new(None)))
         .manage(OpsState(Mutex::new(None)))
         .manage(BridgeState(Mutex::new(None)))
+        .manage(IdleState::new())
         .invoke_handler(tauri::generate_handler![
             commands::unlock_vault,
             commands::caps_lock_state,
@@ -2580,6 +2636,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::vault_identity,
             commands::vault_activate,
             commands::support_bundle,
+            commands::idle_lock_configure,
+            commands::idle_lock_touch,
             commands::plugin_list,
             commands::change_master_password,
             commands::forget_entry_history,
@@ -2660,6 +2718,34 @@ pub fn run() {
                 })
                 .build(app)?;
             let _ = tray; // keep alive
+
+            // ── Idle lock backstop (R15) ─────────────────────────────────────
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(10));
+                let Some(idle) = handle.try_state::<IdleState>() else {
+                    continue;
+                };
+                let silent = idle
+                    .last_touch
+                    .lock()
+                    .map(|t| t.elapsed())
+                    .unwrap_or_default();
+                let unlocked = handle
+                    .try_state::<VaultState>()
+                    .map(|v| v.0.lock().map(|g| g.is_some()).unwrap_or(false))
+                    .unwrap_or(false);
+                let paused = idle.paused.load(Ordering::SeqCst);
+                if idle_expired(idle.minutes.load(Ordering::SeqCst), silent, unlocked, paused) {
+                    let _ = commands::lock_vault(
+                        handle.clone(),
+                        handle.state(),
+                        handle.state(),
+                        handle.state(),
+                        handle.state(),
+                    );
+                }
+            });
 
             // Global hotkey removed — Ctrl+Shift+V conflicts with paste in
             // Linux terminals and intercepted system-wide, causing vault lock
@@ -2800,5 +2886,38 @@ mod unlocked_session_tests {
             key.zeroize();
         }
         fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod idle_lock_tests {
+    use super::{idle_expired, IDLE_GRACE};
+    use std::time::Duration;
+
+    const M: u64 = 5;
+    fn mins(n: u64) -> Duration {
+        Duration::from_secs(n * 60)
+    }
+
+    #[test]
+    fn the_backstop_waits_for_the_page_timer_plus_a_grace_and_never_locks_early() {
+        // Bug it pins: a backstop that fired at the same moment as the page's timer would lock
+        // while the page was still deciding whether to warn, or pause for a LAN server.
+        assert!(!idle_expired(M, mins(M), true, false));
+        assert!(!idle_expired(
+            M,
+            mins(M) + IDLE_GRACE - Duration::from_secs(1),
+            true,
+            false
+        ));
+        assert!(idle_expired(M, mins(M) + IDLE_GRACE, true, false));
+    }
+
+    #[test]
+    fn it_does_nothing_when_off_paused_or_already_locked() {
+        let long = mins(600);
+        assert!(!idle_expired(0, long, true, false), "0 minutes is off");
+        assert!(!idle_expired(M, long, true, true), "paused while serving");
+        assert!(!idle_expired(M, long, false, false), "nothing to lock");
     }
 }

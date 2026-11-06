@@ -27,10 +27,31 @@ import {
   relativeTime,
 } from './ui-qol';
 import { html, type HtmlValue } from './html';
+import { inTauri, invokeTauri } from './tauri';
 
 let _finishInitFn: () => Promise<void> = async () => {};
 let _warnTimer: ReturnType<typeof setTimeout> | null = null;
 let _activityBound = false;
+let _idleMins = -1;
+let _idlePaused = false;
+let _idleSynced = 0;
+
+/**
+ * R15: tell the Rust idle lock how long to wait, and whether auto-lock is paused. Rust is the
+ * backstop for a page that has stopped running, so it must hear about activity too: a change, or
+ * ten seconds of activity since the last message, is sent; the rest is dropped.
+ */
+function syncIdleLock(mins: number, paused: boolean): void {
+  if (!inTauri) return;
+  const now = Date.now();
+  if (mins === _idleMins && paused === _idlePaused && now - _idleSynced < 10_000) return;
+  _idleMins = mins;
+  _idlePaused = paused;
+  _idleSynced = now;
+  invokeTauri('idle_lock_configure', { minutes: Math.max(0, Math.floor(mins || 0)), paused }).catch(
+    () => {},
+  );
+}
 
 export function setFinishInitFn(fn: () => Promise<void>): void {
   _finishInitFn = fn;
@@ -173,17 +194,20 @@ export function resetLock() {
   // not touching the keyboard is not a reason to cut them off. lan.ts closes an
   // idle server instead, which lands back here and re-arms the timer.
   if (st.lanServerRunning) {
+    syncIdleLock(mins, true);
     st.lockTimer = null;
     lockStatus.textContent = 'Auto-lock: paused (serving LAN)';
     return;
   }
 
   if (!mins || mins <= 0) {
+    syncIdleLock(0, false);
     st.lockTimer = null;
     lockStatus.textContent = 'Auto-lock: Off';
     return;
   }
 
+  syncIdleLock(mins, false);
   const ms = mins * 60_000;
   const warnMs = ms - 60_000; // warn 1 minute before lock
 
@@ -206,6 +230,19 @@ export function resetLock() {
     document.addEventListener('keydown', onActivity, { passive: true });
     document.addEventListener('mousedown', onActivity, { passive: true });
     document.addEventListener('touchstart', onActivity, { passive: true });
+    // Rust locks a vault whose page stopped running; this makes the page follow, so the lock
+    // screen is shown instead of a window that still looks unlocked. Local vault only: a
+    // remote session has no local key, so "locked" there is not a reason to lock the page.
+    if (inTauri) {
+      setInterval(() => {
+        if (!st.lockTimer || !(st.store instanceof TauriVaultStore)) return;
+        invokeTauri<boolean>('vault_is_unlocked')
+          .then((open) => {
+            if (!open) void lockVault('auto');
+          })
+          .catch(() => {});
+      }, 30_000);
+    }
   }
 }
 
