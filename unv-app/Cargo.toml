@@ -52,5 +52,9 @@ ed25519-dalek = "3"
 tar          = "0.4"
 zip          = { version = "9", default-features = false, features = ["deflate"] }
 
+# Reads the process id of whoever connects to the desktop bridge (SO_PEERCRED on Linux).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [lints]
 workspace = true

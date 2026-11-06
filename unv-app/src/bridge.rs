@@ -91,7 +91,7 @@ pub fn handle_request(body: &[u8], provider: &dyn Fn() -> Result<Value, String>)
 }
 
 #[cfg(unix)]
-pub use unix::{fetch_snapshot, serve, BridgeServer};
+pub use unix::{fetch_snapshot, serve, BridgeServer, Seen};
 
 #[cfg(not(unix))]
 pub fn fetch_snapshot() -> Result<Option<Value>, crate::error::CliError> {
@@ -114,13 +114,54 @@ pub fn serve(
 mod unix {
     use super::*;
     use crate::error::CliError;
+    use std::collections::VecDeque;
     use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
     use std::os::unix::net::{UnixListener, UnixStream};
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     const MAX_CONNECTIONS: usize = 8;
+    /// How many recent requesters the server remembers.
+    const SEEN_KEPT: usize = 50;
+
+    /// One connection to the bridge: when, and which process asked (R18). The socket is open to
+    /// every process of the same user, so this is how the person can see who actually used it.
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct Seen {
+        pub at: String,
+        /// `None` where the platform gives no peer process id.
+        pub pid: Option<i32>,
+    }
+
+    /// The process on the other end of a connected socket. Linux only (`SO_PEERCRED`).
+    #[cfg(target_os = "linux")]
+    fn peer_pid(s: &UnixStream) -> Option<i32> {
+        use std::os::fd::AsRawFd;
+        let mut cred = libc::ucred {
+            pid: 0,
+            uid: 0,
+            gid: 0,
+        };
+        let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+        // SAFETY: `cred` and `len` are live locals of exactly the size passed, and the fd is a
+        // connected socket owned by `s` for the whole call.
+        let rc = unsafe {
+            libc::getsockopt(
+                s.as_raw_fd(),
+                libc::SOL_SOCKET,
+                libc::SO_PEERCRED,
+                std::ptr::addr_of_mut!(cred).cast(),
+                &mut len,
+            )
+        };
+        (rc == 0).then_some(cred.pid)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn peer_pid(_s: &UnixStream) -> Option<i32> {
+        None
+    }
 
     /// A running listener. Dropping it stops the thread and removes the socket, which is how a
     /// lock or a quit takes the bridge down.
@@ -128,6 +169,19 @@ mod unix {
         stop: Arc<AtomicBool>,
         path: PathBuf,
         thread: Option<std::thread::JoinHandle<()>>,
+        seen: Arc<Mutex<VecDeque<Seen>>>,
+    }
+
+    impl BridgeServer {
+        /// The most recent connections, oldest first, at most [`SEEN_KEPT`].
+        pub fn recent(&self) -> Vec<Seen> {
+            self.seen
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+                .cloned()
+                .collect()
+        }
     }
 
     impl Drop for BridgeServer {
@@ -166,6 +220,8 @@ mod unix {
         let stop = Arc::new(AtomicBool::new(false));
         let live = Arc::new(AtomicUsize::new(0));
         let flag = Arc::clone(&stop);
+        let seen: Arc<Mutex<VecDeque<Seen>>> = Arc::default();
+        let log = Arc::clone(&seen);
         let thread = std::thread::spawn(move || {
             while !flag.load(Ordering::SeqCst) {
                 match listener.accept() {
@@ -174,6 +230,16 @@ mod unix {
                             continue; // dropped: the client sees EOF and exits 7
                         }
                         live.fetch_add(1, Ordering::SeqCst);
+                        {
+                            let mut q = log.lock().unwrap_or_else(|e| e.into_inner());
+                            if q.len() == SEEN_KEPT {
+                                q.pop_front();
+                            }
+                            q.push_back(Seen {
+                                at: vault_core::iso_now(),
+                                pid: peer_pid(&stream),
+                            });
+                        }
                         let provider = Arc::clone(&provider);
                         let live = Arc::clone(&live);
                         std::thread::spawn(move || {
@@ -192,6 +258,7 @@ mod unix {
             stop,
             path,
             thread: Some(thread),
+            seen,
         })
     }
 
@@ -344,6 +411,31 @@ mod tests {
         // Missing socket: the normal path applies.
         assert!(fetch_snapshot().unwrap().is_none());
         std::env::remove_var("UNV_BRIDGE_SOCKET");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_server_remembers_which_process_asked() {
+        let _g = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!("unv-bridge-seen-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("b.sock");
+        let server = serve(path.clone(), Arc::new(|| Ok(vault()))).unwrap();
+        assert!(server.recent().is_empty());
+        std::env::set_var("UNV_BRIDGE_SOCKET", &path);
+        fetch_snapshot().unwrap().unwrap();
+        std::env::remove_var("UNV_BRIDGE_SOCKET");
+        // The accept loop records the connection before it hands it on, so it is there by the
+        // time the reply has been read.
+        let seen = server.recent();
+        assert_eq!(seen.len(), 1);
+        assert!(!seen[0].at.is_empty());
+        #[cfg(target_os = "linux")]
+        assert_eq!(
+            seen[0].pid,
+            Some(i32::try_from(std::process::id()).unwrap())
+        );
+        drop(server);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

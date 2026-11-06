@@ -6972,6 +6972,7 @@ dependencies = [
  "hmac 0.13.0",
  "jiff",
  "keepass",
+ "libc",
  "notify",
  "pbkdf2 0.13.0",
  "rand 0.10.3",
