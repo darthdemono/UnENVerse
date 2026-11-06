@@ -431,7 +431,7 @@ function wirePasswordRows(): void {
       try {
         await invokeTauri('change_master_password', { current, newPassword: next });
         showToast('Master password changed. Unlock with the new one.', 'ok', 3000);
-        setTimeout(() => window.location.reload(), 800);
+        setTimeout(window.location.reload.bind(window.location), 800);
       } catch (e) {
         showToast(`Not changed: ${String(e)}`, 'err', 4000);
       }

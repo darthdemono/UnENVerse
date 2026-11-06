@@ -445,18 +445,12 @@ mod commands {
     }
 
     /// R15: tell the Rust idle lock how long to wait, and whether the page paused auto-lock.
+    /// The page repeats this at most every ten seconds while the person is active, which also
+    /// restarts the idle clock.
     #[tauri::command]
     pub fn idle_lock_configure(idle: State<IdleState>, minutes: u64, paused: bool) {
         idle.minutes.store(minutes, Ordering::SeqCst);
         idle.paused.store(paused, Ordering::SeqCst);
-        if let Ok(mut t) = idle.last_touch.lock() {
-            *t = Instant::now();
-        }
-    }
-
-    /// R15: the person did something; restart the idle clock.
-    #[tauri::command]
-    pub fn idle_lock_touch(idle: State<IdleState>) {
         if let Ok(mut t) = idle.last_touch.lock() {
             *t = Instant::now();
         }
@@ -2637,7 +2631,6 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::vault_activate,
             commands::support_bundle,
             commands::idle_lock_configure,
-            commands::idle_lock_touch,
             commands::plugin_list,
             commands::change_master_password,
             commands::forget_entry_history,

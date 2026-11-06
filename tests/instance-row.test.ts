@@ -60,4 +60,17 @@ describe('vault instance settings row', () => {
     expect(hint().textContent).toContain('Live (epoch 5)');
     expect(btn().hidden).toBe(true);
   });
+
+  it('asks to unlock when the identity cannot be read', async () => {
+    tauri(
+      vi.fn(async () => {
+        throw new Error('Vault is locked');
+      }),
+    );
+    const m = await import('../src/ts/settings-panel');
+    m.openSettings();
+    await tick();
+    expect(btn().hidden).toBe(true);
+    expect(hint().textContent).toContain('Unlock the vault');
+  });
 });
