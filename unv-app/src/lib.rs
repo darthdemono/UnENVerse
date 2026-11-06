@@ -63,6 +63,7 @@ pub mod projects;
 pub mod ratelimit;
 pub mod recovery_ops;
 pub mod refs;
+pub mod release;
 pub mod render;
 pub mod reset_cmd;
 pub mod rotate_cmd;
