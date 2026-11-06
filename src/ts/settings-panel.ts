@@ -457,6 +457,46 @@ function wirePasswordRows(): void {
   };
 }
 
+interface PluginListing {
+  installed: {
+    name: string;
+    version: string;
+    hash: string;
+    capabilities: string[];
+    enabled: boolean;
+  }[];
+  available: { name: string; version: string }[];
+  problems: string[];
+}
+
+/** R14: the read-only plugin list. Installing and enabling stay command-line acts. */
+function wirePluginList(): void {
+  const list = document.getElementById('s-plugin-list');
+  if (!list) return;
+  const row = (text: string) => {
+    const li = document.createElement('li');
+    li.textContent = text;
+    return li;
+  };
+  if (!inTauri) {
+    list.replaceChildren(row('Shown in the desktop app only.'));
+    return;
+  }
+  invokeTauri<PluginListing>('plugin_list')
+    .then((p) => {
+      const rows = [
+        ...p.installed.map(
+          (i) =>
+            `${i.name} ${i.version} [${i.capabilities.join(', ')}] ${i.enabled ? 'enabled' : 'disabled'} sha256:${i.hash.slice(0, 12)}`,
+        ),
+        ...p.available.map((a) => `${a.name} ${a.version} (not installed)`),
+        ...p.problems.map((m) => `Problem: ${m}`),
+      ];
+      list.replaceChildren(...(rows.length ? rows : ['No plugins found.']).map(row));
+    })
+    .catch(() => list.replaceChildren(row('Unlock the vault to see the plugins.')));
+}
+
 interface InstanceIdentity {
   vault_id: string;
   instance_id: string;
@@ -1097,6 +1137,7 @@ export function openSettings() {
   wireCatalogueRow();
   wireBridgeRow();
   wirePasswordRows();
+  wirePluginList();
   wireInstanceRow();
   wireSupportRow();
   wireArchiveRows();

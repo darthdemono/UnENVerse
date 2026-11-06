@@ -392,6 +392,21 @@ mod commands {
         vault_core::forget::forget_entry(&conn, &entry_id, &provider, None)
     }
 
+    /// R14: the plugin list (`unv plugin ls`), read only. Installing and enabling a plugin stay
+    /// command-line acts, because a plugin runs with the person's rights.
+    #[tauri::command]
+    pub fn plugin_list<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        state: State<VaultState>,
+    ) -> Result<serde_json::Value, String> {
+        let g = state.0.lock().map_err(|_| "State lock poisoned")?;
+        let key = *g.as_ref().ok_or("Vault is locked")?;
+        unv_app::access::set_paths(Some(db_path(&app)?), Some(salt_path(&app)?));
+        unv_app::plugin_cmd::listing(&unv_app::access::Access::Local(key), None)
+            .map(|l| l.to_json())
+            .map_err(|e| e.message)
+    }
+
     /// R25: the support bundle (`unv support bundle`): versions, counts and check results only.
     /// The text is returned to the page, which asks where to save it; the person reads it first.
     #[tauri::command]
@@ -2565,6 +2580,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::vault_identity,
             commands::vault_activate,
             commands::support_bundle,
+            commands::plugin_list,
             commands::change_master_password,
             commands::forget_entry_history,
             commands::lan_start,
