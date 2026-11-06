@@ -1,0 +1,61 @@
+name: Live services
+
+# The importers for OpenBao and Infisical are tested against mock servers built from the documented
+# responses. This workflow runs them against the real servers in containers, weekly and on demand.
+# It is not part of the required `CI result` check: a service image changing its API should turn
+# this red, not block an unrelated pull request.
+on:
+  schedule:
+    - cron: "41 5 * * 4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-services-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openbao:
+    name: OpenBao dev server
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # A throwaway token for a container that lives for this job only.
+      UNV_LIVE_OPENBAO_TOKEN: live-test-root-token-0001
+      UNV_LIVE_OPENBAO_ADDR: http://127.0.0.1:8200
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Start OpenBao in dev mode
+        run: |
+          docker run -d --name bao -p 8200:8200 \
+            -e BAO_DEV_ROOT_TOKEN_ID="$UNV_LIVE_OPENBAO_TOKEN" \
+            -e BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200 \
+            openbao/openbao:2.1.0
+          for i in $(seq 1 30); do
+            curl -sf "$UNV_LIVE_OPENBAO_ADDR/v1/sys/health" >/dev/null && exit 0
+            sleep 2
+          done
+          docker logs bao
+          exit 1
+      - name: Seed two versions of one secret
+        run: |
+          put() {
+            curl -sf -H "X-Vault-Token: $UNV_LIVE_OPENBAO_TOKEN" \
+              -d "{\"data\":{\"password\":\"$1\"}}" \
+              "$UNV_LIVE_OPENBAO_ADDR/v1/secret/data/live-db" >/dev/null
+          }
+          put live-first-password-0001
+          put live-second-password-0002
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsqlcipher-dev mold
+      - name: Run the live test
+        run: cargo test -p unv-cli --test live_openbao --locked -- --nocapture
+      - name: Show the server log when it failed
+        if: failure()
+        run: docker logs bao
