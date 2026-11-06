@@ -2159,6 +2159,18 @@ enum GenCmd {
         #[arg(long)]
         no_ambiguous: bool,
     },
+    /// A passphrase of random words (11 bits of entropy per word).
+    Phrase {
+        /// Number of words, 4 to 24.
+        #[arg(long, default_value_t = 6)]
+        words: usize,
+        /// Text placed between the words.
+        #[arg(long, default_value = "-")]
+        separator: String,
+        /// Capitalise each word.
+        #[arg(long)]
+        capitalize: bool,
+    },
     /// A self-signed certificate and its private key.
     Cert {
         /// Common name (hostname).
@@ -3465,6 +3477,27 @@ fn run_gen_offline(cmd: &GenCmd) -> Option<CliResult> {
                         } else {
                             println!("{}", out::masked(&pw));
                             eprintln!("Redacted. Use --reveal to print it, or `unv entry add NAME --generate --generate-format password` to store it directly.");
+                        }
+                        eprintln!("{entropy:.0} bits of entropy");
+                    },
+                );
+            }))
+        }
+        GenCmd::Phrase { words, separator, capitalize } => {
+            Some(gen::phrase(*words, separator, *capitalize, &gen::current()).map(|(pw, entropy)| {
+                out::ok(
+                    "gen.phrase",
+                    serde_json::json!({
+                        "value": if out::revealing() { serde_json::json!(pw) } else { out::masked_json(&pw) },
+                        "entropy_bits": entropy.round(),
+                        "entropy_source": gen::current().label(),
+                    }),
+                    || {
+                        if out::revealing() {
+                            println!("{pw}");
+                        } else {
+                            println!("{}", out::masked(&pw));
+                            eprintln!("Redacted. Use --reveal to print it.");
                         }
                         eprintln!("{entropy:.0} bits of entropy");
                     },

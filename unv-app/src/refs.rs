@@ -132,6 +132,23 @@ pub fn entry_field(entry: &Value, field: &str) -> Option<String> {
                 return xv.get("value").and_then(|v| v.as_str()).map(String::from);
             }
         }
+        // A migrated API Secret is an additional value called SECRET, so every spelling
+        // of the secret alias reaches it (twin of `getEntryFieldValue`).
+        if canonical == "api_secret" {
+            for xv in arr {
+                let k = xv
+                    .get("key")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_uppercase();
+                if matches!(
+                    k.as_str(),
+                    "SECRET" | "API_SECRET" | "CLIENT_SECRET" | "SHARED_SECRET"
+                ) {
+                    return xv.get("value").and_then(|v| v.as_str()).map(String::from);
+                }
+            }
+        }
     }
     None
 }

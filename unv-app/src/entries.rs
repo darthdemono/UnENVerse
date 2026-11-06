@@ -176,6 +176,10 @@ pub struct EntryFields {
     /// ISO date (YYYY-MM-DD).
     #[arg(long)]
     pub expires: Option<String>,
+    /// When the credential was created (YYYY-MM-DD), for one made before it
+    /// was stored here. Never changes on its own.
+    #[arg(long)]
+    pub created: Option<String>,
     /// Rotation cadence in days; the health scan flags overdue entries.
     #[arg(long)]
     pub rotation_days: Option<u32>,
@@ -792,6 +796,19 @@ impl EntryFields {
                 )));
             }
             set_str(entry, "expires_at", v);
+        }
+        if let Some(v) = &self.created {
+            if !expiry_is_valid(v) {
+                return Err(CliError::invalid(format!(
+                    "--created '{v}' is not a date like 2030-01-31"
+                )));
+            }
+            // A bare date means midnight UTC; a full timestamp is kept as given.
+            entry["created_at"] = json!(if v.len() == 10 {
+                format!("{v}T00:00:00Z")
+            } else {
+                v.clone()
+            });
         }
         if let Some(v) = self.rotation_days {
             if v == 0 {
