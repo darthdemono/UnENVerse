@@ -6,7 +6,7 @@ This page lists what a script, an integration or another tool can rely on when i
 
 - **The binary name** is `unv`. Environment variables start with `UNV_`; the data directory is `io.unenverse`.
 - **Commands and flags** that `unv describe` lists. `tests/fixtures/contract/surface.txt` holds every command path, positional argument and flag name, and a test fails when one is removed or renamed. Adding a command or a flag is allowed and is mentioned in the changelog under "Contract".
-- **Exit codes**: 0 ok, 1 error, 2 usage, 3 not found, 4 ambiguous, 5 denied, 6 conflict, 7 unavailable (including a locked vault), 8 needs confirmation, 9 redacted, 10 invalid. `unv describe` lists them with their meaning.
+- **Exit codes**: 0 ok, 1 error, 2 usage, 3 not found, 4 ambiguous, 5 denied, 6 conflict, 7 unavailable (including a locked vault), 8 needs confirmation, 9 redacted, 10 invalid, 11 released (`unv exec` refused: the secret may only go to other commands). `unv describe` lists them with their meaning.
 - **The JSON envelope** with `--json`: stdout is exactly one document, `{"ok":true,"command":"...","data":...}` or `{"ok":false,"error":{"code":"...","message":"..."}}`. New keys may be added to `data`; existing keys are not renamed.
 - **Redaction**: a secret value is never printed unless the caller asked (`--reveal`, `--out`, `exec`, `render`). A redacted value is `{"redacted":true,"fingerprint":"sha256:<12 hex>","length":n}` in JSON.
 - **Reference syntax**: `${NAME}` and `${NAME.field}` in config fields and templates, resolved by `exec`, `render` and exports.

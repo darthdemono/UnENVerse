@@ -562,7 +562,7 @@ An agent needs to use a credential, not read it. The `unv` command line is the w
 - **Secrets nobody sees.** `entry add --generate` and `entry rotate --generate` create the value inside the process that stores it and return a fingerprint. `user token new` checks the output policy before it mints.
 - **Output shield.** `unv shield -- COMMAND` runs a command and replaces known vault values in its stdout and stderr. It is explicit; normal output is untouched.
 - **One contract, one call.** `unv describe` prints every command, flag, exit code and the output envelope as JSON, generated from the definition the binary runs on.
-- **Machine-readable results.** With `--json` every command answers `{ok, command, data}` or `{ok:false, error:{code, message, details}}`, and eleven exit codes (0 to 10) separate success, unclassified error, usage, not found, ambiguous, denied, conflict, unavailable, needs confirmation, redacted and invalid.
+- **Machine-readable results.** With `--json` every command answers `{ok, command, data}` or `{ok:false, error:{code, message, details}}`, and twelve exit codes (0 to 11) separate success, unclassified error, usage, not found, ambiguous, denied, conflict, unavailable, needs confirmation, redacted, invalid and released.
 - **Never guesses, never assumes yes.** An ambiguous name exits 4 with `details.candidates`; a destructive command with no `--yes` and no terminal exits 8; `--dry-run` is enforced at the single write point.
 - **Least privilege for the agent.** Least privilege: `user token new` mints a scoped token for a sub-user; classes and `perm` limit what that user can read or write, and strict-write can be switched on per user or class. The agent gets a token, not the master password.
 - **Key pools.** Several interchangeable keys for one service; `unv pool next openai` returns the next key that is not cooling, and a rate-limited key can be marked cooling.
@@ -633,18 +633,19 @@ The value is created inside the process that stores it, and the caller gets a fi
 { "ok": false, "error": { "code": "not_found", "message": "", "details": {} } }
 ```
 
-| Code                 | Exit | Means                                               |
-| -------------------- | ---- | --------------------------------------------------- |
-| `error`              | 1    | Unclassified                                        |
-|                      | 2    | clap usage error                                    |
-| `not_found`          | 3    | No such entry, project, chunk, user or class        |
-| `ambiguous`          | 4    | Matched several. `details.candidates` lists them    |
-| `denied`             | 5    | Authentication failed, or the permission is missing |
-| `conflict`           | 6    | Already exists, or a concurrent write won           |
-| `unavailable`        | 7    | Vault or server unreachable, or locked              |
-| `needs_confirmation` | 8    | Destructive command, no `--yes`, no tty             |
-| `redacted`           | 9    | The output would contain secrets                    |
-| `invalid`            | 10   | Well-formed request, invalid input                  |
+| Code                 | Exit | Means                                                       |
+| -------------------- | ---- | ----------------------------------------------------------- |
+| `error`              | 1    | Unclassified                                                |
+|                      | 2    | clap usage error                                            |
+| `not_found`          | 3    | No such entry, project, chunk, user or class                |
+| `ambiguous`          | 4    | Matched several. `details.candidates` lists them            |
+| `denied`             | 5    | Authentication failed, or the permission is missing         |
+| `conflict`           | 6    | Already exists, or a concurrent write won                   |
+| `unavailable`        | 7    | Vault or server unreachable, or locked                      |
+| `needs_confirmation` | 8    | Destructive command, no `--yes`, no tty                     |
+| `redacted`           | 9    | The output would contain secrets                            |
+| `invalid`            | 10   | Well-formed request, invalid input                          |
+| `released`           | 11   | `unv exec` refused: the entry may only go to other commands |
 
 The difference between 5 and 7 matters more than it looks. A caller retries a 7. If a certificate that fails its pin reported 7, an agent would sit in a loop against a machine-in-the-middle while the operator read "cannot reach server" about a server that was up and answering.
 
