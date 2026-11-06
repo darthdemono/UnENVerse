@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "UnENVerse paste guard",
+  "version": "0.1.0",
+  "description": "Stops you pasting a secret your vault holds into an AI chat. Checks run on this computer, against your vault, and nothing is sent anywhere.",
+  "permissions": ["nativeMessaging"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://www.perplexity.ai/*",
+        "https://grok.com/*",
+        "https://chat.deepseek.com/*",
+        "https://chat.mistral.ai/*",
+        "https://poe.com/*"
+      ],
+      "js": ["guard-core.js", "content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": { "id": "guard@unenverse.io", "strict_min_version": "121.0" }
+  },
+  "minimum_chrome_version": "121"
+}
