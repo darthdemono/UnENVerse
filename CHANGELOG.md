@@ -4,6 +4,13 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.66.1 (2026-11-07)
+
+### Changed
+
+- The VS Code extension names `@types/node` in its `tsconfig.json`, so it builds under TypeScript 7 as well as 5, which unblocks Dependabot's TypeScript 7 update.
+- Dependabot no longer proposes `@types/vscode` updates for the extension, because `vsce package` refuses a types version newer than `engines.vscode`; a test keeps the two in step.
+
 ## 0.66.0 (2026-11-06)
 
 ### Added
