@@ -296,3 +296,4 @@
   - [0170: macOS builds and a launchd node install](adr/0170-macos-builds-and-a-launchd-node-install.md)
   - [0171: Leak-scan import and ACME certificates through installed tools](adr/0171-leak-scan-import-and-acme-through-installed-tools.md)
   - [0172: Local scripts read flagged entries through the unlocked desktop](adr/0172-local-scripts-read-flagged-entries-through-the-unlocked-desktop.md)
+  - [0173: The desktop runs the hub while unlocked and shares its decision logic](adr/0173-the-desktop-runs-the-hub-while-unlocked-and-shares-its-decision-logic.md)
