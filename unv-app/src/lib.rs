@@ -43,6 +43,7 @@ pub mod guard_cmd;
 pub mod guard_host;
 pub mod history;
 pub mod history_cmd;
+pub mod clipboard;
 pub mod hub;
 pub mod hub_owner;
 pub mod import_vaults;

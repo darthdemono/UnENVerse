@@ -133,6 +133,16 @@ fn hub_wake<R: tauri::Runtime>(app: &AppHandle<R>) {
     }
 }
 
+/// R15: the pending clipboard clear. The page tells Rust what it copied and how long to wait; the
+/// timer and the comparison run here, so a hidden or hung webview still gets its clipboard cleared.
+pub struct ClipboardTimer(pub unv_app::clipboard::Clearer);
+
+impl Default for ClipboardTimer {
+    fn default() -> Self {
+        Self(unv_app::clipboard::Clearer::system())
+    }
+}
+
 /// R15: the idle lock kept on the Rust side. The page's own timer locks first; this is the
 /// backstop for a page that has stopped running (a hung webview), which would otherwise leave an
 /// unlocked vault open with nobody looking at it.
@@ -586,6 +596,17 @@ mod commands {
         if let Ok(mut t) = idle.last_touch.lock() {
             *t = Instant::now();
         }
+    }
+
+    /// R15: empty the system clipboard `secs` seconds from now, if it still holds `text` then. A
+    /// newer call replaces an older one; `secs` of 0 cancels the pending clear.
+    #[tauri::command]
+    pub fn clipboard_clear_after(clip: State<ClipboardTimer>, text: String, secs: u64) {
+        if secs == 0 {
+            clip.0.cancel();
+            return;
+        }
+        clip.0.schedule(text, Duration::from_secs(secs.min(3600)), |_| {});
     }
 
     /// R12: the Nodes pane's requests for a local vault, answered from the embedded hub's registry.
@@ -2719,6 +2740,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         .manage(OpsState(Mutex::new(None)))
         .manage(BridgeState(Mutex::new(None)))
         .manage(IdleState::new())
+        .manage(ClipboardTimer::default())
         .manage(NodesRegistry::default())
         .manage(HubPoller::default())
         .invoke_handler(tauri::generate_handler![
@@ -2819,6 +2841,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::hub_automation_key,
             commands::operations_overview,
             commands::idle_lock_configure,
+            commands::clipboard_clear_after,
             commands::plugin_list,
             commands::change_master_password,
             commands::forget_entry_history,

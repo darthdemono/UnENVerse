@@ -1029,6 +1029,8 @@ export interface AppSettings {
   defaultExportFormat: 'dotenv' | 'yaml' | 'json';
   /** Minutes of inactivity before the vault auto-locks. */
   autoLockMinutes: number;
+  /** Seconds after an in-app copy before the desktop app empties the clipboard; 0 = never. */
+  clipboardClearSecs: number;
   /**
    * Lock the vault the instant the window is hidden (alt-tab, minimise).
    *

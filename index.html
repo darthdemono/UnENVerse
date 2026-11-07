@@ -1410,6 +1410,20 @@
         <!-- ── Security ── -->
         <div class="settings-tab-pane" data-spane="security">
           <div class="settings-section">
+            <div class="settings-section-title">Clipboard</div>
+            <div class="settings-row">
+              <div class="settings-label" id="s-clipboard-clear-label">Empty the clipboard after copying</div>
+              <select id="s-clipboard-clear" aria-labelledby="s-clipboard-clear-label" class="form-input">
+                <option value="0">Never</option>
+                <option value="15">15 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="60">1 minute</option>
+                <option value="120">2 minutes</option>
+              </select>
+            </div>
+            <div class="settings-hint">The desktop app clears it only if it still holds what the app copied. On Linux it needs <code>wl-clipboard</code>, <code>xclip</code> or <code>xsel</code>.</div>
+          </div>
+          <div class="settings-section">
             <div class="settings-section-title">Auto-Lock</div>
             <div class="settings-row">
               <div class="settings-label" id="s-autolock-label">Lock after inactivity</div>
