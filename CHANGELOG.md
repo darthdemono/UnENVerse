@@ -4,6 +4,14 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.69.0 (2026-11-07)
+
+### Added
+
+- `unv env <project> --refs` writes a project's `.env` with every value left as its `${Entry}` pointer, so a copy of the file holds no secret and `unv render` turns it back into the real one. A field holding a literal value is refused by name, never copied into the file.
+- `unv env <project> --migrate PATH` moves the plaintext values of a `.env` into the vault under the project, checks that each one resolves back to what the file held, and only then rewrites the file as pointers (comments and empty values kept). A file it cannot rewrite line by line, such as one with backslash continuations, is refused untouched. `--dry-run` lists the keys and writes nothing.
+- `unv scan` reports `.env` and `.env.*` files that hold plaintext values in the directory of the nearest `.unv.json` and its parents, by name and count, never a value. Templates such as `.env.example` are skipped.
+
 ## 0.68.0 (2026-11-07)
 
 ### Added
