@@ -50,6 +50,10 @@ pub struct Context {
     pub project: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment: Option<String>,
+    /// The default release rule (R31): argv prefixes `unv exec` may hand a secret to when the
+    /// entry carries no rule of its own. Empty means no default.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub release: Vec<String>,
 }
 
 fn one() -> u32 {
@@ -256,6 +260,8 @@ pub fn cmd_use(
         // directory already pinned to a project must not silently unpin it.
         project: project_name.map(str::to_string).or(existing.project),
         environment: env_name.map(str::to_string).or(existing.environment),
+        // Pinning a project or environment must not drop the directory's release policy.
+        release: existing.release,
     };
     let path = save(&cwd, &ctx)?;
 
@@ -308,6 +314,7 @@ mod tests {
                 version: 1,
                 project: Some("web".into()),
                 environment: None,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -327,6 +334,7 @@ mod tests {
                 version: 1,
                 project: Some("outer".into()),
                 environment: None,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -336,6 +344,7 @@ mod tests {
                 version: 1,
                 project: Some("inner".into()),
                 environment: None,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -363,6 +372,7 @@ mod tests {
                 version: 1,
                 project: Some("web".into()),
                 environment: Some("prod".into()),
+                ..Default::default()
             },
         )
         .unwrap();

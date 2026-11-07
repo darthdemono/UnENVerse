@@ -45,6 +45,16 @@ pub struct ExecOpts<'a> {
     pub sandbox_net: bool,
 }
 
+/// The release rule `.unv.json` sets for the working directory, if any. A file that cannot be read
+/// sets no default: the same file already fails loudly wherever a command reads the project.
+fn directory_default() -> Vec<String> {
+    crate::context::load()
+        .ok()
+        .flatten()
+        .map(|(_, c)| c.release)
+        .unwrap_or_default()
+}
+
 /// Refuses (exit 11) when `entry` carries a release rule and `argv` is not covered by it. The
 /// refusal is written to the audit chain with the command, so a rejected attempt is on record;
 /// a dry run writes nothing.
@@ -55,7 +65,13 @@ fn check_release(access: &Access, entry: &Value, argv: &[String]) -> CliResult {
             data::provider_of(entry)
         )));
     }
-    let rules = crate::release::rules_of(entry);
+    // An entry's own rule wins; without one, the directory's default applies (`.unv.json`).
+    let own = crate::release::rules_of(entry);
+    let rules = if own.is_empty() {
+        directory_default()
+    } else {
+        own
+    };
     if crate::release::allows(&rules, argv, &crate::release::program_sha256) {
         return Ok(());
     }
