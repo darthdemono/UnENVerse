@@ -579,3 +579,89 @@ pub fn poll_node<H: HubHost>(host: &H, node: &NodeRecord) -> Result<(), String> 
     let _ = host.store(|s| s.mark_polled(&node.id, &vault_core::iso_now()));
     Ok(())
 }
+
+// ── The background poller ────────────────────────────────────────────────────
+
+/// How often a listening node is polled when nothing wakes the hub earlier.
+pub const POLL_EVERY: std::time::Duration = std::time::Duration::from_secs(30);
+/// How many listening nodes are dialled at once. One that never answers must not hold the rest
+/// behind its connect timeout.
+pub const POLL_PARALLEL: usize = 8;
+
+/// Dials the listening nodes of a host every [`POLL_EVERY`], and at once after [`Poller::wake`].
+/// The desktop starts one when the vault is unlocked and stops it when the vault locks, so a
+/// locked app holds no key and dials nobody. Dropping it stops it.
+pub struct Poller {
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    wake: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Poller {
+    pub fn spawn<H: HubHost + Send + Sync + 'static>(host: std::sync::Arc<H>) -> Self {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+        use std::time::{Duration, Instant};
+        let stop = Arc::new(AtomicBool::new(false));
+        let wake = Arc::new(AtomicBool::new(true)); // the first pass is immediate
+        let (s, w) = (Arc::clone(&stop), Arc::clone(&wake));
+        let thread = std::thread::spawn(move || {
+            let mut last: HashMap<String, Instant> = HashMap::new();
+            let mut idle = Duration::ZERO;
+            while !s.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(100));
+                idle += Duration::from_millis(100);
+                let woken = w.swap(false, Ordering::SeqCst);
+                if !woken && idle < Duration::from_secs(5) {
+                    continue;
+                }
+                idle = Duration::ZERO;
+                let nodes = host.store(|st| st.listening()).unwrap_or_default();
+                last.retain(|id, _| nodes.iter().any(|n| &n.id == id));
+                let due: Vec<NodeRecord> = nodes
+                    .into_iter()
+                    .filter(|n| woken || last.get(&n.id).is_none_or(|t| t.elapsed() >= POLL_EVERY))
+                    .collect();
+                for n in &due {
+                    last.insert(n.id.clone(), Instant::now());
+                }
+                for batch in due.chunks(POLL_PARALLEL) {
+                    std::thread::scope(|scope| {
+                        for n in batch {
+                            let host = &host;
+                            scope.spawn(move || {
+                                if let Err(e) = poll_node(&**host, n) {
+                                    tracing::warn!(node = %n.name, error = %e, "node poll failed");
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        Self {
+            stop,
+            wake,
+            thread: Some(thread),
+        }
+    }
+
+    /// Asks for a pass now: a decision was made or the vault was saved.
+    pub fn wake(&self) {
+        self.wake.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Stops the poller and waits for it. Idempotent.
+    pub fn stop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some(t) = self.thread.take() {
+            let _ = t.join();
+        }
+    }
+}
+
+impl Drop for Poller {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
