@@ -140,6 +140,9 @@ Contract version 1.
 | `unv node enroll` | On the managed host: spend an enrollment token and save this node's identity. Nothing is read from the vault |
 | `unv node install` | On the managed host, as root: install the agent as a hardened systemd service (a launchd job on macOS), enrol it, and give it access to exactly the files you name. `--plan` prints every step without running any |
 | `unv node ls` | List enrolled nodes and each target's status (hub) |
+| `unv node pair` | On the managed host: ask to be paired with a hub that opens no port (the desktop app). Makes this node's identity and certificate and prints a request for the hub's owner |
+| `unv node pair-accept` | Hub (owner): enrol a listening node from its pairing request, without a token |
+| `unv node pair-finish` | On the managed host: finish pairing with the reply the hub's owner got back |
 | `unv node policy <node>` | Hold every push to a node for a human (`required`), or stop (`none`) |
 | `unv node pull <node> <target>` | Fetch a pull target's file from the node. Written with `--out` (0600); there is no stdout form, because the file is the node's own and holds its secrets |
 | `unv node reject <approval>` | Reject one held push; the same bytes are not asked about again |

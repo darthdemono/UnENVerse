@@ -83,6 +83,38 @@ pub(crate) struct MintRequest {
     ttl_secs: Option<i64>,
 }
 
+/// `POST /api/nodes/pair` (owner): enrol a listening node from the pairing request its owner carried
+/// in, with no token and no inbound request from the node (R12). The checks and the audit row are
+/// `unv_app::hub::pair`, shared with the desktop.
+pub(crate) async fn pair(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(req): Json<serde_json::Value>,
+) -> axum::response::Response {
+    if !state.nodes_enabled {
+        return disabled();
+    }
+    let (_, session) = match extract_session(&headers, &state) {
+        Ok(s) => s,
+        Err(e) => return e.into_response(),
+    };
+    if let Err(e) = require_owner(&session) {
+        return e.into_response();
+    }
+    match unv_app::hub::pair(&ServerHost(&state), &req) {
+        Ok(mut reply) => {
+            // The node pins this too when the hub also serves over TLS.
+            reply["hub_fingerprint"] = serde_json::json!(state.cert_fingerprint);
+            Json(reply).into_response()
+        }
+        Err((status, msg)) => err_json(
+            StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_REQUEST),
+            &msg,
+        )
+        .into_response(),
+    }
+}
+
 pub(crate) async fn mint_token(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -1520,6 +1552,53 @@ mod tests {
             send(&a, n.signed("/api/nodes/beat", &body)).await.0,
             StatusCode::UNAUTHORIZED
         );
+    }
+
+    #[tokio::test]
+    async fn the_owner_pairs_a_listening_node_without_a_token() {
+        let h = hub(true, true);
+        let a = app(&h);
+        let (_, public) = generate_identity();
+        let request = serde_json::json!({
+            "name": "edge", "projects": ["web"], "pubkey": public,
+            "endpoint": "https://10.0.0.5:9443", "cert_sha256": "ab".repeat(32),
+        });
+        // No session: refused. The owner: paired, and the reply carries the hub's transport key.
+        let (st, _) = send(
+            &a,
+            Request::builder()
+                .method("POST")
+                .uri("/api/nodes/pair")
+                .header("content-type", "application/json")
+                .body(Body::from(request.to_string()))
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(st, StatusCode::UNAUTHORIZED);
+        let (st, reply) = send(
+            &a,
+            owner_req(&h, "POST", "/api/nodes/pair", request.clone()),
+        )
+        .await;
+        assert_eq!(st, StatusCode::OK, "{reply}");
+        assert_eq!(reply["name"], "edge");
+        assert_eq!(reply["hub_node_pubkey"].as_str().unwrap().len(), 64);
+        let (_, list) = send(
+            &a,
+            owner_req(&h, "GET", "/api/nodes", serde_json::json!({})),
+        )
+        .await;
+        assert_eq!(
+            list["nodes"][0]["listen"]["endpoint"],
+            "https://10.0.0.5:9443"
+        );
+        // The same name again is refused, with the reason.
+        let (st, again) = send(&a, owner_req(&h, "POST", "/api/nodes/pair", request)).await;
+        assert_eq!(st, StatusCode::BAD_REQUEST, "{again}");
+        assert!(again["error"]
+            .as_str()
+            .unwrap()
+            .contains("already enrolled"));
     }
 
     #[tokio::test]

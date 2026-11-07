@@ -132,6 +132,9 @@ unv node check --config=
 unv node enroll --advertise= --force --hub-fingerprint= --hub= --listen= --state-dir= --tofu --token-file= --token-stdin
 unv node install --advertise= --approver= --force --hub-fingerprint= --hub= --interval= --listen= --plan --relay= --target= --token-file= --token-stdin
 unv node ls
+unv node pair --advertise= --force --listen= --name= --state-dir=
+unv node pair-accept --project= --request=
+unv node pair-finish --reply= --state-dir=
 unv node policy <node> --approval=
 unv node pull <node> <target> --apply --into-chunk= --out= --timeout=
 unv node reject <approval>

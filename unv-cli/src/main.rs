@@ -1496,6 +1496,41 @@ enum NodeCmd {
         #[arg(long, env = "UNV_NODE_DIR")]
         state_dir: Option<PathBuf>,
     },
+    /// On the managed host: ask to be paired with a hub that opens no port (the desktop app).
+    /// Makes this node's identity and certificate and prints a request for the hub's owner.
+    Pair {
+        /// The name this node will have on the hub.
+        #[arg(long)]
+        name: String,
+        /// Address to bind, e.g. `0.0.0.0:9443`.
+        #[arg(long)]
+        listen: String,
+        /// The `https://host:port` the hub should dial.
+        #[arg(long)]
+        advertise: String,
+        /// Replace an existing identity (revoke the old node on the hub first).
+        #[arg(long)]
+        force: bool,
+        #[arg(long, env = "UNV_NODE_DIR")]
+        state_dir: Option<PathBuf>,
+    },
+    /// On the managed host: finish pairing with the reply the hub's owner got back.
+    PairFinish {
+        /// A file, `-` for standard input, or the JSON itself.
+        #[arg(long)]
+        reply: String,
+        #[arg(long, env = "UNV_NODE_DIR")]
+        state_dir: Option<PathBuf>,
+    },
+    /// Hub (owner): enrol a listening node from its pairing request, without a token.
+    PairAccept {
+        /// A file, `-` for standard input, or the JSON itself.
+        #[arg(long)]
+        request: String,
+        /// A project the node may receive. Repeatable.
+        #[arg(long = "project", required = true)]
+        projects: Vec<String>,
+    },
     /// On the managed host, as root: install the agent as a hardened systemd
     /// service (a launchd job on macOS), enrol it, and give it access to exactly the files you name.
     /// `--plan` prints every step without running any.
@@ -2965,6 +3000,14 @@ fn run_node_agent_side(cmd: &NodeCmd) -> Option<CliResult> {
             state_dir,
         } => node_cmd::run(&dir(state_dir), config, *once),
         NodeCmd::Check { config } => node_cmd::check(config),
+        NodeCmd::Pair {
+            name,
+            listen,
+            advertise,
+            force,
+            state_dir,
+        } => node_cmd::pair(&dir(state_dir), name, listen, advertise, *force),
+        NodeCmd::PairFinish { reply, state_dir } => node_cmd::pair_finish(&dir(state_dir), reply),
         _ => return None,
     })
 }
@@ -3909,6 +3952,9 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 Some(node_cmd::parse_ttl(ttl)?),
                 out.as_deref(),
             ),
+            NodeCmd::PairAccept { request, projects } => {
+                node_cmd::pair_accept(a, request, projects)
+            }
             NodeCmd::Ls => node_cmd::ls(a),
             NodeCmd::Show { node } => node_cmd::show(a, node),
             NodeCmd::Revoke { node } => node_cmd::revoke(a, node, yes),
@@ -3948,7 +3994,9 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             NodeCmd::Enroll { .. }
             | NodeCmd::Install { .. }
             | NodeCmd::Run { .. }
-            | NodeCmd::Check { .. } => Ok(()),
+            | NodeCmd::Check { .. }
+            | NodeCmd::Pair { .. }
+            | NodeCmd::PairFinish { .. } => Ok(()),
         },
         Commands::Cxf { cmd } => match cmd {
             CxfCmd::Import {

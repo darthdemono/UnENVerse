@@ -181,6 +181,15 @@ pub fn record_results(
             Some(&format!("node:{}", node.name)),
         );
         record_deployments(&conn, node, r);
+        // The run that followed this push (R12): done, or waiting for its next send.
+        let _ = vault_core::ops::deploy_result(
+            &conn,
+            &node.id,
+            &r.target,
+            &r.sha256,
+            r.ok,
+            r.error.as_deref().map(|e| short(e, 200)).as_deref(),
+        );
     }
 }
 
@@ -223,6 +232,71 @@ fn record_deployments(conn: &vault_core::SqlConnection, node: &NodeRecord, r: &A
             None,
         );
     }
+}
+
+/// Enrols a listening node from the pairing request its owner carried in (R12): `name`, `projects`,
+/// `pubkey`, `endpoint` and `cert_sha256`. The reply is what the node needs to finish pairing (`unv node
+/// pair-finish`). The same checks as a token enrolment apply, and the enrolment is audited the same way.
+/// Errors are `(status, message)`.
+pub fn pair<H: HubHost>(
+    host: &H,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, (u16, String)> {
+    let Some(key) = host.owner_key() else {
+        return Err((503, "the vault is locked".into()));
+    };
+    let text = |k: &str| {
+        body.get(k)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+    let projects: Vec<String> = body
+        .get("projects")
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    let (name, pubkey) = (text("name"), text("pubkey"));
+    let listen = vault_core::nodes::ListenInfo {
+        endpoint: text("endpoint"),
+        cert_sha256: text("cert_sha256"),
+    };
+    let paired = host
+        .store(|s| {
+            s.pair(
+                &name,
+                projects,
+                &pubkey,
+                listen,
+                now_secs(),
+                &vault_core::iso_now(),
+            )
+        })
+        .map_err(|e| (500, e))?;
+    let (node, hub_node_pubkey) = paired.map_err(|e| (400, e))?;
+    audit(
+        &host.db_path(),
+        &key,
+        "node.enroll",
+        &node.name,
+        serde_json::json!({
+            "node": node.id, "fingerprint": node.fingerprint, "projects": node.projects,
+            "via": "pairing",
+        }),
+        &format!("node:{}", node.name),
+    );
+    Ok(serde_json::json!({
+        "v": 1,
+        "node_id": node.id,
+        "name": node.name,
+        "projects": node.projects,
+        "node_fingerprint": node.fingerprint,
+        "hub_node_pubkey": hub_node_pubkey,
+    }))
 }
 
 /// One pass of beat handling: audit, plan, record, and decide the actions.
@@ -281,6 +355,12 @@ pub fn process<H: HubHost>(host: &H, node: &NodeRecord, beat: &Beat, first: bool
             record_results(&db_path, k, node, &beat.results);
         }
         reply.results_ack = true;
+        // What the node holds now settles any push whose result was lost (a lock, a dropped reply).
+        if let (true, Some(c)) = (first, &conn) {
+            for t in &beat.targets {
+                let _ = vault_core::ops::deploy_observed(c, &node.id, &t.id, t.sha256.as_deref());
+            }
+        }
     }
 
     // A grant names a project; once the project is gone the grant goes with it, so
@@ -518,6 +598,22 @@ pub fn process<H: HubHost>(host: &H, node: &NodeRecord, beat: &Beat, first: bool
                     });
                 }
             }
+        }
+    }
+    // Every push sent or held is followed by a run in the operations engine (R12), so the
+    // Operations centre shows it and a lock in the middle leaves a record to settle.
+    if let Some(c) = &conn {
+        for a in &reply.actions {
+            if let Action::Push { target, sha256, .. } = a {
+                let _ = vault_core::ops::deploy_dispatch(
+                    c, &node.id, &node.name, target, sha256, false,
+                );
+            }
+        }
+        for p in &reply.pending {
+            let _ = vault_core::ops::deploy_dispatch(
+                c, &node.id, &node.name, &p.target, &p.sha256, true,
+            );
         }
     }
     let pull: Vec<String> = beat

@@ -3881,6 +3881,7 @@ pub fn build_router(state: AppState, port: u16) -> Router {
         .route("/api/history", post(history::history_route))
         .route("/api/nodes", get(nodes::list_nodes))
         .route("/api/nodes/tokens", post(nodes::mint_token))
+        .route("/api/nodes/pair", post(nodes::pair))
         .route("/api/nodes/enroll", post(nodes::enroll))
         .route("/api/nodes/beat", post(nodes::beat))
         .route("/api/nodes/upload", post(nodes::upload))

@@ -817,6 +817,63 @@ pub fn enroll(
     Ok(())
 }
 
+/// A pairing message from `-` (standard input), a file, or the JSON itself.
+fn pairing_text(arg: &str) -> CliResult<String> {
+    if arg == "-" {
+        return crate::fmt::read_stdin();
+    }
+    if arg.trim_start().starts_with('{') {
+        return Ok(arg.to_string());
+    }
+    std::fs::read_to_string(arg).map_err(|e| CliError::not_found(format!("{arg}: {e}")))
+}
+
+/// Agent side, step 1 (R12): ask to be paired with a hub that opens no port. Prints the request to
+/// hand to the hub's owner (the desktop's Nodes pane, or `unv node pair-accept`).
+pub fn pair(dir: &Path, name: &str, bind: &str, advertise: &str, force: bool) -> CliResult {
+    let req = node_agent::pair_begin(dir, name, bind, advertise, force)?;
+    let text = serde_json::to_string(&req).unwrap_or_default();
+    out::ok("node.pair", json!({ "request": req }), || {
+        println!("{text}");
+        eprintln!(
+            "Give this request to the hub's owner. Check that the fingerprint {} matches what \
+             they see, then run `unv node pair-finish` with the reply.",
+            req["fingerprint"].as_str().unwrap_or("")
+        );
+    });
+    Ok(())
+}
+
+/// Agent side, step 2: finish pairing with the hub's reply (a file, `-`, or the JSON).
+pub fn pair_finish(dir: &Path, reply: &str) -> CliResult {
+    let st = node_agent::pair_finish(dir, &pairing_text(reply)?)?;
+    out::ok(
+        "node.pair-finish",
+        json!({ "node_id": st.node_id, "name": st.name, "state_file": node_agent::state_path(dir).display().to_string() }),
+        || {
+            println!("Paired as '{}' ({}).", st.name, st.node_id);
+            println!("Next: write a node config and start `unv node run --config FILE`.");
+        },
+    );
+    Ok(())
+}
+
+/// Hub side: enrol a listening node from its pairing request (the same thing the desktop's Nodes
+/// pane does). Prints the reply the node needs for `pair-finish`.
+pub fn pair_accept(a: &Access, request: &str, projects: &[String]) -> CliResult {
+    let mut body: Value = serde_json::from_str(&pairing_text(request)?)
+        .map_err(|e| CliError::invalid(format!("The pairing request is not JSON: {e}")))?;
+    body["projects"] = json!(projects);
+    let c = hub(a)?;
+    let reply = c.send_json(Method::POST, "/api/nodes/pair", Some(&body))?;
+    let text = serde_json::to_string(&reply).unwrap_or_default();
+    out::ok("node.pair-accept", reply.clone(), || {
+        println!("{text}");
+        eprintln!("Give this reply to the node: `unv node pair-finish --reply -`.");
+    });
+    Ok(())
+}
+
 pub fn check(config: &Path) -> CliResult {
     let text = std::fs::read_to_string(config)
         .map_err(|e| CliError::not_found(format!("{}: {e}", config.display())))?;
