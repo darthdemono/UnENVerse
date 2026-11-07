@@ -688,3 +688,57 @@ fn an_app_without_the_idle_state_is_left_alone() {
         std::time::Instant::now()
     ));
 }
+
+#[test]
+fn the_local_nodes_pane_is_answered_by_the_embedded_hub_and_only_while_unlocked() {
+    let d = unlocked("nodespane");
+    let call = |method: &str, path: &str, body: Value| {
+        d.ok(
+            "nodes_local_request",
+            json!({ "method": method, "path": path, "body": body }),
+        )
+    };
+    let list = call("GET", "/api/nodes", Value::Null);
+    assert_eq!(list["status"], 200);
+    assert!(list["body"]["nodes"].as_array().unwrap().is_empty());
+    let minted = call(
+        "POST",
+        "/api/nodes/tokens",
+        json!({ "name": "edge-1", "projects": ["web"] }),
+    );
+    assert_eq!(minted["status"], 200, "{minted}");
+    assert!(!minted["body"]["token"].as_str().unwrap().is_empty());
+    // A node pulling a file needs a server, and the answer says so.
+    let pull = call("POST", "/api/nodes/x/pull", json!({ "target": "t" }));
+    assert_eq!(pull["status"], 404);
+    let key = d.ok("hub_automation_key", json!({}));
+    assert_eq!(key["public_key"].as_str().unwrap().len(), 64);
+    assert_eq!(key["fingerprint"].as_str().unwrap().len(), 64);
+    // The poller runs while unlocked and is gone once locked.
+    use tauri::Manager;
+    let app = d.handle();
+    assert!(app
+        .state::<unenverse_lib::HubPoller>()
+        .0
+        .lock()
+        .unwrap()
+        .is_some());
+    d.ok("lock_vault", json!({}));
+    assert!(app
+        .state::<unenverse_lib::HubPoller>()
+        .0
+        .lock()
+        .unwrap()
+        .is_none());
+    // Locked: nothing can be changed, and the key is not shown.
+    let locked = call(
+        "POST",
+        "/api/nodes/tokens",
+        json!({ "name": "n", "projects": ["web"] }),
+    );
+    assert_eq!(locked["status"], 503);
+    assert_eq!(
+        d.call("hub_automation_key", json!({})).unwrap_err(),
+        json!("Vault is locked")
+    );
+}

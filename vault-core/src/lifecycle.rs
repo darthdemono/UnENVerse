@@ -478,6 +478,83 @@ pub fn deployment_state(conn: &Connection, entry_id: &str) -> Result<Vec<Value>,
         .map_err(|e| e.to_string())
 }
 
+/// Records what a node reported for one secret on one target (R12): the generation that is active
+/// now, the hash that was applied, and the outcome. A success sets `applied_*`; a failure keeps
+/// what an earlier success recorded and changes only the outcome, so "the last good deployment" is
+/// never lost to a failed retry. A secret with no active generation (the vault has not recorded
+/// one) is skipped and `false` returned.
+#[allow(clippy::too_many_arguments)]
+pub fn record_deployment(
+    conn: &Connection,
+    entry_id: &str,
+    field: &str,
+    target_id: &str,
+    applied_sha256: &str,
+    at: &str,
+    ok: bool,
+    result: &str,
+    run_id: Option<&str>,
+) -> Result<bool, String> {
+    let generation: Option<i64> = conn
+        .query_row(
+            "SELECT generation FROM credential_generations
+             WHERE entry_id = ?1 AND field = ?2 AND state = 'active'",
+            rusqlite::params![entry_id, field],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let Some(generation) = generation else {
+        return Ok(false);
+    };
+    let written = if ok {
+        conn.execute(
+            "INSERT INTO deployment_state
+                 (entry_id, field, target_id, generation, applied_sha256, applied_at, checked_at, result, run_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8)
+             ON CONFLICT (entry_id, field, target_id) DO UPDATE SET
+                 generation = ?4, applied_sha256 = ?5, applied_at = ?6, checked_at = ?6,
+                 result = ?7, run_id = ?8",
+            rusqlite::params![entry_id, field, target_id, generation, applied_sha256, at, result, run_id],
+        )
+    } else {
+        conn.execute(
+            "INSERT INTO deployment_state
+                 (entry_id, field, target_id, generation, checked_at, result, run_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT (entry_id, field, target_id) DO UPDATE SET
+                 checked_at = ?5, result = ?6, run_id = ?7",
+            rusqlite::params![entry_id, field, target_id, generation, at, result, run_id],
+        )
+    };
+    written.map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// Every deployment row, newest check first: what each node last reported for each secret.
+pub fn deployment_state_all(conn: &Connection) -> Result<Vec<Value>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT entry_id, field, target_id, generation, applied_sha256, applied_at, checked_at, result
+             FROM deployment_state ORDER BY COALESCE(checked_at, '') DESC, target_id, entry_id, field",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(json!({
+                "entry_id": row.get::<_, String>(0)?, "field": row.get::<_, String>(1)?,
+                "target_id": row.get::<_, String>(2)?, "generation": row.get::<_, i64>(3)?,
+                "applied_sha256": row.get::<_, Option<String>>(4)?,
+                "applied_at": row.get::<_, Option<String>>(5)?,
+                "checked_at": row.get::<_, Option<String>>(6)?,
+                "result": row.get::<_, String>(7)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
 /// Deployment rows whose recorded generation is no longer the active one.
 /// This is the query R12 uses for "rotated but not redeployed" without ever
 /// comparing a secret value or cross-vault fingerprint.
@@ -595,5 +672,68 @@ mod tests {
             row,
             ("import".into(), Some("2024-03".into()), "month".into())
         );
+    }
+
+    #[test]
+    fn a_node_report_is_recorded_against_the_active_generation_and_a_failure_keeps_the_last_good_one(
+    ) {
+        let conn = db();
+        let e = json!({ "id": "entry-1", "api_key": "k1" });
+        record_save(&conn, &BTreeMap::new(), &[e], "2026-10-14T01:02:03Z").unwrap();
+        // A secret with no generation recorded is skipped, not guessed at.
+        assert!(!record_deployment(
+            &conn, "ghost", "api_key", "n/t", "aa", "t", true, "applied", None
+        )
+        .unwrap());
+        assert!(record_deployment(
+            &conn,
+            "entry-1",
+            "api_key",
+            "edge/nginx",
+            "sha-good",
+            "2026-10-15T00:00:00Z",
+            true,
+            "applied",
+            Some("run-1")
+        )
+        .unwrap());
+        let row = |c: &Connection| deployment_state(c, "entry-1").unwrap()[0].clone();
+        assert_eq!(row(&conn)["result"], "applied");
+        assert_eq!(row(&conn)["applied_sha256"], "sha-good");
+        assert_eq!(row(&conn)["generation"], 1);
+        // A later failure changes the outcome and the check time, not what was applied.
+        record_deployment(
+            &conn,
+            "entry-1",
+            "api_key",
+            "edge/nginx",
+            "sha-bad",
+            "2026-10-16T00:00:00Z",
+            false,
+            "failed: validate",
+            None,
+        )
+        .unwrap();
+        let r = row(&conn);
+        assert_eq!(r["result"], "failed: validate");
+        assert_eq!(r["applied_sha256"], "sha-good");
+        assert_eq!(r["applied_at"], "2026-10-15T00:00:00Z");
+        assert_eq!(r["checked_at"], "2026-10-16T00:00:00Z");
+        // A failure on a target never seen before still leaves a row, with nothing applied.
+        record_deployment(
+            &conn,
+            "entry-1",
+            "api_key",
+            "edge/other",
+            "sha-x",
+            "t",
+            false,
+            "failed: write",
+            None,
+        )
+        .unwrap();
+        let rows = deployment_state(&conn, "entry-1").unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows[0]["applied_sha256"].is_null() || rows[1]["applied_sha256"].is_null());
     }
 }

@@ -12,5 +12,6 @@
   "s-recovery-interval": "A schedule argument consumed by the recovery schedule action, not a persisted setting.",
   "s-recovery-time-zone": "A schedule argument consumed by the recovery schedule action, not a persisted setting.",
   "s-recovery-run-id": "An operation identifier consumed by the recovery cancel action, not a persisted setting.",
-  "s-bridge": "An action, not a stored preference: it switches the desktop's local-scripts socket on or off at once through bridge_set_enabled (the state is a marker file in the app data folder, not Settings)."
+  "s-bridge": "An action, not a stored preference: it switches the desktop's local-scripts socket on or off at once through bridge_set_enabled (the state is a marker file in the app data folder, not Settings).",
+  "s-autokey-pub": "R12: a read-only field inside the automation key row, which is hidden outside the desktop app; driven by tests/automation-key-row.test.ts."
 }

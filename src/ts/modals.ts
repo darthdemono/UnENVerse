@@ -1980,6 +1980,10 @@ export function openModal(title: string, idx: number) {
   wireExtraVarsAdd();
   wireGeneratorPopover();
   resetGeneratorPopover();
+  // R15: the optional sections stay folded when adding, so the form opens on the few fields a
+  // new secret needs, and open when editing, where whatever is already filled in must be seen.
+  const more = document.getElementById('f-more');
+  if (more instanceof HTMLDetailsElement) more.open = idx >= 0;
   document.getElementById('modal-overlay')!.classList.add('open');
   (document.getElementById('f-provider') as HTMLInputElement).focus();
   populateProjectSelect();

@@ -2,8 +2,9 @@
 // Copyright the UnENVerse contributors.
 /**
  * Tools -> Nodes (Phase 34): the app side of `unv node ...`, over the hub's
- * `/api/nodes/*` routes. Nodes are managed on a server started with `--nodes`,
- * so this works against a remote vault; against a local one the pane says so.
+ * `/api/nodes/*` routes. Nodes are managed on a server started with `--nodes` (a remote vault),
+ * or, in the desktop app, by its embedded hub for the local vault (R12); in a browser against a
+ * local vault the pane says so.
  *
  * What it will not do: show a pull target's file. It is the node's own and holds
  * its secrets, so it goes to a file through `saveFile` (the app's `--out`) and the
@@ -65,13 +66,18 @@ function say(msg: string, kind: 'ok' | 'err' = 'ok'): void {
 type Answer = { status: number; body: unknown };
 
 async function call(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown) {
-  if (!(st.store instanceof RemoteVaultStore)) {
+  // R12: against the local vault the desktop's embedded hub answers the same requests.
+  const local = !(st.store instanceof RemoteVaultStore) && isTauri();
+  if (!(st.store instanceof RemoteVaultStore) && !local) {
     say('Nodes live on a server. Connect to a remote vault first.', 'err');
     return null;
   }
   say('Working…');
   try {
-    const a: Answer = await st.store.nodesRequest(method, path, body);
+    const a: Answer =
+      st.store instanceof RemoteVaultStore
+        ? await st.store.nodesRequest(method, path, body)
+        : await invokeTauri<Answer>('nodes_local_request', { method, path, body: body ?? null });
     if (a.status >= 200 && a.status < 300) return a;
     if (a.status === 404 && path === '/api/nodes')
       say('Not found: is the server running with --nodes?', 'err');

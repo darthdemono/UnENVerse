@@ -20,6 +20,7 @@ import { initTimelinePane, renderTimeline } from './timeline';
 import { initEnrichPane, initDoctorPane } from './enrich-pane';
 import { initHistoryPane } from './history-pane';
 import { initNodesPane } from './nodes-pane';
+import { initOpsCentre } from './ops-centre';
 import { initUidPane } from './uid-pane';
 import { initVendorImportPane } from './vendor-import-pane';
 import {
@@ -301,6 +302,7 @@ export function initTools() {
   initEnrichPane();
   initUidPane();
   initNodesPane();
+  initOpsCentre();
   initHistoryPane();
   initVendorImportPane();
   initDoctorPane();

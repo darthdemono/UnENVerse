@@ -320,11 +320,24 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Operations centre (R15) -->
+        <div id="tool-operations" class="tool-pane" style="display:none">
+          <div class="tool-section">
+            <h3 class="tool-title">Operations</h3>
+            <p>Everything the app is doing or waiting on in one place: backup and restore runs, pushes held for your approval, what each node last reported, secrets rotated but not yet redeployed, and the leases holding targets. Names and states only.</p>
+            <div class="tool-row">
+              <button id="ops-refresh-btn" class="btn btn-accent btn-sm">Refresh</button>
+            </div>
+            <div id="ops-status" class="tool-status" style="font-size:11px;color:var(--text3)" role="status" aria-live="polite"></div>
+            <div id="ops-list"></div>
+          </div>
+        </div>
+
         <!-- Tool: Nodes (Phase 34, hub routes /api/nodes/*) -->
         <div id="tool-nodes" class="tool-pane" style="display:none">
           <div class="tool-header">
             <h3>Nodes</h3>
-            <p>Agents on other hosts that watch config files and, only where their own config says so, write what this vault renders. A node never holds a vault key. Needs a remote vault on a server started with --nodes.</p>
+            <p>Agents on other hosts that watch config files and, only where their own config says so, write what this vault renders. A node never holds a vault key. Works against the local vault in the desktop app, or a remote vault on a server started with --nodes.</p>
           </div>
           <div class="tool-body">
             <div class="tool-row">

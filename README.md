@@ -1211,11 +1211,11 @@ The plan for October 2026 to October 2027, ending in 1.0.0. It states intent, no
 
 <!-- roadmap-status:start -->
 
-Status as of release 0.74.0:
+Status as of release 0.75.0:
 
-- **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website; R35 paste guard.
-- **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R12 desktop hub + deployment; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec.
-- **Not started:** R23 SL2 + PingDD site fixes; R24 site truth generation; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools; R29 Home Assistant recipe.
+- **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website; R24 site truth generation; R35 paste guard.
+- **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R12 desktop hub + deployment; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle; R29 Home Assistant recipe; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec.
+- **Not started:** R23 SL2 + PingDD site fixes; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools.
 
 <!-- roadmap-status:end -->
 

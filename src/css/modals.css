@@ -101,6 +101,25 @@
   background: var(--surface2, transparent);
 }
 
+.form-more {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.form-more > summary {
+  cursor: pointer;
+  padding: 8px 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text2);
+}
+
+.form-more[open] > summary {
+  margin-bottom: 4px;
+}
+
 .form-section-title {
   margin: 0;
   font-family: var(--font-mono);
