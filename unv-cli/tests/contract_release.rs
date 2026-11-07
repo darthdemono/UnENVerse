@@ -124,3 +124,21 @@ fn the_new_exit_code_is_part_of_the_described_contract() {
         .to_string();
     assert!(text.starts_with("released"), "{text}");
 }
+
+#[test]
+fn a_project_whose_chunk_points_at_a_ruled_entry_is_released_only_to_the_allowed_command() {
+    let v = vault("release-project");
+    v.ok(&["project", "add", "Web"]);
+    v.ok(&[
+        "project", "chunk", "add", "Web", "app", "--type", "env_file",
+    ]);
+    v.ok(&["project", "chunk", "set", "Web", "app", "TOK=${Deploy}"]);
+    // `sh -c` is not on Deploy's list, so the project is refused with the release code.
+    let o = v.run(&["exec", "--project", "Web", "--", "sh", "-c", "printenv TOK"]);
+    assert_eq!(o.code, 11, "{}", o.all());
+    assert!(!o.all().contains(SECRET), "{}", o.all());
+    // The listed command gets the value through the project too.
+    let ok = v.run(&["exec", "--project", "Web", "--", "printenv", "TOK"]);
+    assert_eq!(ok.code, 0, "{}", ok.all());
+    assert!(ok.stdout.contains(SECRET), "{}", ok.stdout);
+}
