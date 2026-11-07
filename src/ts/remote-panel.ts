@@ -454,10 +454,7 @@ async function connectRemote(cfg: RemoteVaultConfig) {
     // silently.
     if (!Settings.get('keepLocalUnlocked')) {
       try {
-        const tauri = (
-          window as { __TAURI__?: { core?: { invoke?: (c: string) => Promise<unknown> } } }
-        ).__TAURI__;
-        await tauri?.core?.invoke?.('lock_vault');
+        if (isTauri()) await invokeTauri('lock_vault');
       } catch {
         // A vault that was never unlocked locally (connected straight from the
         // startup screen) has nothing to lock, and that is not an error worth

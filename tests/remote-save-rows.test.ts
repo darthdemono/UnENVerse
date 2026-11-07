@@ -65,6 +65,55 @@ describe('pinned HTTPS proxy', () => {
   });
 });
 
+describe('plain http in the desktop window', () => {
+  it('goes through the Rust proxy too, because the page may connect to no host', async () => {
+    // The bug this pins: with the page's connect-src narrowed to itself and IPC, a fetch() to a
+    // LAN vault over http would be blocked; routing only https left http remotes unreachable.
+    const seen: string[] = [];
+    (window as unknown as Record<string, unknown>).__TAURI__ = {
+      core: {
+        invoke: (cmd: string, args: { url: string }) => {
+          if (cmd === 'remote_request') seen.push(args.url);
+          return Promise.resolve({ status: 200, body: '{"token":"t"}' });
+        },
+      },
+    };
+    const page = vi.fn();
+    vi.stubGlobal('fetch', page);
+    try {
+      const store = new RemoteVaultStore('http://192.168.1.5:8743');
+      await store.unlock('pw');
+      expect(seen).toEqual(['http://192.168.1.5:8743/api/unlock']);
+      expect(page).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI__;
+    }
+  });
+
+  it('reaches the bridge through the internals handle when there is no global object', async () => {
+    const w = window as unknown as Record<string, unknown>;
+    delete w.__TAURI__;
+    const calls: string[] = [];
+    w.__TAURI_INTERNALS__ = {
+      invoke: (cmd: string) => {
+        calls.push(cmd);
+        return Promise.resolve('ok');
+      },
+    };
+    try {
+      vi.resetModules();
+      const { isTauri, invokeTauri } = await import('../src/ts/tauri');
+      expect(isTauri()).toBe(true);
+      expect(await invokeTauri('lock_vault')).toBe('ok');
+      expect(calls).toEqual(['lock_vault']);
+    } finally {
+      delete w.__TAURI_INTERNALS__;
+    }
+    const { isTauri } = await import('../src/ts/tauri');
+    expect(isTauri()).toBe(false);
+  });
+});
+
 describe('changed (the poll behind live reload of a remote vault)', () => {
   const serve = (etag: string | null) => {
     const seen: { match?: string }[] = [];
