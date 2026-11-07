@@ -4,9 +4,16 @@
 type Invoke = (command: string, args?: unknown) => Promise<unknown>;
 
 type TauriRuntime = { core?: { invoke?: Invoke } };
+type TauriWindow = Window & { __TAURI__?: TauriRuntime; __TAURI_INTERNALS__?: { invoke?: Invoke } };
 
+/**
+ * `window.__TAURI__` exists only while `withGlobalTauri` is on, which the desktop build turns off
+ * (R15: no global handle for a script to find). The IPC bridge Tauri always injects,
+ * `__TAURI_INTERNALS__.invoke`, is what `@tauri-apps/api` itself calls, so it is the fallback.
+ */
 function currentInvoke(): Invoke | undefined {
-  return (window as Window & { __TAURI__?: TauriRuntime }).__TAURI__?.core?.invoke;
+  const w = window as TauriWindow;
+  return w.__TAURI__?.core?.invoke ?? w.__TAURI_INTERNALS__?.invoke;
 }
 
 /** Read the runtime at call time; tests, hot reload and late webview injection can replace it. */

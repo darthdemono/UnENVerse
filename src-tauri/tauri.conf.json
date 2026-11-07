@@ -1,14 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "UnENVerse",
-  "version": "0.75.0",
+  "version": "0.76.0",
   "identifier": "io.unenverse",
   "build": {
     "frontendDist": "../dist",
     "beforeBuildCommand": "npm run build:frontend"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "UnENVerse",
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' blob: ipc: http://ipc.localhost tauri:; connect-src 'self' ipc: http://ipc.localhost tauri: http:; img-src 'self' data: blob: tauri:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'"
+      "csp": "default-src 'self' blob: ipc: http://ipc.localhost tauri:; connect-src 'self' ipc: http://ipc.localhost tauri:; img-src 'self' data: blob: tauri:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'"
     }
   },
   "bundle": {
