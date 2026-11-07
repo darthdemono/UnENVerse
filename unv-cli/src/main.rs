@@ -585,6 +585,16 @@ enum Commands {
         #[command(subcommand)]
         cmd: GuardCmd,
     },
+    /// Serve the Ed25519 keys in this vault over the OpenSSH agent protocol, so `ssh` can sign with a
+    /// key that never sits under ~/.ssh. Signing only: it never returns a private key. Unix only.
+    SshAgent {
+        /// Socket to listen on. Default: $XDG_RUNTIME_DIR/unenverse/ssh-agent.sock.
+        #[arg(long)]
+        socket: Option<PathBuf>,
+        /// Print the `SSH_AUTH_SOCK=...; export SSH_AUTH_SOCK;` line for `eval`.
+        #[arg(long)]
+        export_env: bool,
+    },
     /// Inspect and control durable backup operation records.
     Ops {
         #[command(subcommand)]
@@ -4517,6 +4527,9 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             *json,
             *all_projects,
         ),
+        Commands::SshAgent { socket, export_env } => {
+            unv_app::ssh_agent_cmd::run(a, socket.as_deref(), *export_env)
+        }
         Commands::Guard { cmd } => match cmd {
             GuardCmd::Check => unv_app::guard_cmd::check(a),
             GuardCmd::Host => unv_app::guard_host::run(a),

@@ -190,6 +190,7 @@ Contract version 1.
 | `unv scan` | Health scan — weak, expiring, duplicated and stale-reference secrets |
 | `unv sessions` | List the cached sessions: which servers, which users, which is default |
 | `unv shield <argv>` | Run a command while replacing known vault values in its text output |
+| `unv ssh-agent` | Serve the Ed25519 keys in this vault over the OpenSSH agent protocol, so `ssh` can sign with a key that never sits under ~/.ssh. Signing only: it never returns a private key. Unix only |
 | `unv status` | Where this CLI is pointed and what the vault holds |
 | `unv support bundle` | Versions, counts and check results of the local vault: no values, names, paths or hosts |
 | `unv tags` | List every tag in the vault with its entry count |
