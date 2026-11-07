@@ -59,3 +59,41 @@ jobs:
       - name: Show the server log when it failed
         if: failure()
         run: docker logs bao
+
+  localstack:
+    name: LocalStack Secrets Manager
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      localstack:
+        image: localstack/localstack:3.8
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: secretsmanager
+    env:
+      UNV_LIVE_LOCALSTACK_ENDPOINT: http://127.0.0.1:4566
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Wait for LocalStack
+        run: |
+          for i in $(seq 1 40); do
+            curl -sf "$UNV_LIVE_LOCALSTACK_ENDPOINT/_localstack/health" >/dev/null && exit 0
+            sleep 3
+          done
+          exit 1
+      - name: Seed one secret
+        run: |
+          curl -sf -X POST "$UNV_LIVE_LOCALSTACK_ENDPOINT" \
+            -H 'Content-Type: application/x-amz-json-1.1' \
+            -H 'X-Amz-Target: secretsmanager.CreateSecret' \
+            -H 'Authorization: AWS4-HMAC-SHA256 Credential=test/20260101/us-east-1/secretsmanager/aws4_request, SignedHeaders=host, Signature=x' \
+            -d '{"Name":"live/db","SecretString":"live-aws-secret-value-0001"}'
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsqlcipher-dev mold
+      - name: Run the live test
+        run: cargo test -p unv-cli --features aws --test live_aws_sm --locked -- --nocapture
