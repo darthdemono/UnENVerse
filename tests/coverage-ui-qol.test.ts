@@ -229,6 +229,26 @@ describe('modal focus', () => {
     expect(document.activeElement!.id).toBe('opener');
   });
 
+  it('makes the page behind an open overlay inert, keeping toasts and other inert elements as they were', async () => {
+    const { mod } = await load();
+    document.body.innerHTML =
+      '<header id="head"></header><main id="app"></main><div id="toast" aria-live="polite"></div><div id="own" inert></div>';
+    mod.wireModalFocus();
+    const o = overlay('<button id="b1">1</button>');
+    o.classList.add('open');
+    await flush(20);
+    expect(document.getElementById('head')!.hasAttribute('inert')).toBe(true);
+    expect(document.getElementById('app')!.hasAttribute('inert')).toBe(true);
+    expect(document.getElementById('toast')!.hasAttribute('inert')).toBe(false);
+    expect(o.hasAttribute('inert')).toBe(false);
+    o.classList.remove('open');
+    await flush(20);
+    expect(document.getElementById('head')!.hasAttribute('inert')).toBe(false);
+    expect(document.getElementById('app')!.hasAttribute('data-modal-inert')).toBe(false);
+    // Set by something else, so not ours to release.
+    expect(document.getElementById('own')!.hasAttribute('inert')).toBe(true);
+  });
+
   it('does nothing without an open modal, with no focusable items, or when the opener is gone', async () => {
     const { mod } = await load();
     mod.wireModalFocus();
