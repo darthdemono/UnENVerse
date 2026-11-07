@@ -139,6 +139,14 @@ pub fn build_env_and_files(access: &Access, opts: &ExecOpts<'_>) -> CliResult<En
                 "Project '{p}' has no env_file chunks to load"
             )));
         }
+        // A project's chunks can point at entries that carry a release rule or are decoys; the
+        // command about to run has to be allowed to receive each of them (R31).
+        let all = data::entries(&vault);
+        for head in crate::exporters::referenced_providers(&project) {
+            if let Some(entry) = crate::refs::find_entry(&all, &head) {
+                check_release(access, entry, opts.argv)?;
+            }
+        }
         if !out_env.unresolved.is_empty() {
             // A blank secret in a child process fails somewhere far from here,
             // usually as an authentication error against a third party. Refuse.

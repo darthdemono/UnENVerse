@@ -414,6 +414,34 @@ pub struct EnvOut {
     pub had_chunks: bool,
 }
 
+/// The provider names that the `env_file` chunks of `project` point at with a `${Provider}` or
+/// `${Provider/field}` reference, each once. A `chunk:` or `bundle:` reference points at another
+/// field, not an entry, and is left out. Used to check release rules (R31) before a project's
+/// values are loaded into a command.
+pub fn referenced_providers(project: &Value) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for chunk in chunks_of(project) {
+        if s(&chunk, "chunk_type") != "env_file" {
+            continue;
+        }
+        for f in fields_of(&chunk) {
+            let raw = s(&f, "value").trim();
+            if !crate::refs::is_ref(raw) {
+                continue;
+            }
+            let inner = &raw[2..raw.len() - 1];
+            let head = inner.split('/').next().unwrap_or("");
+            if head.is_empty() || head.starts_with("chunk:") || head.starts_with("bundle:") {
+                continue;
+            }
+            if !out.iter().any(|h| h == head) {
+                out.push(head.to_string());
+            }
+        }
+    }
+    out
+}
+
 /// A `.env` whose values are still `${…}` pointers (R30). Nothing is resolved and nothing is masked,
 /// so the file holds no secret and a copy of it is worth nothing without the vault. A field whose
 /// value is a literal rather than a reference is **not** written: the text would carry the
@@ -1275,4 +1303,28 @@ pub fn tfvars(entries: &[Value]) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+mod referenced_providers_tests {
+    use super::referenced_providers;
+    use serde_json::json;
+
+    #[test]
+    fn only_entry_references_in_enabled_env_chunks_are_returned_once_each() {
+        let project = json!({ "chunks": [
+            { "chunk_type": "env_file", "name": "a", "fields": [
+                { "key": "A", "value": "${GitHub}" },
+                { "key": "B", "value": "${GitHub/username}" },
+                { "key": "C", "value": "${Stripe/api_secret}" },
+                { "key": "D", "value": "${chunk:api/URL}" },
+                { "key": "E", "value": "${bundle:Db/user}" },
+                { "key": "F", "value": "plain literal" },
+                { "key": "G", "value": "" }
+            ]},
+            { "chunk_type": "nginx", "fields": [{ "key": "X", "value": "${Other}" }] },
+            { "chunk_type": "env_file", "disabled": true, "fields": [{ "key": "Y", "value": "${Hidden}" }] }
+        ]});
+        assert_eq!(referenced_providers(&project), vec!["GitHub", "Stripe"]);
+    }
 }
