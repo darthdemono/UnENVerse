@@ -4,6 +4,14 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.74.0 (2026-11-07)
+
+### Added
+
+- A directory's `.unv.json` can set a default `release` rule, used by `unv exec` for entries that carry none of their own (an entry's own rule replaces it). `unv use` keeps the policy when it rewrites the file.
+- `book/src/formats-read.md`, the list of sources `unv import-vault` and `unv import-service` accept, written from the command definitions by `scripts/formats-status.mjs` with a freshness test.
+- The weekly `Live services` workflow also runs the AWS Secrets Manager importer against LocalStack.
+
 ## 0.73.0 (2026-11-07)
 
 ### Added
