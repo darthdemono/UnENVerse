@@ -174,8 +174,9 @@ pub struct EntryFields {
     #[arg(long, value_name = "true|false")]
     pub local_scripts: Option<bool>,
     /// A command `unv exec` may hand this secret to (R31): an argv prefix such as
-    /// `npm run deploy`. Repeatable. With none set, any command may receive it. Pass one empty
-    /// string to remove the rule.
+    /// `npm run deploy`, optionally pinning the program with `npm@sha256:<64 hex> run deploy`.
+    /// Repeatable. With none set, any command may receive it. Pass one empty string to remove
+    /// the rule.
     #[arg(long, value_name = "ARGV_PREFIX")]
     pub release: Vec<String>,
     /// Allow a release prefix that is only a shell, interpreter or downloader (`sh -c`, `curl`).
