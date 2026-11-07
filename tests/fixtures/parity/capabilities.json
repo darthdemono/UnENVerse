@@ -648,7 +648,8 @@
         "unv node show",
         "unv node revoke",
         "unv node pull",
-        "unv node accept"
+        "unv node accept",
+        "unv node pair-accept"
       ],
       "ui": [
         "tool:nodes"
@@ -668,7 +669,9 @@
         "unv node enroll",
         "unv node install",
         "unv node run",
-        "unv node check"
+        "unv node check",
+        "unv node pair",
+        "unv node pair-finish"
       ],
       "ui": [],
       "tauri": [],
@@ -924,6 +927,17 @@
         "idle_lock_configure"
       ],
       "note": "App lifecycle and window plumbing; the CLI opens the vault per command.",
+      "cli_flags": []
+    },
+    {
+      "id": "clipboard-clear",
+      "status": "exempt",
+      "cli": [],
+      "ui": [],
+      "tauri": [
+        "clipboard_clear_after"
+      ],
+      "note": "R15. The desktop app empties the system clipboard a set time after it copied a value (Settings -> Security), from the Rust side so a hidden webview still does it. The CLI never keeps a clipboard: it prints or writes to a file, and its copies are the shell's.",
       "cli_flags": []
     },
     {

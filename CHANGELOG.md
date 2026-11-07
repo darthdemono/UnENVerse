@@ -4,6 +4,23 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.76.0 (2026-11-07)
+
+### Added
+
+- Pairing for nodes that listen, which is how the desktop app (it opens no port) learns a node. On the node, `unv node pair --name NAME --listen ADDR --advertise https://HOST:PORT` makes its identity and certificate and prints a request of public values; the Nodes pane (Pair a node that listens) or `unv node pair-accept --request FILE --project P` enrols it through the usual checks and returns a reply; `unv node pair-finish --reply -` completes it on the node. The fingerprint is shown on both sides.
+- Deployments are runs in the operations engine (`deploy.push`): one per node, target and bytes, shown in the Operations centre. A push that is held waits as `awaiting_approval`, a send moves it to `running`, the node's result ends it, a failure retries and fails after five sends, new bytes cancel the older run, and a run open for a week is cancelled. After a lock, the bytes a node reports on its next beat settle a push whose result was lost, or the push is sent again as the same run.
+- Settings, Security, Clipboard: the desktop app empties the clipboard 30 seconds after it copied a value (15 seconds to 2 minutes, or never), only if the clipboard still holds what the app copied. The timer runs in Rust, so a hidden window still clears it. Linux needs `wl-clipboard`, `xclip` or `xsel`; macOS and Windows use their own tools.
+- While an overlay is open the page behind it is inert: not focusable, not clickable, not read by a screen reader.
+
+### Changed
+
+- The desktop window no longer connects to any host itself, and has no global Tauri object: http and https requests to a remote vault go through the Rust proxy, `connect-src` allows only the page and IPC, and `withGlobalTauri` is off.
+
+### Contract
+
+- Added `unv node pair`, `unv node pair-finish` and `unv node pair-accept`, and the server route `POST /api/nodes/pair`. Nothing was removed or renamed, so `contract_version` stays 1.
+
 ## 0.75.0 (2026-11-07)
 
 ### Added
