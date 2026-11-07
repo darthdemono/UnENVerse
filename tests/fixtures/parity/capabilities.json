@@ -1180,6 +1180,20 @@
       "cli_flags": []
     },
     {
+      "id": "operations-centre",
+      "status": "exempt",
+      "cli": [],
+      "ui": [
+        "tool:operations",
+        "id:ops-refresh-btn"
+      ],
+      "tauri": [
+        "operations_overview"
+      ],
+      "note": "R15: one desktop page over runs, held approvals, node deployments and leases. The CLI shows each part on its own (`unv ops ls`, `unv node ...`); this page only gathers them, so there is no single command to mirror.",
+      "cli_flags": []
+    },
+    {
       "id": "ssh-agent",
       "status": "exempt",
       "cli": [

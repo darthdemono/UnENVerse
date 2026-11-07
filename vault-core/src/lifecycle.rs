@@ -531,6 +531,30 @@ pub fn record_deployment(
     Ok(true)
 }
 
+/// Every deployment row, newest check first: what each node last reported for each secret.
+pub fn deployment_state_all(conn: &Connection) -> Result<Vec<Value>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT entry_id, field, target_id, generation, applied_sha256, applied_at, checked_at, result
+             FROM deployment_state ORDER BY COALESCE(checked_at, '') DESC, target_id, entry_id, field",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(json!({
+                "entry_id": row.get::<_, String>(0)?, "field": row.get::<_, String>(1)?,
+                "target_id": row.get::<_, String>(2)?, "generation": row.get::<_, i64>(3)?,
+                "applied_sha256": row.get::<_, Option<String>>(4)?,
+                "applied_at": row.get::<_, Option<String>>(5)?,
+                "checked_at": row.get::<_, Option<String>>(6)?,
+                "result": row.get::<_, String>(7)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
 /// Deployment rows whose recorded generation is no longer the active one.
 /// This is the query R12 uses for "rotated but not redeployed" without ever
 /// comparing a secret value or cross-vault fingerprint.

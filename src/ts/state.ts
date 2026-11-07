@@ -1917,6 +1917,8 @@ export function switchTool(toolId: string) {
   });
   Settings.set('activeTool', toolId);
   if (toolId === 'nodes') import('./nodes-pane').then((m) => m.refreshNodes()).catch(() => {});
+  if (toolId === 'operations')
+    import('./ops-centre').then((m) => m.refreshOperations()).catch(() => {});
 }
 
 // ── The environment-variable name template ─────────────────────────────────
