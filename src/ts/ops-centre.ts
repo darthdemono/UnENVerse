@@ -171,8 +171,7 @@ export function render(o: Overview) {
           ? html`<ul>
             ${o.leases.map(
               (l) =>
-                html`<li><span class="mono">${l.target}</span> on node ${l.node_id}, held by
-                  ${l.holder}</li>`,
+                html`<li><span class="mono">${l.target}</span> on node ${l.node_id}, held by ${l.holder}</li>`,
             )}
           </ul>`
           : empty('No target is leased.')

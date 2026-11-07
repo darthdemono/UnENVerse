@@ -41,7 +41,8 @@ describe('the many-rows grid', { timeout: 60000 }, () => {
     const css = readFileSync('src/css/cards.css', 'utf8');
     expect(css).toMatch(/#card-grid\.many-rows \.card\s*\{[^}]*content-visibility:\s*auto/);
     // The plain card rule must not carry it, or small vaults would pay for it too.
-    const plain = css.slice(css.indexOf('.card {'), css.indexOf('}', css.indexOf('.card {')));
+    const start = css.indexOf('\n.card {');
+    const plain = css.slice(start, css.indexOf('}', start));
     expect(plain).not.toContain('content-visibility');
   });
 });

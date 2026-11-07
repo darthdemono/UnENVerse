@@ -41,5 +41,6 @@
   "s-support-bundle": "R25: hidden outside the desktop app (it needs the Tauri support_bundle command); the Tauri path is driven by tests/support-row.test.ts.",
   "s-rekey": "R20: hidden outside the desktop app (it needs the Tauri change_master_password command); the Tauri path is driven by tests/password-rows.test.ts.",
   "s-forget": "R20: hidden outside the desktop app (it needs the Tauri forget_entry_history command); the Tauri path is driven by tests/password-rows.test.ts.",
-  "s-autokey-show": "R12: hidden outside the desktop app (it needs the Tauri hub_automation_key command); the Tauri path is driven by tests/automation-key-row.test.ts."
+  "s-autokey-show": "R12: hidden outside the desktop app (it needs the Tauri hub_automation_key command); the Tauri path is driven by tests/automation-key-row.test.ts.",
+  "s-autokey-pub": "R12: a read-only field inside the automation key row, which is hidden outside the desktop app; driven by tests/automation-key-row.test.ts."
 }
