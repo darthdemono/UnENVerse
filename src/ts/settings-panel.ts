@@ -469,6 +469,28 @@ interface PluginListing {
   problems: string[];
 }
 
+/** R12: show the public half of the automation key, for a node's `automation_approver`. */
+function wireAutomationKey(): void {
+  const btn = document.getElementById('s-autokey-show') as HTMLButtonElement | null;
+  const row = document.getElementById('s-autokey-row');
+  const pub = document.getElementById('s-autokey-pub') as HTMLInputElement | null;
+  const fp = document.getElementById('s-autokey-fp');
+  if (!btn || !row || !pub || !fp) return;
+  btn.hidden = !inTauri;
+  row.hidden = true;
+  if (!inTauri) return;
+  // Assignment, not addEventListener: this pane is opened repeatedly (invariant 9).
+  btn.onclick = () => {
+    invokeTauri<{ public_key: string; fingerprint: string }>('hub_automation_key')
+      .then((k) => {
+        pub.value = k.public_key;
+        fp.textContent = `fingerprint ${k.fingerprint}`;
+        row.hidden = false;
+      })
+      .catch((e: unknown) => showToast(`Could not read the key: ${String(e)}`, 'err', 3500));
+  };
+}
+
 /** R14: the read-only plugin list. Installing and enabling stay command-line acts. */
 function wirePluginList(): void {
   const list = document.getElementById('s-plugin-list');
@@ -1138,6 +1160,7 @@ export function openSettings() {
   wireBridgeRow();
   wirePasswordRows();
   wirePluginList();
+  wireAutomationKey();
   wireInstanceRow();
   wireSupportRow();
   wireArchiveRows();

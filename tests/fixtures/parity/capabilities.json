@@ -729,13 +729,16 @@
         "unv node automation-key"
       ],
       "ui": [
-        "tool:nodes"
+        "tool:nodes",
+        "id:s-autokey-show"
       ],
       "tauri": [
         "approver_public",
-        "approver_sign"
+        "approver_sign",
+        "nodes_local_request",
+        "hub_automation_key"
       ],
-      "note": "Phase 37.1: the approver key on this machine (the app and the CLI read one file), registered with the hub, makes a node set to 'device' approvable only by a signature made there. Phase 37. Tools -> Nodes: per-node 'require approval' toggle, the held pushes with Review (diff, secrets as fingerprints), Approve and Reject, over /api/nodes/{id}/policy and /api/node-approvals/{id}/{approve|reject}. The agent half (a target's `require_approval`, the signed-approval check) is in node.toml and runs on the host.",
+      "note": "Phase 37.1: the approver key on this machine (the app and the CLI read one file), registered with the hub, makes a node set to 'device' approvable only by a signature made there. Phase 37. Tools -> Nodes: per-node 'require approval' toggle, the held pushes with Review (diff, secrets as fingerprints), Approve and Reject, over /api/nodes/{id}/policy and /api/node-approvals/{id}/{approve|reject}. The agent half (a target's `require_approval`, the signed-approval check) is in node.toml and runs on the host. R12: against the local vault the same pane is answered by the embedded hub (nodes_local_request), and Settings shows the automation key (hub_automation_key).",
       "cli_flags": []
     },
     {
