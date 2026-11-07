@@ -555,6 +555,48 @@ describe('Nodes pane', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('pairs a listening node from its pasted request and shows the reply to carry back', async () => {
+    const calls = await boot(() => ({
+      status: 200,
+      body: { name: 'vps-01', node_id: 'n1', hub_node_pubkey: 'ab'.repeat(32) },
+    }));
+    const box = $('nodes-pair-request') as HTMLTextAreaElement;
+    // Nothing pasted, then something that is not JSON, then no project: none reaches the hub.
+    $('nodes-pair-btn').click();
+    await flush();
+    expect($('nodes-status').textContent).toMatch(/Paste the request/);
+    box.value = 'not json';
+    $('nodes-pair-btn').click();
+    await flush();
+    expect($('nodes-status').textContent).toMatch(/not the JSON/);
+    box.value = '{"v":1,"name":"vps-01","pubkey":"aa","fingerprint":"ff00"}';
+    $('nodes-pair-btn').click();
+    await flush();
+    expect($('nodes-status').textContent).toMatch(/project/);
+    expect(calls).toHaveLength(0);
+
+    ($('nodes-projects') as HTMLInputElement).value = 'edge, mail';
+    $('nodes-pair-btn').click();
+    await flush();
+    expect(calls[0]).toEqual([
+      'POST',
+      '/api/nodes/pair',
+      { v: 1, name: 'vps-01', pubkey: 'aa', fingerprint: 'ff00', projects: ['edge', 'mail'] },
+    ]);
+    expect(JSON.parse($('nodes-output').textContent ?? '').node_id).toBe('n1');
+    expect($('nodes-status').textContent).toContain('ff00');
+  });
+
+  it("shows the hub's refusal when a pairing is not accepted", async () => {
+    await boot(() => ({ status: 400, body: { error: 'a node named x is already enrolled' } }));
+    ($('nodes-pair-request') as HTMLTextAreaElement).value = '{"name":"x"}';
+    ($('nodes-projects') as HTMLInputElement).value = 'edge';
+    $('nodes-pair-btn').click();
+    await flush();
+    expect($('nodes-status').textContent).toMatch(/already enrolled/);
+    expect($('nodes-output').textContent).toBe('');
+  });
+
   it('says what a missing --nodes, a non-owner and a rate limit mean', async () => {
     for (const [status, re] of [
       [404, /--nodes/],
