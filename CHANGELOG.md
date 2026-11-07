@@ -4,6 +4,17 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.67.0 (2026-11-07)
+
+### Added
+
+- `unv guard check` reads text on stdin and says whether it holds a value the vault holds. It matches the exact values, so a secret with no recognisable prefix is found and ordinary text is not, prints entry and field names only, makes no network call, and exits 10 when a value of eight or more characters is found (7 when the vault cannot be opened). `book/src/paste-guard.md` shows a Claude Code prompt hook built on it.
+- The VS Code extension warns, after the fact, when a long insertion holds a vault secret (setting `unenverse.guardPaste`).
+
+### Changed
+
+- The extension's `unv` runner can pass stdin and keeps a failed command's output for callers that read it.
+
 ## 0.66.1 (2026-11-07)
 
 ### Changed
