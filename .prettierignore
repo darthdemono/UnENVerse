@@ -53,3 +53,4 @@ vault-core/tests/fixtures/
 CHANGELOG.md
 book/src/cli-reference.md
 book/src/integrations.md
+book/src/formats-read.md

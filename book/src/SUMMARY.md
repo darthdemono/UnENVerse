@@ -7,6 +7,7 @@
 - [Home Assistant secrets](home-assistant.md)
 - [If something leaks](compromise.md)
 - [Formats we read](format-policy.md)
+- [Sources we import from](formats-read.md)
 - [Config we write, and what checks it](integrations.md)
 - [CLI guide](cli.md)
 - [The scripting contract](contract.md)
