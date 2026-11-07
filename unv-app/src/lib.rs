@@ -44,6 +44,7 @@ pub mod guard_host;
 pub mod history;
 pub mod history_cmd;
 pub mod hub;
+pub mod hub_owner;
 pub mod import_vaults;
 pub mod issuer_cloudflare;
 pub mod issuer_postgres;
