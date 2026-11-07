@@ -132,6 +132,7 @@
           return notice(
             doc,
             'UnENVerse paste guard could not check this paste (' + d.reason + ').',
+            hooks,
           );
         }
         warn(
