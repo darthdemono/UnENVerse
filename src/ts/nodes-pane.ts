@@ -557,10 +557,10 @@ export function initNodesPane(): void {
       if (!a) return;
       const reply = a.body as { name?: string };
       $('nodes-output').textContent = JSON.stringify(a.body);
+      await refreshNodes();
       say(
         `Paired '${reply.name ?? ''}'. Compare the fingerprint ${typeof request.fingerprint === 'string' ? request.fingerprint : ''} with the node's output, then give the reply below to the node: unv node pair-finish --reply -`,
       );
-      await refreshNodes();
     })();
   };
   $('nodes-token-btn').onclick = () => {
