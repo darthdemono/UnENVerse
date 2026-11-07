@@ -169,12 +169,12 @@
     {
       "id": "R32",
       "title": "SSH agent",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R33",
       "title": "canary entries",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R34",
