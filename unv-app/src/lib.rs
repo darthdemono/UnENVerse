@@ -14,6 +14,7 @@ pub mod backup;
 pub mod blast_cmd;
 pub mod bridge;
 pub mod bundle_cmd;
+pub mod canary_cmd;
 pub mod catalogue_cmd;
 pub mod check_cmd;
 pub mod chunks;

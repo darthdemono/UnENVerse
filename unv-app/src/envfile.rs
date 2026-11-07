@@ -703,7 +703,7 @@ pub fn migrate(access: &Access, project: &str, path: &std::path::Path) -> CliRes
 }
 
 /// Writes `text` to `path` readable only by the owner.
-fn write_private(path: &std::path::Path, text: &str) -> CliResult {
+pub(crate) fn write_private(path: &std::path::Path, text: &str) -> CliResult {
     use std::io::Write;
     #[cfg(unix)]
     let mut f = {
@@ -768,6 +768,8 @@ pub fn export_vault(
 ) -> CliResult {
     let vault = access.load_vault()?;
     let mut list = data::entries(&vault);
+    // A decoy is never part of a real export (R33).
+    list.retain(|e| !crate::canary_cmd::is_canary(e));
 
     if let Some(proj) = project {
         list = data::entries_in_project(&vault, proj);

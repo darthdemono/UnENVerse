@@ -49,6 +49,12 @@ pub struct ExecOpts<'a> {
 /// refusal is written to the audit chain with the command, so a rejected attempt is on record;
 /// a dry run writes nothing.
 fn check_release(access: &Access, entry: &Value, argv: &[String]) -> CliResult {
+    if crate::canary_cmd::is_canary(entry) {
+        return Err(CliError::invalid(format!(
+            "'{}' is a canary decoy, not a credential, and is never released to a command",
+            data::provider_of(entry)
+        )));
+    }
     let rules = crate::release::rules_of(entry);
     if crate::release::allows(&rules, argv) {
         return Ok(());
