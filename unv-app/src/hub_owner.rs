@@ -383,6 +383,8 @@ mod tests {
         dir: std::path::PathBuf,
         store: Mutex<Option<NodeStore>>,
         key: Option<vault_core::VaultKey>,
+        password: String,
+        salt: [u8; 16],
     }
 
     impl Host {
@@ -393,21 +395,24 @@ mod tests {
                 vault_core::new_uuid()
             ));
             std::fs::create_dir_all(&dir).unwrap();
-            let key =
-                vault_core::derive_key("hub-owner-test-password", b"unv-hub-test-slt").unwrap();
+            // Random per host, so no fixed key material sits in the source.
+            let password = vault_core::new_uuid();
+            let salt = *uuid::Uuid::new_v4().as_bytes();
+            let key = vault_core::derive_key(&password, &salt).unwrap();
             let conn = vault_core::open_db(&dir.join("vault.db"), &key).unwrap();
             vault_core::init_schema(&conn).unwrap();
             drop(conn);
             Self {
                 store: Mutex::new(Some(NodeStore::open(&dir.join("nodes.json")).unwrap())),
                 key: unlocked.then_some(key),
+                password,
+                salt,
                 dir,
             }
         }
 
         fn audit_actions(&self) -> Vec<String> {
-            let key =
-                vault_core::derive_key("hub-owner-test-password", b"unv-hub-test-slt").unwrap();
+            let key = vault_core::derive_key(&self.password, &self.salt).unwrap();
             let conn = vault_core::open_db(&self.dir.join("vault.db"), &key).unwrap();
             vault_core::load_audit(&conn)
                 .unwrap()
