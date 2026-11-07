@@ -10,6 +10,7 @@
 - [CLI guide](cli.md)
 - [The scripting contract](contract.md)
 - [Paste guard](paste-guard.md)
+- [Keeping secrets away from an agent](agent-safety.md)
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
 - [Plugins](plugins.md)
