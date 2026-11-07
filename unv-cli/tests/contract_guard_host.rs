@@ -76,6 +76,7 @@ fn the_host_never_echoes_the_text_it_was_sent() {
     assert!(!o.stdout.contains("harmless sentence"), "{:?}", o.stdout);
 }
 
+#[cfg(unix)]
 #[test]
 fn install_host_for_chrome_refuses_without_an_extension_id_and_writes_nothing() {
     let v = Vault::new("guard-install");
@@ -84,6 +85,7 @@ fn install_host_for_chrome_refuses_without_an_extension_id_and_writes_nothing() 
     assert!(o.all().contains("extension-id"), "{}", o.all());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_dry_run_of_install_host_names_the_files_and_creates_none() {
     let v = Vault::new("guard-install-dry");
@@ -95,4 +97,13 @@ fn a_dry_run_of_install_host_names_the_files_and_creates_none() {
     assert_eq!(o.code, 0, "{}", o.all());
     assert!(o.all().contains("guard-host.sh"), "{}", o.all());
     assert!(!home.exists());
+}
+
+#[cfg(windows)]
+#[test]
+fn install_host_says_windows_is_not_supported_instead_of_writing_anything() {
+    let v = Vault::new("guard-install-windows");
+    let o = v.run(&["guard", "install-host", "--browser", "firefox"]);
+    assert_eq!(o.code, 10, "{}", o.all());
+    assert!(o.all().contains("not supported on windows"), "{}", o.all());
 }
