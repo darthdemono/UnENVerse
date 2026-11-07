@@ -27,6 +27,9 @@ unv calendar export --kind= --name= --out= --project=
 unv calendar feed ls
 unv calendar feed new --include-account-names --kind= --name= --out=
 unv calendar feed revoke <id> --yes
+unv canary listen --addr=
+unv canary ls
+unv canary plant [path] --collector= --label=
 unv catalogue diff
 unv catalogue export
 unv catalogue show

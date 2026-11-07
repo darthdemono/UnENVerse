@@ -1164,6 +1164,19 @@
       "cli_flags": []
     },
     {
+      "id": "canary",
+      "status": "exempt",
+      "cli": [
+        "unv canary plant",
+        "unv canary listen",
+        "unv canary ls"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R33 plants files on disk and runs a listener until stopped; neither belongs in a window. A decoy shows in the entry list like any entry and is flagged canary.",
+      "cli_flags": []
+    },
+    {
       "id": "ssh-agent",
       "status": "exempt",
       "cli": [
