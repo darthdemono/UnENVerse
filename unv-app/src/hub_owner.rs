@@ -303,6 +303,64 @@ pub fn local_request<H: HubHost>(
     }
 }
 
+/// One page for the Operations centre (R15): the operations runs, what is waiting for a person, what
+/// each node last reported for each secret, secrets rotated but not redeployed, and the leases that
+/// are holding targets. Names and states only; nothing here is a value. `Err("locked")` when the
+/// vault is closed.
+pub fn operations_overview<H: HubHost>(host: &H) -> Result<Value, String> {
+    let key = host.owner_key().ok_or_else(|| "locked".to_string())?;
+    let conn = vault_core::open_db(&host.db_path(), &key).map_err(|e| e.to_string())?;
+    vault_core::ops::init_schema(&conn)?;
+    let providers: std::collections::HashMap<String, String> = vault_core::load_vault(&conn)?
+        .map(|v| {
+            crate::data::entries(&v)
+                .iter()
+                .filter_map(|e| {
+                    let id = e.get("id").and_then(Value::as_str)?;
+                    Some((id.to_string(), crate::data::provider_of(e).to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let name_of = |id: &str| providers.get(id).cloned().unwrap_or_else(|| id.to_string());
+    let name_rows = |rows: Vec<Value>| -> Vec<Value> {
+        rows.into_iter()
+            .map(|mut r| {
+                let entry = name_of(r["entry_id"].as_str().unwrap_or(""));
+                r["entry"] = json!(entry);
+                r
+            })
+            .collect()
+    };
+    let runs: Vec<_> = vault_core::ops::list_runs(&conn)?
+        .into_iter()
+        .take(30)
+        .collect();
+    let deployments = name_rows(vault_core::lifecycle::deployment_state_all(&conn)?);
+    let mismatches = name_rows(vault_core::lifecycle::deployment_generation_mismatches(
+        &conn,
+    )?);
+    let now = now_secs();
+    let (approvals, leases, nodes) = host.store(|s| {
+        let pending: Vec<_> = s
+            .approvals(None)
+            .into_iter()
+            .filter(|a| a.status == "pending")
+            .take(50)
+            .collect();
+        let active = s.list().iter().filter(|n| n.revoked_at.is_none()).count();
+        (pending, s.leases(now), active)
+    })?;
+    Ok(json!({
+        "runs": runs,
+        "approvals": approvals,
+        "deployments": deployments,
+        "mismatches": mismatches,
+        "leases": leases,
+        "nodes": nodes,
+    }))
+}
+
 /// The public half of the automation key and its fingerprint, for a node's `automation_approver`.
 /// The seed never leaves the vault. `Err("locked")` when the vault is closed.
 pub fn automation_key<H: HubHost>(host: &H) -> Result<(String, String), String> {
@@ -537,5 +595,25 @@ mod tests {
         );
         // Stopping twice, and dropping, are harmless.
         p.stop();
+    }
+
+    #[test]
+    fn the_operations_overview_gathers_each_part_by_name_and_needs_the_vault_open() {
+        let locked = Host::new("ovlocked", false);
+        assert_eq!(operations_overview(&locked).unwrap_err(), "locked");
+
+        let h = Host::new("ov", true);
+        let id = enrol(&h, "edge-5");
+        h.store(|s| s.lease_target(&id, "nginx", &"c".repeat(64), "rot-9", 60, now_secs()))
+            .unwrap()
+            .unwrap();
+        let v = operations_overview(&h).unwrap();
+        assert_eq!(v["nodes"], 1);
+        assert_eq!(v["leases"][0]["holder"], "rot-9");
+        for part in ["runs", "approvals", "deployments", "mismatches"] {
+            assert!(v[part].is_array(), "{part}");
+        }
+        // Names and states, never a value: the lease holds a hash, not the content.
+        assert!(!v.to_string().contains("api_key"));
     }
 }

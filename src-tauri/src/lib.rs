@@ -609,6 +609,18 @@ mod commands {
         serde_json::json!({ "status": r.status, "body": r.body })
     }
 
+    /// R15: the Operations centre's page: runs, held approvals, deployments, leases.
+    #[tauri::command]
+    pub fn operations_overview<R: tauri::Runtime>(
+        app: AppHandle<R>,
+    ) -> Result<serde_json::Value, String> {
+        let host = DesktopHost::new(&app);
+        match unv_app::hub_owner::operations_overview(&host) {
+            Err(e) if e == "locked" => Err("Vault is locked".into()),
+            other => other,
+        }
+    }
+
     /// R12: the public half of the hub's automation key and its fingerprint, for a node's
     /// `automation_approver`. The seed never leaves the vault.
     #[tauri::command]
@@ -2805,6 +2817,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::support_bundle,
             commands::nodes_local_request,
             commands::hub_automation_key,
+            commands::operations_overview,
             commands::idle_lock_configure,
             commands::plugin_list,
             commands::change_master_password,
