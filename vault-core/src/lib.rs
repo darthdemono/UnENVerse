@@ -71,6 +71,7 @@ pub mod recovery;
 pub mod rekey;
 pub mod rotation;
 pub mod session_import;
+pub mod ssh_agent;
 pub mod storage;
 pub mod templates;
 pub mod toml_import;
