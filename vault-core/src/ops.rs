@@ -530,6 +530,256 @@ pub fn mark_interrupted(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+// ── Deployments (R12) ───────────────────────────────────────────────────────────────────────────
+//
+// One run per (node, target, bytes): created when the hub holds a push for approval or sends it,
+// settled when the node reports the result or when a later beat shows the bytes already on disk.
+// A lock or a crash leaves the run paused and its step uncertain; the next beat decides it, so a
+// push whose result was lost is never recorded twice and never forgotten.
+
+/// The kind of a run that follows one file being sent to a node.
+pub const DEPLOY_KIND: &str = "deploy.push";
+
+/// Failed applies of the same bytes before the run stops retrying and fails.
+pub const DEPLOY_MAX_ATTEMPTS: i64 = 5;
+
+/// Open deployment runs older than this many days are cancelled, so a push nobody approved does not
+/// stay open forever.
+pub const DEPLOY_EXPIRY_DAYS: i64 = 7;
+
+fn deploy_key(node_id: &str, target: &str, sha256: &str) -> String {
+    format!("{node_id}|{target}|{sha256}")
+}
+
+fn open_deploys(
+    conn: &Connection,
+    node_id: &str,
+    target: &str,
+) -> Result<Vec<(Run, String)>, String> {
+    let prefix = format!("{node_id}|{target}|");
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT {RUN_COLUMNS}, plan_hash FROM ops_runs WHERE kind = ?1 \
+             AND substr(plan_hash, 1, length(?2)) = ?2 \
+             AND state NOT IN ('succeeded', 'failed', 'skipped_stale', 'cancelled') \
+             ORDER BY created_at"
+        ))
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![DEPLOY_KIND, prefix], |row| {
+            Ok((run_row(row)?, row.get::<_, String>(12)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(rows)
+}
+
+/// Moves a run to `Running` along legal edges, whatever it was waiting in.
+fn walk_to_running(conn: &Connection, run: &Run) -> Result<(), String> {
+    use RunState::*;
+    let path: &[RunState] = match run.state {
+        Running => &[],
+        Queued => &[Planning, Running],
+        Planning => &[Running],
+        AwaitingApproval | Paused | RetryWait | NeedsAttention => &[Planning, Running],
+        Uncertain | StepDone => &[Running],
+        StepDispatching => &[StepDone, Running],
+        other => return Err(format!("operation is already {}", other.as_str())),
+    };
+    for to in path {
+        transition_run(conn, &run.id, *to, None, None)?;
+    }
+    Ok(())
+}
+
+fn set_step(conn: &Connection, run_id: &str, state: &str, output: Option<&str>) {
+    let _ = conn.execute(
+        "UPDATE ops_steps SET state = ?2, output = COALESCE(?3, output), finished_at = ?4 \
+         WHERE run_id = ?1 AND seq = 0",
+        params![run_id, state, output, crate::iso_now()],
+    );
+}
+
+fn close_deploy(
+    conn: &Connection,
+    run: &Run,
+    to: RunState,
+    outcome: &str,
+    error: Option<(&str, &str)>,
+) -> Result<(), String> {
+    if run.state != RunState::AwaitingApproval {
+        walk_to_running(conn, run)?;
+    }
+    transition_run(conn, &run.id, to, Some(outcome), error)?;
+    Ok(())
+}
+
+/// Closes open deployment runs that have waited longer than [`DEPLOY_EXPIRY_DAYS`].
+fn expire_deploys(conn: &Connection) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT {RUN_COLUMNS} FROM ops_runs WHERE kind = ?1 \
+             AND state NOT IN ('succeeded', 'failed', 'skipped_stale', 'cancelled') \
+             AND julianday('now') - julianday(created_at) > ?2"
+        ))
+        .map_err(|e| e.to_string())?;
+    let old = stmt
+        .query_map(params![DEPLOY_KIND, DEPLOY_EXPIRY_DAYS], run_row)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    for run in old {
+        close_deploy(
+            conn,
+            &run,
+            RunState::Cancelled,
+            "expired without a result",
+            None,
+        )?;
+    }
+    Ok(())
+}
+
+/// A push of `sha256` to `target` on a node is held for a person (`held`) or has just been sent.
+/// Returns the run's id. The same bytes reuse the open run; other bytes for the same target
+/// supersede it. Sending moves the run to `Running` and its one step to `dispatching`.
+pub fn deploy_dispatch(
+    conn: &Connection,
+    node_id: &str,
+    node_name: &str,
+    target: &str,
+    sha256: &str,
+    held: bool,
+) -> Result<String, String> {
+    init_schema(conn)?;
+    expire_deploys(conn)?;
+    let key = deploy_key(node_id, target, sha256);
+    let mut current: Option<Run> = None;
+    for (run, k) in open_deploys(conn, node_id, target)? {
+        if k == key {
+            current = Some(run);
+        } else {
+            close_deploy(
+                conn,
+                &run,
+                RunState::Cancelled,
+                "superseded by newer bytes",
+                None,
+            )?;
+        }
+    }
+    let run = match current {
+        Some(r) => r,
+        None => {
+            let id = crate::new_uuid();
+            create_run_with_kind(conn, &id, None, DEPLOY_KIND, 0, None)?;
+            let plan = serde_json::json!({
+                "node": node_id, "node_name": node_name, "target": target, "sha256": sha256,
+            })
+            .to_string();
+            conn.execute(
+                "UPDATE ops_runs SET plan = ?2, plan_hash = ?3 WHERE id = ?1",
+                params![id, plan, key],
+            )
+            .map_err(|e| e.to_string())?;
+            transition_run(conn, &id, RunState::Planning, None, None)?;
+            if held {
+                transition_run(conn, &id, RunState::AwaitingApproval, None, None)?;
+            }
+            get_run(conn, &id)?.ok_or_else(|| "Run was not stored".to_string())?
+        }
+    };
+    if held {
+        return Ok(run.id);
+    }
+    walk_to_running(conn, &run)?;
+    conn.execute(
+        "INSERT INTO ops_steps (run_id, seq, kind, target, state, idempotency_key, attempt, started_at) \
+         VALUES (?1, 0, 'node.apply', ?2, 'dispatching', ?3, 1, ?4) \
+         ON CONFLICT(run_id, seq) DO UPDATE SET state = 'dispatching', attempt = attempt + 1, \
+         finished_at = NULL",
+        params![run.id, format!("{node_name}/{target}"), sha256, crate::iso_now()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(run.id)
+}
+
+/// The node reported how applying `sha256` went. A success ends the run; a failure leaves it in
+/// `RetryWait` until [`DEPLOY_MAX_ATTEMPTS`] sends have failed, then fails it. A result for bytes no
+/// run is following (a push from before runs existed) is ignored.
+pub fn deploy_result(
+    conn: &Connection,
+    node_id: &str,
+    target: &str,
+    sha256: &str,
+    ok: bool,
+    error: Option<&str>,
+) -> Result<(), String> {
+    init_schema(conn)?;
+    let key = deploy_key(node_id, target, sha256);
+    for (run, k) in open_deploys(conn, node_id, target)? {
+        if k != key {
+            continue;
+        }
+        if ok {
+            set_step(conn, &run.id, "done", Some("applied"));
+            close_deploy(conn, &run, RunState::Succeeded, "applied", None)?;
+            continue;
+        }
+        let msg = error.unwrap_or("not applied");
+        let attempts: i64 = conn
+            .query_row(
+                "SELECT attempt FROM ops_steps WHERE run_id = ?1 AND seq = 0",
+                [&run.id],
+                |r| r.get(0),
+            )
+            .unwrap_or(1);
+        set_step(conn, &run.id, "failed", Some(msg));
+        if attempts >= DEPLOY_MAX_ATTEMPTS {
+            close_deploy(
+                conn,
+                &run,
+                RunState::Failed,
+                "failed",
+                Some(("apply_failed", msg)),
+            )?;
+        } else {
+            walk_to_running(conn, &run)?;
+            transition_run(
+                conn,
+                &run.id,
+                RunState::RetryWait,
+                None,
+                Some(("apply_failed", msg)),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// The node says which bytes `target` holds now. A run for exactly those bytes succeeded even if its
+/// result never arrived (a lock, a crash, a lost reply); the interrupted step is settled here.
+pub fn deploy_observed(
+    conn: &Connection,
+    node_id: &str,
+    target: &str,
+    current_sha256: Option<&str>,
+) -> Result<(), String> {
+    let Some(current) = current_sha256 else {
+        return Ok(());
+    };
+    init_schema(conn)?;
+    let key = deploy_key(node_id, target, current);
+    for (run, k) in open_deploys(conn, node_id, target)? {
+        if k == key {
+            set_step(conn, &run.id, "done", Some("found on the node"));
+            close_deploy(conn, &run, RunState::Succeeded, "found on the node", None)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -605,5 +855,140 @@ mod tests {
         assert!(plugin_provenance(&conn, "r1").is_err());
         assert!(record_plugin_provenance(&conn, "r1", "ntfy", "bb22").is_err());
         assert!(plugin_provenance(&conn, "missing").is_err());
+    }
+
+    fn deploy_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        conn
+    }
+
+    fn deploy_state(conn: &Connection, id: &str) -> RunState {
+        get_run(conn, id).unwrap().unwrap().state
+    }
+
+    #[test]
+    fn a_deployment_run_follows_one_push_to_its_result() {
+        let c = deploy_conn();
+        let id = deploy_dispatch(&c, "n1", "edge", "env", "aa", false).unwrap();
+        assert_eq!(deploy_state(&c, &id), RunState::Running);
+        // The node asks again before it has answered: the same run, one more send.
+        assert_eq!(
+            deploy_dispatch(&c, "n1", "edge", "env", "aa", false).unwrap(),
+            id
+        );
+        let attempt: i64 = c
+            .query_row(
+                "SELECT attempt FROM ops_steps WHERE run_id = ?1",
+                [&id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(attempt, 2);
+        deploy_result(&c, "n1", "env", "aa", true, None).unwrap();
+        assert_eq!(deploy_state(&c, &id), RunState::Succeeded);
+        let step: String = c
+            .query_row(
+                "SELECT state FROM ops_steps WHERE run_id = ?1",
+                [&id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(step, "done");
+        // A result nobody follows is ignored, not an error.
+        deploy_result(&c, "n1", "env", "zz", true, None).unwrap();
+    }
+
+    #[test]
+    fn a_held_push_waits_then_is_the_same_run_when_it_is_sent() {
+        let c = deploy_conn();
+        let id = deploy_dispatch(&c, "n1", "edge", "env", "aa", true).unwrap();
+        assert_eq!(deploy_state(&c, &id), RunState::AwaitingApproval);
+        assert_eq!(
+            deploy_dispatch(&c, "n1", "edge", "env", "aa", true).unwrap(),
+            id
+        );
+        assert_eq!(
+            deploy_dispatch(&c, "n1", "edge", "env", "aa", false).unwrap(),
+            id
+        );
+        assert_eq!(deploy_state(&c, &id), RunState::Running);
+    }
+
+    #[test]
+    fn new_bytes_for_a_target_cancel_the_older_run() {
+        let c = deploy_conn();
+        let old = deploy_dispatch(&c, "n1", "edge", "env", "aa", true).unwrap();
+        let sent = deploy_dispatch(&c, "n1", "edge", "env", "bb", false).unwrap();
+        assert_ne!(old, sent);
+        assert_eq!(deploy_state(&c, &old), RunState::Cancelled);
+        assert_eq!(deploy_state(&c, &sent), RunState::Running);
+        // Another target on the same node is untouched.
+        let other = deploy_dispatch(&c, "n1", "edge", "web", "aa", false).unwrap();
+        assert_eq!(deploy_state(&c, &sent), RunState::Running);
+        assert_eq!(deploy_state(&c, &other), RunState::Running);
+    }
+
+    #[test]
+    fn a_lock_mid_push_is_settled_by_what_the_node_holds_next() {
+        // The bug this pins: a push interrupted by a lock was left paused with an uncertain step for
+        // ever, and the result that arrived after unlock found nothing to settle.
+        let c = deploy_conn();
+        let id = deploy_dispatch(&c, "n1", "edge", "env", "aa", false).unwrap();
+        mark_interrupted(&c).unwrap();
+        assert_eq!(deploy_state(&c, &id), RunState::Paused);
+        let step: String = c
+            .query_row(
+                "SELECT state FROM ops_steps WHERE run_id = ?1",
+                [&id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(step, "uncertain");
+        // The node holds other bytes: nothing is decided, the push is sent again as the same run.
+        deploy_observed(&c, "n1", "env", Some("old")).unwrap();
+        assert_eq!(deploy_state(&c, &id), RunState::Paused);
+        assert_eq!(
+            deploy_dispatch(&c, "n1", "edge", "env", "aa", false).unwrap(),
+            id
+        );
+        assert_eq!(deploy_state(&c, &id), RunState::Running);
+        // Locked again, and this time the bytes are already on the node.
+        mark_interrupted(&c).unwrap();
+        deploy_observed(&c, "n1", "env", Some("aa")).unwrap();
+        assert_eq!(deploy_state(&c, &id), RunState::Succeeded);
+        deploy_observed(&c, "n1", "env", None).unwrap();
+    }
+
+    #[test]
+    fn a_push_that_keeps_failing_retries_and_then_fails() {
+        let c = deploy_conn();
+        let mut id = String::new();
+        for n in 1..=DEPLOY_MAX_ATTEMPTS {
+            id = deploy_dispatch(&c, "n1", "edge", "env", "aa", false).unwrap();
+            deploy_result(&c, "n1", "env", "aa", false, Some("disk full")).unwrap();
+            let want = if n < DEPLOY_MAX_ATTEMPTS {
+                RunState::RetryWait
+            } else {
+                RunState::Failed
+            };
+            assert_eq!(deploy_state(&c, &id), want, "after send {n}");
+        }
+        let run = get_run(&c, &id).unwrap().unwrap();
+        assert_eq!(run.error_code.as_deref(), Some("apply_failed"));
+        assert_eq!(run.error_msg.as_deref(), Some("disk full"));
+    }
+
+    #[test]
+    fn an_old_open_deployment_is_cancelled_the_next_time_one_is_sent() {
+        let c = deploy_conn();
+        let old = deploy_dispatch(&c, "n1", "edge", "env", "aa", true).unwrap();
+        c.execute(
+            "UPDATE ops_runs SET created_at = '2020-01-01T00:00:00.000Z' WHERE id = ?1",
+            [&old],
+        )
+        .unwrap();
+        deploy_dispatch(&c, "n2", "other", "env", "bb", false).unwrap();
+        assert_eq!(deploy_state(&c, &old), RunState::Cancelled);
     }
 }
