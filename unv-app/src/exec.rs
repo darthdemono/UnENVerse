@@ -56,7 +56,7 @@ fn check_release(access: &Access, entry: &Value, argv: &[String]) -> CliResult {
         )));
     }
     let rules = crate::release::rules_of(entry);
-    if crate::release::allows(&rules, argv) {
+    if crate::release::allows(&rules, argv, &crate::release::program_sha256) {
         return Ok(());
     }
     let provider = data::provider_of(entry).to_string();
