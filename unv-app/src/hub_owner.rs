@@ -462,14 +462,12 @@ mod tests {
     fn revoking_removes_the_node_from_use_and_is_audited() {
         let h = Host::new("revoke", true);
         let id = enrol(&h, "edge-3");
-        assert_eq!(
-            call(&h, "DELETE", &format!("/api/nodes/{id}"), Value::Null).status,
-            204
-        );
-        assert_eq!(
-            call(&h, "DELETE", &format!("/api/nodes/{id}"), Value::Null).status,
-            404
-        );
+        let revoke =
+            |target: &str| call(&h, "DELETE", &format!("/api/nodes/{target}"), Value::Null);
+        assert_eq!(revoke(&id).status, 204);
+        // Revoking again is harmless; an id that never existed is not found.
+        assert_eq!(revoke(&id).status, 204);
+        assert_eq!(revoke("no-such-node").status, 404);
         assert!(h.audit_actions().iter().any(|a| a == "node.revoke"));
     }
 
