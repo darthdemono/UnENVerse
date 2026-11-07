@@ -149,7 +149,10 @@ interface Content {
   install: (
     doc: Document,
     send: (t: string) => Promise<unknown>,
-    hooks?: { onWarn?: (w: { names: string[]; choices: Record<string, () => void> }) => void },
+    hooks?: {
+      onWarn?: (w: { names: string[]; choices: Record<string, () => void> }) => void;
+      onNotice?: (text: string) => void;
+    },
   ) => () => void;
 }
 
@@ -222,14 +225,20 @@ describe('content script', () => {
   });
 
   it('lets the paste through with a notice when the host cannot be reached', async () => {
-    const stop = install(document, async () => {
-      throw new Error('no host');
-    });
+    let notice = '';
+    const stop = install(
+      document,
+      async () => {
+        throw new Error('no host');
+      },
+      { onNotice: (t) => (notice = t) },
+    );
     paste(document, 'some text that is long enough');
     await tick();
     await tick();
     expect(exec).toHaveBeenCalledWith('insertText', false, 'some text that is long enough');
-    expect(document.documentElement.textContent).toContain('could not check this paste');
+    // The notice lives in a closed shadow root, so it is read through the hook, not the page.
+    expect(notice).toContain('could not check this paste');
     stop();
   });
 
