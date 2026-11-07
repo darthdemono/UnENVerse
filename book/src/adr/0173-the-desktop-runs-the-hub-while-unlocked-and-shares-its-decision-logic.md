@@ -16,4 +16,8 @@ A target lease (`NodeStore::lease_target`) pins a target to the content hash a r
 
 ## Consequences
 
-Approval semantics are unchanged and tested once. Not done: a deployment operation kind in the operations engine, reconciliation of an "uncertain" step after a lock (the node's next beat reports what it holds, so the hub re-pushes if it differs, but no step state is kept), and the desktop's enrolment path for a listening node (the owner pastes the node's key and listen address, which needs a node-side command for the response).
+Approval semantics are unchanged and tested once. Three things first left out were done in the next release:
+
+- **Pairing.** A hub that opens no port cannot take the node's call to the enrol route, so the owner carries two messages by hand. `unv node pair` on the node makes its identity and certificate and prints a request of public values; the hub's owner pastes it into the Nodes pane (or `unv node pair-accept` against a server), which mints and spends a 30 second token inside one store call (`NodeStore::pair`, so every enrolment check applies) and returns the node id and the hub's transport key; `unv node pair-finish` writes the same state file an enrolment would. The fingerprint is shown on both sides for the owner to compare.
+- **Deployment runs.** A push that is sent or held opens a `deploy.push` run in the operations engine, keyed by node, target and bytes. The node's result settles it; a failure waits in `retry_wait` and fails after five sends; new bytes for a target cancel the older run; a run open more than a week is cancelled.
+- **Uncertain steps.** A lock leaves the run paused and its step uncertain (`mark_interrupted`). The node's next beat names the bytes it holds: if they are the run's, the run succeeded even though its result was lost; if not, the push is sent again as the same run.
