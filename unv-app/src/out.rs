@@ -243,9 +243,10 @@ const PUBLIC_FIELDS_24_1: [&str; 5] = [
 /// Lifecycle metadata that is safe as a concept but may contain private
 /// locators inside its structured values. The structured redactor below keeps
 /// only its documented display fields.
-const PUBLIC_FIELDS_R07: [&str; 7] = [
+const PUBLIC_FIELDS_R07: [&str; 8] = [
     "local_scripts",
     "release",
+    "canary",
     "authority",
     "provenance",
     "issued_at",
