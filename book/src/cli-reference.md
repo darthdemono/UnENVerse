@@ -35,6 +35,9 @@ Contract version 1.
 | `unv calendar feed ls` | List feeds. The owner sees every feed; a sub-user sees only their own |
 | `unv calendar feed new` | Mint a feed. The token is shown **once** — `unv-server` stores only its hash — so this refuses to print it without `--reveal`/`--out`, the same rule as `user token new` |
 | `unv calendar feed revoke <id>` | Revoke a feed by id. Irreversible — the URL stops working immediately |
+| `unv canary listen` | Listen for decoy hits and record each one on the audit chain |
+| `unv canary ls` | List the decoy entries |
+| `unv canary plant [path]` | Make a decoy entry and write a decoy .env.production whose URL points at your collector |
 | `unv catalogue diff` | What the cached catalogue adds to, or changes in, the compiled table |
 | `unv catalogue export` | Publisher: dump the compiled table as providers JSON, to seed a source file |
 | `unv catalogue show` | Which table enrich is using: the cached catalogue or the compiled one |

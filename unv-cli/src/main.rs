@@ -585,6 +585,12 @@ enum Commands {
         #[command(subcommand)]
         cmd: GuardCmd,
     },
+    /// Decoy credentials planted where a thief looks first, with an alert when one is used. It
+    /// detects theft after the fact; it prevents nothing.
+    Canary {
+        #[command(subcommand)]
+        cmd: CanaryCmd,
+    },
     /// Serve the Ed25519 keys in this vault over the OpenSSH agent protocol, so `ssh` can sign with a
     /// key that never sits under ~/.ssh. Signing only: it never returns a private key. Unix only.
     SshAgent {
@@ -2374,6 +2380,28 @@ enum RecoverCmd {
     },
     /// Verify hashes, SQLCipher, storage, audit and configuration history.
     Verify { directory: PathBuf },
+}
+
+#[derive(Subcommand)]
+enum CanaryCmd {
+    /// Make a decoy entry and write a decoy .env.production whose URL points at your collector
+    Plant {
+        /// Directory to write the decoy file in. Default: the working directory.
+        path: Option<PathBuf>,
+        /// A name for this decoy.
+        #[arg(long, default_value = "env")]
+        label: String,
+        /// Where `unv canary listen` will be reachable from the machine being protected.
+        #[arg(long, default_value = "http://127.0.0.1:8789")]
+        collector: String,
+    },
+    /// Listen for decoy hits and record each one on the audit chain
+    Listen {
+        #[arg(long, default_value = "127.0.0.1:8789")]
+        addr: String,
+    },
+    /// List the decoy entries
+    Ls,
 }
 
 #[derive(Subcommand)]
@@ -4527,6 +4555,15 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             *json,
             *all_projects,
         ),
+        Commands::Canary { cmd } => match cmd {
+            CanaryCmd::Plant {
+                path,
+                label,
+                collector,
+            } => unv_app::canary_cmd::plant(a, path.as_deref(), label, collector),
+            CanaryCmd::Listen { addr } => unv_app::canary_cmd::listen(a, addr),
+            CanaryCmd::Ls => unv_app::canary_cmd::ls(a),
+        },
         Commands::SshAgent { socket, export_env } => {
             unv_app::ssh_agent_cmd::run(a, socket.as_deref(), *export_env)
         }
