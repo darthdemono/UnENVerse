@@ -465,12 +465,16 @@ describe('an https server reached from the desktop app', () => {
     await expect(unpinned.unlock('x')).rejects.toThrow('bad');
   });
 
-  it('plain http still uses ordinary fetch even in the desktop app', async () => {
-    (window as any).__TAURI__ = { core: { invoke: vi.fn() } };
+  it('plain http goes through the Rust proxy too, because the window may connect to no host', async () => {
+    const invoke = vi.fn(async () => ({ status: 200, body: '{"token":"T"}' }));
+    (window as any).__TAURI__ = { core: { invoke } };
     const s = new RemoteVaultStore(BASE);
-    reply({ body: { token: 'T' } });
     await s.unlock('pw');
-    expect(requests).toHaveLength(1);
+    expect(requests).toHaveLength(0);
+    expect(invoke).toHaveBeenCalledWith(
+      'remote_request',
+      expect.objectContaining({ url: expect.stringContaining(BASE) }),
+    );
   });
 });
 
