@@ -240,9 +240,6 @@ mod tests {
     #[test]
     fn a_working_directory_of_root_is_not_bound_over_itself() {
         let a = bwrap_args(Path::new("/"), None, &[], None, false, &argv(&["x"]));
-        assert!(!a
-            .windows(3)
-            .any(|w| w == ["--ro-bind", "/", "/"][..] && false));
         assert_eq!(a.iter().filter(|x| *x == "--ro-bind").count(), 1, "{a:?}");
     }
 
