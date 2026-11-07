@@ -4,6 +4,23 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.75.0 (2026-11-07)
+
+### Added
+
+- The desktop app now runs the hub while the vault is unlocked: it dials nodes that listen, answers their reports with the same decision logic as `unv-server` (now shared in `unv-app`), and the Nodes pane works without a server. The poller stops when the vault locks, resets or is restored. Nodes that dial in still need `unv-server`.
+- Target leases: a holder can take a lease on a deployment target, pinned to a content hash and capped at an hour, and pushes to a target with a live lease for another hash are held back until it is released or expires.
+- Deployment outcomes reported by nodes are recorded against the credential generation they applied, so the entry shows which generation each target runs.
+- An automation key row in Settings, for scripts that talk to the desktop hub.
+- The Operations centre gathers runs, held approvals, deployments and leases in one view.
+- The entry form folds its optional sections when adding and opens them when editing.
+- Grids with more than 200 entries let the browser skip cards that are off screen.
+- ADR-0173 records the decision to share the hub logic and run it in the desktop.
+
+### Changed
+
+- The roadmap marks R24 (generated site pages) done and R29 (Home Assistant) partial, until its node-target half ships.
+
 ## 0.74.0 (2026-11-07)
 
 ### Added
