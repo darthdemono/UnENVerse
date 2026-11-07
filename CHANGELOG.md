@@ -4,6 +4,14 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.68.0 (2026-11-07)
+
+### Added
+
+- A browser paste guard (`browser-extension/`) for ChatGPT, Claude, Gemini and seven other AI chats. It catches a paste before the page sees it and asks the local `unv guard host` over native messaging, which answers with entry names and positions and never a value. You can cancel, replace each secret with its `${Entry}` reference, or paste anyway; if the host cannot be reached the paste goes through with a notice. The extension has one permission, `nativeMessaging`, no host permission, and makes no network request; a test fails if that changes.
+- `unv guard host` (started by the browser) and `unv guard install-host --browser chrome|chromium|firefox` (writes the wrapper and the host manifest). Linux and macOS only.
+- `unv guard check` answers with the byte-accurate positions (as UTF-16 offsets) and a reference for each secret.
+
 ## 0.67.0 (2026-11-07)
 
 ### Added
