@@ -56,7 +56,14 @@ pub fn program_sha256(name: &str) -> Option<String> {
     let real = std::fs::canonicalize(path).ok()?;
     let mut file = std::fs::File::open(real).ok()?;
     let mut hasher = Sha256::new();
-    std::io::copy(&mut file, &mut hasher).ok()?;
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = std::io::Read::read(&mut file, &mut buf).ok()?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
     Some(hex::encode(hasher.finalize()))
 }
 
