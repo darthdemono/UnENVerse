@@ -174,7 +174,7 @@ mod unix {
     }
 
     impl BridgeServer {
-        /// The most recent connections, oldest first, at most [`SEEN_KEPT`].
+        /// The most recent connections, oldest first, at most fifty.
         pub fn recent(&self) -> Vec<Seen> {
             self.seen
                 .lock()
