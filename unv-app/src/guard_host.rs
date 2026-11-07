@@ -172,6 +172,7 @@ pub fn install(browser: &str, extension_id: Option<&str>) -> crate::error::CliRe
         ))
     })?;
     let home = dirs::home_dir().ok_or_else(|| CliError::from("Cannot find the home directory"))?;
+    // nosemgrep: rust.lang.security.current-exe.current-exe (writes the path of the program the user is running into the user's own wrapper script; nothing is trusted or compared)
     let unv = std::env::current_exe()
         .map_err(|e| CliError::from(format!("Cannot find this program: {e}")))?;
     let data = dirs::data_dir()
