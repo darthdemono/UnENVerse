@@ -766,8 +766,6 @@ impl unv_app::hub::HubHost for ServerHost<'_> {
     }
 }
 
-use unv_app::hub::{render_gated, resolve_grant, reviewable_seq};
-
 /// One pass of beat handling: audit, plan, record, and decide the actions (`unv_app::hub`).
 fn process(state: &AppState, node: &NodeRecord, beat: &Beat, first: bool) -> BeatReply {
     unv_app::hub::process(&ServerHost(state), node, beat, first)
@@ -984,6 +982,7 @@ mod tests {
     use axum::extract::connect_info::MockConnectInfo;
     use axum::http::Request;
     use tower::ServiceExt;
+    use unv_app::hub::{render_gated, resolve_grant, reviewable_seq};
     use vault_core::nodes::{generate_identity, sign_request, HostInfo};
     use vault_core::nodes::{ApplyResult, TargetReport};
 
