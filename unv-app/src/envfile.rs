@@ -565,7 +565,7 @@ pub fn import(access: &Access, file: &PathBuf, opts: &ImportOpts<'_>) -> CliResu
 }
 
 /// The ref-only form of a `.env` (R30): every `KEY=value` line becomes `KEY=${KEY}`, which resolves
-/// to the `env_var` entry [`upsert_vars`] makes for it. Comments, blank lines, empty values and
+/// to the `env_var` entry that importing the file makes for it. Comments, blank lines, empty values and
 /// lines that are already pointers are kept as written. Returns the new text and the keys that
 /// were replaced. Refuses what it cannot rewrite line for line: a backslash continuation, or a
 /// key that is not a plain identifier (it could not be named in a `${…}` reference).
