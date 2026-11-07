@@ -38,6 +38,101 @@ pub struct LanState(pub Mutex<Option<LanServer>>);
 /// The desktop bridge socket (R18), present only while unlocked with Allow local scripts on.
 pub struct BridgeState(pub Mutex<Option<unv_app::bridge::BridgeServer>>);
 
+/// The node registry the embedded hub and the Nodes pane share (R12), opened on first use.
+#[derive(Default)]
+pub struct NodesRegistry(pub std::sync::Arc<Mutex<Option<vault_core::nodes::NodeStore>>>);
+
+/// The poller that dials listening nodes, present only while the vault is unlocked (R12).
+#[derive(Default)]
+pub struct HubPoller(pub Mutex<Option<unv_app::hub::Poller>>);
+
+/// The desktop's face for the shared hub logic: the unlocked session key, the vault file, and the
+/// node registry beside it.
+pub struct DesktopHost<R: tauri::Runtime> {
+    app: AppHandle<R>,
+    registry: std::sync::Arc<Mutex<Option<vault_core::nodes::NodeStore>>>,
+}
+
+impl<R: tauri::Runtime> DesktopHost<R> {
+    pub fn new(app: &AppHandle<R>) -> Self {
+        let registry = app
+            .try_state::<NodesRegistry>()
+            .map(|r| std::sync::Arc::clone(&r.0))
+            .unwrap_or_default();
+        Self {
+            app: app.clone(),
+            registry,
+        }
+    }
+}
+
+fn nodes_path<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|d| d.join("nodes.json"))
+        .map_err(|e| e.to_string())
+}
+
+impl<R: tauri::Runtime> unv_app::hub::HubHost for DesktopHost<R> {
+    fn owner_key(&self) -> Option<VaultKey> {
+        let state = self.app.try_state::<VaultState>()?;
+        let guard = state.0.lock().ok()?;
+        let key = guard.as_ref().copied();
+        key
+    }
+
+    fn db_path(&self) -> PathBuf {
+        db_path(&self.app).unwrap_or_default()
+    }
+
+    fn store<T>(
+        &self,
+        f: impl FnOnce(&mut vault_core::nodes::NodeStore) -> T,
+    ) -> Result<T, String> {
+        let mut g = self
+            .registry
+            .lock()
+            .map_err(|_| "Node registry lock poisoned".to_string())?;
+        if g.is_none() {
+            *g = Some(vault_core::nodes::NodeStore::open(&nodes_path(&self.app)?)?);
+        }
+        Ok(f(g.as_mut().expect("opened above")))
+    }
+
+    /// A desktop receives no uploads: pulling a node's file needs a server.
+    fn wanted_uploads(&self, _node_id: &str, _pull_targets: &[String]) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+/// Starts the poller when the vault is unlocked and stops it when it locks, so a locked app
+/// holds no key and dials nobody (R12). Always stops the old poller first.
+fn hub_apply<R: tauri::Runtime>(app: &AppHandle<R>, key: Option<VaultKey>) {
+    let Some(slot) = app.try_state::<HubPoller>() else {
+        return;
+    };
+    let Ok(mut g) = slot.0.lock() else { return };
+    if let Some(old) = g.take() {
+        old.stop_nowait();
+    }
+    if key.is_some() {
+        *g = Some(unv_app::hub::Poller::spawn(std::sync::Arc::new(
+            DesktopHost::new(app),
+        )));
+    }
+}
+
+/// Wakes the poller for an immediate pass.
+fn hub_wake<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(slot) = app.try_state::<HubPoller>() {
+        if let Ok(g) = slot.0.lock() {
+            if let Some(p) = g.as_ref() {
+                p.wake();
+            }
+        }
+    }
+}
+
 /// R15: the idle lock kept on the Rust side. The page's own timer locks first; this is the
 /// backstop for a page that has stopped running (a hung webview), which would otherwise leave an
 /// unlocked vault open with nobody looking at it.
@@ -326,6 +421,7 @@ mod commands {
         if let Err(e) = bridge_apply(&app, &bridge.0, Some(key)) {
             eprintln!("Local scripts bridge not started: {e}");
         }
+        hub_apply(&app, Some(key));
         Ok(true)
     }
 
@@ -342,6 +438,7 @@ mod commands {
         bridge: State<BridgeState>,
     ) -> Result<(), String> {
         bridge_apply(&app, &bridge.0, None)?;
+        hub_apply(&app, None);
         // Join before LAN shutdown or key zeroization: the executor uses its
         // own key copy and marks any in-flight run paused on this path.
         if let Some(mut executor) = ops
@@ -491,6 +588,43 @@ mod commands {
         }
     }
 
+    /// R12: the Nodes pane's requests for a local vault, answered from the embedded hub's registry.
+    /// The same paths and answers as a server's `/api/nodes*` routes; what needs a server says so.
+    #[tauri::command]
+    pub fn nodes_local_request<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        method: String,
+        path: String,
+        body: Option<serde_json::Value>,
+    ) -> serde_json::Value {
+        let host = DesktopHost::new(&app);
+        let wake = || hub_wake(&app);
+        let r = unv_app::hub_owner::local_request(
+            &host,
+            &method,
+            &path,
+            &body.unwrap_or(serde_json::Value::Null),
+            &wake,
+        );
+        serde_json::json!({ "status": r.status, "body": r.body })
+    }
+
+    /// R12: the public half of the hub's automation key and its fingerprint, for a node's
+    /// `automation_approver`. The seed never leaves the vault.
+    #[tauri::command]
+    pub fn hub_automation_key<R: tauri::Runtime>(
+        app: AppHandle<R>,
+    ) -> Result<serde_json::Value, String> {
+        let host = DesktopHost::new(&app);
+        match unv_app::hub_owner::automation_key(&host) {
+            Ok((public, fingerprint)) => {
+                Ok(serde_json::json!({ "public_key": public, "fingerprint": fingerprint }))
+            }
+            Err(e) if e == "locked" => Err("Vault is locked".into()),
+            Err(e) => Err(e),
+        }
+    }
+
     /// R25: the support bundle (`unv support bundle`): versions, counts and check results only.
     /// The text is returned to the page, which asks where to save it; the person reads it first.
     #[tauri::command]
@@ -550,6 +684,7 @@ mod commands {
         ops: State<OpsState>,
     ) -> Result<(), String> {
         bridge_apply(&app, &bridge.0, None)?;
+        hub_apply(&app, None);
         if let Some(mut executor) = ops
             .0
             .lock()
@@ -1146,6 +1281,7 @@ mod commands {
     ) -> Result<(), String> {
         let (db, salt) = unv_app::backup::open_archive(&text, &password).map_err(|e| e.message)?;
         bridge_apply(&app, &bridge.0, None)?;
+        hub_apply(&app, None);
         if let Some(mut executor) = ops
             .0
             .lock()
@@ -2571,6 +2707,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         .manage(OpsState(Mutex::new(None)))
         .manage(BridgeState(Mutex::new(None)))
         .manage(IdleState::new())
+        .manage(NodesRegistry::default())
+        .manage(HubPoller::default())
         .invoke_handler(tauri::generate_handler![
             commands::unlock_vault,
             commands::caps_lock_state,
@@ -2665,6 +2803,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::vault_identity,
             commands::vault_activate,
             commands::support_bundle,
+            commands::nodes_local_request,
+            commands::hub_automation_key,
             commands::idle_lock_configure,
             commands::plugin_list,
             commands::change_master_password,

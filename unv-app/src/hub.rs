@@ -651,6 +651,14 @@ impl Poller {
         self.wake.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
+    /// Tells the poller to stop and lets go of it without waiting. A pass that is mid-dial
+    /// finishes on its own; it reads the owner key afresh, so after a lock it finds none and
+    /// pushes nothing. Used where a lock must not wait on a slow network.
+    pub fn stop_nowait(mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.thread.take();
+    }
+
     /// Stops the poller and waits for it. Idempotent.
     pub fn stop(&mut self) {
         self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
