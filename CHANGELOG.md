@@ -4,6 +4,12 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.71.0 (2026-11-07)
+
+### Added
+
+- `unv exec --sandbox` runs the command in a bubblewrap sandbox on Linux: the file system is read-only, the home directory is replaced by an empty one, `.env*` files in the working directory are hidden, and the network is off (`--sandbox-net` leaves it on). It fails closed: where the sandbox cannot be enforced (not Linux, no `bwrap`, user namespaces disabled) nothing runs and the exit code is 7. macOS and Windows are not supported yet, and there is no host allowlist.
+
 ## 0.70.0 (2026-11-07)
 
 ### Added
