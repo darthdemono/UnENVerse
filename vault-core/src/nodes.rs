@@ -669,6 +669,9 @@ struct StoreFile {
     /// Devices whose signature counts as the owner's approval (Phase 37.1).
     #[serde(default)]
     approvers: Vec<Approver>,
+    /// Target leases (R12): a rotation pins a target to the bytes it is deploying.
+    #[serde(default)]
+    leases: Vec<Lease>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -1715,6 +1718,125 @@ fn latest_approval<'a>(
         .iter()
         .rev()
         .find(|a| a.node_id == node_id && a.target == target && a.sha256 == sha)
+}
+
+/// The longest a lease may last. A lease that outlived its holder would freeze a target.
+pub const MAX_LEASE_SECS: i64 = 3600;
+
+/// A hold on one target of one node (R12): while it lives, the hub pushes that target only the
+/// bytes with this hash. A rotation takes a lease on the rendering that carries the new credential,
+/// so a regular auto-push of an older rendering (a save from a stale window, say) cannot put the
+/// old credential back on the host half way through.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Lease {
+    pub node_id: String,
+    pub target: String,
+    /// The only content hash the hub will push to this target while the lease lives.
+    pub sha256: String,
+    /// Who holds it (a rotation run id, say). Only the holder may release or replace it.
+    pub holder: String,
+    pub expires_secs: i64,
+}
+
+impl NodeStore {
+    /// Takes a lease on `target` of `node_id`, or replaces the caller's own. Refused while another
+    /// holder's lease is alive, and for a lifetime over [`MAX_LEASE_SECS`].
+    pub fn lease_target(
+        &mut self,
+        node_id: &str,
+        target: &str,
+        sha256: &str,
+        holder: &str,
+        ttl_secs: i64,
+        now_secs: i64,
+    ) -> Result<Lease, String> {
+        if !self
+            .data
+            .nodes
+            .iter()
+            .any(|n| n.id == node_id && n.revoked_at.is_none())
+        {
+            return Err("No such node".into());
+        }
+        if !(1..=MAX_LEASE_SECS).contains(&ttl_secs) {
+            return Err(format!(
+                "a lease lasts 1 to {MAX_LEASE_SECS} seconds, not {ttl_secs}"
+            ));
+        }
+        if sha256.len() != 64 || !sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err("a lease names the content it allows by its SHA-256".into());
+        }
+        if holder.is_empty() || holder.len() > 64 {
+            return Err("a lease needs a holder of 1 to 64 characters".into());
+        }
+        self.data.leases.retain(|l| l.expires_secs > now_secs);
+        if let Some(other) = self
+            .data
+            .leases
+            .iter()
+            .find(|l| l.node_id == node_id && l.target == target && l.holder != holder)
+        {
+            return Err(format!("{target} is leased by {}", other.holder));
+        }
+        self.data
+            .leases
+            .retain(|l| !(l.node_id == node_id && l.target == target));
+        let lease = Lease {
+            node_id: node_id.to_string(),
+            target: target.to_string(),
+            sha256: sha256.to_ascii_lowercase(),
+            holder: holder.to_string(),
+            expires_secs: now_secs + ttl_secs,
+        };
+        self.data.leases.push(lease.clone());
+        self.save()?;
+        Ok(lease)
+    }
+
+    /// Ends the lease on `target`, which only its holder may do. An expired lease is already gone.
+    pub fn release_lease(
+        &mut self,
+        node_id: &str,
+        target: &str,
+        holder: &str,
+        now_secs: i64,
+    ) -> Result<(), String> {
+        let live = self
+            .data
+            .leases
+            .iter()
+            .find(|l| l.node_id == node_id && l.target == target && l.expires_secs > now_secs)
+            .cloned();
+        match live {
+            None => Err("No such lease".into()),
+            Some(l) if l.holder != holder => Err(format!("{target} is leased by {}", l.holder)),
+            Some(_) => {
+                self.data
+                    .leases
+                    .retain(|l| !(l.node_id == node_id && l.target == target));
+                self.save()
+            }
+        }
+    }
+
+    /// The live lease on `target`, if any.
+    pub fn lease_for(&self, node_id: &str, target: &str, now_secs: i64) -> Option<Lease> {
+        self.data
+            .leases
+            .iter()
+            .find(|l| l.node_id == node_id && l.target == target && l.expires_secs > now_secs)
+            .cloned()
+    }
+
+    /// Every live lease.
+    pub fn leases(&self, now_secs: i64) -> Vec<Lease> {
+        self.data
+            .leases
+            .iter()
+            .filter(|l| l.expires_secs > now_secs)
+            .cloned()
+            .collect()
+    }
 }
 
 impl NodeStore {
@@ -3068,6 +3190,76 @@ reload = "systemctl reload nginx"
                 Some(PathBuf::from(appdata).join("io.unenverse"))
             );
         }
+    }
+    const SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    #[test]
+    fn a_lease_pins_a_target_until_it_expires_or_its_holder_releases_it() {
+        let (mut s, n, _, _) = enrolled();
+        let l = s
+            .lease_target(&n.id, "nginx-main", SHA_A, "rot-1", 60, 1_000)
+            .unwrap();
+        assert_eq!(l.expires_secs, 1_060);
+        assert_eq!(
+            s.lease_for(&n.id, "nginx-main", 1_059).unwrap().sha256,
+            SHA_A
+        );
+        assert!(
+            s.lease_for(&n.id, "nginx-main", 1_060).is_none(),
+            "gone at its expiry"
+        );
+        assert!(s.lease_for(&n.id, "other-target", 1_001).is_none());
+        assert_eq!(s.leases(1_001).len(), 1);
+        s.release_lease(&n.id, "nginx-main", "rot-1", 1_001)
+            .unwrap();
+        assert!(s.lease_for(&n.id, "nginx-main", 1_002).is_none());
+    }
+
+    #[test]
+    fn another_holder_cannot_take_or_release_a_live_lease_but_can_after_it_expires() {
+        let (mut s, n, _, _) = enrolled();
+        s.lease_target(&n.id, "nginx-main", SHA_A, "rot-1", 60, 1_000)
+            .unwrap();
+        let e = s
+            .lease_target(&n.id, "nginx-main", SHA_B, "rot-2", 60, 1_010)
+            .unwrap_err();
+        assert!(e.contains("rot-1"), "{e}");
+        assert!(s
+            .release_lease(&n.id, "nginx-main", "rot-2", 1_010)
+            .is_err());
+        // The holder may replace its own lease with new content.
+        s.lease_target(&n.id, "nginx-main", SHA_B, "rot-1", 60, 1_020)
+            .unwrap();
+        assert_eq!(
+            s.lease_for(&n.id, "nginx-main", 1_021).unwrap().sha256,
+            SHA_B
+        );
+        // Once it has expired, anyone may lease.
+        s.lease_target(&n.id, "nginx-main", SHA_A, "rot-2", 60, 5_000)
+            .unwrap();
+    }
+
+    #[test]
+    fn a_lease_is_refused_for_a_bad_lifetime_hash_holder_or_node_and_survives_a_reopen() {
+        let (mut s, n, _, dir) = enrolled();
+        for (ttl, sha, holder, node) in [
+            (0, SHA_A, "h", n.id.as_str()),
+            (MAX_LEASE_SECS + 1, SHA_A, "h", n.id.as_str()),
+            (60, "short", "h", n.id.as_str()),
+            (60, SHA_A, "", n.id.as_str()),
+            (60, SHA_A, "h", "no-such-node"),
+        ] {
+            assert!(s.lease_target(node, "t", sha, holder, ttl, 1_000).is_err());
+        }
+        assert!(
+            s.release_lease(&n.id, "t", "h", 1_000).is_err(),
+            "nothing to release"
+        );
+        s.lease_target(&n.id, "t", SHA_A, "rot-1", 60, 1_000)
+            .unwrap();
+        let again = NodeStore::open(&dir.join("nodes.json")).unwrap();
+        assert!(again.lease_for(&n.id, "t", 1_001).is_some());
     }
 }
 
