@@ -521,4 +521,21 @@ mod tests {
         assert_eq!(r.status, 404);
         assert!(r.body["error"].as_str().unwrap().contains("server"));
     }
+
+    #[test]
+    fn the_poller_starts_can_be_woken_and_stops_promptly_even_with_nothing_to_dial() {
+        let h = std::sync::Arc::new(Host::new("poller", true));
+        let mut p = crate::hub::Poller::spawn(h);
+        p.wake();
+        std::thread::sleep(std::time::Duration::from_millis(400));
+        let t = std::time::Instant::now();
+        p.stop();
+        assert!(
+            t.elapsed() < std::time::Duration::from_secs(3),
+            "{:?}",
+            t.elapsed()
+        );
+        // Stopping twice, and dropping, are harmless.
+        p.stop();
+    }
 }
