@@ -75,6 +75,7 @@ pub mod service_sources;
 pub mod session;
 pub mod session_cmd;
 pub mod shield;
+pub mod ssh_agent_cmd;
 pub mod starters;
 pub mod support_cmd;
 pub mod template_cmd;

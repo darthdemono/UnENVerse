@@ -91,7 +91,7 @@ pub fn handle_request(body: &[u8], provider: &dyn Fn() -> Result<Value, String>)
 }
 
 #[cfg(unix)]
-pub use unix::{fetch_snapshot, serve, BridgeServer, Seen};
+pub use unix::{fetch_snapshot, peer_pid, serve, BridgeServer, Seen};
 
 #[cfg(not(unix))]
 pub fn fetch_snapshot() -> Result<Option<Value>, crate::error::CliError> {
@@ -136,7 +136,7 @@ mod unix {
 
     /// The process on the other end of a connected socket. Linux only (`SO_PEERCRED`).
     #[cfg(target_os = "linux")]
-    fn peer_pid(s: &UnixStream) -> Option<i32> {
+    pub fn peer_pid(s: &UnixStream) -> Option<i32> {
         use std::os::fd::AsRawFd;
         let mut cred = libc::ucred {
             pid: 0,
@@ -160,7 +160,7 @@ mod unix {
     }
 
     #[cfg(not(target_os = "linux"))]
-    fn peer_pid(_s: &UnixStream) -> Option<i32> {
+    pub fn peer_pid(_s: &UnixStream) -> Option<i32> {
         None
     }
 
