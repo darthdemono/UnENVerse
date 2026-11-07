@@ -1419,6 +1419,21 @@
               <label class="toggle"><input type="checkbox" id="s-lock-on-hide" aria-labelledby="s-lock-on-hide-label" aria-describedby="s-lock-on-hide-hint"><span class="toggle-track"></span></label>
             </div>
           </div>
+          <div class="settings-section" id="s-autokey-section">
+            <div class="settings-section-title">Nodes</div>
+            <div class="settings-row">
+              <div class="settings-label">
+                <span class="settings-label-text" id="s-autokey-label">Automation key</span>
+                <div class="settings-hint" id="s-autokey-hint" aria-live="polite">Put its public half in a node's <code>automation_approver</code> to let this app approve pushes by rule. The private half never leaves the vault.</div>
+              </div>
+              <button type="button" class="btn btn-secondary" id="s-autokey-show" aria-describedby="s-autokey-hint" hidden>Show</button>
+            </div>
+            <div class="settings-row" id="s-autokey-row" hidden>
+              <label class="settings-label-text" for="s-autokey-pub">Public key</label>
+              <input type="text" id="s-autokey-pub" class="form-input" readonly spellcheck="false" aria-describedby="s-autokey-fp">
+              <span class="settings-hint mono" id="s-autokey-fp"></span>
+            </div>
+          </div>
           <div class="settings-section" id="s-password-section">
             <div class="settings-section-title">Master password and history</div>
             <div class="settings-row">
