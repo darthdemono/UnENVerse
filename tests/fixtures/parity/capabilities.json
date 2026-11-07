@@ -1164,6 +1164,17 @@
       "cli_flags": []
     },
     {
+      "id": "ssh-agent",
+      "status": "exempt",
+      "cli": [
+        "unv ssh-agent"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "R32 serves a Unix socket for the ssh client until stopped; a desktop window has no socket to offer and the agent must not depend on one being open.",
+      "cli_flags": []
+    },
+    {
       "id": "paste-guard",
       "status": "exempt",
       "cli": [

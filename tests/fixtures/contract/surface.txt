@@ -182,6 +182,7 @@ unv rotate-check --days=
 unv scan --exposed= --json --out= --severity=
 unv sessions
 unv shield <argv>
+unv ssh-agent --export-env --socket=
 unv status
 unv support bundle --out= --print
 unv tags
