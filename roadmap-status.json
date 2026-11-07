@@ -159,12 +159,12 @@
     {
       "id": "R30",
       "title": "ref-only project files",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R31",
       "title": "per-command secret release",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R32",
@@ -179,12 +179,12 @@
     {
       "id": "R34",
       "title": "sandboxed exec",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R35",
       "title": "paste guard",
-      "state": "planned"
+      "state": "done"
     }
   ]
 }

@@ -12,9 +12,9 @@ before new features. The same plan is on the
 
 Status as of release 0.71.0:
 
-- **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website.
-- **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R12 desktop hub + deployment; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle.
-- **Not started:** R23 SL2 + PingDD site fixes; R24 site truth generation; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools; R29 Home Assistant recipe; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec; R35 paste guard.
+- **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website; R35 paste guard.
+- **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R12 desktop hub + deployment; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle; R30 ref-only project files; R31 per-command secret release; R34 sandboxed exec.
+- **Not started:** R23 SL2 + PingDD site fixes; R24 site truth generation; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools; R29 Home Assistant recipe; R32 SSH agent; R33 canary entries.
 
 <!-- roadmap-status:end -->
 
@@ -123,21 +123,26 @@ limit what the agent can read and reach. UnENVerse is not a sandbox and cannot
 detect a backdoored model, but it can make the stolen thing worthless and the
 theft visible. Five phases, planned after 1.0.0 (see [the queue](phases/roadmap-queue.md)):
 
-- **Phase 76, R30: ref-only project files.** `unv env --refs` (not shipped yet) writes a file of
-  `${refs}`, not values; a migrate command replaces a plaintext `.env` with it; the
-  health scan reports plaintext secret files in a project directory.
-- **Phase 77, R31: per-command secret release.** A secret is released only to the
-  commands it was bound to, so a model-written shell line gets nothing.
+- **Phase 76, R30: ref-only project files.** Shipped in 0.69.0: `unv env --refs` writes a file of
+  `${refs}`, not values; `unv env --migrate` replaces a plaintext `.env` with it after a verified
+  round trip; `unv scan` reports plaintext `.env` files in the project directory and its parents.
+  Not yet: the desktop notice for a project directory that holds plaintext secrets.
+- **Phase 77, R31: per-command secret release.** Shipped in 0.70.0: an entry's `release` rule names the
+  commands `unv exec --entry` may hand it to, so a model-written shell line gets nothing, with its
+  own exit code (11) and an audit row. Not yet: project chunks, a pinned binary hash, a
+  per-project default in `.unv.json` and the RBAC form.
 - **Phase 78, R32: an SSH agent.** Keys are served over the agent protocol and
-  never sit as files under `~/.ssh`.
+  never sit as files under `~/.ssh`. Not started: it must be proven against `ssh-add` and a real sshd.
 - **Phase 79, R33: canary entries.** Decoy credentials planted where an attacker
   looks first, with an alert when one is used. It detects theft after the fact; it
-  prevents nothing.
-- **Phase 80, R34: sandboxed exec.** An opt-in launcher with filesystem and
-  egress limits, failing closed on a platform that cannot enforce them.
-- **Phase 81, R35: paste guard.** `unv guard check` matches pasted text against the exact
-  values the vault holds, with no pattern guessing, and answers with names only. It
-  cannot stop screenshots, typing by hand or secrets that are not in the vault.
+  prevents nothing. Not started: the alert needs a collector.
+- **Phase 80, R34: sandboxed exec.** Shipped in 0.71.0 for Linux: `unv exec --sandbox` uses
+  bubblewrap (read-only file system, empty home, `.env*` hidden, no network) and refuses to run
+  where it cannot be enforced. Not yet: macOS and Windows, a host allowlist and profiles.
+- **Phase 81, R35: paste guard.** Shipped in 0.67.0 and 0.68.0: `unv guard check` matches pasted text
+  against the exact values the vault holds, with no pattern guessing, and answers with names only;
+  a VS Code warning and a browser extension with a native messaging host use it. It cannot stop
+  screenshots, typing by hand or secrets that are not in the vault.
 
 ## Criteria for 1.0.0
 
