@@ -180,6 +180,48 @@ pub fn record_results(
             &details,
             Some(&format!("node:{}", node.name)),
         );
+        record_deployments(&conn, node, r);
+    }
+}
+
+/// Writes what a node reported into `deployment_state` (R12): for each secret whose exact value was
+/// in the file it applied, the outcome on that target. The secrets come from the history snapshot of
+/// the same bytes (recorded before the push), so nothing here reads a value. A hash with no snapshot
+/// writes nothing.
+fn record_deployments(conn: &vault_core::SqlConnection, node: &NodeRecord, r: &ApplyResult) {
+    let Ok(metas) = vault_core::config_history::find_by_sha(conn, &r.sha256, 1) else {
+        return;
+    };
+    let Some(meta) = metas.first() else { return };
+    let Ok(Some(snap)) = vault_core::config_history::get(conn, meta.seq) else {
+        return;
+    };
+    let exposed: Vec<vault_core::blast::Exposed> =
+        serde_json::from_str(&snap.exposed).unwrap_or_default();
+    let target = format!("{}/{}", node.name, r.target);
+    let result = if r.ok {
+        "applied".to_string()
+    } else {
+        format!(
+            "failed: {}",
+            short(r.error.as_deref().unwrap_or("not applied"), 200)
+        )
+    };
+    for e in exposed
+        .iter()
+        .filter(|e| !e.field.starts_with("version_history"))
+    {
+        let _ = vault_core::lifecycle::record_deployment(
+            conn,
+            &e.entry_id,
+            &e.field,
+            &target,
+            &r.sha256,
+            &r.at,
+            r.ok,
+            &result,
+            None,
+        );
     }
 }
 
