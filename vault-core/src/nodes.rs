@@ -803,6 +803,37 @@ impl NodeStore {
         Ok((token, expires))
     }
 
+    /// Enrols a listening node from its pairing request, without a token changing hands (R12): the
+    /// owner carries the node's request in and the reply out, which is how a hub that opens no port
+    /// (the desktop) learns a node. The token is minted and spent inside this call, so the usual
+    /// checks (a free name, a real key, a bare https address) apply unchanged. Returns the node and
+    /// the hub's transport key, which the node pins.
+    pub fn pair(
+        &mut self,
+        name: &str,
+        projects: Vec<String>,
+        pubkey_hex: &str,
+        listen: ListenInfo,
+        now_secs: i64,
+        now_iso: &str,
+    ) -> Result<(NodeRecord, String), String> {
+        let (token, _) = self.mint_token(name, projects, 30, now_secs)?;
+        match self.enroll(&token, pubkey_hex, Some(listen), now_secs, now_iso) {
+            Ok(node) => {
+                let hub_key = self.hub_node_key()?.1;
+                Ok((node, hub_key))
+            }
+            Err(e) => {
+                // A refused request must not leave its token open: it would block the name for
+                // a retry until it expired.
+                let h = token_hash(&token);
+                self.data.tokens.retain(|t| t.hash != h);
+                let _ = self.save();
+                Err(e)
+            }
+        }
+    }
+
     /// Spends a token and registers the node's public key.
     pub fn enroll(
         &mut self,
@@ -2927,6 +2958,94 @@ reload = "systemctl reload nginx"
             endpoint: endpoint.into(),
             cert_sha256: "ab".repeat(32),
         }
+    }
+
+    #[test]
+    fn pairing_enrols_a_listening_node_and_hands_back_the_hub_key() {
+        let dir = scratch("pair");
+        let mut s = NodeStore::open(&dir.join("nodes.json")).unwrap();
+        let (_, pk) = generate_identity();
+        let (node, hub_key) = s
+            .pair(
+                "edge",
+                vec!["p".into()],
+                &pk,
+                listen("https://10.0.0.5:9443"),
+                100,
+                "t",
+            )
+            .unwrap();
+        assert_eq!(node.name, "edge");
+        assert_eq!(
+            node.listen.as_ref().unwrap().endpoint,
+            "https://10.0.0.5:9443"
+        );
+        assert_eq!(hub_key.len(), 64);
+        assert_eq!(s.hub_node_key().unwrap().1, hub_key);
+        assert_eq!(s.listening().len(), 1);
+        // The name is taken now, and nothing is left open.
+        let (_, pk2) = generate_identity();
+        let taken = s
+            .pair(
+                "edge",
+                vec!["p".into()],
+                &pk2,
+                listen("https://10.0.0.6:9443"),
+                101,
+                "t",
+            )
+            .unwrap_err();
+        assert!(taken.contains("already enrolled"));
+    }
+
+    #[test]
+    fn a_refused_pairing_leaves_no_token_that_blocks_a_retry() {
+        // The bug this pins: minting before validating left an open token for the name, so the
+        // corrected request was refused with "a token is already open" until it expired.
+        let dir = scratch("pair-retry");
+        let mut s = NodeStore::open(&dir.join("nodes.json")).unwrap();
+        let (_, pk) = generate_identity();
+        let bad = s
+            .pair(
+                "edge",
+                vec!["p".into()],
+                "zz",
+                listen("https://10.0.0.5:9443"),
+                100,
+                "t",
+            )
+            .unwrap_err();
+        assert!(bad.contains("hex"), "{bad}");
+        let bad_addr = s
+            .pair(
+                "edge",
+                vec!["p".into()],
+                &pk,
+                listen("http://10.0.0.5"),
+                100,
+                "t",
+            )
+            .unwrap_err();
+        assert!(bad_addr.contains("https"), "{bad_addr}");
+        s.pair(
+            "edge",
+            vec!["p".into()],
+            &pk,
+            listen("https://10.0.0.5:9443"),
+            101,
+            "t",
+        )
+        .unwrap();
+        assert!(s
+            .pair(
+                "bad name",
+                vec!["p".into()],
+                &pk,
+                listen("https://h"),
+                102,
+                "t"
+            )
+            .is_err());
     }
 
     #[test]
