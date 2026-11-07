@@ -88,6 +88,13 @@
 }
 
 /* ── CARD ──────────────────────────────────────────── */
+/* R15: with many rows the browser skips layout and paint of cards that are off screen. The size
+   hint is the collapsed card; `auto` replaces it with the real size once a card has been seen. */
+#card-grid.many-rows .card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);

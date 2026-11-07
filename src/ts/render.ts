@@ -611,6 +611,9 @@ function renderBundleSuggestion(grid: HTMLElement): void {
   );
 }
 
+/** Above this many visible rows the grid lets the browser skip off-screen cards. */
+export const MANY_ROWS = 200;
+
 export function renderGrid() {
   buildRefIndex();
   renderTypeChipBar(st.vault.api_keys);
@@ -637,6 +640,10 @@ export function renderGrid() {
   document.getElementById('result-count')!.textContent =
     `${secretCount} secret${secretCount !== 1 ? 's' : ''}${bundleCount ? ` · ${bundleCount} bundle${bundleCount !== 1 ? 's' : ''}` : ''}`;
   applyGridSettings();
+  // R15: past this many rows the browser is told to skip the layout and paint of cards that are
+  // off screen (CSS `content-visibility`). This is not DOM windowing: every card stays in the
+  // page, so search, focus order and the keyboard paths are exactly as they were.
+  grid.classList.toggle('many-rows', items.length > MANY_ROWS);
   renderBundleSuggestion(grid);
   // A2 (2026-09-14): the sidebar Authenticator section used to own the
   // ticker's start/stop; removing it left nothing driving the ticker for the
