@@ -184,7 +184,7 @@ mod tests {
             &argv(&["make", "-j2"]),
         );
         assert!(off.contains(&"--unshare-net".to_string()));
-        assert_eq!(&off[off.len() - 3..], &["--", "make", "-j2"]);
+        assert_eq!(off[off.len() - 3..].to_vec(), argv(&["--", "make", "-j2"]));
         let on = bwrap_args(Path::new("/w"), None, &[], None, true, &argv(&["make"]));
         assert!(!on.contains(&"--unshare-net".to_string()));
     }
