@@ -70,6 +70,8 @@ unv node approve ID</code></pre>
       <h2 id="listen">Nodes with a public address</h2>
       <p>Enrol with <code>--listen 0.0.0.0:9443 --advertise https://node.example:9443</code>. The node generates its own TLS certificate, the hub pins it at enrolment and polls every 30 seconds. The node refuses anything older than a minute, anything it has seen before and anything for another path.</p>
 
+      <p><strong>The desktop app opens no port, so it pairs instead of enrolling.</strong> On the node run <code>unv node pair --name vps-01 --listen 0.0.0.0:9443 --advertise https://node.example:9443</code>; it prints a request (name, public key, address, certificate hash) and keeps its key. Paste the request into Tools, Nodes, Pair a node that listens, name the projects, and carry the reply back: <code>unv node pair-finish --reply -</code>. Compare the fingerprint the app shows with the one the node printed. Against a server, <code>unv node pair-accept --request FILE --project web</code> does the hub half. Nothing secret is carried either way.</p>
+
       <h2 id="pull">Reading a file back</h2>
       <p><code>unv node pull NODE TARGET --into-chunk NAME</code> previews what would change (names only) and <code>--apply</code> writes it. A field holding a <code>${reference}</code> is never overwritten with the secret it points at. <code>unv history diff-file FILE PROJECT</code> compares the newest snapshot with a file you fetched; values stay hidden unless you pass <code>--reveal</code>.</p>
 

@@ -353,6 +353,12 @@ export const TOOLS_PANES_HTML = String.raw`
               <label class="tool-label" for="nodes-since">Blast radius since</label>
               <input id="nodes-since" class="tool-input" type="date" style="max-width:150px">
             </div>
+            <details class="tool-row" id="nodes-pair">
+              <summary>Pair a node that listens (no token, no inbound connection to this app)</summary>
+              <p class="tool-hint">On the node run <code>unv node pair --name NAME --listen 0.0.0.0:9443 --advertise https://HOST:9443</code>, paste what it prints here, and name the projects above. Send the reply to the node: <code>unv node pair-finish --reply -</code>.</p>
+              <textarea id="nodes-pair-request" class="tool-input mono" rows="3" placeholder='{"v":1,"name":"vps-01","pubkey":"…"}' aria-label="Pairing request from the node"></textarea>
+              <button id="nodes-pair-btn" class="btn btn-accent btn-sm">Pair this node</button>
+            </details>
             <div id="nodes-status" class="tool-status" style="font-size:11px;color:var(--text3)"></div>
             <pre id="nodes-output" class="tool-output mono"></pre>
             <div id="nodes-list"></div>

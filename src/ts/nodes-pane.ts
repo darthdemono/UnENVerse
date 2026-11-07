@@ -536,12 +536,36 @@ export function initNodesPane(): void {
       }
     })();
   };
-  $('nodes-token-btn').onclick = () => {
-    const name = ($('nodes-name') as HTMLInputElement).value.trim();
-    const projects = ($('nodes-projects') as HTMLInputElement).value
+  const projectList = (): string[] =>
+    ($('nodes-projects') as HTMLInputElement).value
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean);
+  $('nodes-pair-btn').onclick = () => {
+    const text = ($('nodes-pair-request') as HTMLTextAreaElement).value.trim();
+    const projects = projectList();
+    if (!text) return say('Paste the request the node printed (unv node pair).', 'err');
+    let request: Record<string, unknown>;
+    try {
+      request = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return say('That is not the JSON a node prints.', 'err');
+    }
+    if (!projects.length) return say('Name at least one project this node may receive.', 'err');
+    void (async () => {
+      const a = await call('POST', '/api/nodes/pair', { ...request, projects });
+      if (!a) return;
+      const reply = a.body as { name?: string };
+      $('nodes-output').textContent = JSON.stringify(a.body);
+      say(
+        `Paired '${reply.name ?? ''}'. Compare the fingerprint ${typeof request.fingerprint === 'string' ? request.fingerprint : ''} with the node's output, then give the reply below to the node: unv node pair-finish --reply -`,
+      );
+      await refreshNodes();
+    })();
+  };
+  $('nodes-token-btn').onclick = () => {
+    const name = ($('nodes-name') as HTMLInputElement).value.trim();
+    const projects = projectList();
     const mins = Number(($('nodes-ttl') as HTMLInputElement).value) || 15;
     if (!name) return say('Give the node a name.', 'err');
     if (!projects.length) return say('Name at least one project this node may receive.', 'err');
