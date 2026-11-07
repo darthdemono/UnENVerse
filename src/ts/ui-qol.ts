@@ -265,7 +265,9 @@ export function wireCapsLockHint(inputId: string, hintId: string): void {
  * modal leaves focus on an element that is now hidden — at which point a
  * keyboard user is somewhere with no visible cursor and no way to tell where.
  *
- * These are the three things a `<dialog>` would have done.
+ * These are the three things a `<dialog>` would have done, plus the fourth: while an overlay is
+ * open, everything behind it is `inert` (not focusable, not clickable, not read by a screen
+ * reader), see `setBackgroundInert`.
  */
 const MODAL_SELECTOR = '.modal-overlay.open, .shortcuts-overlay.open, .onboard-backdrop';
 
@@ -302,6 +304,36 @@ function focusablesIn(root: Element): HTMLElement[] {
   );
 }
 
+/**
+ * What stays reachable while an overlay is open: overlays, live regions (toasts) and the custom
+ * select's popup, which lives at the top level but is used from inside overlays.
+ */
+const KEEP_REACHABLE =
+  '.modal-overlay, .shortcuts-overlay, .onboard-backdrop, #dropdown, [aria-live], script, style, template';
+
+let _backgroundInert = false;
+
+/**
+ * Makes every other top-level element `inert` while an overlay is open (R15). Done once, when the
+ * first overlay opens: a file input appended to the body afterwards (they are inserted on demand)
+ * must stay usable. Only elements this function marked are released again, so an `inert` set by
+ * anything else survives.
+ */
+function setBackgroundInert(on: boolean): void {
+  if (on === _backgroundInert) return;
+  _backgroundInert = on;
+  for (const el of Array.from(document.body.children)) {
+    if (on) {
+      if (el.matches(KEEP_REACHABLE) || el.hasAttribute('inert')) continue;
+      el.setAttribute('inert', '');
+      el.setAttribute('data-modal-inert', '');
+    } else if (el.hasAttribute('data-modal-inert')) {
+      el.removeAttribute('inert');
+      el.removeAttribute('data-modal-inert');
+    }
+  }
+}
+
 /** The open overlay nearest the top of the stack, or null. */
 function topmostModal(): HTMLElement | null {
   // The observer below is asynchronous, so it can still fire after the document
@@ -332,6 +364,7 @@ export function wireModalFocus(): void {
   const observer = new MutationObserver(() => {
     if (typeof document === 'undefined') return;
     const modal = topmostModal();
+    setBackgroundInert(modal !== null);
     if (modal) {
       if (!modal.contains(document.activeElement)) {
         _returnFocusTo = (document.activeElement as HTMLElement | null) ?? _returnFocusTo;
