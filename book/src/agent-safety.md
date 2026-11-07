@@ -23,6 +23,14 @@ unv exec --entry Deploy=DEPLOY_TOKEN -- sh -c 'curl ... | sh'     # exit 11, no 
 
 A rule is an argv prefix compared exactly as typed, so `/tmp/npm` is not `npm`. A rule that is only a shell, interpreter or downloader (`sh -c`, `curl`) needs `--i-understand`. The refusal is written to the audit chain (`unv audit`). It covers `--entry`, `--pool` and a project whose chunks point at the entry.
 
+A directory can set the default for entries that have no rule of their own, in `.unv.json`:
+
+```json
+{ "version": 1, "release": ["npm run deploy", "gh pr list"] }
+```
+
+An entry's own rule replaces the default; it does not add to it, and `unv use` keeps the policy when it rewrites the file.
+
 Pin the program by content so a swapped binary or a retargeted symlink is refused: `--release "npm@sha256:<64 hex> run deploy"`. The program is found the way the shell would find it, followed through symlinks, and hashed on every run.
 
 ## Less to read, no network
