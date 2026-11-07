@@ -606,7 +606,8 @@ mod commands {
             clip.0.cancel();
             return;
         }
-        clip.0.schedule(text, Duration::from_secs(secs.min(3600)), |_| {});
+        clip.0
+            .schedule(text, Duration::from_secs(secs.min(3600)), |_| {});
     }
 
     /// R12: the Nodes pane's requests for a local vault, answered from the embedded hub's registry.
