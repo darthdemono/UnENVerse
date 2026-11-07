@@ -4,6 +4,16 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.72.0 (2026-11-07)
+
+### Added
+
+- `book/src/agent-safety.md`, a guide to keeping secrets away from an agent: ref-only env files and migration, per-command release, the sandbox and the paste guard, with what none of them does.
+
+### Changed
+
+- The roadmap now records what the agent safety phases shipped: R30, R31 and R34 are partly shipped (0.69.0, 0.70.0, 0.71.0) and R35 is done (0.67.0 and 0.68.0). R32 (SSH agent) and R33 (canary entries) are not started.
+
 ## 0.71.0 (2026-11-07)
 
 ### Added
