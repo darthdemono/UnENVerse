@@ -129,7 +129,7 @@
     {
       "id": "R24",
       "title": "site truth generation",
-      "state": "planned"
+      "state": "done"
     },
     {
       "id": "R25",
@@ -154,7 +154,7 @@
     {
       "id": "R29",
       "title": "Home Assistant recipe",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R30",
