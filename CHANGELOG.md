@@ -4,6 +4,15 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.73.0 (2026-11-07)
+
+### Added
+
+- `unv ssh-agent` serves the Ed25519 OpenSSH keys in the vault over the agent protocol, so `ssh` can sign with a key that never sits under `~/.ssh`. It lists keys and signs, never returns a private key, refuses everything else, writes an audit row per signature naming the key and the calling process, and listens on a socket only the owner can reach. Signing is done by the `ssh-key` crate. Unix only; encrypted keys and other algorithms are skipped and reported.
+- Canary entries: `unv canary plant` makes a decoy entry flagged `canary` and writes a decoy `.env.production` whose URL points at your collector; `unv canary listen` is that collector and records each hit as `canary.hit` on the audit chain; `unv canary ls` lists the decoys. A decoy is refused by `unv exec` and left out of `unv export`. It detects theft after the fact and prevents nothing.
+- A release rule can pin its program by content, `--release "npm@sha256:<64 hex> run deploy"`: the program is found as the shell would find it, followed through symlinks and hashed on every run, so a swapped binary is refused. Release rules now also cover a project whose `env_file` chunks point at the entry.
+- `book/src/home-assistant.md`, a recipe for writing Home Assistant's `secrets.yaml` from a template with `--strict` and a check, with a test of the commands it uses.
+
 ## 0.72.0 (2026-11-07)
 
 ### Added
