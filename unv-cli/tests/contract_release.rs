@@ -142,3 +142,58 @@ fn a_project_whose_chunk_points_at_a_ruled_entry_is_released_only_to_the_allowed
     assert_eq!(ok.code, 0, "{}", ok.all());
     assert!(ok.stdout.contains(SECRET), "{}", ok.stdout);
 }
+
+#[test]
+fn the_directory_default_applies_to_entries_without_a_rule_and_survives_unv_use() {
+    let v = Vault::new("release-default");
+    v.ok(&["entry", "add", "Open", "--key", SECRET]);
+    v.ok(&["entry", "add", "Own", "--key", SECRET]);
+    v.ok(&["entry", "set", "Own", "--release", "echo hi"]);
+    let dir = v.db().with_file_name("policy-dir");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join(".unv.json"),
+        r#"{"version":1,"release":["printenv TOK"]}"#,
+    )
+    .unwrap();
+    // No rule on the entry: the directory's default lets `printenv TOK` through and nothing else.
+    let ok = v.run_in(
+        &dir,
+        &["exec", "--entry", "Open=TOK", "--", "printenv", "TOK"],
+    );
+    assert_eq!(ok.code, 0, "{}", ok.all());
+    let no = v.run_in(
+        &dir,
+        &[
+            "exec",
+            "--entry",
+            "Open=TOK",
+            "--",
+            "sh",
+            "-c",
+            "printenv TOK",
+        ],
+    );
+    assert_eq!(no.code, 11, "{}", no.all());
+    // An entry's own rule replaces the default rather than adding to it.
+    let own = v.run_in(
+        &dir,
+        &["exec", "--entry", "Own=TOK", "--", "printenv", "TOK"],
+    );
+    assert_eq!(own.code, 11, "{}", own.all());
+    // Elsewhere there is no default.
+    let elsewhere = v.run(&[
+        "exec",
+        "--entry",
+        "Open=TOK",
+        "--",
+        "sh",
+        "-c",
+        "printenv TOK",
+    ]);
+    assert_eq!(elsewhere.code, 0, "{}", elsewhere.all());
+    // Pinning an environment rewrites the file; the policy must still be in it.
+    v.run_in(&dir, &["use", "--env", "staging"]);
+    let after = std::fs::read_to_string(dir.join(".unv.json")).unwrap();
+    assert!(after.contains("printenv TOK"), "{after}");
+}
