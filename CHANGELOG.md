@@ -4,6 +4,17 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.70.0 (2026-11-07)
+
+### Added
+
+- An entry can carry a `release` rule, one or more argv prefixes such as `npm run deploy` (`unv entry set NAME --release "npm run deploy"`, repeatable, an empty value removes the rule). `unv exec --entry` and `--pool` hand the secret only to a command that starts with every token of one prefix, compared exactly as typed, and refuse anything else.
+- Exit code 11, `released`, for that refusal, separate from the wrong-password code 5. The refusal and the command are written to the audit chain (a dry run writes nothing). A rule that is only a shell, interpreter or downloader (`sh -c`, `curl`) is refused unless `--i-understand` is passed.
+
+### Contract
+
+- New exit code 11 (`released`). Nothing existing changed. Project chunks, a pinned binary hash and a per-project default are not covered yet.
+
 ## 0.69.0 (2026-11-07)
 
 ### Added
