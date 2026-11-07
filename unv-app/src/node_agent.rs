@@ -203,6 +203,34 @@ fn iso_now() -> String {
     vault_core::iso_now()
 }
 
+/// Checks the listen address, makes this node's own certificate for the advertised host, writes it
+/// (0600 with its key) and returns the certificate's SHA-256 for the hub to pin.
+fn make_listen_cert(dir: &Path, bind: &str, advertise: &str) -> CliResult<String> {
+    bind.parse::<std::net::SocketAddr>().map_err(|_| {
+        CliError::invalid("--listen takes an address like 0.0.0.0:9443 (an IP and a port)")
+    })?;
+    let host = advertise
+        .strip_prefix("https://")
+        .unwrap_or("")
+        .trim_end_matches('/')
+        .rsplit_once(':')
+        .map_or_else(
+            || {
+                advertise
+                    .trim_start_matches("https://")
+                    .trim_end_matches('/')
+            },
+            |(h, _)| h,
+        )
+        .trim_matches(['[', ']'])
+        .to_string();
+    let (cert, key, fp) = vault_core::tls::self_signed(vec![host]).map_err(CliError::from)?;
+    std::fs::create_dir_all(dir).map_err(|e| CliError::from(e.to_string()))?;
+    write_private(&dir.join(TLS_CERT_FILE), cert.as_bytes())?;
+    write_private(&dir.join(TLS_KEY_FILE), key.as_bytes())?;
+    Ok(fp)
+}
+
 /// `enroll`: spends a token and writes the state file.
 pub fn enroll(
     dir: &Path,
@@ -234,28 +262,7 @@ pub fn enroll(
     // whatever answers on the port later.
     let mut listen_body = serde_json::Value::Null;
     if let Some((bind, advertise)) = listen {
-        bind.parse::<std::net::SocketAddr>().map_err(|_| {
-            CliError::invalid("--listen takes an address like 0.0.0.0:9443 (an IP and a port)")
-        })?;
-        let host = advertise
-            .strip_prefix("https://")
-            .unwrap_or("")
-            .trim_end_matches('/')
-            .rsplit_once(':')
-            .map_or_else(
-                || {
-                    advertise
-                        .trim_start_matches("https://")
-                        .trim_end_matches('/')
-                },
-                |(h, _)| h,
-            )
-            .trim_matches(['[', ']'])
-            .to_string();
-        let (cert, key, fp) = vault_core::tls::self_signed(vec![host]).map_err(CliError::from)?;
-        std::fs::create_dir_all(dir).map_err(|e| CliError::from(e.to_string()))?;
-        write_private(&dir.join(TLS_CERT_FILE), cert.as_bytes())?;
-        write_private(&dir.join(TLS_KEY_FILE), key.as_bytes())?;
+        let fp = make_listen_cert(dir, bind, advertise)?;
         listen_body = serde_json::json!({ "endpoint": advertise, "cert_sha256": fp });
     }
     let client = crate::tls::build_node_client(Duration::from_secs(30))?;
@@ -324,6 +331,113 @@ pub fn enroll(
         listen: listen_state,
     };
     save_state(dir, &st)?;
+    Ok(st)
+}
+
+const PAIR_FILE: &str = "node-pair.json";
+
+/// What a node keeps between asking to be paired and hearing back (0600: it holds the seed).
+#[derive(Serialize, Deserialize)]
+struct PairPending {
+    name: String,
+    seed: String,
+    bind: String,
+    advertise: String,
+}
+
+/// `pair`: the first half of enrolling a listening node on a hub that opens no port (the desktop).
+/// Makes the node's identity and certificate, keeps them, and returns the request the owner pastes
+/// into the hub: public information only (name, public key, address, certificate hash).
+pub fn pair_begin(
+    dir: &Path,
+    name: &str,
+    bind: &str,
+    advertise: &str,
+    force: bool,
+) -> CliResult<serde_json::Value> {
+    if state_path(dir).exists() && !force {
+        return Err(CliError::conflict(format!(
+            "{} already exists: this host is enrolled. Revoke the node on the hub, then \
+             re-run with --force to replace the identity.",
+            state_path(dir).display()
+        )));
+    }
+    if name.is_empty() {
+        return Err(CliError::invalid("Name this node: --name NAME"));
+    }
+    let (seed, public) = vault_core::nodes::generate_identity();
+    let fp = make_listen_cert(dir, bind, advertise)?;
+    let pending = PairPending {
+        name: name.to_string(),
+        seed,
+        bind: bind.to_string(),
+        advertise: advertise.to_string(),
+    };
+    write_private(
+        &dir.join(PAIR_FILE),
+        serde_json::to_string_pretty(&pending)
+            .map_err(|e| CliError::from(e.to_string()))?
+            .as_bytes(),
+    )?;
+    Ok(serde_json::json!({
+        "v": 1,
+        "name": name,
+        "pubkey": public,
+        "fingerprint": vault_core::nodes::key_fingerprint(&public).map_err(CliError::from)?,
+        "endpoint": advertise,
+        "cert_sha256": fp,
+    }))
+}
+
+/// `pair-finish`: the second half. `reply` is what the hub's owner got back for the request
+/// `pair_begin` made; it names the node's id and the hub's transport key, which the node pins.
+/// Writes the same state file an enrolment would, so `unv node run` is unchanged.
+pub fn pair_finish(dir: &Path, reply: &str) -> CliResult<NodeState> {
+    let pending: PairPending =
+        serde_json::from_str(&std::fs::read_to_string(dir.join(PAIR_FILE)).map_err(|_| {
+            CliError::not_found(format!(
+                "{} not found in {}: run `unv node pair` on this host first.",
+                PAIR_FILE,
+                dir.display()
+            ))
+        })?)
+        .map_err(|e| CliError::invalid(format!("{PAIR_FILE} is damaged: {e}")))?;
+    let body: serde_json::Value = serde_json::from_str(reply)
+        .map_err(|e| CliError::invalid(format!("The hub's reply is not JSON: {e}")))?;
+    let node_id = body["node_id"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| CliError::invalid("The hub's reply carries no node_id"))?
+        .to_string();
+    if body["name"].as_str() != Some(pending.name.as_str()) {
+        return Err(CliError::denied(
+            "The reply is for a node with another name than the one this host asked to pair as.",
+        ));
+    }
+    let hub_node_pubkey = body["hub_node_pubkey"]
+        .as_str()
+        .filter(|k| k.len() == 64 && k.bytes().all(|b| b.is_ascii_hexdigit()))
+        .ok_or_else(|| CliError::invalid("The hub's reply carries no transport key"))?
+        .to_string();
+    let st = NodeState {
+        // A paired node is only dialled, never dials: a loopback placeholder keeps the state's
+        // shape (and the agent's transport check) the same as an enrolled node's.
+        hub_url: "http://127.0.0.1".into(),
+        node_id,
+        name: pending.name.clone(),
+        seed: pending.seed.clone(),
+        hub_fingerprint: None,
+        hub_pubkey: None,
+        hub_epoch: None,
+        listen: Some(ListenState {
+            bind: pending.bind.clone(),
+            advertise: pending.advertise.clone(),
+            hub_node_pubkey,
+            last_hub_ts: 0,
+        }),
+    };
+    save_state(dir, &st)?;
+    let _ = std::fs::remove_file(dir.join(PAIR_FILE));
     Ok(st)
 }
 
@@ -876,5 +990,100 @@ mod tests {
         assert!(check_transport("ftp://x").is_err());
         // A hostname that merely starts like the loopback is not it.
         assert!(check_transport("http://localhost.evil.example").is_err());
+    }
+
+    fn pair_dir(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "unv-pair-{tag}-{}-{}",
+            std::process::id(),
+            vault_core::new_uuid()
+        ));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn reply_for(req: &serde_json::Value, name: &str) -> String {
+        serde_json::json!({
+            "node_id": "node-1", "name": name, "hub_node_pubkey": "cd".repeat(32),
+            "pubkey_seen": req["pubkey"],
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn pairing_makes_a_listening_identity_without_contacting_a_hub() {
+        let dir = pair_dir("ok");
+        let req = pair_begin(
+            &dir,
+            "edge",
+            "127.0.0.1:9443",
+            "https://10.0.0.5:9443",
+            false,
+        )
+        .unwrap();
+        assert_eq!(req["name"], "edge");
+        assert_eq!(req["endpoint"], "https://10.0.0.5:9443");
+        assert_eq!(req["pubkey"].as_str().unwrap().len(), 64);
+        assert_eq!(req["cert_sha256"].as_str().unwrap().len(), 64);
+        assert_eq!(
+            req["fingerprint"],
+            vault_core::nodes::key_fingerprint(req["pubkey"].as_str().unwrap()).unwrap()
+        );
+        // The request is public: the seed is only in the 0600 pending file.
+        assert!(!req.to_string().contains("seed"));
+        assert!(dir.join(TLS_CERT_FILE).exists() && dir.join(PAIR_FILE).exists());
+        let st = pair_finish(&dir, &reply_for(&req, "edge")).unwrap();
+        assert_eq!(st.name, "edge");
+        assert_eq!(st.listen.as_ref().unwrap().hub_node_pubkey, "cd".repeat(32));
+        assert!(!dir.join(PAIR_FILE).exists());
+        assert_eq!(load_state(&dir).unwrap().node_id, "node-1");
+        // Now enrolled: pairing again needs --force.
+        assert!(pair_begin(
+            &dir,
+            "edge",
+            "127.0.0.1:9443",
+            "https://10.0.0.5:9443",
+            false
+        )
+        .is_err());
+        assert!(pair_begin(
+            &dir,
+            "edge",
+            "127.0.0.1:9443",
+            "https://10.0.0.5:9443",
+            true
+        )
+        .is_ok());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_reply_for_another_node_or_a_damaged_one_is_refused() {
+        let dir = pair_dir("bad");
+        // Nothing asked yet.
+        assert!(pair_finish(&dir, "{}").is_err());
+        assert!(pair_begin(&dir, "", "127.0.0.1:9443", "https://h:9443", false).is_err());
+        assert!(pair_begin(&dir, "edge", "not-an-address", "https://h:9443", false).is_err());
+        let req = pair_begin(
+            &dir,
+            "edge",
+            "127.0.0.1:9443",
+            "https://10.0.0.5:9443",
+            false,
+        )
+        .unwrap();
+        assert!(pair_finish(&dir, "not json").is_err());
+        assert!(pair_finish(&dir, &reply_for(&req, "someone-else")).is_err());
+        let no_key = serde_json::json!({ "node_id": "n", "name": "edge" }).to_string();
+        assert!(pair_finish(&dir, &no_key).is_err());
+        let no_id =
+            serde_json::json!({ "name": "edge", "hub_node_pubkey": "cd".repeat(32) }).to_string();
+        assert!(pair_finish(&dir, &no_id).is_err());
+        // None of that finished anything, so the right reply still does.
+        assert!(!state_path(&dir).exists());
+        assert!(pair_finish(&dir, &reply_for(&req, "edge")).is_ok());
+        std::fs::write(dir.join(PAIR_FILE), "garbage").unwrap();
+        assert!(pair_finish(&dir, &reply_for(&req, "edge")).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

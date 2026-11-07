@@ -126,6 +126,13 @@ pub fn local_request<H: HubHost>(
                 Err(e) => store_err(e),
             }
         }
+        ("POST", ["api", "nodes", "pair"]) => match crate::hub::pair(host, body) {
+            Ok(reply) => {
+                wake();
+                answer(200, reply)
+            }
+            Err((status, msg)) => error(status, &msg),
+        },
         ("POST", ["api", "nodes", id, "policy"]) => {
             if host.owner_key().is_none() {
                 return locked();
@@ -472,10 +479,47 @@ mod tests {
     }
 
     #[test]
+    fn pairing_enrols_a_listening_node_through_the_same_checks_and_is_audited() {
+        let h = Host::new("pair", true);
+        let (_, public) = vault_core::nodes::generate_identity();
+        let request = json!({
+            "name": "edge", "projects": ["web"], "pubkey": public,
+            "endpoint": "https://10.0.0.5:9443", "cert_sha256": "ab".repeat(32),
+        });
+        let ok = call(&h, "POST", "/api/nodes/pair", request.clone());
+        assert_eq!(ok.status, 200, "{}", ok.body);
+        assert_eq!(ok.body["name"], "edge");
+        assert_eq!(ok.body["hub_node_pubkey"].as_str().unwrap().len(), 64);
+        assert!(ok.body.get("seed").is_none());
+        let list = call(&h, "GET", "/api/nodes", Value::Null);
+        assert_eq!(
+            list.body["nodes"][0]["listen"]["endpoint"],
+            "https://10.0.0.5:9443"
+        );
+        assert!(h.audit_actions().iter().any(|a| a == "node.enroll"));
+        // The name is taken; a bad address and a missing project are refused with a reason.
+        assert_eq!(
+            call(&h, "POST", "/api/nodes/pair", request.clone()).status,
+            400
+        );
+        let mut http = request.clone();
+        http["name"] = json!("other");
+        http["endpoint"] = json!("http://10.0.0.6");
+        let bad = call(&h, "POST", "/api/nodes/pair", http);
+        assert_eq!(bad.status, 400);
+        assert!(bad.body["error"].as_str().unwrap().contains("https"));
+        let mut none = request;
+        none["name"] = json!("third");
+        none["projects"] = json!([]);
+        assert_eq!(call(&h, "POST", "/api/nodes/pair", none).status, 400);
+    }
+
+    #[test]
     fn a_locked_vault_changes_nothing_and_says_503() {
         let h = Host::new("locked", false);
         for (m, p) in [
             ("POST", "/api/nodes/tokens"),
+            ("POST", "/api/nodes/pair"),
             ("POST", "/api/nodes/x/policy"),
             ("POST", "/api/node-approvals/a/approve"),
             ("POST", "/api/node-approvers"),
