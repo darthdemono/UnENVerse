@@ -1918,7 +1918,8 @@ export function switchTool(toolId: string) {
   Settings.set('activeTool', toolId);
   if (toolId === 'nodes') import('./nodes-pane').then((m) => m.refreshNodes()).catch(() => {});
   if (toolId === 'operations')
-    import('./ops-centre').then((m) => m.refreshOperations()).catch(() => {});
+    // refreshOperations reports its own failures, so there is nothing to catch here.
+    void import('./ops-centre').then((m) => m.refreshOperations());
 }
 
 // ── The environment-variable name template ─────────────────────────────────
