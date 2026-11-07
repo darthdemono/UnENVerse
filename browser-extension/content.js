@@ -71,13 +71,14 @@
     return b;
   }
 
-  function notice(doc, text) {
+  function notice(doc, text, hooks) {
     var b = box(doc);
     b.card.appendChild(el(doc, 'div', text));
     b.card.setAttribute('role', 'status');
     setTimeout(function () {
       b.host.remove();
     }, 5000);
+    if (hooks && hooks.onNotice) hooks.onNotice(text);
   }
 
   function warn(doc, names, choices, hooks) {
