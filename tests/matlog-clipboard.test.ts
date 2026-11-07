@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { clipboardWrite, onClipboardWrite } from '../src/ts/utils';
-import { st } from '../src/ts/state';
+import { st, Settings } from '../src/ts/state';
 import { resetState } from './helpers';
 
 const calls: [string, Record<string, unknown>][] = [];
@@ -43,11 +43,23 @@ describe('clipboard observer', () => {
   it('hands the copied text to Rust with the vault, inside the desktop app', async () => {
     bridge();
     await clipboardWrite('sk_live_copied');
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
     expect(calls[0][0]).toBe('matlog_note');
     expect(calls[0][1].text).toBe('sk_live_copied');
     expect(calls[0][1].note).toBe('clipboard');
     expect(calls[0][1].vault).toBe(st.vault);
+  });
+
+  it('asks Rust to empty the clipboard later, for as long as the setting says', async () => {
+    bridge();
+    Settings.set('clipboardClearSecs', 45);
+    await clipboardWrite('sk_live_copied');
+    expect(calls[1]).toEqual(['clipboard_clear_after', { text: 'sk_live_copied', secs: 45 }]);
+    // Never: Rust is told 0, which cancels a clear still pending from an earlier copy.
+    Settings.set('clipboardClearSecs', 0);
+    await clipboardWrite('next');
+    expect(calls[3]).toEqual(['clipboard_clear_after', { text: 'next', secs: 0 }]);
+    Settings.set('clipboardClearSecs', 30);
   });
 
   it('does nothing in a plain browser, and nothing for a huge string', async () => {

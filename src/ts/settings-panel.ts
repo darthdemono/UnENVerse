@@ -1116,6 +1116,9 @@ export function openSettings() {
   (document.getElementById('s-accent') as HTMLInputElement).value = s.accentColor;
   document.getElementById('s-accent-val')!.textContent = s.accentColor;
   (document.getElementById('s-autolock') as HTMLInputElement).value = String(s.autoLockMinutes);
+  (document.getElementById('s-clipboard-clear') as HTMLSelectElement).value = String(
+    s.clipboardClearSecs,
+  );
   (document.getElementById('s-lock-on-hide') as HTMLInputElement).checked = s.lockOnHide;
   (document.getElementById('s-mask') as HTMLInputElement).checked = s.maskKeysByDefault;
   (document.getElementById('s-expiry-warn') as HTMLInputElement).checked = s.showExpiryWarning;
@@ -1283,6 +1286,8 @@ export function saveSettings() {
   Settings.setAll({
     accentColor: (document.getElementById('s-accent') as HTMLInputElement).value,
     autoLockMinutes,
+    clipboardClearSecs:
+      Number((document.getElementById('s-clipboard-clear') as HTMLSelectElement).value) || 0,
     lockOnHide: (document.getElementById('s-lock-on-hide') as HTMLInputElement).checked,
     maskKeysByDefault: (document.getElementById('s-mask') as HTMLInputElement).checked,
     showExpiryWarning: (document.getElementById('s-expiry-warn') as HTMLInputElement).checked,

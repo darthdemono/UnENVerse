@@ -248,9 +248,10 @@ export class RemoteVaultStore implements VaultStore {
   /**
    * Unified fetch that routes through the Tauri `remote_request` command when:
    * - running inside Tauri AND
-   * - the URL is https:// (self-signed certs are rejected by WebKit; reqwest bypasses this)
+   * - the URL is http(s):// (self-signed certs are rejected by WebKit; reqwest bypasses this, and
+   *   the window's CSP lets the page connect to nothing but itself and IPC)
    *
-   * Falls back to native `fetch()` for http:// or non-Tauri contexts.
+   * Falls back to native `fetch()` outside Tauri.
    */
   private async _apiFetch(
     path: string,
@@ -263,7 +264,7 @@ export class RemoteVaultStore implements VaultStore {
     merged: boolean;
   }> {
     const url = `${this.baseUrl}${path}`;
-    const useNative = isTauri() && url.startsWith('https://');
+    const useNative = isTauri() && /^https?:\/\//.test(url);
 
     if (useNative && _invoke) {
       // The proxy hands back the two headers a save needs (ETag, X-Vault-Merged).
@@ -1013,6 +1014,9 @@ export function entryId(entry: VaultEntry): string {
 onClipboardWrite((text) => {
   if (!isTauri() || !st.vault || text.length > 1 << 20) return;
   invokeTauri('matlog_note', { text, note: 'clipboard', vault: st.vault }).catch(() => undefined);
+  // R15: Rust empties the clipboard later if it still holds this text (and cancels on 0).
+  const secs = Settings.get('clipboardClearSecs');
+  invokeTauri('clipboard_clear_after', { text, secs }).catch(() => undefined);
 });
 
 /**
@@ -1344,6 +1348,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultAccount: '',
   defaultExportFormat: 'dotenv',
   autoLockMinutes: 60,
+  clipboardClearSecs: 30,
   lockOnHide: false,
   maskKeysByDefault: true,
   showExpiryWarning: true,
