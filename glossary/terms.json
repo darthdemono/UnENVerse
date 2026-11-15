@@ -48,12 +48,37 @@
       "see_also": ["app-purpose"]
     },
     {
+      "id": "app-org",
+      "term": "Org name",
+      "category": "field",
+      "aliases": ["app_org"],
+      "definition": "The organisation that owns the app this secret was made for, or its account with the issuer.",
+      "see_also": ["app-name", "app-url", "app-version"]
+    },
+    {
       "id": "app-purpose",
       "term": "App purpose",
       "category": "field",
       "aliases": ["app_purpose"],
       "definition": "What that app does with this secret.",
       "see_also": ["app-name"]
+    },
+    {
+      "id": "app-url",
+      "term": "App URL",
+      "category": "field",
+      "aliases": ["app_url"],
+      "definition": "Where the app this secret was made for lives: its homepage or console. It is separate from the sites the secret is used on and from the issuer's API URL. It must be an http or https address with no user name or password in it, and only such an address is shown as a link.",
+      "example": "https://github.com/apps/release-bot",
+      "see_also": ["api-url", "app-name", "app-org"]
+    },
+    {
+      "id": "app-version",
+      "term": "App version",
+      "category": "field",
+      "aliases": ["app_version"],
+      "definition": "The version of the app that uses this secret. The API or SDK version the key was issued for is a separate field.",
+      "see_also": ["app-name", "app-org"]
     },
     {
       "id": "attachments",
