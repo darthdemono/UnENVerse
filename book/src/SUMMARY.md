@@ -13,6 +13,8 @@
 - [The scripting contract](contract.md)
 - [Paste guard](paste-guard.md)
 - [Keeping secrets away from an agent](agent-safety.md)
+- [Password recipes](password-recipes.md)
+- [Sites and login plans](sites-and-login-plans.md)
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
 - [Plugins](plugins.md)
