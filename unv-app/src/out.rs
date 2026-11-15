@@ -195,7 +195,15 @@ const PUBLIC_FIELDS: [&str; 44] = [
 
 /// Fields carrying a TOTP seed's non-secret parameters, listed separately only
 /// because [`PUBLIC_FIELDS`] is a fixed-size array and these arrived later.
-const PUBLIC_FIELDS_EXTRA: [&str; 4] = ["totp_digits", "totp_period", "totp_kind", "totp_counter"];
+const PUBLIC_FIELDS_EXTRA: [&str; 6] = [
+    "totp_digits",
+    "totp_period",
+    "totp_kind",
+    "totp_counter",
+    // R40: addresses and the family an entry answers on. Public metadata, not credentials.
+    "sites",
+    "site_family",
+];
 
 /// Phase 23 fields. Names, roles and flags — none of them hold secret material.
 ///

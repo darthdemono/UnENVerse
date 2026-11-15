@@ -214,7 +214,7 @@ pub fn find_entry_index(vault: &Value, query: &str) -> CliResult<usize> {
     }
 }
 
-fn id_of(e: &Value) -> &str {
+pub fn id_of(e: &Value) -> &str {
     e.get("id").and_then(|v| v.as_str()).unwrap_or("")
 }
 

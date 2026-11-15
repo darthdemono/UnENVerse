@@ -20,7 +20,7 @@
 use unv_app::error::{CliError, CliResult};
 use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
-    emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
+    emit_cmd, site_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
     migrate, node_cmd, oauth_cmd, out, password_sources, pool, projects, recovery_ops, render,
     scan, session, session_cmd, shield, uid_cmd, users_cmd,
 };
@@ -557,6 +557,11 @@ enum Commands {
     Codes {
         #[command(subcommand)]
         cmd: CodesCmd,
+    },
+    /// Sites: the addresses an entry is used at, and families of hosts that share one entry.
+    Site {
+        #[command(subcommand)]
+        cmd: SiteCmd,
     },
     /// Bundles: one card for several entries that belong together.
     Bundle {
@@ -2154,6 +2159,46 @@ enum OauthCmd {
     /// no redirects). If the issuer rotates the refresh token, the new one is
     /// stored in the vault before anything is reported.
     Refresh { entry: String },
+}
+
+#[derive(Subcommand)]
+enum SiteCmd {
+    /// List an entry's addresses (its `api_url` counts as one) and its family.
+    Ls { entry: String },
+    /// Add an address: a URL, `host:port` or a bare host. The path is dropped.
+    Add {
+        entry: String,
+        url: String,
+        /// web | api | local | other | android_app (guessed from the host when omitted).
+        #[arg(long)]
+        kind: Option<String>,
+        /// exact | any_port | host | never.
+        #[arg(long)]
+        mode: Option<String>,
+        #[arg(long)]
+        label: Option<String>,
+    },
+    /// Remove an address.
+    Rm { entry: String, url: String },
+    /// Which entries are offered at an origin. Prints names and ids, never values.
+    Match { origin: String },
+    /// Families: named sets of hosts that share one entry.
+    Family {
+        #[command(subcommand)]
+        cmd: FamilyCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum FamilyCmd {
+    /// List the families.
+    Ls,
+    /// Add hosts to a family, creating it.
+    Add { name: String, hosts: Vec<String> },
+    /// Remove a host from a family, or the whole family when no host is given.
+    Rm { name: String, host: Option<String> },
+    /// Make an entry answer on every host of a family (an empty NAME clears it).
+    Use { entry: String, name: String },
 }
 
 #[derive(Subcommand)]
@@ -4405,6 +4450,22 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
         }
         Commands::Oauth { cmd } => match cmd {
             OauthCmd::Refresh { entry } => oauth_cmd::refresh(a, entry, yes),
+        },
+        Commands::Site { cmd } => match cmd {
+            SiteCmd::Ls { entry } => site_cmd::ls(a, entry),
+            SiteCmd::Add { entry, url, kind, mode, label } => {
+                site_cmd::add(a, entry, url, kind.as_deref(), mode.as_deref(), label.as_deref())
+            }
+            SiteCmd::Rm { entry, url } => site_cmd::rm(a, entry, url),
+            SiteCmd::Match { origin } => site_cmd::matches(a, origin),
+            SiteCmd::Family { cmd } => match cmd {
+                FamilyCmd::Ls => site_cmd::family_ls(a),
+                FamilyCmd::Add { name, hosts } => site_cmd::family_add(a, name, hosts),
+                FamilyCmd::Rm { name, host } => site_cmd::family_rm(a, name, host.as_deref()),
+                FamilyCmd::Use { entry, name } => {
+                    site_cmd::family_use(a, entry, (!name.is_empty()).then_some(name.as_str()))
+                }
+            },
         },
         Commands::Codes { cmd } => match cmd {
             CodesCmd::Status { entry } => emit_cmd::codes_status(a, entry),
