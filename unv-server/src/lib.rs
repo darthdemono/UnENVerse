@@ -2069,19 +2069,9 @@ async fn list_users_handler(
     }
 }
 
-/// The shortest password a named user may be given. The per-address limiter is the only other
-/// defence of a named account, and an empty or one-letter password used to be accepted.
-const MIN_USER_PASSWORD_CHARS: usize = 12;
-
 fn check_user_password(password: Option<&str>) -> Result<(), axum::response::Response> {
-    match password {
-        Some(p) if p.chars().count() < MIN_USER_PASSWORD_CHARS => Err(err_json(
-            StatusCode::BAD_REQUEST,
-            &format!("A password must be at least {MIN_USER_PASSWORD_CHARS} characters"),
-        )
-        .into_response()),
-        _ => Ok(()),
-    }
+    vault_core::users::check_user_password(password)
+        .map_err(|m| err_json(StatusCode::BAD_REQUEST, &m).into_response())
 }
 
 async fn create_user_handler(

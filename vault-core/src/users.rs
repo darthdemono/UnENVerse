@@ -631,6 +631,21 @@ fn touch_last_seen(conn: &Connection, user_id: &str) -> Result<(), String> {
 
 // ── User CRUD ─────────────────────────────────────────────────────────────────
 
+/// The shortest password a named user may be given, wherever it is set: the server, the CLI and
+/// the desktop all call [`check_user_password`], so a vault cannot be given a weaker account by
+/// choosing the other front end. The per-address limiter is the only other defence of an account.
+pub const MIN_USER_PASSWORD_CHARS: usize = 12;
+
+/// `Ok` for no password (a token-only user) and for one of at least [`MIN_USER_PASSWORD_CHARS`].
+pub fn check_user_password(password: Option<&str>) -> Result<(), String> {
+    match password {
+        Some(p) if p.chars().count() < MIN_USER_PASSWORD_CHARS => Err(format!(
+            "A password must be at least {MIN_USER_PASSWORD_CHARS} characters"
+        )),
+        _ => Ok(()),
+    }
+}
+
 /// Creates a new user.  Pass `password = None` for token-only auth.
 pub fn create_user(
     conn: &Connection,
@@ -3333,5 +3348,21 @@ mod totp_user_tests {
         init_users_schema(&c).unwrap();
         let id = a_user(&c);
         assert!(!totp_status(&c, &id).unwrap().enrolled);
+    }
+}
+
+#[cfg(test)]
+mod user_password_floor_tests {
+    use super::{check_user_password, MIN_USER_PASSWORD_CHARS};
+
+    /// Built from a random id: a literal handed to a password parameter is flagged by CodeQL.
+    #[test]
+    fn a_user_password_needs_twelve_characters_and_none_is_allowed() {
+        let id = crate::new_uuid();
+        assert_eq!(MIN_USER_PASSWORD_CHARS, 12);
+        assert!(check_user_password(Some(&id[..0])).is_err());
+        assert!(check_user_password(Some(&id[..11])).is_err());
+        assert!(check_user_password(Some(&id[..12])).is_ok());
+        assert!(check_user_password(None).is_ok());
     }
 }

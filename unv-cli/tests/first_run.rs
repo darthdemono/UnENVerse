@@ -101,3 +101,37 @@ fn doctor_on_a_machine_with_no_vault_says_there_is_none_yet() {
         "doctor must not create anything"
     );
 }
+
+/// The bug: only `unv-server` demanded twelve characters for a named user's password. The same
+/// vault, opened locally by the CLI or the desktop, accepted any password, so a weak account
+/// could be made by choosing the other front end.
+#[test]
+fn a_local_user_needs_a_long_password_too() {
+    let dir = scratch("user");
+    let pw = long_password();
+    assert!(unv(&dir, Some(&pw), &["--init", "status"]).status.success());
+    let short = format!("s{}", std::process::id() % 100);
+    let refused = unv(
+        &dir,
+        Some(&pw),
+        &["user", "add", "bob", "--user-password", &short],
+    );
+    assert_eq!(
+        refused.status.code(),
+        Some(10),
+        "{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
+    let listed = unv(&dir, Some(&pw), &["user", "ls"]);
+    assert!(!String::from_utf8_lossy(&listed.stdout).contains("bob"));
+    let ok = unv(
+        &dir,
+        Some(&pw),
+        &["user", "add", "bob", "--user-password", &long_password()],
+    );
+    assert!(
+        ok.status.success(),
+        "{}",
+        String::from_utf8_lossy(&ok.stderr)
+    );
+}

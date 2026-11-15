@@ -151,6 +151,7 @@ pub fn user_add(
             );
         }
         Access::Local(_) => {
+            vault_core::users::check_user_password(pw.as_deref()).map_err(CliError::invalid)?;
             let conn = access.conn()?;
             let u = vault_core::create_user(&conn, username, pw.as_deref(), false)?;
             out::ok(
@@ -235,6 +236,7 @@ pub fn user_passwd(access: &Access, query: &str, clear: bool) -> CliResult {
             )?;
         }
         Access::Local(_) => {
+            vault_core::users::check_user_password(pw.as_deref()).map_err(CliError::invalid)?;
             let conn = access.conn()?;
             vault_core::set_user_password(&conn, &id, pw.as_deref())?;
         }
