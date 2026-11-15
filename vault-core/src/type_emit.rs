@@ -427,6 +427,69 @@ pub fn mark_used(entry: &Value, code: Option<&str>, date: &str) -> Result<String
     Ok(lines.join("\n"))
 }
 
+/// New value of `codes` with a used `code` restored to unused: the undo of [`mark_used`], for a
+/// code a page rejected after it was marked.
+pub fn unmark_used(entry: &Value, code: &str) -> Result<String, String> {
+    let mut lines = code_lines(entry);
+    let idx = lines
+        .iter()
+        .position(|l| l.split('\t').next() == Some(code.trim()))
+        .ok_or("that code is not in this entry")?;
+    let Some((text, _)) = lines[idx].split_once('\t') else {
+        return Err("that code is not marked used".into());
+    };
+    lines[idx] = text.to_string();
+    Ok(lines.join("\n"))
+}
+
+/// The codes in pasted text, from the layouts services print: one per line, `1.` or `-` list
+/// markers, groups separated by dashes or one space (`abcd efgh`), several on a line separated by
+/// commas or semicolons. Lines that are prose (no digit, or too long) are skipped, and a code
+/// already seen is kept once.
+pub fn parse_codes(pasted: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in pasted.lines() {
+        for part in line.split([',', ';']) {
+            let mut p = part.trim();
+            // A list marker: `1.`, `1)`, `-`, `*`.
+            if let Some((head, rest)) = p.split_once(['.', ')']) {
+                if !head.is_empty() && head.len() <= 2 && head.bytes().all(|b| b.is_ascii_digit()) {
+                    p = rest.trim();
+                }
+            }
+            let p = p.trim_start_matches(['-', '*', '\u{2022}']).trim();
+            let squeezed: String = p.split_whitespace().collect::<Vec<_>>().join(" ");
+            let dense = squeezed.replace([' ', '-'], "");
+            let groups = squeezed.split(' ').count();
+            let looks_like_code = (6..=40).contains(&dense.len())
+                && groups <= 3
+                && dense.chars().all(|c| c.is_ascii_alphanumeric())
+                && dense.chars().any(|c| c.is_ascii_digit());
+            if looks_like_code && !out.contains(&squeezed) {
+                out.push(squeezed);
+            }
+        }
+    }
+    out
+}
+
+/// New value of `codes` with `new` appended to the existing lines (a code already there, used or
+/// not, is not added twice). Returns the text and how many were added.
+pub fn add_codes(entry: &Value, new: &[String]) -> (String, usize) {
+    let mut lines = code_lines(entry);
+    let mut added = 0;
+    for c in new {
+        if !lines
+            .iter()
+            .any(|l| l.split('\t').next() == Some(c.as_str()))
+        {
+            lines.push(c.clone());
+            added += 1;
+        }
+    }
+    (lines.join("\n"), added)
+}
+
 // ── BIP39 ────────────────────────────────────────────────────────────────────
 
 const BIP39: &str = include_str!("../data/bip39-english.txt");
@@ -747,5 +810,50 @@ mod tests {
         // Nothing to publish yet, and the wrong type, are errors that say so.
         assert!(emit(&e(vec![]), "jwks").unwrap_err().contains("public_key"));
         assert!(emit(&serde_json::json!({"secretType": "api_key"}), "jwks").is_err());
+    }
+
+    #[test]
+    fn unmarking_restores_exactly_the_marked_code() {
+        let e = serde_json::json!({ "extra_vars": [{ "key": "codes", "value": "aaaa-1111\nbbbb-2222" }] });
+        let marked = mark_used(&e, Some("aaaa-1111"), "2026-11-15").unwrap();
+        let e2 = serde_json::json!({ "extra_vars": [{ "key": "codes", "value": marked }] });
+        assert_eq!(code_status(&e2).remaining, 1);
+        let back = unmark_used(&e2, "aaaa-1111").unwrap();
+        assert_eq!(back, "aaaa-1111\nbbbb-2222");
+        let e3 = serde_json::json!({ "extra_vars": [{ "key": "codes", "value": back }] });
+        assert!(unmark_used(&e3, "aaaa-1111")
+            .unwrap_err()
+            .contains("not marked"));
+        assert!(unmark_used(&e3, "zzzz-9999")
+            .unwrap_err()
+            .contains("not in this entry"));
+    }
+
+    #[test]
+    fn pasted_codes_are_read_from_the_common_layouts_and_prose_is_skipped() {
+        let github = "Save these\n\nabcde-12345\nfghij-67890\n";
+        assert_eq!(parse_codes(github), ["abcde-12345", "fghij-67890"]);
+        let numbered = "1. 1234 5678\n2) 8765 4321\n- abcd1234";
+        assert_eq!(
+            parse_codes(numbered),
+            ["1234 5678", "8765 4321", "abcd1234"]
+        );
+        assert_eq!(
+            parse_codes("a1b2c3d4, e5f6g7h8; a1b2c3d4"),
+            ["a1b2c3d4", "e5f6g7h8"]
+        );
+        assert!(parse_codes("Backup codes\nKeep them safe\ntiny1").is_empty());
+        assert!(parse_codes("one two three four 12345678").is_empty());
+    }
+
+    #[test]
+    fn adding_codes_skips_ones_already_held_used_or_not() {
+        let e = serde_json::json!({ "extra_vars": [{ "key": "codes", "value": "aaaa-1111\tUSED 2026-01-01\nbbbb-2222" }] });
+        let (text, added) = add_codes(
+            &e,
+            &["aaaa-1111".into(), "cccc-3333".into(), "bbbb-2222".into()],
+        );
+        assert_eq!(added, 1);
+        assert!(text.ends_with("cccc-3333") && text.contains("USED"));
     }
 }
