@@ -12,7 +12,7 @@ use crate::out;
 use serde_json::{json, Value};
 
 /// The same fields, in the same order, as the app's Diff pane.
-const FIELDS: [(&str, &str); 16] = [
+const FIELDS: [(&str, &str); 19] = [
     ("provider", "Provider"),
     ("account_name", "Account"),
     ("api_key", "Key"),
