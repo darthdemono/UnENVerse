@@ -164,6 +164,15 @@ pub struct EntryFields {
     /// What that app does with this credential.
     #[arg(long)]
     pub app_purpose: Option<String>,
+    /// The organisation that owns that app, or its account with the issuer.
+    #[arg(long)]
+    pub app_org: Option<String>,
+    /// Where that app lives: its homepage or console (an http or https address).
+    #[arg(long)]
+    pub app_url: Option<String>,
+    /// The version of that app that uses this credential (the API version is --version).
+    #[arg(long)]
+    pub app_version: Option<String>,
     /// Key pool this entry joins, so `unv get --pool <name>` can swap onto it.
     ///
     /// Membership is explicit: two keys for the same provider do not pool
@@ -414,6 +423,22 @@ pub fn label_is_valid(v: &str) -> bool {
         _ => return false,
     }
     v.chars().count() <= 24 && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// An app URL is a homepage, so it is an http or https address with no user name or password in
+/// it. An empty value clears the field.
+fn check_app_url(v: &str) -> CliResult<()> {
+    let t = v.trim();
+    if t.is_empty() {
+        return Ok(());
+    }
+    let site = vault_core::sites::parse_site(t).map_err(CliError::invalid)?;
+    match site.scheme.as_deref() {
+        None | Some("http") | Some("https") => Ok(()),
+        Some(other) => Err(CliError::invalid(format!(
+            "an app URL is an http or https address, not `{other}://`"
+        ))),
+    }
 }
 
 /// A real calendar day `YYYY-MM-DD`, optionally followed by a time (`T…`). The health
@@ -792,6 +817,16 @@ impl EntryFields {
         }
         if let Some(v) = &self.app_purpose {
             set_str(entry, "app_purpose", v);
+        }
+        if let Some(v) = &self.app_org {
+            set_str(entry, "app_org", v);
+        }
+        if let Some(v) = &self.app_url {
+            check_app_url(v)?;
+            set_str(entry, "app_url", v.trim());
+        }
+        if let Some(v) = &self.app_version {
+            set_str(entry, "app_version", v);
         }
         if let Some(v) = &self.pool {
             set_str(entry, "pool", v.trim());
@@ -2454,5 +2489,25 @@ mod secret_type_tests {
             cli, registry_refs,
             "unv-cli's --type list and secret-types.json disagree"
         );
+    }
+}
+
+#[cfg(test)]
+mod app_url_tests {
+    use super::check_app_url;
+
+    /// The bug this guards against: an app URL typed with the credential in it
+    /// (`https://bot:token@host/app`) would be stored, printed and shown as a link.
+    #[test]
+    fn an_app_url_is_an_http_address_without_credentials_and_empty_clears_it() {
+        assert!(check_app_url("https://github.com/apps/release-bot").is_ok());
+        assert!(check_app_url("http://localhost:8989/").is_ok());
+        assert!(check_app_url("release-bot.example.com").is_ok());
+        assert!(check_app_url("  ").is_ok());
+        assert!(check_app_url("").is_ok());
+        assert!(check_app_url("https://bot:hunter2@example.com/app").is_err());
+        assert!(check_app_url("ssh://host/app").is_err());
+        assert!(check_app_url("javascript:alert(1)").is_err());
+        assert!(check_app_url("https://exam ple.com").is_err());
     }
 }
