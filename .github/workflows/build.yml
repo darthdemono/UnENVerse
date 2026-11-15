@@ -358,7 +358,7 @@ jobs:
           fi
           echo "Locale::Maketext::Simple loads — OpenSSL's Configure will run."
 
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
 
@@ -523,7 +523,7 @@ jobs:
           fi
           echo "Locale::Maketext::Simple loads — OpenSSL's Configure will run."
 
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
 
