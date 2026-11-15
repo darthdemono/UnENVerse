@@ -135,3 +135,38 @@ fn a_local_user_needs_a_long_password_too() {
         String::from_utf8_lossy(&ok.stderr)
     );
 }
+
+/// The security phrase is the third credential of a login, after the password and the 2FA code.
+/// It is a secret like the password: listed in the type list, stored, and never printed.
+#[test]
+fn a_security_phrase_is_accepted_and_never_printed() {
+    let dir = scratch("phrase");
+    let pw = long_password();
+    let phrase = format!("my-first-pet-{}", std::process::id());
+    let added = unv(
+        &dir,
+        Some(&pw),
+        &[
+            "--init",
+            "entry",
+            "add",
+            "Bank phrase",
+            "--type",
+            "security_phrase",
+            "--key",
+            &phrase,
+        ],
+    );
+    assert!(
+        added.status.success(),
+        "{}",
+        String::from_utf8_lossy(&added.stderr)
+    );
+    let shown = unv(&dir, Some(&pw), &["get", "Bank phrase"]);
+    let text = String::from_utf8_lossy(&shown.stdout).to_string();
+    assert!(text.contains("security_phrase"), "{text}");
+    assert!(
+        !text.contains(&phrase),
+        "the phrase must not be printed: {text}"
+    );
+}

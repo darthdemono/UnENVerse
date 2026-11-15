@@ -314,6 +314,15 @@ export const TYPE_CONFIG: Record<SecretType, TypeConfig> = {
     keyLabel: 'Value',
     keyPlaceholder: '',
   },
+  // Unlike the sixteen above this one has a primary value, the phrase itself, and an option in
+  // the type picker: it is filled third in a login (password, 2FA, phrase, recovery code).
+  security_phrase: {
+    providerLabel: 'Service',
+    providerPlaceholder: 'e.g. Bank memorable phrase',
+    showAccount: false,
+    keyLabel: 'Security phrase',
+    keyPlaceholder: 'The phrase the site asks for',
+  },
 };
 
 // ── Dynamic form fields ───────────────────────────────────────────────────

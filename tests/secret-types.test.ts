@@ -48,12 +48,21 @@ const NEW_SIXTEEN = [
 ];
 
 describe('secret-types registry', () => {
-  it('has exactly the ten existing plus sixteen new types', () => {
+  it('has exactly the ten existing, sixteen new and the security phrase', () => {
     const ids = registry().map((t) => t.id);
-    for (const id of [...EXISTING_TEN, ...NEW_SIXTEEN]) {
+    for (const id of [...EXISTING_TEN, ...NEW_SIXTEEN, 'security_phrase']) {
       expect(ids).toContain(id);
     }
-    expect(ids.length).toBe(EXISTING_TEN.length + NEW_SIXTEEN.length);
+    expect(ids.length).toBe(EXISTING_TEN.length + NEW_SIXTEEN.length + 1);
+  });
+
+  // A phrase is filled third in a login (password, 2FA, phrase, recovery code), so unlike the
+  // sixteen it has a primary value and is never exported whole.
+  it('security_phrase has a primary value and rotates by hand', () => {
+    const t = findSecretType('security_phrase');
+    expect(t?.primary).toBe('api_key');
+    expect(t?.rotation).toBe('none');
+    expect(t?.probe).toBe(false);
   });
 
   it('every id is unique', () => {

@@ -153,6 +153,7 @@ describe('TYPE_CONFIG', () => {
       'recovery_codes',
       'registry_token',
       'secure_note',
+      'security_phrase',
       'signing_key',
       'ssh_key',
       'tracker',

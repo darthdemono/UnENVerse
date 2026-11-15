@@ -299,7 +299,7 @@ pub struct EntryFields {
 /// clap's `value_parser` attribute wants something `const`-evaluable, and a
 /// JSON-backed `Vec` is not. `tests::secret_types_matches_the_registry`
 /// catches drift instead of preventing it by construction.
-pub const SECRET_TYPES: [&str; 26] = [
+pub const SECRET_TYPES: [&str; 27] = [
     "api_key",
     "password",
     "certificate",
@@ -326,6 +326,7 @@ pub const SECRET_TYPES: [&str; 26] = [
     "passkey",
     "secure_note",
     "identity_document",
+    "security_phrase",
 ];
 
 pub const ENV_SUBTYPES: [&str; 11] = [
