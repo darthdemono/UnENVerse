@@ -39,7 +39,7 @@ Pin the program by content so a swapped binary or a retargeted symlink is refuse
 unv exec --sandbox --entry Tok=TOK -- make build
 ```
 
-On Linux the command runs under bubblewrap: the file system is read-only, the home directory is empty, `.env*` files in the working directory are hidden, and the network is off (`--sandbox-net` turns it on). Where that cannot be enforced it exits 7 and runs nothing. There is no host allowlist, because a trusted host can still serve a payload.
+On Linux the command runs under bubblewrap: the file system is read-only, the home directory, the runtime directory (`$XDG_RUNTIME_DIR`, where the session bus and agent sockets live) and the vault's directory are empty, `.env*` files in the working directory are hidden, and the network is off (`--sandbox-net` turns it on). It refuses to run from the home directory itself, because the working directory stays readable. Where that cannot be enforced it exits 7 and runs nothing. There is no host allowlist, because a trusted host can still serve a payload.
 
 ## Keys that never sit in `~/.ssh`
 
