@@ -14,6 +14,10 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 - `rusqlite` 0.42.0 (SQLCipher 4.20.0 on SQLite 3.54.1 through `libsqlite3-sys` 0.40.0) and `rustix` 1.1.6, for RUSTSEC-2026-0459, RUSTSEC-2026-0502 and RUSTSEC-2026-0486.
 
+### Added
+
+- Secret type `security_phrase`: the phrase a site asks for beside the password and the 2FA code, kept as its own entry (listed in the type picker under Personal, redacted like a password). It is the third step of a login after the password and the 2FA code; the ordered login sequence, the recovery-code terminate option and the browser fill are planned as R36 and R37.
+
 ### Fixed
 
 - The desktop counted a new master password and a backup password in UTF-16 units, so six emoji passed as twelve characters while the CLI and the Rust side, which count characters, refuse them. Both screens now count characters.
