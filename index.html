@@ -1158,6 +1158,20 @@
             <input class="form-input" id="f-app-purpose" placeholder="Posts release notes to Discord">
           </div>
         </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="f-app-org" class="form-label" data-field="app_org" title="The organisation that owns that app, or its account with the issuer.">Org name <span class="opt">optional, who owns the app</span></label>
+            <input class="form-input" id="f-app-org" placeholder="darthdemono-labs">
+          </div>
+          <div class="form-group">
+            <label for="f-app-url" class="form-label" data-field="app_url" title="Where that app lives: its homepage or console. Separate from the sites this secret is used on and from the issuer's API URL.">App URL <span class="opt">optional, the app's homepage</span></label>
+            <input class="form-input" id="f-app-url" placeholder="https://github.com/apps/release-bot">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="f-app-version" class="form-label" data-field="app_version" title="The version of that app that uses this secret. The API or SDK version has its own field.">App version <span class="opt">optional, the app's own version</span></label>
+          <input class="form-input" id="f-app-version" placeholder="2.4.1">
+        </div>
         <div class="form-group">
           <label for="f-apidesc" class="form-label" data-field="api_description">API Description <span
               class="opt">optional</span></label>

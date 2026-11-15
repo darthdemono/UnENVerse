@@ -404,12 +404,25 @@ describe('text search reads every descriptive field', () => {
         purpose: 'billing runs',
         app_name: 'Release bot',
         app_purpose: 'posts notes',
+        app_org: 'darthdemono-labs',
+        app_url: 'https://github.com/apps/release-bot',
+        app_version: '2.4.1',
         api_url: 'https://api.acme.test',
         api_key: 'hidden-value-123',
       }),
       makeEntry({ provider: 'B' }),
     ];
-    for (const q of ['joy.login', 'prod', 'billing', 'release', 'posts', 'acme.test']) {
+    for (const q of [
+      'joy.login',
+      'prod',
+      'billing',
+      'release',
+      'posts',
+      'acme.test',
+      'darthdemono-labs',
+      'apps/release-bot',
+      '2.4.1',
+    ]) {
       st.searchQ = q;
       expect(getFiltered().map((e) => e.provider)).toEqual(['A']);
     }
