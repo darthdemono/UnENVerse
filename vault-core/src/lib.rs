@@ -49,6 +49,7 @@ pub mod textdiff;
 // Phase 24.5: the secret-type registry — one JSON descriptor file, read here
 // and imported as plain JSON by the TypeScript side.
 pub mod login;
+pub mod recipe;
 pub mod secret_types;
 pub mod sites;
 // Phase 24.5: FIDO CXF import/export.
