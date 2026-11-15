@@ -31,7 +31,7 @@ the parts and actors are described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Not defended against
 
-Root on a running machine while the vault is unlocked (the key is in memory), any
+A fresh `unv-server` with no vault yet (it belongs to the first caller that sends it a password of 12 characters or more: create it from `UNV_PASSWORD`, or keep it on localhost until the vault exists), root on a running machine while the vault is unlocked (the key is in memory), any
 process of your own OS user while **Allow local scripts** is on (it can read the
 entries you flagged through the desktop's 0600 socket; off by default, per entry,
 ADR-0172), a
