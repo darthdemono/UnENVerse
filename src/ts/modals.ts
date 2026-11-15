@@ -31,6 +31,7 @@ import { iconHTML, openIconPicker, iconPicker, setIconField, readIconField } fro
 import { renameProviderRefs } from './chunk-ops';
 import { normalizeRateLimit } from './ratelimit';
 import { invokeTauri, isTauri } from './tauri';
+import { recipeView } from './recipes-pane';
 import { emittersFor } from './secret-types';
 import { showWifiQr } from './wifi-qr';
 import { buildCopyText, type CopyProfile, type MetadataStyle } from './copy-profile';
@@ -556,6 +557,7 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
     api_url: getVal('f-apiurl') || undefined,
     sites: readSites(base),
     site_family: getVal('f-site-family') || undefined,
+    recipe: getVal('f-recipe') || undefined,
     callback_url: getVal('f-cburl') || undefined,
     version: getVal('f-version') || undefined,
     // The rate limit is three fields that must agree, so it is read as a unit
@@ -2002,6 +2004,85 @@ function wireNamePreview(): void {
  */
 let _editTarget: VaultEntry | undefined;
 
+/** A hand edit of the value means the recipe no longer made it, so the record is dropped. */
+function clearMadeBy(): void {
+  _madeBy = null;
+}
+
+/** Set by "Make from recipe" and stored with the entry so its card can say how the password was made. */
+let _madeBy: VaultEntry['generated_by'] = null;
+
+/**
+ * The recipe picker and its button (R41). The picker holds the saved recipes plus "automatic" (the
+ * entry's rule or the vault default) and "none"; the button asks Rust for one password from the
+ * chosen recipe, using the form's own values for the tokens, and puts it in the value field. The
+ * generator is the one in `vault_core::recipe`; this form only chooses and asks.
+ */
+function wireRecipeField(entry: VaultEntry | undefined): void {
+  _madeBy = null;
+  const sel = document.getElementById('f-recipe') as HTMLSelectElement;
+  const note = document.getElementById('f-recipe-note')!;
+  note.textContent = entry?.generated_by
+    ? `Made by recipe ${entry.generated_by.recipe} on ${entry.generated_by.at}.`
+    : '';
+  const saved = (recipeView().recipes ?? []).map((r) => r.name);
+  sel.replaceChildren(new Option('Automatic (rule or default)', ''), new Option('None', 'none'));
+  for (const n of saved) sel.add(new Option(n, n));
+  sel.value = entry?.recipe ?? '';
+  if (sel.value !== (entry?.recipe ?? '')) sel.value = '';
+  document.getElementById('f-key')!.addEventListener('input', clearMadeBy);
+  (document.getElementById('f-recipe-make') as HTMLButtonElement).onclick = () => {
+    void makeFromRecipe(entry);
+  };
+}
+
+async function makeFromRecipe(entry: VaultEntry | undefined): Promise<void> {
+  const note = document.getElementById('f-recipe-note')!;
+  if (!isTauri()) {
+    note.textContent = 'Recipes need the desktop app: the generator runs in Rust.';
+    return;
+  }
+  try {
+    const draft = formToEntry(entry);
+    const view = recipeView();
+    let name = draft.recipe ?? '';
+    if (!name) {
+      const hit = await invokeTauri<{ recipe: string } | null>('recipe_resolve', {
+        vault: view,
+        entry: draft,
+      });
+      if (!hit) {
+        note.textContent = 'No recipe applies to this entry. Pick one, or add a rule in Tools.';
+        return;
+      }
+      name = hit.recipe;
+    }
+    const recipe = (view.recipes ?? []).find((r) => r.name === name);
+    if (!recipe) {
+      note.textContent =
+        name === 'none' ? 'Recipes are switched off for this entry.' : `No recipe named ${name}.`;
+      return;
+    }
+    const made = await invokeTauri<{ samples: string[] }>('recipe_preview', {
+      template: recipe.template,
+      options: recipe.options ?? {},
+      vault: view,
+      entry: draft,
+      count: 1,
+    });
+    (document.getElementById('f-key') as HTMLInputElement).value = made.samples[0];
+    _madeBy = {
+      recipe: name,
+      version: 1,
+      counter: (entry?.generated_by?.counter ?? 0) + 1,
+      at: new Date().toISOString().slice(0, 10),
+    };
+    note.textContent = `Made from recipe ${name}. Save to keep it.`;
+  } catch (e) {
+    note.textContent = errorMessage(e);
+  }
+}
+
 export function openModal(title: string, idx: number) {
   _editTarget = idx >= 0 ? st.vault.api_keys[idx] : undefined;
   document.getElementById('modal-title')!.textContent = title;
@@ -2022,6 +2103,7 @@ export function openModal(title: string, idx: number) {
   wireExtraVarsAdd();
   wireGeneratorPopover();
   resetGeneratorPopover();
+  wireRecipeField(_editTarget);
   // R15: the optional sections stay folded when adding, so the form opens on the few fields a
   // new secret needs, and open when editing, where whatever is already filled in must be seen.
   const more = document.getElementById('f-more');
@@ -2319,6 +2401,7 @@ export async function saveModal() {
     }
     const old = opened ? st.vault.api_keys[openedAt] : undefined;
     const entry = formToEntry(old);
+    if (_madeBy) entry.generated_by = _madeBy;
     const t = entry.secretType || 'api_key';
     if (t === 'bundle') {
       const members = st.vault.api_keys.filter((member) => member.bundle_id === entry.id);

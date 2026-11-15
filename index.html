@@ -1083,6 +1083,14 @@
             <input class="form-input mono" id="f-cburl" type="text" placeholder="https://yourapp.com/oauth/cb">
           </div>
         </div>
+        <div class="form-group" id="f-recipe-group">
+          <label for="f-recipe" class="form-label" data-field="recipe">Password recipe <span class="opt">optional</span></label>
+          <div class="tool-row">
+            <select class="form-input" id="f-recipe"></select>
+            <button type="button" id="f-recipe-make" class="btn btn-ghost btn-sm" title="Make the value from the recipe">Make from recipe</button>
+          </div>
+          <div id="f-recipe-note" class="tool-status" style="font-size:11px;color:var(--text3)" role="status" aria-live="polite"></div>
+        </div>
         <div class="form-group" id="f-sites-group">
           <label for="f-sites" class="form-label" data-field="sites">Addresses <span class="opt">optional, one per line</span></label>
           <textarea class="form-input mono" id="f-sites" rows="2" autocomplete="off" spellcheck="false" placeholder="localhost:8989&#10;https://sonarr.home.lan"></textarea>
