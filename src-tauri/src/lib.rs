@@ -404,13 +404,11 @@ mod commands {
         // one here made every unlock report "Wrong master password" for a
         // password that was perfectly correct.
         vault_core::rekey::recover_interrupted(&db, &salt_file, &password)?;
-        vault_core::rekey::recover_interrupted(&db, &salt_file, &password)?;
         vault_core::check_salt_pairing(&db, &salt_file)?;
         let salt = vault_core::read_or_create_salt(&salt_file)?;
         let key = vault_core::derive_key(&password, &salt)?;
         let conn = vault_core::open_db(&db, &key)?;
         vault_core::init_schema(&conn)?;
-        vault_core::rekey::cleanup_after_unlock(&db, &salt_file);
         vault_core::rekey::cleanup_after_unlock(&db, &salt_file);
 
         // Phase 1 migration: import legacy vault.json then remove it.
