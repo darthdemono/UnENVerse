@@ -4,6 +4,15 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Added
+
+- Three more fields beside App name and App purpose, for the app a credential was made for: **Org name** (`--app-org`, who owns the app or its account), **App URL** (`--app-url`, its homepage or console; an http or https address, and one with a user name or password in it is refused) and **App version** (`--app-version`, the app's own version; the API or SDK version stays in `--version`). They are in the add and edit form, on the card, in search, in `unv diff`, and in the copy profiles as `APP_ORG`, `APP_URL` and `APP_VERSION`.
+- The `full` copy profile includes `USERNAME` and `EMAIL`.
+
+### Changed
+
+- Username and email are separate fields on every secret type in the add and edit form. Before, the row appeared only for passwords and SSH keys, so an API key or a database could not hold the login name or the address it was made with.
+
 ## 0.77.0 (2026-11-15)
 
 ### Security
