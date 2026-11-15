@@ -337,6 +337,40 @@ pub fn delete(a: &Access, bundle: &str, yes: bool) -> CliResult {
     Ok(())
 }
 
+/// The ordered steps of a bundle's login, with what happens to a spent recovery code. Names
+/// entries and fields; it never prints a value. `terminate` stores the setting first.
+pub fn login_plan(a: &Access, bundle: &str, terminate: Option<&str>) -> CliResult {
+    let mut vault = a.load_vault()?;
+    let idx = bundle_index(&vault, bundle)?;
+    if let Some(mode) = terminate {
+        let parsed = vault_core::login::Terminate::parse(mode)
+            .ok_or_else(|| CliError::invalid("--terminate-codes is ask, auto or never"))?;
+        entries_mut(&mut vault)[idx]["terminate_codes"] = json!(parsed.name());
+        a.save(&vault)?;
+    }
+    let list = data::entries(&vault);
+    let steps = vault_core::login::login_sequence(&list, &list[idx]);
+    let mode = vault_core::login::terminate_mode(&list[idx]).name();
+    let rows: Vec<Value> = steps
+        .iter()
+        .map(|st| json!({ "step": st.step, "label": st.label, "entry_id": st.entry_id, "field": st.field }))
+        .collect();
+    out::ok(
+        "login.plan",
+        json!({ "steps": rows, "terminate_codes": mode }),
+        || {
+            for (n, st) in steps.iter().enumerate() {
+                println!("{}. {}", n + 1, st.label);
+            }
+            if steps.is_empty() {
+                println!("This bundle has nothing to fill.");
+            }
+            println!("Used recovery codes: {mode}");
+        },
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,38 +407,4 @@ mod tests {
         attach(&mut v, 2, "b", "api").unwrap();
         assert_eq!(v["api_keys"][2]["bundle_order"], 20);
     }
-}
-
-/// The ordered steps of a bundle's login, with what happens to a spent recovery code. Names
-/// entries and fields; it never prints a value. `terminate` stores the setting first.
-pub fn login_plan(a: &Access, bundle: &str, terminate: Option<&str>) -> CliResult {
-    let mut vault = a.load_vault()?;
-    let idx = bundle_index(&vault, bundle)?;
-    if let Some(mode) = terminate {
-        let parsed = vault_core::login::Terminate::parse(mode)
-            .ok_or_else(|| CliError::invalid("--terminate-codes is ask, auto or never"))?;
-        entries_mut(&mut vault)[idx]["terminate_codes"] = json!(parsed.name());
-        a.save(&vault)?;
-    }
-    let list = data::entries(&vault);
-    let steps = vault_core::login::login_sequence(&list, &list[idx]);
-    let mode = vault_core::login::terminate_mode(&list[idx]).name();
-    let rows: Vec<Value> = steps
-        .iter()
-        .map(|st| json!({ "step": st.step, "label": st.label, "entry_id": st.entry_id, "field": st.field }))
-        .collect();
-    out::ok(
-        "login.plan",
-        json!({ "steps": rows, "terminate_codes": mode }),
-        || {
-            for (n, st) in steps.iter().enumerate() {
-                println!("{}. {}", n + 1, st.label);
-            }
-            if steps.is_empty() {
-                println!("This bundle has nothing to fill.");
-            }
-            println!("Used recovery codes: {mode}");
-        },
-    );
-    Ok(())
 }
