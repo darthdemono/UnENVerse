@@ -66,6 +66,7 @@ pub mod pool;
 pub mod profile;
 pub mod projects;
 pub mod ratelimit;
+pub mod recipe_cmd;
 pub mod recovery_ops;
 pub mod refs;
 pub mod release;
