@@ -430,6 +430,17 @@ describe('the Rust test job runs only the crates a change can affect', () => {
     // The bug this pins: every change used to run the 45 minute Rust job.
     expect(classify(['src/ts/render.ts', 'tests/a.test.ts'])).toEqual({ crates: '', rust: false });
   });
+
+  // The bug: a change to the site builder or the glossary data ran the whole Rust workspace,
+  // because `scripts/` and `glossary/` were "unplaced". Both only feed the site and its tests.
+  it('runs no Rust tests for a website, site-builder or glossary change', () => {
+    expect(
+      classify(['scripts/build-site.mjs', 'glossary/terms.json', 'website/styles.css']),
+    ).toEqual({ crates: '', rust: false });
+    expect(classify(['scripts/glossary-extract.mjs'])).toEqual({ crates: '', rust: false });
+    // Other scripts stay unplaced and still run everything.
+    expect(classify(['scripts/version.mjs']).crates).toBe('--workspace');
+  });
 });
 
 describe('security audit workflow', () => {
