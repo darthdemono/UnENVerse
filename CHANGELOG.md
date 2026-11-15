@@ -16,6 +16,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Fixed
 
+- `unv-server` creates a new vault only under a master password of 12 characters or more, from `POST /api/unlock` and from `UNV_PASSWORD` alike. Before, a fresh server took any password, an empty one included, while the desktop and CLI already refused short ones. A vault that exists opens as before.
 - `unv --init` no longer creates a vault under an empty or short master password. With no terminal and no password source the prompt used to fail silently and the vault was created with an empty password. A new vault now needs 12 characters, as in the desktop and `unv vault rekey`, and a password typed at a prompt is asked twice. Existing vaults open as before. The "No vault found" message now names the command to type, `unv --init status`.
 - `unv doctor` on a machine with no vault says "No vault here yet" and how to create one. It used to report the salt as missing and the vault as unopenable, with "there is no repair".
 - A second copy of the desktop app can unlock the vault. It used to fail with "Operations executor is already held" on a correct password; now it opens and leaves scheduled operations to the copy that started first.
