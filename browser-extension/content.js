@@ -110,6 +110,10 @@
    */
   function install(doc, send, hooks) {
     function onPaste(e) {
+      // A paste the page made up itself is not the person's clipboard. Answering it would let
+      // the page ask "is this string in the vault?" as often as it likes and read the answer
+      // off the warning appearing, so only a real paste is checked.
+      if (!e.isTrusted && !(hooks && hooks.allowSynthetic)) return;
       var data = e.clipboardData;
       if (!data) return;
       var text = data.getData('text/plain');
