@@ -51,6 +51,12 @@ allow = [
   "ISC", "Unicode-3.0", "Zlib", "MPL-2.0", "CC0-1.0", "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
+# sqlcipher-src carries the SQLCipher source rusqlite builds from 0.41 on. "blessing"
+# is SQLite's public-domain dedication and WTFPL covers the libtomcrypt files in the
+# same archive; both place no condition on the program. Allowed for this crate only.
+exceptions = [
+  { crate = "sqlcipher-src", allow = ["blessing", "WTFPL"] },
+]
 
 [bans]
 multiple-versions = "warn"
