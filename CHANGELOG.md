@@ -16,6 +16,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Fixed
 
+- The desktop counted a new master password and a backup password in UTF-16 units, so six emoji passed as twelve characters while the CLI and the Rust side, which count characters, refuse them. Both screens now count characters.
+- Creating a vault on the desktop that fails without a message no longer says "Wrong password" about a password that was never set.
 - A named user's password needs 12 characters from the CLI (`unv user add`, `unv user passwd`) and the desktop as well, not only from `unv-server`. One check in `vault_core::users::check_user_password` now serves all three, so a weak account can no longer be made by choosing the other front end.
 - `unv-server` creates a new vault only under a master password of 12 characters or more, from `POST /api/unlock` and from `UNV_PASSWORD` alike. Before, a fresh server took any password, an empty one included, while the desktop and CLI already refused short ones. A vault that exists opens as before.
 - `unv --init` no longer creates a vault under an empty or short master password. With no terminal and no password source the prompt used to fail silently and the vault was created with an empty password. A new vault now needs 12 characters, as in the desktop and `unv vault rekey`, and a password typed at a prompt is asked twice. Existing vaults open as before. The "No vault found" message now names the command to type, `unv --init status`.
