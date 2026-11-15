@@ -185,6 +185,16 @@
       "id": "R35",
       "title": "paste guard",
       "state": "done"
+    },
+    {
+      "id": "R36",
+      "title": "secret phrases + recovery codes",
+      "state": "planned"
+    },
+    {
+      "id": "R37",
+      "title": "browser password manager",
+      "state": "planned"
     }
   ]
 }
