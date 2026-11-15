@@ -1383,6 +1383,7 @@ mod commands {
         username: String,
         password: Option<String>,
     ) -> Result<vault_core::UserRecord, String> {
+        vault_core::users::check_user_password(password.as_deref())?;
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
         let key = g.as_ref().ok_or("Vault is locked")?;
         let conn = vault_core::open_db(&db_path(&app)?, key)?;
@@ -1760,6 +1761,7 @@ mod commands {
         user_id: String,
         password: Option<String>,
     ) -> Result<(), String> {
+        vault_core::users::check_user_password(password.as_deref())?;
         let g = state.0.lock().map_err(|_| "State lock poisoned")?;
         let key = g.as_ref().ok_or("Vault is locked")?;
         let conn = vault_core::open_db(&db_path(&app)?, key)?;
