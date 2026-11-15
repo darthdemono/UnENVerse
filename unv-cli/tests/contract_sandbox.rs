@@ -66,8 +66,10 @@ fn a_sandboxed_command_gets_the_value_but_not_the_network_or_the_env_file() {
         return;
     }
     let v = vault("sandbox-run");
-    // The working directory for the child is the vault's directory.
-    let dir = v.db().parent().unwrap().to_path_buf();
+    // The sandbox hides the vault's own directory, so the child works in a project folder inside
+    // it, the way a project sits inside a home directory that is hidden.
+    let dir = v.db().parent().unwrap().join("project");
+    std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join(".env"), "PLAIN=top-secret-in-a-dotenv\n").unwrap();
     let o = v.run_in(
         &dir,
