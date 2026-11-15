@@ -241,6 +241,35 @@ describe('first run: creating the master password', () => {
     expect(unlock).not.toHaveBeenCalled();
   });
 
+  // The bug: the length was counted in UTF-16 units, so six emoji (twelve units, six characters)
+  // passed here while the Rust floor, which counts characters, refuses them everywhere else.
+  it('counts characters, not UTF-16 units, toward the twelve', async () => {
+    const unlock = vi.fn(async () => true);
+    st.store = tauriStore(unlock);
+    showUnlockModal(true);
+    const six = '\u{1F512}'.repeat(6);
+    fill(six, six);
+    await flush();
+    expect($('unlock-error').textContent).toContain('at least 12 characters');
+    expect(unlock).not.toHaveBeenCalled();
+    const twelve = '\u{1F512}'.repeat(12);
+    fill(twelve, twelve);
+    await flush();
+    expect(unlock).toHaveBeenCalledWith(twelve);
+  });
+
+  // The bug: when creating a vault failed for any reason with no message, the screen said
+  // "Wrong password" about a password that had never been set.
+  it('does not call a failed creation a wrong password', async () => {
+    st.store = tauriStore(async () => {
+      throw new Error('');
+    });
+    showUnlockModal(true);
+    fill('a-long-enough-password', 'a-long-enough-password');
+    await flush();
+    expect($('unlock-error').textContent).toBe('The vault could not be created');
+  });
+
   it('creates the vault and opens the app with a good password', async () => {
     const unlock = vi.fn(async () => true);
     st.store = tauriStore(unlock);

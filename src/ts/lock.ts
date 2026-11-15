@@ -462,7 +462,8 @@ export function showUnlockModal(isFirstRun: boolean) {
       showErr('Password cannot be empty.');
       return;
     }
-    if (isFirstRun && pw.length < 12) {
+    // Counted as characters, as the Rust side counts them: an emoji is two UTF-16 units here.
+    if (isFirstRun && [...pw].length < 12) {
       showErr('Use at least 12 characters for a secrets manager vault.');
       return;
     }
@@ -482,7 +483,10 @@ export function showUnlockModal(isFirstRun: boolean) {
     } catch (err) {
       submitBtn.disabled = false;
       submitBtn.textContent = isFirstRun ? 'Create Vault' : 'Unlock';
-      showErr(errorMessage(err) || 'Wrong password');
+      // A new vault has no wrong password: whatever failed is something else.
+      showErr(
+        errorMessage(err) || (isFirstRun ? 'The vault could not be created' : 'Wrong password'),
+      );
     }
   }
 

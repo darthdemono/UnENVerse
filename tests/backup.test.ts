@@ -66,6 +66,14 @@ describe('password floor', () => {
     expect(last(toasts).msg).toMatch(/at least 12/i);
   });
 
+  // The bug: six emoji are twelve UTF-16 units, so the app accepted a six-character backup
+  // password that the CLI (which counts characters) refuses.
+  it('counts characters, not UTF-16 units', async () => {
+    st.vault = makeVault({ api_keys: [makeEntry()] });
+    expect(await exportAndCapture('\u{1F512}'.repeat(6))).toBeNull();
+    expect(last(toasts).msg).toMatch(/at least 12/i);
+  });
+
   it('accepts a password at the floor', async () => {
     st.vault = makeVault({ api_keys: [makeEntry()] });
     expect(await exportAndCapture('123456789012')).not.toBeNull();
