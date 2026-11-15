@@ -108,6 +108,11 @@ pub fn get_password_for(provided: Option<&str>, user: Option<&str>) -> String {
         Some(u) => format!("Password for {u}: "),
         None => "Vault password: ".to_string(),
     };
+    prompt_secret(&prompt)
+}
+
+/// One hidden prompt; empty when there is no terminal to ask on.
+fn prompt_secret(prompt: &str) -> String {
     // Windows reads the prompt from the console device, not from stdin, so with
     // stdin closed or redirected (CI, a scheduled task, a service) it waits for a
     // console nobody is at, forever. Unix has no controlling terminal in those
@@ -117,6 +122,32 @@ pub fn get_password_for(provided: Option<&str>, user: Option<&str>) -> String {
         return String::new();
     }
     rpassword::prompt_password(prompt).unwrap_or_default()
+}
+
+/// The refusal for a password a new vault would be created under. The same floor as the desktop
+/// and `unv vault rekey`; an empty password is what a missing terminal produces, so it is the
+/// case this exists for.
+pub fn check_new_password(password: &str) -> CliResult<()> {
+    let min = vault_core::rekey::MIN_PASSWORD_CHARS;
+    if password.chars().count() < min {
+        return Err(CliError::invalid(format!(
+            "A new vault needs a master password of at least {min} characters. Set UNV_PASSWORD_FILE or UNV_PASSWORD, or run in a terminal to be asked."
+        )));
+    }
+    Ok(())
+}
+
+/// The password for a vault that does not exist yet. A password typed at a prompt is asked twice,
+/// because a typo here locks the person out of everything they add next.
+fn new_vault_password(provided: Option<&str>) -> CliResult<String> {
+    let pw = get_password(provided);
+    check_new_password(&pw)?;
+    if provided.is_none() && prompt_secret("Repeat vault password: ") != pw {
+        return Err(CliError::invalid(
+            "The two passwords differ; no vault was created.",
+        ));
+    }
+    Ok(pw)
 }
 
 // ── Local key derivation ──────────────────────────────────────────────────────
@@ -701,16 +732,39 @@ pub fn open_access(opts: &AuthOpts<'_>) -> CliResult<Access> {
     }
     if !default_db_path().exists() && !opts.init {
         return Err(CliError::unavailable(format!(
-            "No vault found at {}\nMake sure UnENVerse desktop app has been run at least once, or pass --init to create one here.",
+            "No vault found at {}\nMake sure UnENVerse desktop app has been run at least once, or run `unv --init status` to create one here.",
             default_db_path().display()
         )));
     }
+    let creating = opts.init && !default_db_path().exists();
     if opts.init {
         if let Some(parent) = default_db_path().parent() {
             std::fs::create_dir_all(parent).map_err(|e| CliError::from(e.to_string()))?;
         }
     }
-    let pw = get_password(opts.password);
+    let pw = if creating {
+        new_vault_password(opts.password)?
+    } else {
+        get_password(opts.password)
+    };
     let key = local_key(&pw)?;
     Ok(Access::Local(key))
+}
+
+#[cfg(test)]
+mod new_password_tests {
+    use super::check_new_password;
+
+    #[test]
+    fn a_new_vault_password_needs_twelve_characters_counted_as_characters() {
+        assert!(check_new_password("").is_err());
+        assert!(check_new_password("12345678901").is_err());
+        assert!(check_new_password("123456789012").is_ok());
+        // Twelve characters that are more than twelve bytes.
+        assert!(check_new_password(
+            "\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}"
+        )
+        .is_ok());
+        assert!(check_new_password("\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}").is_err());
+    }
 }
