@@ -106,8 +106,6 @@ interfaceMembers('src/ts/types.ts', 'VaultEntry', 'field');
 interfaceMembers('src/ts/types.ts', 'AppSettings', 'setting');
 
 // 4. The CLI's own contract.
-let cliCount = 0;
-let exitCodes = [];
 {
   const bin = process.env.UNV_BIN || 'unv';
   try {
@@ -129,7 +127,6 @@ let exitCodes = [];
           c.about ?? c.description ?? '',
           null,
         );
-        cliCount++;
       }
       for (const a of c.args ?? []) {
         const long = a.long ?? a.name;
@@ -147,7 +144,7 @@ let exitCodes = [];
       for (const s of c.subcommands ?? []) walk(s);
     };
     walk(d.command);
-    exitCodes = d.exit_codes ?? [];
+    const exitCodes = d.exit_codes ?? [];
     for (const e of Array.isArray(exitCodes) ? exitCodes : Object.entries(exitCodes)) {
       const code = Array.isArray(e) ? e[0] : (e.code ?? e.name);
       const text = Array.isArray(e) ? String(e[1]) : (e.meaning ?? e.description ?? '');
