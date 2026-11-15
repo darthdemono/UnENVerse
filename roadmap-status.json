@@ -225,6 +225,11 @@
       "id": "R43",
       "title": "unlock and session policy",
       "state": "planned"
+    },
+    {
+      "id": "R44",
+      "title": "glossary of every term",
+      "state": "partial"
     }
   ]
 }
