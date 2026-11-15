@@ -245,6 +245,10 @@ export interface VaultEntry {
   sites?: SiteRef[];
   /** A named set of hosts (kept in the vault) on which this entry is offered, such as `metabrainz`. */
   site_family?: string | null;
+  /** The password recipe this entry was pointed at by hand; `none` switches recipes off for it. */
+  recipe?: string | null;
+  /** How the stored password was made by a recipe: its name, a counter and the date. No secret and no draw. */
+  generated_by?: { recipe: string; version: number; counter: number; at: string } | null;
   /** OAuth or webhook callback URL. */
   callback_url?: string | null;
   /** ISO-8601 expiry date string, or `null` if the credential does not expire. */
