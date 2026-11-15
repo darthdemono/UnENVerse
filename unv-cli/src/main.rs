@@ -21,8 +21,8 @@ use unv_app::error::{CliError, CliResult};
 use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
     emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
-    migrate, node_cmd, oauth_cmd, out, password_sources, pool, projects, recovery_ops, render,
-    scan, session, session_cmd, shield, site_cmd, uid_cmd, users_cmd,
+    migrate, node_cmd, oauth_cmd, out, password_sources, pool, projects, recipe_cmd, recovery_ops,
+    render, scan, session, session_cmd, shield, site_cmd, uid_cmd, users_cmd,
 };
 use vault_core::calendar;
 
@@ -564,6 +564,11 @@ enum Commands {
         /// What happens to a recovery code once it has been filled: ask | auto | never.
         #[arg(long, value_parser = ["ask", "auto", "never"])]
         terminate_codes: Option<String>,
+    },
+    /// Password recipes: templates that make a password from random parts, lists, dates and facts.
+    Recipe {
+        #[command(subcommand)]
+        cmd: RecipeCmd,
     },
     /// Sites: the addresses an entry is used at, and families of hosts that share one entry.
     Site {
@@ -2166,6 +2171,119 @@ enum OauthCmd {
     /// no redirects). If the issuer rotates the refresh token, the new one is
     /// stored in the vault before anything is reported.
     Refresh { entry: String },
+}
+
+#[derive(Subcommand)]
+enum RecipeCmd {
+    /// Every token and transform a template may use, from the registry.
+    Tokens {
+        /// Only one group: Random, Lists, Entry data, Dates and counters, Your facts, Typed and linked, Transforms or Lengtheners.
+        #[arg(long)]
+        group: Option<String>,
+    },
+    /// List the saved recipes.
+    Ls,
+    /// Show a recipe's template and options.
+    Show { name: String },
+    /// Save a recipe: a template such as `{prefix}-{random:12:base62}` and its options.
+    Add {
+        name: String,
+        template: String,
+        /// Replace a recipe of that name; the options stay unless a flag changes them.
+        #[arg(long)]
+        replace: bool,
+        #[command(flatten)]
+        opts: unv_app::recipe_cmd::RecipeOpts,
+    },
+    /// Remove a recipe and the rules that name it.
+    Rm { name: String },
+    /// Make samples from a saved recipe or a template. Redacted unless --reveal.
+    Test {
+        /// A saved recipe's name, or a template.
+        target: String,
+        /// Use this entry's facts (provider, address, dates) for the tokens.
+        #[arg(long = "for")]
+        for_entry: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        count: usize,
+        #[command(flatten)]
+        opts: unv_app::recipe_cmd::RecipeOpts,
+    },
+    /// Make a password for an entry from its recipe and store it as its password.
+    Apply {
+        entry: String,
+        /// A recipe by name; without it the entry's own pick, a rule or the vault default applies.
+        #[arg(long)]
+        recipe: Option<String>,
+    },
+    /// Set the vault's default recipe (an empty name clears it).
+    Default { name: String },
+    /// Rules that assign a recipe by provider, site family, host, type, project or tag.
+    Rule {
+        #[command(subcommand)]
+        cmd: RuleCmd,
+    },
+    /// Your own word lists for list tokens.
+    List {
+        #[command(subcommand)]
+        cmd: ListSetCmd,
+    },
+    /// Your facts (a pet, a street) that templates may use as {var:name}.
+    Fact {
+        #[command(subcommand)]
+        cmd: FactCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum RuleCmd {
+    /// Add a rule at the end of the list.
+    Add {
+        #[arg(value_parser = ["provider", "family", "host", "type", "project", "tag"])]
+        kind: String,
+        value: String,
+        /// A recipe name, or `none` to switch recipes off for a match.
+        recipe: String,
+    },
+    /// List the rules in order.
+    Ls,
+    /// Remove a rule by its number.
+    Rm { n: usize },
+    /// Which recipe applies to an entry, and why.
+    Test { entry: String },
+}
+
+#[derive(Subcommand)]
+enum ListSetCmd {
+    /// Save a list of words (positional, or one per line from --file).
+    Add {
+        name: String,
+        words: Vec<String>,
+        #[arg(long)]
+        file: Option<String>,
+        /// The words are private: the strength estimate counts them as hidden.
+        #[arg(long)]
+        private: bool,
+    },
+    /// List the built-in lists and yours.
+    Ls,
+    /// Remove one of your lists.
+    Rm { name: String },
+}
+
+#[derive(Subcommand)]
+enum FactCmd {
+    /// Save a fact (private unless --public).
+    Set {
+        name: String,
+        value: String,
+        #[arg(long)]
+        public: bool,
+    },
+    /// List your facts; private values are redacted.
+    Ls,
+    /// Remove a fact.
+    Rm { name: String },
 }
 
 #[derive(Subcommand)]
@@ -4466,6 +4584,47 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             bundle,
             terminate_codes,
         } => bundle_cmd::login_plan(a, bundle, terminate_codes.as_deref()),
+        Commands::Recipe { cmd } => match cmd {
+            RecipeCmd::Tokens { group } => recipe_cmd::tokens(group.as_deref()),
+            RecipeCmd::Ls => recipe_cmd::ls(a),
+            RecipeCmd::Show { name } => recipe_cmd::show(a, name),
+            RecipeCmd::Add {
+                name,
+                template,
+                replace,
+                opts,
+            } => recipe_cmd::add(a, name, template, opts, *replace),
+            RecipeCmd::Rm { name } => recipe_cmd::rm(a, name),
+            RecipeCmd::Test {
+                target,
+                for_entry,
+                count,
+                opts,
+            } => recipe_cmd::test(a, target, for_entry.as_deref(), *count, opts),
+            RecipeCmd::Apply { entry, recipe } => recipe_cmd::apply(a, entry, recipe.as_deref()),
+            RecipeCmd::Default { name } => recipe_cmd::set_default(a, name),
+            RecipeCmd::Rule { cmd } => match cmd {
+                RuleCmd::Add { kind, value, recipe } => recipe_cmd::rule_add(a, kind, value, recipe),
+                RuleCmd::Ls => recipe_cmd::rule_ls(a),
+                RuleCmd::Rm { n } => recipe_cmd::rule_rm(a, *n),
+                RuleCmd::Test { entry } => recipe_cmd::rule_test(a, entry),
+            },
+            RecipeCmd::List { cmd } => match cmd {
+                ListSetCmd::Add {
+                    name,
+                    words,
+                    file,
+                    private,
+                } => recipe_cmd::list_add(a, name, words, file.as_deref(), *private),
+                ListSetCmd::Ls => recipe_cmd::list_ls(a),
+                ListSetCmd::Rm { name } => recipe_cmd::list_rm(a, name),
+            },
+            RecipeCmd::Fact { cmd } => match cmd {
+                FactCmd::Set { name, value, public } => recipe_cmd::fact_set(a, name, value, *public),
+                FactCmd::Ls => recipe_cmd::fact_ls(a),
+                FactCmd::Rm { name } => recipe_cmd::fact_rm(a, name),
+            },
+        },
         Commands::Site { cmd } => match cmd {
             SiteCmd::Ls { entry } => site_cmd::ls(a, entry),
             SiteCmd::Add { entry, url, kind, mode, label } => {
