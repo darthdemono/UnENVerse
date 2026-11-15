@@ -6,6 +6,9 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
+- `unv glossary [TERM]` explains a term from the same glossary the website uses: a field, setting, secret type, concept, command or flag, found by its title, its id or a stored name such as `api_key`. With no term it summarises the glossary, `--category` lists one category, and an unknown term exits 3 with near matches. It needs no vault or password.
+- The add and edit form's labels show the glossary definition when you hover them, and Tools has a **Glossary** pane that searches every term.
+
 - The website has a **glossary** at `/glossary/`: what each field, setting, secret type, concept, command and flag means in the product, and each exit code, with a stable link to every term, a letter index and search. It shows how many terms are defined so far.
 - The search box in the website header is a real search bar. It searches the guides, the FAQ, the glossary and the pages, in your browser against a generated index, with results as you type, arrow keys and Enter, `/` to focus it, and a results page at `/search/`. It used to be a link to the guides page dressed as a search box.
 
