@@ -6,7 +6,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
-- The website has a **glossary** at `/glossary/`: what each field, setting and secret type means in the product, with a stable link to every term, a letter index and search. It shows how many terms are defined so far.
+- The website has a **glossary** at `/glossary/`: what each field, setting, secret type, concept, command and flag means in the product, and each exit code, with a stable link to every term, a letter index and search. It shows how many terms are defined so far.
 - The search box in the website header is a real search bar. It searches the guides, the FAQ, the glossary and the pages, in your browser against a generated index, with results as you type, arrow keys and Enter, `/` to focus it, and a results page at `/search/`. It used to be a link to the guides page dressed as a search box.
 
 ## 0.78.0 (2026-11-15)
