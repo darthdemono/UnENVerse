@@ -27,6 +27,7 @@ pub mod destinations;
 pub mod diff_cmd;
 pub mod doctor;
 pub mod emit_cmd;
+pub mod site_cmd;
 pub mod enrich;
 pub mod entries;
 pub mod envfile;
