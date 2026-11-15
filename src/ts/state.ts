@@ -1922,6 +1922,7 @@ export function switchTool(toolId: string) {
   });
   Settings.set('activeTool', toolId);
   if (toolId === 'glossary') void import('./glossary-pane').then((m) => m.initGlossaryPane());
+  if (toolId === 'recipes') void import('./recipes-pane').then((m) => m.initRecipesPane());
   if (toolId === 'nodes') import('./nodes-pane').then((m) => m.refreshNodes()).catch(() => {});
   if (toolId === 'operations')
     // refreshOperations reports its own failures, so there is nothing to catch here.

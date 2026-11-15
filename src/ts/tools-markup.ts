@@ -334,6 +334,106 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Password recipes (R41): every setting of the password generator -->
+        <div id="tool-recipes" class="tool-pane" style="display:none">
+          <div class="tool-section">
+            <h3 class="tool-title">Password recipes</h3>
+            <p>A recipe is a template such as <code>{prefix}-{list:food}-{random:12:base62}</code> that makes an ordinary password. It is stored like any password; with no recipe the generator works as before. Only the random parts add strength.</p>
+            <div id="rcp-status" class="tool-status" style="font-size:11px;color:var(--text3)" role="status" aria-live="polite"></div>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-select">Recipe</label>
+              <select id="rcp-select" class="form-input"></select>
+              <label class="tool-label" for="rcp-default">Vault default</label>
+              <select id="rcp-default" class="form-input"></select>
+            </div>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-name">Name</label>
+              <input id="rcp-name" class="form-input" type="text" autocomplete="off" maxlength="64">
+              <label class="tool-label" for="rcp-preset">Starting point</label>
+              <select id="rcp-preset" class="form-input"></select>
+              <button id="rcp-use-preset" class="btn btn-ghost btn-sm">Copy into the editor</button>
+            </div>
+            <label class="tool-label" for="rcp-template">Template (text view)</label>
+            <textarea id="rcp-template" class="form-input mono" rows="3" spellcheck="false" autocomplete="off" placeholder="{prefix}-{list:food}-{random:12:base62}"></textarea>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-token">Add a part</label>
+              <select id="rcp-token" class="form-input"></select>
+              <button id="rcp-insert" class="btn btn-ghost btn-sm">Insert</button>
+            </div>
+            <h4 class="tool-title">Options</h4>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-min">Shortest</label><input id="rcp-min" class="tool-input" type="number" min="0" style="max-width:70px">
+              <label class="tool-label" for="rcp-max">Longest</label><input id="rcp-max" class="tool-input" type="number" min="0" style="max-width:70px">
+              <label class="tool-label" for="rcp-policy">When the length misses</label>
+              <select id="rcp-policy" class="form-input"><option value="fit">Fit (drop marked parts, pad)</option><option value="refuse">Refuse</option></select>
+              <label class="tool-label" for="rcp-floor">Strength floor (bits)</label><input id="rcp-floor" class="tool-input" type="number" min="0" placeholder="64" style="max-width:70px">
+            </div>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-req-upper">Upper</label><input id="rcp-req-upper" class="tool-input" type="number" min="0" style="max-width:56px">
+              <label class="tool-label" for="rcp-req-lower">Lower</label><input id="rcp-req-lower" class="tool-input" type="number" min="0" style="max-width:56px">
+              <label class="tool-label" for="rcp-req-digit">Digits</label><input id="rcp-req-digit" class="tool-input" type="number" min="0" style="max-width:56px">
+              <label class="tool-label" for="rcp-req-symbol">Symbols</label><input id="rcp-req-symbol" class="tool-input" type="number" min="0" style="max-width:56px">
+              <span class="rcp-dim">at least this many of each</span>
+            </div>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-ambig"><input id="rcp-ambig" type="checkbox"> Avoid 0 O 1 l I</label>
+              <label class="tool-label" for="rcp-noseq"><input id="rcp-noseq" type="checkbox"> No sequences (abc, 123)</label>
+              <label class="tool-label" for="rcp-startletter"><input id="rcp-startletter" type="checkbox"> Start with a letter</label>
+              <label class="tool-label" for="rcp-noedge"><input id="rcp-noedge" type="checkbox"> No symbol at the ends</label>
+            </div>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-forbid">Forbidden characters</label><input id="rcp-forbid" class="form-input mono" type="text" autocomplete="off">
+              <label class="tool-label" for="rcp-allow">Only these characters</label><input id="rcp-allow" class="form-input mono" type="text" autocomplete="off">
+              <label class="tool-label" for="rcp-maxrun">Longest run</label><input id="rcp-maxrun" class="tool-input" type="number" min="0" style="max-width:56px">
+              <label class="tool-label" for="rcp-chunk">Group every</label><input id="rcp-chunk" class="tool-input" type="number" min="0" style="max-width:56px">
+              <label class="tool-label" for="rcp-chunk-sep">with</label><input id="rcp-chunk-sep" class="form-input mono" type="text" maxlength="3" style="max-width:56px">
+            </div>
+            <h4 class="tool-title">Preview</h4>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-entry">For the entry (provider name, optional)</label>
+              <input id="rcp-entry" class="form-input" type="text" autocomplete="off">
+              <button id="rcp-preview-btn" class="btn btn-accent btn-sm">Make five samples</button>
+              <label class="tool-label" for="rcp-reveal"><input id="rcp-reveal" type="checkbox"> Show them</label>
+            </div>
+            <div id="rcp-preview"></div>
+            <div class="tool-row">
+              <button id="rcp-save" class="btn btn-accent btn-sm">Save recipe</button>
+              <button id="rcp-delete" class="btn btn-ghost btn-sm">Delete</button>
+            </div>
+            <h4 class="tool-title">Your lists</h4>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-list-name">Name</label><input id="rcp-list-name" class="form-input" type="text" autocomplete="off" maxlength="32">
+              <label class="tool-label" for="rcp-list-words">Words (one per line or comma separated)</label>
+              <textarea id="rcp-list-words" class="form-input mono" rows="2"></textarea>
+              <label class="tool-label" for="rcp-list-private"><input id="rcp-list-private" type="checkbox"> Private</label>
+              <button id="rcp-list-add" class="btn btn-ghost btn-sm">Save list</button>
+            </div>
+            <div id="rcp-lists"></div>
+            <h4 class="tool-title">Your facts</h4>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-fact-name">Name</label><input id="rcp-fact-name" class="form-input mono" type="text" autocomplete="off" maxlength="32" placeholder="pet">
+              <label class="tool-label" for="rcp-fact-value">Value</label><input id="rcp-fact-value" class="form-input" type="password" autocomplete="off" maxlength="256">
+              <label class="tool-label" for="rcp-fact-public"><input id="rcp-fact-public" type="checkbox"> Not private</label>
+              <button id="rcp-fact-add" class="btn btn-ghost btn-sm">Save fact</button>
+            </div>
+            <div id="rcp-facts"></div>
+            <h4 class="tool-title">Which recipe applies</h4>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-rule-kind">When the</label><select id="rcp-rule-kind" class="form-input"></select>
+              <label class="tool-label" for="rcp-rule-value">is</label><input id="rcp-rule-value" class="form-input" type="text" autocomplete="off">
+              <label class="tool-label" for="rcp-rule-recipe">use</label><select id="rcp-rule-recipe" class="form-input"></select>
+              <button id="rcp-rule-add" class="btn btn-ghost btn-sm">Add rule</button>
+            </div>
+            <div id="rcp-rules"></div>
+            <div class="tool-row">
+              <label class="tool-label" for="rcp-rule-test-q">Which recipe for (provider name)</label>
+              <input id="rcp-rule-test-q" class="form-input" type="text" autocomplete="off">
+              <button id="rcp-rule-test" class="btn btn-ghost btn-sm">Test</button>
+              <span id="rcp-rule-test-out" class="rcp-dim" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+
         <!-- Tool: Operations centre (R15) -->
         <div id="tool-operations" class="tool-pane" style="display:none">
           <div class="tool-section">
