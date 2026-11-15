@@ -506,16 +506,18 @@ export function searchSite({ out, partials, vars }) {
 export function glossarySite({ out, partials, vars }) {
   const { terms } = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary/terms.json'), 'utf8'));
   const { pending } = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary/pending.json'), 'utf8'));
-  const sorted = [...terms].sort((a, b) =>
-    a.term.localeCompare(b.term, 'en', { sensitivity: 'base' }),
-  );
+  const byTerm = (a, b) => a.term.localeCompare(b.term, 'en', { sensitivity: 'base' });
+  const cli = new Set(['command', 'flag']);
+  const main = terms.filter((t) => !cli.has(t.category) && t.category !== 'exit code').sort(byTerm);
+  const commands = terms.filter((t) => cli.has(t.category)).sort(byTerm);
+  const exits = terms.filter((t) => t.category === 'exit code').sort(byTerm);
   const letterOf = (t) => {
     const c = (t.term[0] ?? '#').toUpperCase();
     return /[A-Z]/.test(c) ? c : '#';
   };
   const byId = new Map(terms.map((t) => [t.id, t]));
   const groups = new Map();
-  for (const t of sorted) {
+  for (const t of main) {
     const k = letterOf(t);
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(t);
@@ -540,20 +542,31 @@ export function glossarySite({ out, partials, vars }) {
     ]
       .filter(Boolean)
       .join('\n');
-  const body = [...groups.entries()]
-    .map(
-      ([k, list]) =>
-        `      <h2 id="letter-${k === '#' ? 'other' : k}">${k}</h2>\n      <dl>\n${list.map(entry).join('\n')}\n      </dl>`,
-    )
+  const section = (id, title, list) =>
+    list.length
+      ? `      <h2 id="${id}">${title}</h2>\n      <dl>\n${list.map(entry).join('\n')}\n      </dl>`
+      : '';
+  const body = [
+    ...[...groups.entries()].map(([k, list]) =>
+      section(`letter-${k === '#' ? 'other' : k}`, k, list),
+    ),
+    section('commands', 'Commands and flags', commands),
+    section('exit-codes', 'Exit codes', exits),
+  ]
+    .filter(Boolean)
     .join('\n');
-  const index = [...groups.keys()]
-    .map((k) => `<a href="#letter-${k === '#' ? 'other' : k}">${k}</a>`)
+  const index = [
+    ...[...groups.keys()].map((k) => `<a href="#letter-${k === '#' ? 'other' : k}">${k}</a>`),
+    commands.length ? '<a href="#commands">Commands and flags</a>' : '',
+    exits.length ? '<a href="#exit-codes">Exit codes</a>' : '',
+  ]
+    .filter(Boolean)
     .join(' ');
   const ld = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'DefinedTermSet',
     name: 'UnENVerse glossary',
-    hasDefinedTerm: sorted.map((t) => ({
+    hasDefinedTerm: [...main, ...commands, ...exits].map((t) => ({
       '@type': 'DefinedTerm',
       name: t.term,
       termCode: t.id,
@@ -561,6 +574,9 @@ export function glossarySite({ out, partials, vars }) {
       url: `${vars.SITE_URL}/glossary/#${t.id}`,
     })),
   }).replace(/</g, '\\u003c');
+  const note = pending.length
+    ? `${terms.length} terms are defined so far; ${pending.length} more fields, settings and secret types are still to write. A new field cannot be added to the app without an entry here.`
+    : `${terms.length} terms are defined. Every field, setting and secret type in the app has an entry, and a new one cannot be added without it.`;
   const tpl = fs.readFileSync(path.join(ROOT, 'website/partials/glossary-page.html'), 'utf8');
   const html = seo(
     fill(
@@ -570,8 +586,7 @@ export function glossarySite({ out, partials, vars }) {
         GLOSSARY_BODY: body,
         GLOSSARY_INDEX: index,
         GLOSSARY_LD: ld,
-        GLOSSARY_COUNT: String(terms.length),
-        GLOSSARY_PENDING: String(pending.length),
+        GLOSSARY_NOTE: note,
       },
       partials,
       'glossary',

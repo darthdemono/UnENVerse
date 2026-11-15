@@ -116,7 +116,11 @@ describe('the glossary page', () => {
       expect(html, t.id).toContain(`id="${t.id}"`);
       expect(html, t.id).toContain(t.definition.replace(/&/g, '&amp;'));
     }
-    expect(html).toContain(`${terms.length} terms are defined so far; ${pending.length} more`);
+    expect(html).toContain(
+      pending.length
+        ? `${terms.length} terms are defined so far; ${pending.length} more`
+        : `${terms.length} terms are defined. Every field, setting and secret type`,
+    );
     const ld = JSON.parse(
       /<script type="application\/ld\+json">(\{"@context":"https:\/\/schema.org","@type":"DefinedTermSet".*?\})<\/script>/.exec(
         html,
