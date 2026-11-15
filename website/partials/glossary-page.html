@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UnENVerse glossary: what every term in the app means</title>
+  <meta name="description" content="What each field, setting and secret type in UnENVerse means in this product, with examples. Plain definitions taken from the product's own documentation.">
+  <link rel="canonical" href="{{SITE_URL}}/glossary/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="UnENVerse glossary">
+  <meta property="og:description" content="What every field, setting and secret type in UnENVerse means, in plain words.">
+  <meta property="og:url" content="{{SITE_URL}}/glossary/">
+  <meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{{GLOSSARY_LD}}</script>
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <h1>UnENVerse glossary</h1>
+      <p class="lead">What each term in the app means <em>in this product</em>. Several common words (provider, role, bundle, generation) have a specific meaning here, so each definition is taken from the product's own documentation and code comments, not from general usage.</p>
+      <p class="small">{{GLOSSARY_COUNT}} terms are defined so far; {{GLOSSARY_PENDING}} more fields, settings and secret types are still to write. A new field cannot be added to the app without an entry here.</p>
+      <p id="gloss-search-row" hidden><label for="gloss-q">Search the glossary <input id="gloss-q" type="search" autocomplete="off" placeholder="provider, bundle, api_key"></label></p>
+      <nav class="gloss-index" aria-label="Terms by letter">{{GLOSSARY_INDEX}}</nav>
+{{GLOSSARY_BODY}}
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+<script>
+(function () {
+  var row = document.getElementById('gloss-search-row');
+  var q = document.getElementById('gloss-q');
+  if (!row || !q) return;
+  row.hidden = false;
+  q.addEventListener('input', function () {
+    var needle = q.value.trim().toLowerCase();
+    var terms = document.querySelectorAll('.gloss-term');
+    for (var i = 0; i < terms.length; i++) {
+      terms[i].hidden = needle !== '' && terms[i].textContent.toLowerCase().indexOf(needle) < 0;
+    }
+    var heads = document.querySelectorAll('main h2[id^="letter-"]');
+    for (var j = 0; j < heads.length; j++) {
+      var dl = heads[j].nextElementSibling;
+      heads[j].hidden = dl ? dl.querySelectorAll('.gloss-term:not([hidden])').length === 0 : false;
+      if (dl) dl.hidden = heads[j].hidden;
+    }
+  });
+})();
+</script>
+</body>
+</html>
