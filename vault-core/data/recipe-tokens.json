@@ -1,1500 +1,1500 @@
 {
- "version": 1,
- "comment": "The token registry (R41): one descriptor per token. vault_core::recipe implements each id; a test fails when a descriptor has no implementation or the reverse. The desktop draws its token forms from this file.",
- "tokens": [
-  {
-   "id": "random",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random characters",
-   "summary": "N characters from an alphabet (safe, base62, base36, base32, hex, digits, letters, lower, upper, symbols, or your own characters).",
-   "args": [
+  "version": 1,
+  "comment": "The token registry (R41): one descriptor per token. vault_core::recipe implements each id; a test fails when a descriptor has no implementation or the reverse. The desktop draws its token forms from this file.",
+  "tokens": [
     {
-     "name": "length",
-     "type": "int",
-     "default": "16"
+      "id": "random",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random characters",
+      "summary": "N characters from an alphabet (safe, base62, base36, base32, hex, digits, letters, lower, upper, symbols, or your own characters).",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "16"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "safe"
+        }
+      ],
+      "bits": "length x log2(alphabet size)",
+      "example": "{random:16:safe}"
     },
     {
-     "name": "alphabet",
-     "type": "text",
-     "default": "safe"
-    }
-   ],
-   "bits": "length x log2(alphabet size)",
-   "example": "{random:16:safe}"
-  },
-  {
-   "id": "digits",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random digits",
-   "summary": "N random digits.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "4"
-    }
-   ],
-   "bits": "length x 3.32",
-   "example": "{digits:4}"
-  },
-  {
-   "id": "letters",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random letters",
-   "summary": "N random letters, both cases.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "8"
-    }
-   ],
-   "bits": "length x 5.7",
-   "example": "{letters:8}"
-  },
-  {
-   "id": "hex",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random hex",
-   "summary": "N random hexadecimal characters.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "8"
-    }
-   ],
-   "bits": "length x 4",
-   "example": "{hex:8}"
-  },
-  {
-   "id": "base32",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random base32",
-   "summary": "N characters of Crockford base32.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "8"
-    }
-   ],
-   "bits": "length x 5",
-   "example": "{base32:8}"
-  },
-  {
-   "id": "base36",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random base36",
-   "summary": "N lower-case letters and digits.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "10"
-    }
-   ],
-   "bits": "length x 5.17",
-   "example": "{base36:10}"
-  },
-  {
-   "id": "base62",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random base62",
-   "summary": "N letters (both cases) and digits.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "12"
-    }
-   ],
-   "bits": "length x 5.95",
-   "example": "{base62:12}"
-  },
-  {
-   "id": "symbols",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random symbols",
-   "summary": "N characters from a symbol set.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "2"
+      "id": "digits",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random digits",
+      "summary": "N random digits.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "4"
+        }
+      ],
+      "bits": "length x 3.32",
+      "example": "{digits:4}"
     },
     {
-     "name": "set",
-     "type": "text",
-     "default": "!@#$%^&*-_=+?"
-    }
-   ],
-   "bits": "length x log2(set size)",
-   "example": "{symbols:2}"
-  },
-  {
-   "id": "pin",
-   "group": "Random",
-   "kind": "random",
-   "label": "PIN",
-   "summary": "N random digits, for a site that wants a PIN.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "6"
-    }
-   ],
-   "bits": "length x 3.32",
-   "example": "{pin:6}"
-  },
-  {
-   "id": "number",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random number",
-   "summary": "A whole number between MIN and MAX, written MIN..MAX.",
-   "args": [
-    {
-     "name": "range",
-     "type": "text",
-     "default": "100..999"
-    }
-   ],
-   "bits": "log2(range size)",
-   "example": "{number:100..999}"
-  },
-  {
-   "id": "year",
-   "group": "Random",
-   "kind": "random",
-   "label": "Random year",
-   "summary": "A year between two years, written MIN..MAX.",
-   "args": [
-    {
-     "name": "range",
-     "type": "text",
-     "default": "1990..2010"
-    }
-   ],
-   "bits": "log2(range size)",
-   "example": "{year:1990..2010}"
-  },
-  {
-   "id": "syllables",
-   "group": "Random",
-   "kind": "random",
-   "label": "Pronounceable syllables",
-   "summary": "N consonant-vowel syllables such as bamoku.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "3"
-    }
-   ],
-   "bits": "count x 6.13",
-   "example": "{syllables:4}"
-  },
-  {
-   "id": "mask",
-   "group": "Random",
-   "kind": "random",
-   "label": "Mask",
-   "summary": "One character per mask letter: c consonant, C upper consonant, v vowel, V upper vowel, a lower, A upper, 9 digit, # symbol, ? any; other characters stay.",
-   "args": [
-    {
-     "name": "mask",
-     "type": "text",
-     "default": "CvcvCvcv99#"
-    }
-   ],
-   "bits": "sum over its random letters",
-   "example": "{mask:\"CvcvCvcv99#\"}"
-  },
-  {
-   "id": "dice",
-   "group": "Random",
-   "kind": "random",
-   "label": "Diceware words",
-   "summary": "N words from the 2048-word list joined with dashes.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "4"
-    }
-   ],
-   "bits": "count x 11",
-   "example": "{dice:4}"
-  },
-  {
-   "id": "one_of",
-   "group": "Random",
-   "kind": "random",
-   "label": "One of",
-   "summary": "One of the listed literals, chosen at random: one_of:red:green:blue.",
-   "args": [
-    {
-     "name": "options",
-     "type": "text",
-     "default": "a:b"
-    }
-   ],
-   "bits": "log2(number of options)",
-   "example": "{one_of:red:green}"
-  },
-  {
-   "id": "uuid_chunk",
-   "group": "Random",
-   "kind": "random",
-   "label": "UUID chunk",
-   "summary": "N hex characters, taken as from a random UUID.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "8"
-    }
-   ],
-   "bits": "length x 4",
-   "example": "{uuid_chunk:8}"
-  },
-  {
-   "id": "list",
-   "group": "Lists",
-   "kind": "list",
-   "label": "From a list",
-   "summary": "K picks (with repeats) from a list by name: your own, or a built-in one; joined by JOINER.",
-   "args": [
-    {
-     "name": "name",
-     "type": "text",
-     "default": "food"
+      "id": "letters",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random letters",
+      "summary": "N random letters, both cases.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "8"
+        }
+      ],
+      "bits": "length x 5.7",
+      "example": "{letters:8}"
     },
     {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "hex",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random hex",
+      "summary": "N random hexadecimal characters.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "8"
+        }
+      ],
+      "bits": "length x 4",
+      "example": "{hex:8}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{list:food:2:-}"
-  },
-  {
-   "id": "prefix",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Prefix word",
-   "summary": "K picks from the prefix list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "base32",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random base32",
+      "summary": "N characters of Crockford base32.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "8"
+        }
+      ],
+      "bits": "length x 5",
+      "example": "{base32:8}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{prefix}"
-  },
-  {
-   "id": "suffix",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Suffix",
-   "summary": "K picks from the suffix list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "base36",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random base36",
+      "summary": "N lower-case letters and digits.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "10"
+        }
+      ],
+      "bits": "length x 5.17",
+      "example": "{base36:10}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{suffix}"
-  },
-  {
-   "id": "divider",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Divider",
-   "summary": "K picks from the divider list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "base62",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random base62",
+      "summary": "N letters (both cases) and digits.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "12"
+        }
+      ],
+      "bits": "length x 5.95",
+      "example": "{base62:12}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{divider}"
-  },
-  {
-   "id": "adj",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Adjective",
-   "summary": "K picks from the adj list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "symbols",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random symbols",
+      "summary": "N characters from a symbol set.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "2"
+        },
+        {
+          "name": "set",
+          "type": "text",
+          "default": "!@#$%^&*-_=+?"
+        }
+      ],
+      "bits": "length x log2(set size)",
+      "example": "{symbols:2}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{adj}"
-  },
-  {
-   "id": "noun",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Noun",
-   "summary": "K picks from the noun list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "pin",
+      "group": "Random",
+      "kind": "random",
+      "label": "PIN",
+      "summary": "N random digits, for a site that wants a PIN.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "6"
+        }
+      ],
+      "bits": "length x 3.32",
+      "example": "{pin:6}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{noun}"
-  },
-  {
-   "id": "verb",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Verb",
-   "summary": "K picks from the verb list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "number",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random number",
+      "summary": "A whole number between MIN and MAX, written MIN..MAX.",
+      "args": [
+        {
+          "name": "range",
+          "type": "text",
+          "default": "100..999"
+        }
+      ],
+      "bits": "log2(range size)",
+      "example": "{number:100..999}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{verb}"
-  },
-  {
-   "id": "color",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Colour",
-   "summary": "K picks from the color list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "year",
+      "group": "Random",
+      "kind": "random",
+      "label": "Random year",
+      "summary": "A year between two years, written MIN..MAX.",
+      "args": [
+        {
+          "name": "range",
+          "type": "text",
+          "default": "1990..2010"
+        }
+      ],
+      "bits": "log2(range size)",
+      "example": "{year:1990..2010}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{color}"
-  },
-  {
-   "id": "animal",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Animal",
-   "summary": "K picks from the animal list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "syllables",
+      "group": "Random",
+      "kind": "random",
+      "label": "Pronounceable syllables",
+      "summary": "N consonant-vowel syllables such as bamoku.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "3"
+        }
+      ],
+      "bits": "count x 6.13",
+      "example": "{syllables:4}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{animal}"
-  },
-  {
-   "id": "food",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Food",
-   "summary": "K picks from the food list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "mask",
+      "group": "Random",
+      "kind": "random",
+      "label": "Mask",
+      "summary": "One character per mask letter: c consonant, C upper consonant, v vowel, V upper vowel, a lower, A upper, 9 digit, # symbol, ? any; other characters stay.",
+      "args": [
+        {
+          "name": "mask",
+          "type": "text",
+          "default": "CvcvCvcv99#"
+        }
+      ],
+      "bits": "sum over its random letters",
+      "example": "{mask:\"CvcvCvcv99#\"}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{food}"
-  },
-  {
-   "id": "city",
-   "group": "Lists",
-   "kind": "list",
-   "label": "City",
-   "summary": "K picks from the city list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "dice",
+      "group": "Random",
+      "kind": "random",
+      "label": "Diceware words",
+      "summary": "N words from the 2048-word list joined with dashes.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "4"
+        }
+      ],
+      "bits": "count x 11",
+      "example": "{dice:4}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{city}"
-  },
-  {
-   "id": "country",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Country",
-   "summary": "K picks from the country list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "one_of",
+      "group": "Random",
+      "kind": "random",
+      "label": "One of",
+      "summary": "One of the listed literals, chosen at random: one_of:red:green:blue.",
+      "args": [
+        {
+          "name": "options",
+          "type": "text",
+          "default": "a:b"
+        }
+      ],
+      "bits": "log2(number of options)",
+      "example": "{one_of:red:green}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{country}"
-  },
-  {
-   "id": "name",
-   "group": "Lists",
-   "kind": "list",
-   "label": "First name",
-   "summary": "K picks from the name list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "uuid_chunk",
+      "group": "Random",
+      "kind": "random",
+      "label": "UUID chunk",
+      "summary": "N hex characters, taken as from a random UUID.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "8"
+        }
+      ],
+      "bits": "length x 4",
+      "example": "{uuid_chunk:8}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{name}"
-  },
-  {
-   "id": "element",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Element",
-   "summary": "K picks from the element list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "list",
+      "group": "Lists",
+      "kind": "list",
+      "label": "From a list",
+      "summary": "K picks (with repeats) from a list by name: your own, or a built-in one; joined by JOINER.",
+      "args": [
+        {
+          "name": "name",
+          "type": "text",
+          "default": "food"
+        },
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{list:food:2:-}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{element}"
-  },
-  {
-   "id": "planet",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Planet",
-   "summary": "K picks from the planet list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "prefix",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Prefix word",
+      "summary": "K picks from the prefix list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{prefix}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{planet}"
-  },
-  {
-   "id": "month",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Month name",
-   "summary": "K picks from the month list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "suffix",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Suffix",
+      "summary": "K picks from the suffix list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{suffix}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{month}"
-  },
-  {
-   "id": "weekday",
-   "group": "Lists",
-   "kind": "list",
-   "label": "Weekday",
-   "summary": "K picks from the weekday list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "divider",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Divider",
+      "summary": "K picks from the divider list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{divider}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{weekday}"
-  },
-  {
-   "id": "bip39",
-   "group": "Lists",
-   "kind": "list",
-   "label": "BIP39 word",
-   "summary": "K picks from the bip39 list (yours of that name wins over the built-in one).",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
+      "id": "adj",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Adjective",
+      "summary": "K picks from the adj list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{adj}"
     },
     {
-     "name": "joiner",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "count x log2(list size)",
-   "example": "{bip39}"
-  },
-  {
-   "id": "provider",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Provider",
-   "summary": "The entry's provider name as written.",
-   "args": [],
-   "bits": "0",
-   "example": "{provider}"
-  },
-  {
-   "id": "provider_short",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Provider, short",
-   "summary": "The provider in lower case without spaces or symbols, 12 characters at most.",
-   "args": [],
-   "bits": "0",
-   "example": "{provider_short}"
-  },
-  {
-   "id": "host",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Host",
-   "summary": "The primary address's host.",
-   "args": [],
-   "bits": "0",
-   "example": "{host}"
-  },
-  {
-   "id": "host_label",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Host label",
-   "summary": "The first label of the host without www, so sonarr.home.lan gives sonarr.",
-   "args": [],
-   "bits": "0",
-   "example": "{host_label}"
-  },
-  {
-   "id": "tld",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Top-level domain",
-   "summary": "The last label of the host.",
-   "args": [],
-   "bits": "0",
-   "example": "{tld}"
-  },
-  {
-   "id": "url",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Address",
-   "summary": "The primary address as stored.",
-   "args": [],
-   "bits": "0",
-   "example": "{url}"
-  },
-  {
-   "id": "user",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "User name",
-   "summary": "The entry's user name.",
-   "args": [],
-   "bits": "0",
-   "example": "{user}"
-  },
-  {
-   "id": "email_local",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Email local part",
-   "summary": "The part of the email before @.",
-   "args": [],
-   "bits": "0",
-   "example": "{email_local}"
-  },
-  {
-   "id": "project",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Project",
-   "summary": "The entry's first project.",
-   "args": [],
-   "bits": "0",
-   "example": "{project}"
-  },
-  {
-   "id": "type",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Secret type",
-   "summary": "The entry's secret type.",
-   "args": [],
-   "bits": "0",
-   "example": "{type}"
-  },
-  {
-   "id": "id",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Entry id",
-   "summary": "The entry's stable id; id:6 takes the first 6 characters.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": ""
-    }
-   ],
-   "bits": "0",
-   "example": "{id}"
-  },
-  {
-   "id": "key_id",
-   "group": "Entry data",
-   "kind": "data",
-   "label": "Key id",
-   "summary": "The entry's key id.",
-   "args": [],
-   "bits": "0",
-   "example": "{key_id}"
-  },
-  {
-   "id": "created",
-   "group": "Dates and counters",
-   "kind": "data",
-   "label": "Date created",
-   "summary": "The entry's creation date (today for a new entry), in a format. Fixed when generated, never read later.",
-   "args": [
-    {
-     "name": "format",
-     "type": "text",
-     "default": "YYYY-MM-DD"
-    }
-   ],
-   "bits": "0",
-   "example": "{created:D_M_YYYY}"
-  },
-  {
-   "id": "now",
-   "group": "Dates and counters",
-   "kind": "data",
-   "label": "Today",
-   "summary": "Today's date when generated, in a format.",
-   "args": [
-    {
-     "name": "format",
-     "type": "text",
-     "default": "YYYY-MM-DD"
-    }
-   ],
-   "bits": "0",
-   "example": "{now:YYYY}"
-  },
-  {
-   "id": "date",
-   "group": "Dates and counters",
-   "kind": "data",
-   "label": "Fixed date",
-   "summary": "A date you type, such as 2018-11-11, in a format.",
-   "args": [
-    {
-     "name": "date",
-     "type": "text",
-     "default": "2018-11-11"
+      "id": "noun",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Noun",
+      "summary": "K picks from the noun list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{noun}"
     },
     {
-     "name": "format",
-     "type": "text",
-     "default": "D Mon YY"
-    }
-   ],
-   "bits": "0",
-   "example": "{date:2018-11-11:D_Mon_YY}"
-  },
-  {
-   "id": "counter",
-   "group": "Dates and counters",
-   "kind": "data",
-   "label": "Counter",
-   "summary": "The entry's generation counter (1 for the first password made for it); zero-padded to WIDTH.",
-   "args": [
-    {
-     "name": "width",
-     "type": "int",
-     "default": "1"
-    }
-   ],
-   "bits": "0",
-   "example": "{counter}"
-  },
-  {
-   "id": "var",
-   "group": "Your facts",
-   "kind": "data",
-   "label": "Your fact",
-   "summary": "A named fact from your list of facts (a pet, a street, a birthday).",
-   "args": [
-    {
-     "name": "name",
-     "type": "text",
-     "default": "pet"
-    }
-   ],
-   "bits": "0 (private facts are not counted as secret from you)",
-   "example": "{var:pet}"
-  },
-  {
-   "id": "fixed",
-   "group": "Typed and linked",
-   "kind": "data",
-   "label": "Fixed text",
-   "summary": "Text as typed in the recipe.",
-   "args": [
-    {
-     "name": "text",
-     "type": "text",
-     "default": ""
-    }
-   ],
-   "bits": "0",
-   "example": "{fixed:\"Password\"}"
-  },
-  {
-   "id": "typed",
-   "group": "Typed and linked",
-   "kind": "data",
-   "label": "Typed by you",
-   "summary": "A part you type each time, such as a password you already remember. Its strength is an estimate.",
-   "args": [],
-   "bits": "estimated from the typed text",
-   "example": "{typed}"
-  },
-  {
-   "id": "lower",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: lower",
-   "summary": "Pipe a value through: lower case.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "upper",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: upper",
-   "summary": "Pipe a value through: UPPER CASE.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "title",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: title",
-   "summary": "Pipe a value through: Title Case.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "sentence",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: sentence",
-   "summary": "Pipe a value through: Sentence case.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "camel",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: camel",
-   "summary": "Pipe a value through: camelCase.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "snake",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: snake",
-   "summary": "Pipe a value through: snake_case.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "alt",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: alt",
-   "summary": "Pipe a value through: aLtErNaTiNg case.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "toggle",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: toggle",
-   "summary": "Pipe a value through: swap the case of every letter.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "first",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: first",
-   "summary": "Pipe a value through: keep the first N characters.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "4"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "last",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: last",
-   "summary": "Pipe a value through: keep the last N characters.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "4"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "skip",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: skip",
-   "summary": "Pipe a value through: drop the first N characters.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "1"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "take",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: take",
-   "summary": "Pipe a value through: keep characters A..B.",
-   "args": [
-    {
-     "name": "range",
-     "type": "text",
-     "default": "0..4"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "trim",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: trim",
-   "summary": "Pipe a value through: remove spaces at both ends.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "reverse",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: reverse",
-   "summary": "Pipe a value through: reverse the text.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "repeat",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: repeat",
-   "summary": "Pipe a value through: repeat the text N times.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "2"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "dedupe",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: dedupe",
-   "summary": "Pipe a value through: collapse repeated characters.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "remove",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: remove",
-   "summary": "Pipe a value through: remove the listed characters.",
-   "args": [
-    {
-     "name": "chars",
-     "type": "text",
-     "default": "aeiou"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "keep",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: keep",
-   "summary": "Pipe a value through: keep only a class: digits, letters, upper, lower, alnum.",
-   "args": [
-    {
-     "name": "class",
-     "type": "text",
-     "default": "alnum"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "replace",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: replace",
-   "summary": "Pipe a value through: replace a with b.",
-   "args": [
-    {
-     "name": "from",
-     "type": "text",
-     "default": "a"
+      "id": "verb",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Verb",
+      "summary": "K picks from the verb list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{verb}"
     },
     {
-     "name": "to",
-     "type": "text",
-     "default": "b"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "leet",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: leet",
-   "summary": "Pipe a value through: swap letters for look-alikes; level 1 to 3.",
-   "args": [
-    {
-     "name": "level",
-     "type": "int",
-     "default": "1"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "drop_vowels",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: drop_vowels",
-   "summary": "Pipe a value through: remove vowels.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "pad",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: pad",
-   "summary": "Pipe a value through: pad to N characters with a character on a side.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "12"
+      "id": "color",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Colour",
+      "summary": "K picks from the color list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{color}"
     },
     {
-     "name": "char",
-     "type": "text",
-     "default": "x"
+      "id": "animal",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Animal",
+      "summary": "K picks from the animal list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{animal}"
     },
     {
-     "name": "side",
-     "type": "text",
-     "default": "right"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "initials",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: initials",
-   "summary": "Pipe a value through: first letters of each word.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "join",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: join",
-   "summary": "Pipe a value through: join words with a separator.",
-   "args": [
-    {
-     "name": "separator",
-     "type": "text",
-     "default": "-"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "add",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: add",
-   "summary": "Pipe a value through: add N to a number.",
-   "args": [
-    {
-     "name": "n",
-     "type": "int",
-     "default": "1"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "mul",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: mul",
-   "summary": "Pipe a value through: multiply a number by N.",
-   "args": [
-    {
-     "name": "n",
-     "type": "int",
-     "default": "2"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "mod",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: mod",
-   "summary": "Pipe a value through: number modulo N.",
-   "args": [
-    {
-     "name": "n",
-     "type": "int",
-     "default": "100"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "roman",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: roman",
-   "summary": "Pipe a value through: a number in roman numerals.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "spell",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: spell",
-   "summary": "Pipe a value through: a number in words.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "to_hex",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: to_hex",
-   "summary": "Pipe a value through: text as hex.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "hash",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: hash",
-   "summary": "Pipe a value through: N hex characters of the SHA-256 of the text.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "8"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "check_tail",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: check_tail",
-   "summary": "Pipe a value through: append N check characters so a hand-typed copy can be verified.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "2"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "ensure",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: ensure",
-   "summary": "Pipe a value through: make sure the listed classes appear; adds derived characters, no bits.",
-   "args": [
-    {
-     "name": "classes",
-     "type": "text",
-     "default": "upper+lower+digit+symbol"
-    }
-   ],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "class_fill",
-   "group": "Transforms",
-   "kind": "transform",
-   "label": "Transform: class_fill",
-   "summary": "Pipe a value through: same as ensure with all four classes.",
-   "args": [],
-   "bits": "unchanged (a slice keeps its share)",
-   "example": "{random:8:base36|upper}"
-  },
-  {
-   "id": "expand",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: expand",
-   "summary": "Derives from the value: N characters of an alphabet derived from the value; adds length, not strength.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "22"
+      "id": "food",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Food",
+      "summary": "K picks from the food list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{food}"
     },
     {
-     "name": "alphabet",
-     "type": "text",
-     "default": "base36"
+      "id": "city",
+      "group": "Lists",
+      "kind": "list",
+      "label": "City",
+      "summary": "K picks from the city list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{city}"
     },
     {
-     "name": "context",
-     "type": "text",
-     "default": "none"
+      "id": "country",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Country",
+      "summary": "K picks from the country list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{country}"
+    },
+    {
+      "id": "name",
+      "group": "Lists",
+      "kind": "list",
+      "label": "First name",
+      "summary": "K picks from the name list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{name}"
+    },
+    {
+      "id": "element",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Element",
+      "summary": "K picks from the element list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{element}"
+    },
+    {
+      "id": "planet",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Planet",
+      "summary": "K picks from the planet list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{planet}"
+    },
+    {
+      "id": "month",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Month name",
+      "summary": "K picks from the month list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{month}"
+    },
+    {
+      "id": "weekday",
+      "group": "Lists",
+      "kind": "list",
+      "label": "Weekday",
+      "summary": "K picks from the weekday list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{weekday}"
+    },
+    {
+      "id": "bip39",
+      "group": "Lists",
+      "kind": "list",
+      "label": "BIP39 word",
+      "summary": "K picks from the bip39 list (yours of that name wins over the built-in one).",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        },
+        {
+          "name": "joiner",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "count x log2(list size)",
+      "example": "{bip39}"
+    },
+    {
+      "id": "provider",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Provider",
+      "summary": "The entry's provider name as written.",
+      "args": [],
+      "bits": "0",
+      "example": "{provider}"
+    },
+    {
+      "id": "provider_short",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Provider, short",
+      "summary": "The provider in lower case without spaces or symbols, 12 characters at most.",
+      "args": [],
+      "bits": "0",
+      "example": "{provider_short}"
+    },
+    {
+      "id": "host",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Host",
+      "summary": "The primary address's host.",
+      "args": [],
+      "bits": "0",
+      "example": "{host}"
+    },
+    {
+      "id": "host_label",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Host label",
+      "summary": "The first label of the host without www, so sonarr.home.lan gives sonarr.",
+      "args": [],
+      "bits": "0",
+      "example": "{host_label}"
+    },
+    {
+      "id": "tld",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Top-level domain",
+      "summary": "The last label of the host.",
+      "args": [],
+      "bits": "0",
+      "example": "{tld}"
+    },
+    {
+      "id": "url",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Address",
+      "summary": "The primary address as stored.",
+      "args": [],
+      "bits": "0",
+      "example": "{url}"
+    },
+    {
+      "id": "user",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "User name",
+      "summary": "The entry's user name.",
+      "args": [],
+      "bits": "0",
+      "example": "{user}"
+    },
+    {
+      "id": "email_local",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Email local part",
+      "summary": "The part of the email before @.",
+      "args": [],
+      "bits": "0",
+      "example": "{email_local}"
+    },
+    {
+      "id": "project",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Project",
+      "summary": "The entry's first project.",
+      "args": [],
+      "bits": "0",
+      "example": "{project}"
+    },
+    {
+      "id": "type",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Secret type",
+      "summary": "The entry's secret type.",
+      "args": [],
+      "bits": "0",
+      "example": "{type}"
+    },
+    {
+      "id": "id",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Entry id",
+      "summary": "The entry's stable id; id:6 takes the first 6 characters.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": ""
+        }
+      ],
+      "bits": "0",
+      "example": "{id}"
+    },
+    {
+      "id": "key_id",
+      "group": "Entry data",
+      "kind": "data",
+      "label": "Key id",
+      "summary": "The entry's key id.",
+      "args": [],
+      "bits": "0",
+      "example": "{key_id}"
+    },
+    {
+      "id": "created",
+      "group": "Dates and counters",
+      "kind": "data",
+      "label": "Date created",
+      "summary": "The entry's creation date (today for a new entry), in a format. Fixed when generated, never read later.",
+      "args": [
+        {
+          "name": "format",
+          "type": "text",
+          "default": "YYYY-MM-DD"
+        }
+      ],
+      "bits": "0",
+      "example": "{created:D_M_YYYY}"
+    },
+    {
+      "id": "now",
+      "group": "Dates and counters",
+      "kind": "data",
+      "label": "Today",
+      "summary": "Today's date when generated, in a format.",
+      "args": [
+        {
+          "name": "format",
+          "type": "text",
+          "default": "YYYY-MM-DD"
+        }
+      ],
+      "bits": "0",
+      "example": "{now:YYYY}"
+    },
+    {
+      "id": "date",
+      "group": "Dates and counters",
+      "kind": "data",
+      "label": "Fixed date",
+      "summary": "A date you type, such as 2018-11-11, in a format.",
+      "args": [
+        {
+          "name": "date",
+          "type": "text",
+          "default": "2018-11-11"
+        },
+        {
+          "name": "format",
+          "type": "text",
+          "default": "D Mon YY"
+        }
+      ],
+      "bits": "0",
+      "example": "{date:2018-11-11:D_Mon_YY}"
+    },
+    {
+      "id": "counter",
+      "group": "Dates and counters",
+      "kind": "data",
+      "label": "Counter",
+      "summary": "The entry's generation counter (1 for the first password made for it); zero-padded to WIDTH.",
+      "args": [
+        {
+          "name": "width",
+          "type": "int",
+          "default": "1"
+        }
+      ],
+      "bits": "0",
+      "example": "{counter}"
+    },
+    {
+      "id": "var",
+      "group": "Your facts",
+      "kind": "data",
+      "label": "Your fact",
+      "summary": "A named fact from your list of facts (a pet, a street, a birthday).",
+      "args": [
+        {
+          "name": "name",
+          "type": "text",
+          "default": "pet"
+        }
+      ],
+      "bits": "0 (private facts are not counted as secret from you)",
+      "example": "{var:pet}"
+    },
+    {
+      "id": "fixed",
+      "group": "Typed and linked",
+      "kind": "data",
+      "label": "Fixed text",
+      "summary": "Text as typed in the recipe.",
+      "args": [
+        {
+          "name": "text",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "bits": "0",
+      "example": "{fixed:\"Password\"}"
+    },
+    {
+      "id": "typed",
+      "group": "Typed and linked",
+      "kind": "data",
+      "label": "Typed by you",
+      "summary": "A part you type each time, such as a password you already remember. Its strength is an estimate.",
+      "args": [],
+      "bits": "estimated from the typed text",
+      "example": "{typed}"
+    },
+    {
+      "id": "lower",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: lower",
+      "summary": "Pipe a value through: lower case.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "upper",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: upper",
+      "summary": "Pipe a value through: UPPER CASE.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "title",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: title",
+      "summary": "Pipe a value through: Title Case.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "sentence",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: sentence",
+      "summary": "Pipe a value through: Sentence case.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "camel",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: camel",
+      "summary": "Pipe a value through: camelCase.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "snake",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: snake",
+      "summary": "Pipe a value through: snake_case.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "alt",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: alt",
+      "summary": "Pipe a value through: aLtErNaTiNg case.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "toggle",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: toggle",
+      "summary": "Pipe a value through: swap the case of every letter.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "first",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: first",
+      "summary": "Pipe a value through: keep the first N characters.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "4"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "last",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: last",
+      "summary": "Pipe a value through: keep the last N characters.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "4"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "skip",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: skip",
+      "summary": "Pipe a value through: drop the first N characters.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "1"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "take",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: take",
+      "summary": "Pipe a value through: keep characters A..B.",
+      "args": [
+        {
+          "name": "range",
+          "type": "text",
+          "default": "0..4"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "trim",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: trim",
+      "summary": "Pipe a value through: remove spaces at both ends.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "reverse",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: reverse",
+      "summary": "Pipe a value through: reverse the text.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "repeat",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: repeat",
+      "summary": "Pipe a value through: repeat the text N times.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "2"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "dedupe",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: dedupe",
+      "summary": "Pipe a value through: collapse repeated characters.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "remove",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: remove",
+      "summary": "Pipe a value through: remove the listed characters.",
+      "args": [
+        {
+          "name": "chars",
+          "type": "text",
+          "default": "aeiou"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "keep",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: keep",
+      "summary": "Pipe a value through: keep only a class: digits, letters, upper, lower, alnum.",
+      "args": [
+        {
+          "name": "class",
+          "type": "text",
+          "default": "alnum"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "replace",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: replace",
+      "summary": "Pipe a value through: replace a with b.",
+      "args": [
+        {
+          "name": "from",
+          "type": "text",
+          "default": "a"
+        },
+        {
+          "name": "to",
+          "type": "text",
+          "default": "b"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "leet",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: leet",
+      "summary": "Pipe a value through: swap letters for look-alikes; level 1 to 3.",
+      "args": [
+        {
+          "name": "level",
+          "type": "int",
+          "default": "1"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "drop_vowels",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: drop_vowels",
+      "summary": "Pipe a value through: remove vowels.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "pad",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: pad",
+      "summary": "Pipe a value through: pad to N characters with a character on a side.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "12"
+        },
+        {
+          "name": "char",
+          "type": "text",
+          "default": "x"
+        },
+        {
+          "name": "side",
+          "type": "text",
+          "default": "right"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "initials",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: initials",
+      "summary": "Pipe a value through: first letters of each word.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "join",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: join",
+      "summary": "Pipe a value through: join words with a separator.",
+      "args": [
+        {
+          "name": "separator",
+          "type": "text",
+          "default": "-"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "add",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: add",
+      "summary": "Pipe a value through: add N to a number.",
+      "args": [
+        {
+          "name": "n",
+          "type": "int",
+          "default": "1"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "mul",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: mul",
+      "summary": "Pipe a value through: multiply a number by N.",
+      "args": [
+        {
+          "name": "n",
+          "type": "int",
+          "default": "2"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "mod",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: mod",
+      "summary": "Pipe a value through: number modulo N.",
+      "args": [
+        {
+          "name": "n",
+          "type": "int",
+          "default": "100"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "roman",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: roman",
+      "summary": "Pipe a value through: a number in roman numerals.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "spell",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: spell",
+      "summary": "Pipe a value through: a number in words.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "to_hex",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: to_hex",
+      "summary": "Pipe a value through: text as hex.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "hash",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: hash",
+      "summary": "Pipe a value through: N hex characters of the SHA-256 of the text.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "8"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "check_tail",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: check_tail",
+      "summary": "Pipe a value through: append N check characters so a hand-typed copy can be verified.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "2"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "ensure",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: ensure",
+      "summary": "Pipe a value through: make sure the listed classes appear; adds derived characters, no bits.",
+      "args": [
+        {
+          "name": "classes",
+          "type": "text",
+          "default": "upper+lower+digit+symbol"
+        }
+      ],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "class_fill",
+      "group": "Transforms",
+      "kind": "transform",
+      "label": "Transform: class_fill",
+      "summary": "Pipe a value through: same as ensure with all four classes.",
+      "args": [],
+      "bits": "unchanged (a slice keeps its share)",
+      "example": "{random:8:base36|upper}"
+    },
+    {
+      "id": "expand",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: expand",
+      "summary": "Derives from the value: N characters of an alphabet derived from the value; adds length, not strength.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "22"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "base36"
+        },
+        {
+          "name": "context",
+          "type": "text",
+          "default": "none"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|expand:22:base36:host}"
+    },
+    {
+      "id": "expand_words",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: expand_words",
+      "summary": "Derives from the value: The same stream as K typable words.",
+      "args": [
+        {
+          "name": "count",
+          "type": "int",
+          "default": "4"
+        },
+        {
+          "name": "context",
+          "type": "text",
+          "default": "none"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|expand_words:4}"
+    },
+    {
+      "id": "expand_groups",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: expand_groups",
+      "summary": "Derives from the value: The same stream as groups, such as xxxxx-xxxxx.",
+      "args": [
+        {
+          "name": "groups",
+          "type": "int",
+          "default": "3"
+        },
+        {
+          "name": "size",
+          "type": "int",
+          "default": "5"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "base36"
+        },
+        {
+          "name": "context",
+          "type": "text",
+          "default": "none"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|expand_groups:3:5}"
+    },
+    {
+      "id": "site_bound",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: site_bound",
+      "summary": "Derives from the value: expand with the host as context, so each host gets its own result.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "22"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "base36"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|site_bound:22}"
+    },
+    {
+      "id": "family_bound",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: family_bound",
+      "summary": "Derives from the value: expand with the site family as context, so every host of the family shares one result.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "22"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "base36"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|family_bound:22}"
+    },
+    {
+      "id": "rotate_by_counter",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: rotate_by_counter",
+      "summary": "Derives from the value: expand with the counter as context: bump the counter for a new result.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "22"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "base36"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|rotate_by_counter:22}"
+    },
+    {
+      "id": "keyed_case",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: keyed_case",
+      "summary": "Derives from the value: case pattern derived from the value (no bits).",
+      "args": [],
+      "bits": "never more than the value it came from",
+      "example": "{random:12:base36|keyed_case}"
     }
-   ],
-   "bits": "never more than the value it came from",
-   "example": "{random:8:base36|expand:22:base36:host}"
-  },
-  {
-   "id": "expand_words",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: expand_words",
-   "summary": "Derives from the value: The same stream as K typable words.",
-   "args": [
-    {
-     "name": "count",
-     "type": "int",
-     "default": "4"
-    },
-    {
-     "name": "context",
-     "type": "text",
-     "default": "none"
-    }
-   ],
-   "bits": "never more than the value it came from",
-   "example": "{random:8:base36|expand_words:4}"
-  },
-  {
-   "id": "expand_groups",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: expand_groups",
-   "summary": "Derives from the value: The same stream as groups, such as xxxxx-xxxxx.",
-   "args": [
-    {
-     "name": "groups",
-     "type": "int",
-     "default": "3"
-    },
-    {
-     "name": "size",
-     "type": "int",
-     "default": "5"
-    },
-    {
-     "name": "alphabet",
-     "type": "text",
-     "default": "base36"
-    },
-    {
-     "name": "context",
-     "type": "text",
-     "default": "none"
-    }
-   ],
-   "bits": "never more than the value it came from",
-   "example": "{random:8:base36|expand_groups:3:5}"
-  },
-  {
-   "id": "site_bound",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: site_bound",
-   "summary": "Derives from the value: expand with the host as context, so each host gets its own result.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "22"
-    },
-    {
-     "name": "alphabet",
-     "type": "text",
-     "default": "base36"
-    }
-   ],
-   "bits": "never more than the value it came from",
-   "example": "{random:8:base36|site_bound:22}"
-  },
-  {
-   "id": "family_bound",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: family_bound",
-   "summary": "Derives from the value: expand with the site family as context, so every host of the family shares one result.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "22"
-    },
-    {
-     "name": "alphabet",
-     "type": "text",
-     "default": "base36"
-    }
-   ],
-   "bits": "never more than the value it came from",
-   "example": "{random:8:base36|family_bound:22}"
-  },
-  {
-   "id": "rotate_by_counter",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: rotate_by_counter",
-   "summary": "Derives from the value: expand with the counter as context: bump the counter for a new result.",
-   "args": [
-    {
-     "name": "length",
-     "type": "int",
-     "default": "22"
-    },
-    {
-     "name": "alphabet",
-     "type": "text",
-     "default": "base36"
-    }
-   ],
-   "bits": "never more than the value it came from",
-   "example": "{random:8:base36|rotate_by_counter:22}"
-  },
-  {
-   "id": "keyed_case",
-   "group": "Lengtheners",
-   "kind": "derive",
-   "label": "Lengthener: keyed_case",
-   "summary": "Derives from the value: case pattern derived from the value (no bits).",
-   "args": [],
-   "bits": "never more than the value it came from",
-   "example": "{random:12:base36|keyed_case}"
-  }
- ]
+  ]
 }
