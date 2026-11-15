@@ -189,6 +189,14 @@ unv rotate-check --days=
 unv scan --exposed= --json --out= --severity=
 unv sessions
 unv shield <argv>
+unv site add <entry> <url> --kind= --label= --mode=
+unv site family add <name> [hosts]
+unv site family ls
+unv site family rm <name> [host]
+unv site family use <entry> <name>
+unv site ls <entry>
+unv site match <origin>
+unv site rm <entry> <url>
 unv ssh-agent --export-env --socket=
 unv status
 unv support bundle --out= --print
