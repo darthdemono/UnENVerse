@@ -215,6 +215,16 @@
       "id": "R41",
       "title": "pattern password generator",
       "state": "planned"
+    },
+    {
+      "id": "R42",
+      "title": "key slots, security keys and passkeys",
+      "state": "planned"
+    },
+    {
+      "id": "R43",
+      "title": "unlock and session policy",
+      "state": "planned"
     }
   ]
 }
