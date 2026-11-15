@@ -103,6 +103,105 @@ describe('the FAQ', () => {
   });
 });
 
+describe('the glossary page', () => {
+  it('lists every defined term with its own anchor, says how many are defined, and publishes the term set', () => {
+    const { terms } = JSON.parse(
+      fs.readFileSync(path.join(root, 'glossary/terms.json'), 'utf8'),
+    ) as { terms: { id: string; term: string; definition: string }[] };
+    const { pending } = JSON.parse(
+      fs.readFileSync(path.join(root, 'glossary/pending.json'), 'utf8'),
+    ) as { pending: string[] };
+    const html = read('glossary/index.html');
+    for (const t of terms) {
+      expect(html, t.id).toContain(`id="${t.id}"`);
+      expect(html, t.id).toContain(t.definition.replace(/&/g, '&amp;'));
+    }
+    expect(html).toContain(`${terms.length} terms are defined so far; ${pending.length} more`);
+    const ld = JSON.parse(
+      /<script type="application\/ld\+json">(\{"@context":"https:\/\/schema.org","@type":"DefinedTermSet".*?\})<\/script>/.exec(
+        html,
+      )![1],
+    );
+    expect(ld.hasDefinedTerm).toHaveLength(terms.length);
+    expect(read('sitemap.xml')).toContain('/glossary/');
+  });
+});
+
+describe('site search', () => {
+  const pages = (d: string): string[] =>
+    fs
+      .readdirSync(d, { withFileTypes: true })
+      .flatMap((e) =>
+        e.isDirectory()
+          ? pages(path.join(d, e.name))
+          : e.name === 'index.html'
+            ? [path.join(d, e.name)]
+            : [],
+      );
+
+  // The bug: the header showed something shaped like a search bar that was only a link to the
+  // guides page.
+  it('puts a real search form, not a link dressed as one, in the header of every page', () => {
+    for (const f of pages(out)) {
+      const html = fs.readFileSync(f, 'utf8');
+      if (!html.includes('<header class="site">')) continue;
+      const rel = path.relative(out, f);
+      expect(html, rel).toContain('<form class="searchlike" role="search" action="/search/"');
+      expect(html, rel).toMatch(/<input type="search" name="q"[^>]*aria-label="Search the site"/);
+      expect(html, rel).not.toContain('<a class="searchlike"');
+    }
+  });
+
+  it('indexes pages, glossary terms and FAQ questions, each with a place that exists', () => {
+    const idx = JSON.parse(read('search-index.json')) as {
+      t: string;
+      u: string;
+      k: string;
+      d: string;
+    }[];
+    for (const e of idx) {
+      expect(e.t, e.u).toBeTruthy();
+      expect(e.u.startsWith('/'), e.u).toBe(true);
+      expect(['page', 'guide', 'glossary', 'faq']).toContain(e.k);
+    }
+    const urls = new Set(idx.map((e) => e.u));
+    expect(urls.has('/guides/importing/')).toBe(true);
+    expect(idx.find((e) => e.u === '/guides/importing/')?.k).toBe('guide');
+    expect(idx.some((e) => e.k === 'glossary' && e.u === '/glossary/#api-key')).toBe(true);
+    expect([...urls].some((u) => u.startsWith('/search/'))).toBe(false);
+    expect([...urls].some((u) => /^\/changelog\/[^/]+\//.test(u))).toBe(false);
+    const faq = read('faq/index.html');
+    for (const e of idx.filter((x) => x.k === 'faq'))
+      expect(faq, e.u).toContain(`id="${e.u.split('#')[1]}"`);
+  });
+
+  it('ranks a title hit above a description hit and needs every word to match', async () => {
+    // @ts-expect-error plain browser script without types
+    await import('../website/assets/site-search.js');
+    const { rank } = (
+      globalThis as unknown as {
+        UnvSiteSearch: { rank: (e: unknown[], q: string) => { u: string }[] };
+      }
+    ).UnvSiteSearch;
+    const idx = [
+      { t: 'Importing from another manager', u: '/a/', k: 'guide', d: 'move your data', h: '' },
+      { t: 'Features', u: '/b/', k: 'page', d: 'includes importing and export', h: '' },
+      { t: 'Nodes', u: '/c/', k: 'guide', d: 'deploy configs', h: '' },
+    ];
+    expect(rank(idx, 'import').map((e) => e.u)).toEqual(['/a/', '/b/']);
+    expect(rank(idx, 'import nodes')).toEqual([]);
+    expect(rank(idx, '')).toEqual([]);
+    expect(rank(idx, 'zzz')).toEqual([]);
+  });
+
+  it('has a results page that is not indexed and ships the script', () => {
+    const html = read('search/index.html');
+    expect(html).toContain('name="robots" content="noindex"');
+    expect(html).toContain('id="search-results"');
+    expect(fs.existsSync(path.join(out, 'assets/site-search.js'))).toBe(true);
+  });
+});
+
 describe('every page can be found', () => {
   const pages = (): string[] => {
     const walk = (d: string): string[] =>
