@@ -345,7 +345,10 @@
       "cli": [
         "unv codes status",
         "unv codes next",
-        "unv codes use"
+        "unv codes use",
+        "unv codes unuse",
+        "unv codes import",
+        "unv login-plan"
       ],
       "ui": [
         "src:src/ts/render.ts"

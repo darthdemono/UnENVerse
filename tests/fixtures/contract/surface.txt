@@ -44,8 +44,10 @@ unv class add <name> --delete-projects --desc= --manage-classes --manage-users
 unv class ls --json
 unv class rm <class>
 unv class set <class> --delete-projects --desc= --manage-classes --manage-users --name=
+unv codes import <entry> <file>
 unv codes next <entry>
 unv codes status <entry>
+unv codes unuse <entry> <code>
 unv codes use <entry> [code]
 unv completions <shell>
 unv cookie curl <provider> --out=
@@ -109,6 +111,7 @@ unv import-service <service> --addr= --apply --category= --endpoint= --environme
 unv import-vault <vendor> <file> --apply --category= --force --keep-folders --key-file= --no-password --project=
 unv list --category= --env= --json --project= --search= --tag= --type=
 unv login
+unv login-plan <bundle> --terminate-codes=
 unv logout --all
 unv migrate apply <format> <file> --template
 unv migrate archive export <id> --out=

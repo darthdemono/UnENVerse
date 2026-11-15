@@ -52,8 +52,10 @@ Contract version 1.
 | `unv class ls` |  |
 | `unv class rm <class>` |  |
 | `unv class set <class>` | Replace a class's name, description and capabilities |
+| `unv codes import <entry> <file>` | Add the codes in a pasted text (a file, or `-` for stdin). Prints no codes |
 | `unv codes next <entry>` | The next unused code. Reading does not consume it; `use` does |
 | `unv codes status <entry>` | How many codes are left. Prints no codes |
+| `unv codes unuse <entry> <code>` | Put a used code back, for one a page rejected after it was marked |
 | `unv codes use <entry> [code]` | Mark a code used (the first unused one when CODE is omitted) |
 | `unv completions <shell>` | Generate shell completion scripts |
 | `unv cookie curl <provider>` | A `curl` command carrying the jar and its User-Agent |
@@ -117,6 +119,7 @@ Contract version 1.
 | `unv import-vault <vendor> <file>` | Import from another password manager or a Nextcloud `config.php` |
 | `unv list` | List vault entries (table view) |
 | `unv login` | Authenticate once and cache the session (remote servers) |
+| `unv login-plan <bundle>` | The steps of a bundle's login in order (password, 2FA, phrase, recovery code). Names only |
 | `unv logout` | Forget cached sessions |
 | `unv migrate apply <format> <file>` | Save imported entries, source identity and encrypted archives together |
 | `unv migrate archive export <id>` | Write one encrypted archive record to a user-selected private file |
