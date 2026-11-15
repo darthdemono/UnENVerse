@@ -144,10 +144,17 @@ pub fn user_add(
                 .and_then(|v| v.as_str())
                 .unwrap_or("?")
                 .to_string();
+            // The name the server stored, which is what the person needs to see confirmed, rather
+            // than the argument that was typed.
+            let stored = created
+                .get("username")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string();
             out::ok(
                 "user.add",
                 json!({ "username": username, "id": id, "created": true }),
-                || println!("Created user '{username}' ({id})"),
+                || println!("Created user '{stored}' ({id})"),
             );
         }
         Access::Local(_) => {
