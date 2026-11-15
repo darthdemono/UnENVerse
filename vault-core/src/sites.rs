@@ -318,9 +318,8 @@ pub fn site_value(
         None => guess_kind(&site),
     };
     let mode = match mode {
-        Some(m) => Mode::parse(m).ok_or_else(|| {
-            format!("`{m}` is not a mode (exact, any_port, host, never)")
-        })?,
+        Some(m) => Mode::parse(m)
+            .ok_or_else(|| format!("`{m}` is not a mode (exact, any_port, host, never)"))?,
         None => Mode::Exact,
     };
     Ok(serde_json::json!({
@@ -381,7 +380,10 @@ pub fn add_site(entry: &mut serde_json::Value, value: serde_json::Value) -> bool
     let have = entry
         .get("sites")
         .and_then(|v| v.as_array())
-        .is_some_and(|l| l.iter().any(|s| s.get("url").and_then(|v| v.as_str()) == Some(url)));
+        .is_some_and(|l| {
+            l.iter()
+                .any(|s| s.get("url").and_then(|v| v.as_str()) == Some(url))
+        });
     if have {
         return false;
     }
@@ -449,7 +451,11 @@ pub fn family_add(
             clean.push(host);
         }
     }
-    if vault.get("site_families").and_then(|v| v.as_array()).is_none() {
+    if vault
+        .get("site_families")
+        .and_then(|v| v.as_array())
+        .is_none()
+    {
         vault["site_families"] = serde_json::json!([]);
     }
     let list = vault["site_families"].as_array_mut().expect("just made");
@@ -460,7 +466,11 @@ pub fn family_add(
         Some(f) => {
             let mut have: Vec<String> = f["hosts"]
                 .as_array()
-                .map(|a| a.iter().filter_map(|h| h.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|h| h.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             for h in clean {
                 if !have.contains(&h) {
@@ -485,7 +495,10 @@ pub fn family_remove(
         Some(h) => Some(parse_site(h)?.host),
         None => None,
     };
-    let Some(list) = vault.get_mut("site_families").and_then(|v| v.as_array_mut()) else {
+    let Some(list) = vault
+        .get_mut("site_families")
+        .and_then(|v| v.as_array_mut())
+    else {
         return Ok(false);
     };
     let mut changed = false;
@@ -519,7 +532,10 @@ pub fn family_has(family: &Family, origin: &Site) -> bool {
     }
     family.hosts.iter().any(|h| {
         canonical_host(h) == canonical_host(&origin.host)
-            || origin.host.strip_suffix(h.as_str()).is_some_and(|p| p.ends_with('.'))
+            || origin
+                .host
+                .strip_suffix(h.as_str())
+                .is_some_and(|p| p.ends_with('.'))
     })
 }
 
@@ -782,17 +798,26 @@ mod tests {
     }
     #[test]
     fn an_entry_lists_several_sites_and_reads_api_url_as_one_more() {
-        let mut e = serde_json::json!({ "secretType": "password", "api_url": "https://login.example.org" });
-        assert!(add_site(&mut e, site_value("localhost:8989", None, None, "tv", "manual").unwrap()));
+        let mut e =
+            serde_json::json!({ "secretType": "password", "api_url": "https://login.example.org" });
+        assert!(add_site(
+            &mut e,
+            site_value("localhost:8989", None, None, "tv", "manual").unwrap()
+        ));
         let sites = entry_sites(&e);
-        assert!(sites.iter().any(|s| s.source == "api_url" && s.kind == "web"));
+        assert!(sites
+            .iter()
+            .any(|s| s.source == "api_url" && s.kind == "web"));
         assert!(sites.iter().any(|s| s.kind == "local" && s.label == "tv"));
     }
 
     #[test]
     fn a_loopback_spelling_is_offered_the_entry_but_another_port_is_not() {
         let mut e = serde_json::json!({});
-        add_site(&mut e, site_value("localhost:8989", None, None, "", "manual").unwrap());
+        add_site(
+            &mut e,
+            site_value("localhost:8989", None, None, "", "manual").unwrap(),
+        );
         assert!(entry_offered(&e, &[], &site("http://127.0.0.1:8989")));
         assert!(!entry_offered(&e, &[], &site("http://127.0.0.1:7878")));
     }
@@ -803,18 +828,33 @@ mod tests {
         family_add(
             &mut v,
             "metabrainz",
-            &["musicbrainz.org".into(), "https://listenbrainz.org/x".into()],
+            &[
+                "musicbrainz.org".into(),
+                "https://listenbrainz.org/x".into(),
+            ],
         )
         .unwrap();
         let fams = families(&v);
         assert_eq!(fams[0].hosts, ["musicbrainz.org", "listenbrainz.org"]);
         let e = serde_json::json!({ "site_family": "metabrainz" });
         assert!(entry_offered(&e, &fams, &site("https://listenbrainz.org")));
-        assert!(entry_offered(&e, &fams, &site("https://beta.musicbrainz.org")));
-        assert!(!entry_offered(&e, &fams, &site("https://evilmusicbrainz.org")));
+        assert!(entry_offered(
+            &e,
+            &fams,
+            &site("https://beta.musicbrainz.org")
+        ));
+        assert!(!entry_offered(
+            &e,
+            &fams,
+            &site("https://evilmusicbrainz.org")
+        ));
         assert!(!entry_offered(&e, &fams, &site("http://listenbrainz.org")));
         assert!(family_remove(&mut v, "metabrainz", Some("listenbrainz.org")).unwrap());
-        assert!(!entry_offered(&e, &families(&v), &site("https://listenbrainz.org")));
+        assert!(!entry_offered(
+            &e,
+            &families(&v),
+            &site("https://listenbrainz.org")
+        ));
         assert!(family_remove(&mut v, "metabrainz", None).unwrap());
     }
 
@@ -823,7 +863,10 @@ mod tests {
         assert!(site_value("https://u:p@x.test", None, None, "", "manual").is_err());
         assert!(site_value("x.test", Some("blog"), None, "", "manual").is_err());
         let mut e = serde_json::json!({});
-        add_site(&mut e, site_value("x.test", None, None, "", "manual").unwrap());
+        add_site(
+            &mut e,
+            site_value("x.test", None, None, "", "manual").unwrap(),
+        );
         assert!(remove_site(&mut e, "x.test").unwrap());
         assert!(e.get("sites").is_none());
     }

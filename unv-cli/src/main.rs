@@ -20,9 +20,9 @@
 use unv_app::error::{CliError, CliResult};
 use unv_app::{
     access, agentio, backup, blast_cmd, bundle_cmd, check_cmd, chunks, cxf_cmd, data, doctor,
-    emit_cmd, site_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
+    emit_cmd, enrich, entries, envfile, exec, feed_cmd, fmt, gen, history_cmd, import_vaults,
     migrate, node_cmd, oauth_cmd, out, password_sources, pool, projects, recovery_ops, render,
-    scan, session, session_cmd, shield, uid_cmd, users_cmd,
+    scan, session, session_cmd, shield, site_cmd, uid_cmd, users_cmd,
 };
 use vault_core::calendar;
 

@@ -46,12 +46,15 @@ pub fn add(
 pub fn rm(access: &Access, query: &str, url: &str) -> CliResult {
     let mut vault = access.load_vault()?;
     let idx = find_entry_index(&vault, query)?;
-    let removed = vs::remove_site(&mut entries_mut(&mut vault)[idx], url).map_err(CliError::invalid)?;
+    let removed =
+        vs::remove_site(&mut entries_mut(&mut vault)[idx], url).map_err(CliError::invalid)?;
     if !removed {
         return Err(CliError::not_found(format!("No site '{url}' on '{query}'")));
     }
     access.save(&vault)?;
-    out::ok("site.rm", json!({ "removed": true }), || println!("Removed"));
+    out::ok("site.rm", json!({ "removed": true }), || {
+        println!("Removed")
+    });
     Ok(())
 }
 
@@ -59,21 +62,28 @@ pub fn ls(access: &Access, query: &str) -> CliResult {
     let vault = access.load_vault()?;
     let entry = &entries(&vault)[find_entry_index(&vault, query)?];
     let list: Vec<Value> = vs::entry_sites(entry).iter().map(site_json).collect();
-    let family = entry.get("site_family").and_then(Value::as_str).unwrap_or("");
-    out::ok("site.ls", json!({ "sites": list, "family": family }), || {
-        for s in &list {
-            println!(
-                "{}  {}  {}  {}",
-                s["url"].as_str().unwrap_or(""),
-                s["kind"].as_str().unwrap_or(""),
-                s["mode"].as_str().unwrap_or(""),
-                s["label"].as_str().unwrap_or("")
-            );
-        }
-        if !family.is_empty() {
-            println!("family: {family}");
-        }
-    });
+    let family = entry
+        .get("site_family")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    out::ok(
+        "site.ls",
+        json!({ "sites": list, "family": family }),
+        || {
+            for s in &list {
+                println!(
+                    "{}  {}  {}  {}",
+                    s["url"].as_str().unwrap_or(""),
+                    s["kind"].as_str().unwrap_or(""),
+                    s["mode"].as_str().unwrap_or(""),
+                    s["label"].as_str().unwrap_or("")
+                );
+            }
+            if !family.is_empty() {
+                println!("family: {family}");
+            }
+        },
+    );
     Ok(())
 }
 
@@ -90,21 +100,32 @@ pub fn matches(access: &Access, origin: &str) -> CliResult {
         .filter(|e| vs::entry_offered(e, &fams, &origin_site))
         .map(|e| json!({ "id": data::id_of(e), "name": data::provider_of(e) }))
         .collect();
-    out::ok("site.match", json!({ "origin": origin_site.display(), "entries": hits }), || {
-        if hits.is_empty() {
-            println!("Nothing is offered at {}", origin_site.display());
-        }
-        for h in &hits {
-            println!("{}  {}", h["id"].as_str().unwrap_or(""), h["name"].as_str().unwrap_or(""));
-        }
-    });
+    out::ok(
+        "site.match",
+        json!({ "origin": origin_site.display(), "entries": hits }),
+        || {
+            if hits.is_empty() {
+                println!("Nothing is offered at {}", origin_site.display());
+            }
+            for h in &hits {
+                println!(
+                    "{}  {}",
+                    h["id"].as_str().unwrap_or(""),
+                    h["name"].as_str().unwrap_or("")
+                );
+            }
+        },
+    );
     Ok(())
 }
 
 pub fn family_ls(access: &Access) -> CliResult {
     let vault = access.load_vault()?;
     let fams = vs::families(&vault);
-    let list: Vec<Value> = fams.iter().map(|f| json!({ "name": f.name, "hosts": f.hosts })).collect();
+    let list: Vec<Value> = fams
+        .iter()
+        .map(|f| json!({ "name": f.name, "hosts": f.hosts }))
+        .collect();
     out::ok("site.family.ls", json!({ "families": list }), || {
         for f in &fams {
             println!("{}: {}", f.name, f.hosts.join(", "));
@@ -117,17 +138,23 @@ pub fn family_add(access: &Access, name: &str, hosts: &[String]) -> CliResult {
     let mut vault = access.load_vault()?;
     vs::family_add(&mut vault, name, hosts).map_err(CliError::invalid)?;
     access.save(&vault)?;
-    out::ok("site.family.add", json!({ "family": name }), || println!("Family {name} updated"));
+    out::ok("site.family.add", json!({ "family": name }), || {
+        println!("Family {name} updated")
+    });
     Ok(())
 }
 
 pub fn family_rm(access: &Access, name: &str, host: Option<&str>) -> CliResult {
     let mut vault = access.load_vault()?;
     if !vs::family_remove(&mut vault, name, host).map_err(CliError::invalid)? {
-        return Err(CliError::not_found(format!("No family '{name}' (or host) to remove")));
+        return Err(CliError::not_found(format!(
+            "No family '{name}' (or host) to remove"
+        )));
     }
     access.save(&vault)?;
-    out::ok("site.family.rm", json!({ "family": name }), || println!("Removed"));
+    out::ok("site.family.rm", json!({ "family": name }), || {
+        println!("Removed")
+    });
     Ok(())
 }
 
@@ -136,7 +163,9 @@ pub fn family_use(access: &Access, query: &str, name: Option<&str>) -> CliResult
     let mut vault = access.load_vault()?;
     if let Some(n) = name {
         if !vs::families(&vault).iter().any(|f| f.name == n) {
-            return Err(CliError::not_found(format!("No family '{n}' (see `unv site family ls`)")));
+            return Err(CliError::not_found(format!(
+                "No family '{n}' (see `unv site family ls`)"
+            )));
         }
     }
     let idx = find_entry_index(&vault, query)?;
@@ -150,6 +179,8 @@ pub fn family_use(access: &Access, query: &str, name: Option<&str>) -> CliResult
         }
     }
     access.save(&vault)?;
-    out::ok("site.family.use", json!({ "family": name }), || println!("Done"));
+    out::ok("site.family.use", json!({ "family": name }), || {
+        println!("Done")
+    });
     Ok(())
 }
