@@ -4,8 +4,9 @@
  */
 (function (root, factory) {
   var api = factory();
+  // Always a global (the page and the test read it); also a module where there is one.
+  root.UnvSiteSearch = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.UnvSiteSearch = api;
   if (typeof document !== 'undefined') api.mount(document);
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
