@@ -234,7 +234,8 @@ export async function exportEncryptedBackup(password: string) {
   // is meant to leave the machine, so it should not be the weakest link — an
   // 8-character floor here quietly undercut the 12 enforced on the vault
   // itself.
-  if (password.length < 12) {
+  // Characters, as the CLI counts them (an emoji is two UTF-16 units here).
+  if ([...password].length < 12) {
     showToast('Backup password must be at least 12 characters', 'err', 4000);
     return;
   }
