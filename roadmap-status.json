@@ -230,6 +230,11 @@
       "id": "R44",
       "title": "glossary of every term",
       "state": "partial"
+    },
+    {
+      "id": "R45",
+      "title": "Android",
+      "state": "planned"
     }
   ]
 }

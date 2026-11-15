@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.78.0 (2026-11-15)
+
 ### Added
 
 - Three more fields beside App name and App purpose, for the app a credential was made for: **Org name** (`--app-org`, who owns the app or its account), **App URL** (`--app-url`, its homepage or console; an http or https address, and one with a user name or password in it is refused) and **App version** (`--app-version`, the app's own version; the API or SDK version stays in `--version`). They are in the add and edit form, on the card, in search, in `unv diff`, and in the copy profiles as `APP_ORG`, `APP_URL` and `APP_VERSION`.
@@ -12,6 +14,11 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 ### Changed
 
 - Username and email are separate fields on every secret type in the add and edit form. Before, the row appeared only for passwords and SSH keys, so an API key or a database could not hold the login name or the address it was made with.
+- Dependencies: `uuid` 1.29.1, `jiff` 0.2.40, `flate2` 1.1.11 and `zip` 9.4.2 for the Rust crates; Playwright 1.65.0, Vitest 5.1.0, Vite 8.3.6, `simple-icons` 16.37.0 and `globals` 17.14.0 for the frontend tooling.
+
+### Fixed
+
+- `unv user add` against a server confirms the user name the server stored, taken from its answer, instead of echoing the argument that was typed.
 
 ## 0.77.0 (2026-11-15)
 
