@@ -144,7 +144,7 @@ pub const SECRET_FIELDS: [&str; 5] = [
 /// `key_id` is here deliberately: it is identity, it is what `provider:key_id`
 /// disambiguates with, and masking it would break the wiring an agent composes
 /// configs from. `custom_icon` is here because it is collapsed separately below.
-const PUBLIC_FIELDS: [&str; 41] = [
+const PUBLIC_FIELDS: [&str; 44] = [
     "id",
     "provider",
     "account_name",
