@@ -363,9 +363,10 @@ fn an_app_org_url_and_version_are_stored_and_the_url_refuses_credentials() {
         field(&v, "Acme", "app_url"),
         "https://github.com/apps/release-bot"
     );
-    // An empty value clears it.
+    // An empty value clears it: the field is gone, not stored as an empty string.
     v.ok(&["entry", "set", "Acme", "--app-url", ""]);
-    assert_eq!(field(&v, "Acme", "app_url"), "");
+    let cleared = v.run(&["get", "Acme", "--field", "app_url"]);
+    assert_eq!(cleared.code, 3, "{}", cleared.all());
 }
 
 #[test]
