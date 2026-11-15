@@ -26,6 +26,9 @@ the parts and actors are described in [ARCHITECTURE.md](ARCHITECTURE.md).
 | A malicious or tampered update or catalogue              | Updates install only after a separately signed manifest, archive checksum and version probe pass; the catalogue is signature checked | Compromise of the signing keys                                                          |
 | Supply chain: tampered release or dependency             | Keyless Sigstore signatures, build provenance and SBOMs on releases; locked dependencies; `cargo deny`, `npm audit`, CodeQL in CI    | A malicious but unflagged upstream release                                              |
 
+| A fooled or backdoored agent run through `unv exec` | Opt-in `--sandbox` (Linux, bubblewrap): read-only file system, empty home, runtime and vault directories, no network; fails closed | The working directory stays readable; with `--sandbox-net` abstract sockets are reachable |
+| A web page probes the vault through the paste guard | The extension answers only real (trusted) paste events; the host returns entry names and positions, never values | A compromised browser profile sees what the person pastes |
+
 ## Not defended against
 
 Root on a running machine while the vault is unlocked (the key is in memory), any
@@ -51,9 +54,21 @@ tests; changes to them need the matching test.
 6. **Recovery destinations**, including SFTP with pinned host keys.
 7. **Local files**: the database, salt and session files (owner-only on Linux;
    `unv doctor` reports where Windows cannot enforce this).
-8. **The build and release pipeline**: workflow permissions are minimal, untrusted
-   input is never interpolated into shell steps, and a release needs a green CI
-   run on the same commit.
+8. **Local sockets and listeners.** The desktop's local-scripts socket and the
+   SSH agent socket (both 0600 in a 0700 directory, same OS user only), the
+   listening node's two signed routes (pre-authentication work is one TLS
+   handshake and at most 8 MiB per connection, 128 connections), and the canary
+   listener (32 connections, no vault read per request).
+9. **Editor and browser extensions.** The VS Code extension passes text from open
+   files to `unv` as arguments and standard input; the browser extension passes
+   pasted text to the native host. Both treat that text as hostile, hold no
+   secret and make no network request.
+10. **Plugins** (`unv-plugin-rpc/1`): started with a cleared environment,
+    deadlines and output caps; a plugin is code the user chose to install and
+    runs with their rights.
+11. **The build and release pipeline**: workflow permissions are minimal, untrusted
+    input is never interpolated into shell steps, and a release needs a green CI
+    run on the same commit.
 
 ## Review
 

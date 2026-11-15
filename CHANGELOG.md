@@ -4,6 +4,18 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Security
+
+- `unv exec --sandbox` now empties the user's runtime directory (`$XDG_RUNTIME_DIR`) and the vault's own directory as well as the home directory. Before, a sandboxed command with the network off could still connect to sockets there: the desktop's local-scripts socket (and read the flagged entries), the session bus, or another agent's socket.
+- `unv exec --sandbox` refuses to run from the home directory itself (exit 10). The working directory stays readable in the sandbox, so running from home put all of home back, `~/.ssh` and the vault included. A vault kept inside the working directory is now hidden after the directory is mounted.
+- The browser paste guard ignores paste events a page creates itself. A chat page could send a made-up paste holding a list of guessed passwords and learn from the warning appearing that one of them is in the vault.
+- `unv canary listen` serves at most 32 connections at once and reads the vault at most once every five seconds. It used to start a thread and read the whole vault for every request, so anyone who could reach the port could exhaust the machine.
+- The VS Code hover no longer passes a reference name that starts with a dash to `unv`, where it was read as an option.
+
+### Fixed
+
+- The VS Code exposure scan cleared the warnings of a sibling folder whose name starts with the scanned folder's name.
+
 ## 0.76.0 (2026-11-07)
 
 ### Added
