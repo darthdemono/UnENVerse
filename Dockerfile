@@ -48,7 +48,9 @@ RUN cargo build --release -p unv-server --features vault-core/bundled 2>&1 | gre
 #
 # Phase 31/33 added two more: secret-templates.json (templates.rs) and the BIP39
 # wordlist under vault-core/data (type_emit.rs), both `include_str!`'d.
+# The glossary (unv-app/src/glossary.rs) is embedded the same way.
 COPY secret-types.json secret-templates.json ./
+COPY glossary/terms.json glossary/terms.json
 COPY vault-core/data vault-core/data
 COPY vault-core/src vault-core/src
 # R04: the hub renders node targets with the shared application engine.

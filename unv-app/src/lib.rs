@@ -40,6 +40,7 @@ pub mod fmt;
 pub mod gen;
 pub mod git_sources;
 pub mod git_sync;
+pub mod glossary;
 pub mod guard_cmd;
 pub mod guard_host;
 pub mod history;

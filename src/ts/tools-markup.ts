@@ -320,6 +320,20 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Glossary (R44): what every term in the app means -->
+        <div id="tool-glossary" class="tool-pane" style="display:none">
+          <div class="tool-section">
+            <h3 class="tool-title">Glossary</h3>
+            <p>What each field, setting, secret type, concept and command means in this app. The same text is on the website and in <code>unv glossary</code>.</p>
+            <div class="tool-row">
+              <input id="glossary-q" class="form-input" type="search" autocomplete="off" aria-label="Search the glossary" placeholder="Search: provider, api_key, rotation">
+              <select id="glossary-cat" class="form-input" aria-label="Category"><option value="">All categories</option></select>
+            </div>
+            <div id="glossary-status" class="tool-status" style="font-size:11px;color:var(--text3)" role="status" aria-live="polite"></div>
+            <div id="glossary-list"></div>
+          </div>
+        </div>
+
         <!-- Tool: Operations centre (R15) -->
         <div id="tool-operations" class="tool-pane" style="display:none">
           <div class="tool-section">

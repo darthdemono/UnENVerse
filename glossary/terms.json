@@ -688,6 +688,13 @@
       "definition": "Print full details of a single entry"
     },
     {
+      "id": "unv-glossary",
+      "term": "unv glossary",
+      "category": "command",
+      "aliases": [],
+      "definition": "What a term in the product means: a field, setting, secret type, concept, command or flag."
+    },
+    {
       "id": "unv-guard",
       "term": "unv guard",
       "category": "command",
@@ -4448,6 +4455,13 @@
       "category": "flag",
       "aliases": [],
       "definition": "Emit .env lines at this profile instead of the entry document"
+    },
+    {
+      "id": "flag-unv-glossary-category",
+      "term": "unv glossary --category",
+      "category": "flag",
+      "aliases": [],
+      "definition": "List the terms of one category: field, setting, secret type, concept, command, flag or exit code."
     },
     {
       "id": "flag-unv-guard-install-host-browser",

@@ -90,6 +90,7 @@ unv gen secret --bytes= --format=
 unv gen sources
 unv gen ssh --comment= --save-as=
 unv get [provider] --field= --metadata= --out= --pool= --profile=
+unv glossary [term] --category=
 unv guard check
 unv guard host
 unv guard install-host --browser= --extension-id=
