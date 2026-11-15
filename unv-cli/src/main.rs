@@ -887,6 +887,17 @@ enum Commands {
     },
     /// Print the machine-readable contract: commands, flags, exit codes, schemas.
     Describe,
+    /// What a term in the product means: a field, setting, secret type, concept, command or flag.
+    ///
+    /// With no term it summarises the glossary; `--category` lists one category's terms. It needs
+    /// no vault and no password.
+    Glossary {
+        /// The term, its id, or a name it goes by (for example `api_key`).
+        term: Option<String>,
+        /// List the terms of one category: field, setting, secret type, concept, command, flag or exit code.
+        #[arg(long)]
+        category: Option<String>,
+    },
     /// Authenticate once and cache the session (remote servers).
     ///
     /// Pass --user NAME to sign in as a sub-user; without it you authenticate as
@@ -2757,6 +2768,11 @@ fn real_main() {
             println!("{}", serde_json::to_string_pretty(&doc).unwrap_or_default());
             return;
         }
+        // Like `describe`, it answers from the program itself and never asks for a password.
+        Commands::Glossary { term, category } => {
+            finish(unv_app::glossary::run(term.as_deref(), category.as_deref()));
+            return;
+        }
         _ => {}
     }
     // Recovery packages are deliberately usable when no current vault exists:
@@ -3701,6 +3717,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
     match &cli.command {
         Commands::Completions { .. }
         | Commands::Describe
+        | Commands::Glossary { .. }
         | Commands::Recover { .. }
         | Commands::Catalogue { .. }
         | Commands::Update { .. }

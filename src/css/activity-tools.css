@@ -2561,3 +2561,29 @@ mark.search-hl {
 #tool-history .tool-output {
   margin-top: 12px;
 }
+
+/* Glossary pane (R44) */
+.gloss-item {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.gloss-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.gloss-cat {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 10px;
+}
+.gloss-item p {
+  margin: 4px 0 0;
+  color: var(--text);
+}
+.gloss-small {
+  font-size: 11px;
+  color: var(--text2) !important;
+}

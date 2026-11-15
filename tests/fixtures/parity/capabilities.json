@@ -817,6 +817,17 @@
       "cli_flags": []
     },
     {
+      "id": "glossary",
+      "status": "exempt",
+      "cli": [
+        "unv glossary"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "The app shows the same glossary as tooltips on the form labels and in the Tools, Glossary pane, from the same bundled file (glossary/terms.json); no command crosses to Rust for it, so there is no Tauri twin.",
+      "cli_flags": []
+    },
+    {
       "id": "cli-session",
       "status": "exempt",
       "cli": [

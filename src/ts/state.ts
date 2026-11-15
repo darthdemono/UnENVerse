@@ -1921,6 +1921,7 @@ export function switchTool(toolId: string) {
     else btn.removeAttribute('aria-current');
   });
   Settings.set('activeTool', toolId);
+  if (toolId === 'glossary') void import('./glossary-pane').then((m) => m.initGlossaryPane());
   if (toolId === 'nodes') import('./nodes-pane').then((m) => m.refreshNodes()).catch(() => {});
   if (toolId === 'operations')
     // refreshOperations reports its own failures, so there is nothing to catch here.

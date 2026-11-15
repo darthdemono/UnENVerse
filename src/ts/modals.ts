@@ -1986,6 +1986,9 @@ export function openModal(title: string, idx: number) {
   (document.getElementById('edit-index') as HTMLInputElement).value = String(idx);
   document.getElementById('modal-duplicate')!.style.display = idx >= 0 ? 'block' : 'none';
   applySchemaTooltips();
+  // The glossary's definitions, loaded on demand, replace the hand-written label tooltips so the form,
+  // the website and `unv glossary` say the same thing.
+  void import('./glossary').then((g) => g.applyGlossaryTooltips());
   // Assigned, not added — openModal runs on every open (invariant 9).
   wireTotpField();
   wireNamePreview();

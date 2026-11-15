@@ -98,6 +98,7 @@ Contract version 1.
 | `unv gen sources` | List entropy sources and whether each one works on this machine |
 | `unv gen ssh` | An ed25519 SSH keypair |
 | `unv get [provider]` | Print full details of a single entry |
+| `unv glossary [term]` | What a term in the product means: a field, setting, secret type, concept, command or flag |
 | `unv guard check` | Does the text on stdin hold a value this vault holds? (names only, no network call) |
 | `unv guard host` | Serve the browser paste guard over native messaging on stdin and stdout (the browser starts it) |
 | `unv guard install-host` | Register the native messaging host with a browser so its paste guard extension can reach this vault |
