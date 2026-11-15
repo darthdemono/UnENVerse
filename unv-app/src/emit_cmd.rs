@@ -134,3 +134,69 @@ pub fn codes_use(access: &Access, query: &str, code: Option<&str>) -> CliResult 
     });
     Ok(())
 }
+
+/// Put a used code back: the undo for a code a page rejected after it was marked.
+pub fn codes_unuse(access: &Access, query: &str, code: &str) -> CliResult {
+    let mut vault = access.load_vault()?;
+    let idx = codes_entry(&vault, query)?;
+    let new = te::unmark_used(&data::entries(&vault)[idx], code).map_err(CliError::invalid)?;
+    set_codes(&mut vault, idx, &new)?;
+    let st = te::code_status(&data::entries(&vault)[idx]);
+    access.save(&vault)?;
+    out::ok("codes.unuse", json!({ "remaining": st.remaining }), || {
+        println!("Restored; {} remaining", st.remaining)
+    });
+    Ok(())
+}
+
+/// Add pasted codes (a file, or `-` for stdin) to an entry. Nothing is printed back.
+pub fn codes_import(access: &Access, query: &str, source: &str) -> CliResult {
+    let text = if source == "-" {
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)
+            .map_err(|e| CliError::from(format!("Cannot read stdin: {e}")))?;
+        buf
+    } else {
+        std::fs::read_to_string(source)
+            .map_err(|e| CliError::from(format!("Cannot read {source}: {e}")))?
+    };
+    let found = te::parse_codes(&text);
+    if found.is_empty() {
+        return Err(CliError::invalid("No recovery codes found in that text"));
+    }
+    let mut vault = access.load_vault()?;
+    let idx = codes_entry(&vault, query)?;
+    let (new, added) = te::add_codes(&data::entries(&vault)[idx], &found);
+    set_codes(&mut vault, idx, &new)?;
+    let st = te::code_status(&data::entries(&vault)[idx]);
+    access.save(&vault)?;
+    out::ok(
+        "codes.import",
+        json!({ "found": found.len(), "added": added, "remaining": st.remaining }),
+        || {
+            println!(
+                "{added} added ({} found); {} unused",
+                found.len(),
+                st.remaining
+            )
+        },
+    );
+    Ok(())
+}
+
+/// Write `value` into the entry's `codes` variable, creating the variable when it is missing.
+fn set_codes(vault: &mut Value, idx: usize, value: &str) -> CliResult {
+    let entry = &mut entries_mut(vault)[idx];
+    if entry.get("extra_vars").and_then(Value::as_array).is_none() {
+        entry["extra_vars"] = json!([]);
+    }
+    let vars = entry["extra_vars"].as_array_mut().expect("just made");
+    match vars
+        .iter_mut()
+        .find(|v| v.get("key").and_then(Value::as_str) == Some("codes"))
+    {
+        Some(slot) => slot["value"] = json!(value),
+        None => vars.push(json!({ "key": "codes", "value": value })),
+    }
+    Ok(())
+}
