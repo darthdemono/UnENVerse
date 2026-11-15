@@ -188,6 +188,16 @@ fn check_salt(access: Option<&Access>) -> Finding {
     }
     let salt_path = crate::access::default_salt_path();
     let db_path = crate::access::default_db_path();
+    // Nothing at all is not a damaged vault, it is a machine that has not made one yet, and a
+    // first-time user running `unv doctor` should be told that instead of "cannot be opened".
+    if !salt_path.exists() && !db_path.exists() {
+        return Finding::at(
+            "salt",
+            Level::Note,
+            "No vault here yet",
+            "Create one with `unv --init status`, or open the desktop app once.",
+        );
+    }
     if !salt_path.exists() {
         return Finding::at(
             "salt",
