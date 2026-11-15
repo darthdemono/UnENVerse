@@ -138,6 +138,22 @@ pub fn listen(_access: &Access, _addr: &str) -> CliResult {
     ))
 }
 
+/// Connections the listener serves at once; more are closed unanswered.
+pub const MAX_LISTEN_CONNECTIONS: usize = 32;
+/// How long the listener trusts its copy of the canary tokens before it reads the vault again.
+#[cfg(unix)]
+const TOKEN_CACHE: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Takes a connection slot, or says no when `max` are in use. The caller gives the slot back.
+pub fn admit(live: &std::sync::atomic::AtomicUsize, max: usize) -> bool {
+    use std::sync::atomic::Ordering;
+    if live.fetch_add(1, Ordering::SeqCst) >= max {
+        live.fetch_sub(1, Ordering::SeqCst);
+        return false;
+    }
+    true
+}
+
 /// Serves `GET /c/<token>` and writes one `canary.hit` audit row per token every ten seconds at
 /// most. Runs until stopped. Unknown tokens get a 404 and leave no row.
 #[cfg(unix)]
@@ -157,9 +173,18 @@ pub fn listen(access: &Access, addr: &str) -> CliResult {
         .map_err(|e| CliError::from(format!("Cannot listen on {addr}: {e}")))?;
     eprintln!("Listening on {addr} for canary hits (Ctrl-C to stop)");
     let last: Arc<Mutex<HashMap<String, Instant>>> = Arc::default();
+    // The listener faces whoever stole a decoy, so a stranger must not be able to make it work
+    // hard: connections are capped, and the vault is read at most once every few seconds
+    // however many requests arrive, not once per request.
+    let known_tokens: Arc<Mutex<Option<(Instant, HashMap<String, String>)>>> = Arc::default();
+    let live = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
+        if !admit(&live, MAX_LISTEN_CONNECTIONS) {
+            continue; // over the limit: closed unanswered
+        }
         let (db, last) = (db.clone(), Arc::clone(&last));
+        let (known_tokens, live) = (Arc::clone(&known_tokens), Arc::clone(&live));
         std::thread::spawn(move || {
             let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
             let peer = stream
@@ -168,9 +193,19 @@ pub fn listen(access: &Access, addr: &str) -> CliResult {
             let mut buf = [0u8; 4096];
             let n = stream.read(&mut buf).unwrap_or(0);
             let known = token_in_request(&buf[..n]).and_then(|t| {
+                let name = {
+                    let mut cache = known_tokens.lock().unwrap_or_else(|e| e.into_inner());
+                    let stale = cache
+                        .as_ref()
+                        .is_none_or(|(at, _)| at.elapsed() >= TOKEN_CACHE);
+                    if stale {
+                        let conn = vault_core::open_db(&db, &key).ok()?;
+                        let vault = vault_core::load_vault(&conn).ok()??;
+                        *cache = Some((Instant::now(), tokens(&vault)));
+                    }
+                    cache.as_ref()?.1.get(&t).cloned()?
+                };
                 let conn = vault_core::open_db(&db, &key).ok()?;
-                let vault = vault_core::load_vault(&conn).ok()??;
-                let name = tokens(&vault).get(&t).cloned()?;
                 Some((t, name, conn))
             });
             let reply = match known {
@@ -199,6 +234,7 @@ pub fn listen(access: &Access, addr: &str) -> CliResult {
                 None => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
             };
             let _ = stream.write_all(reply.as_bytes());
+            live.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
         });
     }
     Ok(())
@@ -207,6 +243,21 @@ pub fn listen(access: &Access, addr: &str) -> CliResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The bug: `unv canary listen` started a thread for every connection without limit and
+    /// opened and read the whole vault for every request, so anyone who could reach the port
+    /// could exhaust the machine.
+    #[test]
+    fn the_listener_admits_a_fixed_number_of_connections_and_frees_the_slot_of_a_refused_one() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let live = AtomicUsize::new(0);
+        assert!(admit(&live, 2));
+        assert!(admit(&live, 2));
+        assert!(!admit(&live, 2));
+        assert_eq!(live.load(Ordering::SeqCst), 2);
+        live.fetch_sub(1, Ordering::SeqCst);
+        assert!(admit(&live, 2));
+    }
 
     #[test]
     fn the_token_is_read_from_the_request_line_only() {
