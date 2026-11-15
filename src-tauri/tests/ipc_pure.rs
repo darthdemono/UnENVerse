@@ -422,3 +422,26 @@ fn a_damaged_key_block_is_refused() {
     let junk = d.call("pgp_inspect", json!({ "text": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nnot base64!\n-----END PGP PUBLIC KEY BLOCK-----" }));
     assert!(junk.is_err(), "a damaged block is refused");
 }
+
+#[test]
+fn form_addresses_are_normalised_and_a_bad_one_is_refused() {
+    let d = desk("sites");
+    let out = d.ok(
+        "normalise_sites",
+        json!({ "sites": [
+            { "url": "Localhost:8989" },
+            { "url": "https://Sonarr.Home.lan/app", "kind": "web", "label": "tv", "added_at": "2026-01-01T00:00:00Z" },
+        ] }),
+    );
+    assert_eq!(out[0]["url"], "localhost:8989");
+    assert_eq!(out[0]["kind"], "local");
+    assert_eq!(out[1]["url"], "https://sonarr.home.lan");
+    assert_eq!(out[1]["added_at"], "2026-01-01T00:00:00Z");
+    let bad = d
+        .call(
+            "normalise_sites",
+            json!({ "sites": [{ "url": "https://u:p@x.test" }] }),
+        )
+        .unwrap_err();
+    assert!(bad.to_string().contains("user name"), "{bad}");
+}
