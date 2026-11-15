@@ -341,7 +341,8 @@
       ],
       "ui": [
         "tool:recipes",
-        "id:rcp-template"
+        "id:rcp-template",
+        "id:f-recipe"
       ],
       "tauri": [
         "recipe_registry",
