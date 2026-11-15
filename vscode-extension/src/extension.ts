@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { unvJson, runUnv } from './unv';
 import {
   FIELD_NAMES,
@@ -138,7 +138,8 @@ async function scanTarget(target: string): Promise<number | null> {
     for (const f of found) byPath.set(f.path, [...(byPath.get(f.path) ?? []), f]);
     // Clear files that were flagged before and are clean now.
     diagnostics.forEach((uri) => {
-      if (uri.fsPath.startsWith(target) && !byPath.has(uri.fsPath)) diagnostics.delete(uri);
+      const inside = uri.fsPath === target || uri.fsPath.startsWith(target + sep);
+      if (inside && !byPath.has(uri.fsPath)) diagnostics.delete(uri);
     });
     for (const [path, list] of byPath) {
       const uri = vscode.Uri.file(path);
@@ -226,7 +227,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
       {
         async provideHover(doc, pos) {
           const ref = refAt(doc.lineAt(pos.line).text, pos.character);
-          if (!ref || ref.head.includes(':')) return undefined;
+          // The text comes from whatever file is open: a name that starts with a dash would be read
+          // by `unv` as an option, not as an entry.
+          if (!ref || ref.head.includes(':') || ref.head.startsWith('-')) return undefined;
+          if (ref.field?.startsWith('-')) return undefined;
           let shown: { fingerprint?: string; length?: number } | null = null;
           try {
             const args = ['get', ref.head, ...(ref.field ? ['--field', ref.field] : [])];
