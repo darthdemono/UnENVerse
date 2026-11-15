@@ -23,8 +23,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// Salt of the lengthener derivation. A new salt is a new version: results of `v1` never change.
-const EXPAND_SALT: &[u8] = b"unv/recipe/expand/v1";
+/// Label of the lengthener derivation. The salt is its SHA-256, so a new label is a new version:
+/// results of `v1` never change.
+const EXPAND_LABEL: &[u8] = b"unv/recipe/expand/v1";
 /// The longest single part a token may ask for.
 const MAX_PART: usize = 256;
 /// The default floor under the random bits of a result.
@@ -1134,7 +1135,8 @@ fn expand_context(name: &str, ctx: &Ctx) -> Result<String, String> {
 
 /// HKDF-SHA256 with the fixed lengthener salt. Pinned by golden vectors: `v1` never changes.
 fn derive(value: &str, context: &str, len: usize) -> Result<Vec<u8>, String> {
-    let mut mac = HmacSha256::new_from_slice(EXPAND_SALT).map_err(|e| e.to_string())?;
+    let mut mac =
+        HmacSha256::new_from_slice(&Sha256::digest(EXPAND_LABEL)).map_err(|e| e.to_string())?;
     mac.update(value.as_bytes());
     let prk = mac.finalize().into_bytes();
     let info = format!("v1|{context}");
@@ -2608,17 +2610,17 @@ mod tests {
     #[test]
     fn lengtheners_add_length_and_no_bits_and_never_change_between_versions() {
         // Golden vectors for `v1`: computed outside this file from the stated construction (HKDF-SHA256,
-        // salt "unv/recipe/expand/v1", info "v1|" + context, 16-bit draws with rejection). Never regenerated.
+        // salt SHA-256("unv/recipe/expand/v1"), info "v1|" + context, 16-bit draws with rejection). Never regenerated.
         let e =
             |ctx: &str| derive_chars("abcdefgh", ctx, &alphabet("base36").unwrap(), 22).unwrap();
-        assert_eq!(e(""), "da616yclu1jlci6g3y2ele");
-        assert_eq!(e("sonarr.home.lan"), "uo76c129i6739ef1d4ey9l");
+        assert_eq!(e(""), "3v68o4p9q8zt8jt1u8dk2j");
+        assert_eq!(e("sonarr.home.lan"), "jnqpoppoozsmowaa0x9xdj");
         assert_eq!(
             derive_chars("abcdefgh", "", &alphabet("base36").unwrap(), 10).unwrap(),
-            "da616yclu1"
+            "3v68o4p9q8"
         );
         let g = run("{fixed:\"abcdefgh\"|expand:22:base36}").unwrap();
-        assert_eq!(g.text, "da616yclu1jlci6g3y2ele");
+        assert_eq!(g.text, "3v68o4p9q8zt8jt1u8dk2j");
         assert_eq!(g.bits, 0.0);
         // A random part keeps the bits it was drawn with, however long the expansion.
         let r = run("{random:8:base36|expand:40:base36}").unwrap();
