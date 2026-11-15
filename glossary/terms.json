@@ -249,6 +249,197 @@
       "category": "field",
       "aliases": ["custom_icon"],
       "definition": "The Simple Icons name to use as the provider's icon. Empty means the icon is detected automatically."
+    },
+    {
+      "id": "description",
+      "term": "Description",
+      "category": "field",
+      "aliases": ["description"],
+      "definition": "Longer free-text notes about an entry.",
+      "see_also": ["details", "api-description"]
+    },
+    {
+      "id": "details",
+      "term": "Details",
+      "category": "field",
+      "aliases": ["details"],
+      "definition": "Notes to yourself about an entry: extra metadata or usage notes. It is separate from the description of what the key is for.",
+      "see_also": ["description"]
+    },
+    {
+      "id": "email",
+      "term": "Email",
+      "category": "field",
+      "aliases": ["email"],
+      "definition": "The email address associated with this credential. It is a separate field from the username and from the account name.",
+      "see_also": ["account-name"]
+    },
+    {
+      "id": "env-prefixes",
+      "term": "Env prefixes",
+      "category": "field",
+      "aliases": ["env_prefixes"],
+      "definition": "Environment-variable prefixes that the services consuming this credential add. For a key, the prefixes ND and SPOTIFYD mean that Navidrome reads it as ND_LASTFM_APIKEY. For a chunk, the first prefix is the chunk's environment namespace, for example AM for AM_JWT_SECRET.",
+      "see_also": ["label", "primary-role"]
+    },
+    {
+      "id": "env-var-subtype",
+      "term": "Env var subtype",
+      "category": "field",
+      "aliases": ["env_var_subtype"],
+      "definition": "A hint about what kind of value an env_var entry holds, used for display and filtering."
+    },
+    {
+      "id": "environment",
+      "term": "Environment",
+      "category": "field",
+      "aliases": ["environment"],
+      "definition": "The deployment context this credential belongs to.",
+      "example": "production"
+    },
+    {
+      "id": "expires-at",
+      "term": "Expires",
+      "category": "field",
+      "aliases": ["expires_at"],
+      "definition": "When the credential expires, as an ISO-8601 date, or empty if it never does. Credentials close to expiry are listed by the health scan and by unv rotate-check.",
+      "see_also": ["last-rotated-at"]
+    },
+    {
+      "id": "extra-vars",
+      "term": "Extra vars",
+      "category": "field",
+      "aliases": ["extra_vars"],
+      "definition": "Extra named fields beyond the fixed ones, for example db, port and host for a database entry. Each has a name and a value, and a value can be marked public so that it prints."
+    },
+    {
+      "id": "header-recipe",
+      "term": "Header recipe",
+      "category": "field",
+      "aliases": ["header_recipe"],
+      "definition": "How a derived header is built for a web session, for example the *arr family's X-Api-Key, YouTube's SAPISIDHASH or LinkedIn's csrf header copied off a cookie. A derived header is computed when you copy it, so a copied header is only good briefly, and the interface says so."
+    },
+    {
+      "id": "id",
+      "term": "Id",
+      "category": "field",
+      "aliases": ["id"],
+      "definition": "The entry's stable unique identifier, assigned once when it is created and never changed. It is the entry's identity wherever that must survive edits and reordering: version history, audit rows, access scoping and which cards are expanded. A vault from before the field existed gets a UUID filled in.",
+      "see_also": ["key-id"]
+    },
+    {
+      "id": "issued-at",
+      "term": "Issued at",
+      "category": "field",
+      "aliases": ["issued_at"],
+      "definition": "When the issuer created the credential. If it is not known it stays empty instead of being invented.",
+      "see_also": ["issued-at-precision", "created-at"]
+    },
+    {
+      "id": "issued-at-precision",
+      "term": "Issued at precision",
+      "category": "field",
+      "aliases": ["issued_at_precision"],
+      "definition": "How precisely the issued-at time is known: exact, date, month, year or unknown. Old vaults use unknown.",
+      "see_also": ["issued-at"]
+    },
+    {
+      "id": "key-id",
+      "term": "Key ID",
+      "category": "field",
+      "aliases": ["key_id"],
+      "definition": "Tells apart two credentials from the same provider. It is part of the entry's identity: it is what ${Provider_KeyId} addresses and what access scoping matches.",
+      "see_also": ["id", "label"]
+    },
+    {
+      "id": "label",
+      "term": "Name label",
+      "category": "field",
+      "aliases": ["label"],
+      "definition": "A short token inserted into generated variable names after the version, as in SPOTIFY_V2_GAME_ID. It is not the account name, because account names are often email addresses.",
+      "see_also": ["key-id", "primary-role", "env-prefixes"]
+    },
+    {
+      "id": "last-copied-name",
+      "term": "Last copied name",
+      "category": "field",
+      "aliases": ["last_copied_name"],
+      "definition": "The variable name this entry was last copied or exported under. It is kept because renaming a provider, version or label silently renames every variable the entry generates, while a .env already on a server keeps the old name.",
+      "see_also": ["label"]
+    },
+    {
+      "id": "last-rotated-at",
+      "term": "Last rotated at",
+      "category": "field",
+      "aliases": ["last_rotated_at"],
+      "definition": "When the credential was last rotated by hand, set with Mark as rotated, as an ISO-8601 time.",
+      "see_also": ["expires-at"]
+    },
+    {
+      "id": "last-verified-at",
+      "term": "Last verified at",
+      "category": "field",
+      "aliases": ["last_verified_at"],
+      "definition": "When you last confirmed that a web session credential still works. A session cannot be rotated, because rotating it means logging in again in a browser, so this date is what its health check uses instead."
+    },
+    {
+      "id": "local-scripts",
+      "term": "Local scripts",
+      "category": "field",
+      "aliases": ["local_scripts"],
+      "definition": "Whether this entry may be served to local scripts through the unlocked desktop app. It is off by default and is set per entry."
+    },
+    {
+      "id": "mount-path",
+      "term": "Mount path",
+      "category": "field",
+      "aliases": ["mount_path"],
+      "definition": "Where the program that uses this credential expects to find it as a file. A service-account JSON, an Apple .p8 file and a kubeconfig are used by pointing at them, so the variable names the path and never the contents, and unv file write puts the file there.",
+      "see_also": ["blob-data"]
+    },
+    {
+      "id": "pinned",
+      "term": "Pinned",
+      "category": "field",
+      "aliases": ["pinned"],
+      "definition": "When true, the entry floats to the top of every filtered view."
+    },
+    {
+      "id": "plugin-data",
+      "term": "Plugin data",
+      "category": "field",
+      "aliases": ["plugin_data"],
+      "definition": "Data specific to a plugin or adapter. It is treated as secret and redacted unless you reveal it."
+    },
+    {
+      "id": "pool",
+      "term": "Key Pool",
+      "category": "field",
+      "aliases": ["pool"],
+      "definition": "The name of the key pool this entry belongs to, empty for a standalone key. Entries that share a pool name are interchangeable credentials for the same service, so a caller can swap to another when one is rate limited. Membership is explicit: two keys for one provider do not pool automatically. The swap state is kept per machine, not in the vault."
+    },
+    {
+      "id": "price-type",
+      "term": "Price Type",
+      "category": "field",
+      "aliases": ["price_type"],
+      "definition": "The billing model of the service the credential is for: free, local, paid or conditional."
+    },
+    {
+      "id": "primary-public",
+      "term": "Primary public",
+      "category": "field",
+      "aliases": ["primary_public"],
+      "definition": "Marks the primary value as safe to print, such as an OAuth client id, a Stripe pk_ key or an AWS access key id. It opts the value out of redaction everywhere.",
+      "see_also": ["api-key"]
+    },
+    {
+      "id": "primary-role",
+      "term": "Value role",
+      "category": "field",
+      "aliases": ["primary_role"],
+      "definition": "What the primary value is. It becomes the last segment of its generated variable name, so a client id exports as SPOTIFY_ID rather than SPOTIFY. A new entry starts with its type name here, which gives GITHUB_API_KEY, and a blank role keeps the bare name that every already deployed .env uses.",
+      "see_also": ["label", "env-prefixes"]
     }
   ]
 }
