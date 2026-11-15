@@ -318,7 +318,7 @@
     },
     {
       "id": "recipes",
-      "status": "gap-ui",
+      "status": "both",
       "cli": [
         "unv recipe tokens",
         "unv recipe ls",
@@ -339,9 +339,16 @@
         "unv recipe fact ls",
         "unv recipe fact rm"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "Phase 33 gap: password recipes (R41). The Tools pane and the entry form recipe chip follow in the next slice.",
+      "ui": [
+        "tool:recipes",
+        "id:rcp-template"
+      ],
+      "tauri": [
+        "recipe_registry",
+        "recipe_preview",
+        "recipe_resolve"
+      ],
+      "note": "",
       "cli_flags": []
     },
     {
