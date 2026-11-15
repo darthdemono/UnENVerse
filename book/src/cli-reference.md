@@ -197,6 +197,14 @@ Contract version 1.
 | `unv scan` | Health scan — weak, expiring, duplicated and stale-reference secrets |
 | `unv sessions` | List the cached sessions: which servers, which users, which is default |
 | `unv shield <argv>` | Run a command while replacing known vault values in its text output |
+| `unv site add <entry> <url>` | Add an address: a URL, `host:port` or a bare host. The path is dropped |
+| `unv site family add <name> [hosts]` | Add hosts to a family, creating it |
+| `unv site family ls` | List the families |
+| `unv site family rm <name> [host]` | Remove a host from a family, or the whole family when no host is given |
+| `unv site family use <entry> <name>` | Make an entry answer on every host of a family (an empty NAME clears it) |
+| `unv site ls <entry>` | List an entry's addresses (its `api_url` counts as one) and its family |
+| `unv site match <origin>` | Which entries are offered at an origin. Prints names and ids, never values |
+| `unv site rm <entry> <url>` | Remove an address |
 | `unv ssh-agent` | Serve the Ed25519 keys in this vault over the OpenSSH agent protocol, so `ssh` can sign with a key that never sits under ~/.ssh. Signing only: it never returns a private key. Unix only |
 | `unv status` | Where this CLI is pointed and what the vault holds |
 | `unv support bundle` | Versions, counts and check results of the local vault: no values, names, paths or hosts |
