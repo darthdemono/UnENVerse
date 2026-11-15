@@ -80,7 +80,12 @@ export type SecretType =
   | 'crypto_wallet'
   | 'passkey'
   | 'secure_note'
-  | 'identity_document';
+  | 'identity_document'
+  /**
+   * A phrase a site asks for beside the password and the 2FA code (a memorable phrase, a security
+   * answer). It lives in a bundle with the login it belongs to, filled third in the login sequence.
+   */
+  | 'security_phrase';
 
 /**
  * The editor/validator/preview an `extra_vars` value gets (Phase 24.1).
