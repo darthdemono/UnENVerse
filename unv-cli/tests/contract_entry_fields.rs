@@ -324,6 +324,51 @@ fn an_app_name_and_purpose_are_stored_apart_from_the_purpose_given_to_the_issuer
 }
 
 #[test]
+fn an_app_org_url_and_version_are_stored_and_the_url_refuses_credentials() {
+    // The organisation that owns the app, its homepage and its own version are plain
+    // metadata like the app name. The version is the app's, not the API's (`--version`).
+    let v = Vault::new("fields-app-org");
+    v.ok(&[
+        "entry",
+        "add",
+        "Acme",
+        "--key",
+        "k",
+        "--version",
+        "2022-11-28",
+        "--app-org",
+        "darthdemono-labs",
+        "--app-url",
+        "https://github.com/apps/release-bot",
+        "--app-version",
+        "2.4.1",
+    ]);
+    assert_eq!(field(&v, "Acme", "app_org"), "darthdemono-labs");
+    assert_eq!(
+        field(&v, "Acme", "app_url"),
+        "https://github.com/apps/release-bot"
+    );
+    assert_eq!(field(&v, "Acme", "app_version"), "2.4.1");
+    assert_eq!(field(&v, "Acme", "version"), "2022-11-28");
+    // The bug this guards against: a credential typed into the URL would be stored and shown.
+    let bad = v.run(&[
+        "entry",
+        "set",
+        "Acme",
+        "--app-url",
+        "https://bot:hunter2@example.com/app",
+    ]);
+    assert_eq!(bad.code, 10, "{}", bad.all());
+    assert_eq!(
+        field(&v, "Acme", "app_url"),
+        "https://github.com/apps/release-bot"
+    );
+    // An empty value clears it.
+    v.ok(&["entry", "set", "Acme", "--app-url", ""]);
+    assert_eq!(field(&v, "Acme", "app_url"), "");
+}
+
+#[test]
 fn a_new_secret_starts_on_a_value_role_and_an_explicit_role_wins() {
     // Every secret with a primary value carries a role, so the variable is
     // PROVIDER_ROLE (GITHUB_KEY) and never a bare PROVIDER. Without a value there is

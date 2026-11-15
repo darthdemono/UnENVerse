@@ -134,10 +134,15 @@ fn meta_for(entry: &Value, profile: Profile) -> Vec<(String, String)> {
             })
             .unwrap_or_default();
         out.extend([
+            ("USERNAME".into(), s(entry, "username").to_string()),
+            ("EMAIL".into(), s(entry, "email").to_string()),
             ("DESCRIPTION".into(), s(entry, "description").to_string()),
             ("PURPOSE".into(), s(entry, "purpose").to_string()),
             ("APP_NAME".into(), s(entry, "app_name").to_string()),
             ("APP_PURPOSE".into(), s(entry, "app_purpose").to_string()),
+            ("APP_ORG".into(), s(entry, "app_org").to_string()),
+            ("APP_URL".into(), s(entry, "app_url").to_string()),
+            ("APP_VERSION".into(), s(entry, "app_version").to_string()),
             ("TAGS".into(), join(entry, "tags")),
             ("CATEGORIES".into(), join(entry, "categories")),
             ("PROJECTS".into(), projects),
