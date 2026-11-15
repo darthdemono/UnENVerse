@@ -317,6 +317,24 @@
       "cli_flags": []
     },
     {
+      "id": "sites",
+      "status": "gap-ui",
+      "cli": [
+        "unv site ls",
+        "unv site add",
+        "unv site rm",
+        "unv site match",
+        "unv site family ls",
+        "unv site family add",
+        "unv site family rm",
+        "unv site family use"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Phase 33 gap: addresses and families of an entry (R40). The form and card chips arrive in the next slice.",
+      "cli_flags": []
+    },
+    {
       "id": "recovery-codes",
       "status": "both",
       "cli": [
