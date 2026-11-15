@@ -7141,6 +7141,7 @@ dependencies = [
  "toml 1.1.8+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
+ "url",
  "webpki-roots",
  "windows-sys 0.61.2",
  "x509-parser",
