@@ -86,3 +86,18 @@ fn no_vault_message_names_the_command_that_creates_one() {
     assert_eq!(o.status.code(), Some(7));
     assert!(String::from_utf8_lossy(&o.stderr).contains("unv --init status"));
 }
+
+/// The bug: on a machine with no vault, `unv doctor` reported "the salt is missing, this vault
+/// cannot be opened" with "there is no repair", which reads as a destroyed vault.
+#[test]
+fn doctor_on_a_machine_with_no_vault_says_there_is_none_yet() {
+    let dir = scratch("doctor");
+    let o = unv(&dir, Some(&long_password()), &["--json", "doctor"]);
+    let text = String::from_utf8_lossy(&o.stdout).to_string();
+    assert!(text.contains("No vault here yet"), "{text}");
+    assert!(!text.contains("cannot be opened"), "{text}");
+    assert!(
+        !dir.join("vault.salt").exists(),
+        "doctor must not create anything"
+    );
+}
