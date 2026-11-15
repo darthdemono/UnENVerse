@@ -2092,6 +2092,31 @@ mod commands {
         Ok(serde_json::json!({ "generated_at": c.generated_at, "providers": c.providers.len() }))
     }
 
+    /// Normalises the addresses typed in the entry form (R40). The parser is `vault_core::sites`;
+    /// the form has no twin of it. A site that was already stored keeps its date.
+    #[tauri::command]
+    pub fn normalise_sites(
+        sites: Vec<serde_json::Value>,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        sites
+            .iter()
+            .map(|s| {
+                let text = |k: &str| s.get(k).and_then(|v| v.as_str());
+                let mut v = vault_core::sites::site_value(
+                    text("url").unwrap_or(""),
+                    text("kind").filter(|k| !k.is_empty()),
+                    text("mode").filter(|m| !m.is_empty()),
+                    text("label").unwrap_or(""),
+                    text("source").filter(|k| !k.is_empty()).unwrap_or("manual"),
+                )?;
+                if let Some(at) = text("added_at").filter(|a| !a.is_empty()) {
+                    v["added_at"] = serde_json::json!(at);
+                }
+                Ok(v)
+            })
+            .collect()
+    }
+
     /// `Ok(())` when `mnemonic` is a valid BIP39 phrase; the error never echoes a word.
     #[tauri::command]
     pub fn bip39_validate(mnemonic: String) -> Result<(), String> {
@@ -2794,6 +2819,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::type_emit,
             commands::oauth_refresh,
             commands::bip39_validate,
+            commands::normalise_sites,
             commands::enrich_plan,
             commands::enrich_online_targets,
             commands::enrich_online,
