@@ -558,6 +558,13 @@ enum Commands {
         #[command(subcommand)]
         cmd: CodesCmd,
     },
+    /// The steps of a bundle's login in order (password, 2FA, phrase, recovery code). Names only.
+    LoginPlan {
+        bundle: String,
+        /// What happens to a recovery code once it has been filled: ask | auto | never.
+        #[arg(long, value_parser = ["ask", "auto", "never"])]
+        terminate_codes: Option<String>,
+    },
     /// Sites: the addresses an entry is used at, and families of hosts that share one entry.
     Site {
         #[command(subcommand)]
@@ -2209,6 +2216,10 @@ enum CodesCmd {
     Next { entry: String },
     /// Mark a code used (the first unused one when CODE is omitted).
     Use { entry: String, code: Option<String> },
+    /// Put a used code back, for one a page rejected after it was marked.
+    Unuse { entry: String, code: String },
+    /// Add the codes in a pasted text (a file, or `-` for stdin). Prints no codes.
+    Import { entry: String, file: String },
 }
 
 #[derive(Subcommand)]
@@ -4451,6 +4462,10 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
         Commands::Oauth { cmd } => match cmd {
             OauthCmd::Refresh { entry } => oauth_cmd::refresh(a, entry, yes),
         },
+        Commands::LoginPlan {
+            bundle,
+            terminate_codes,
+        } => bundle_cmd::login_plan(a, bundle, terminate_codes.as_deref()),
         Commands::Site { cmd } => match cmd {
             SiteCmd::Ls { entry } => site_cmd::ls(a, entry),
             SiteCmd::Add { entry, url, kind, mode, label } => {
@@ -4471,6 +4486,8 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             CodesCmd::Status { entry } => emit_cmd::codes_status(a, entry),
             CodesCmd::Next { entry } => emit_cmd::codes_next(a, entry),
             CodesCmd::Use { entry, code } => emit_cmd::codes_use(a, entry, code.as_deref()),
+            CodesCmd::Unuse { entry, code } => emit_cmd::codes_unuse(a, entry, code),
+            CodesCmd::Import { entry, file } => emit_cmd::codes_import(a, entry, file),
         },
 
         Commands::Bundle { cmd } => match cmd {
