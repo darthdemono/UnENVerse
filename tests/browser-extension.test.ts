@@ -152,6 +152,7 @@ interface Content {
     hooks?: {
       onWarn?: (w: { names: string[]; choices: Record<string, () => void> }) => void;
       onNotice?: (text: string) => void;
+      allowSynthetic?: boolean;
     },
   ) => () => void;
 }
@@ -167,6 +168,7 @@ function paste(doc: Document, text: string, files = 0): Event {
 
 describe('content script', () => {
   let install: Content['install'];
+  let real: Content['install'];
   let exec: ReturnType<typeof vi.fn>;
   beforeEach(async () => {
     document.body.innerHTML = '<textarea id="t"></textarea>';
@@ -175,7 +177,9 @@ describe('content script', () => {
     await loadCore();
     // @ts-expect-error plain browser script without types
     await import('../browser-extension/content.js');
-    install = (globalThis as unknown as { UnvGuardContent: Content }).UnvGuardContent.install;
+    real = (globalThis as unknown as { UnvGuardContent: Content }).UnvGuardContent.install;
+    // jsdom cannot make a trusted event, so these tests say their pastes stand for real ones.
+    install = (doc, send, hooks) => real(doc, send, { allowSynthetic: true, ...hooks });
   });
   const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -188,6 +192,20 @@ describe('content script', () => {
     await tick();
     expect(send).toHaveBeenCalledWith('nothing secret in here');
     expect(exec).toHaveBeenCalledWith('insertText', false, 'nothing secret in here');
+    stop();
+  });
+
+  // The bug: a chat page could dispatch its own paste event carrying a list of guessed
+  // passwords, and the guard asked the vault and showed a warning when one matched. The page
+  // saw the warning element arrive, so it learned that a guess was a real secret.
+  it('ignores a paste event the page made up, so a page cannot probe the vault', async () => {
+    const send = vi.fn(async () => ({ ok: true, hits: [{ entry: 'Bank' }] }));
+    const stop = real(document, send);
+    const ev = paste(document, 'guess-one guess-two guess-three');
+    await tick();
+    expect(ev.defaultPrevented).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
     stop();
   });
 
