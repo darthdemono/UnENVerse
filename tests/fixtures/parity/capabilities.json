@@ -318,7 +318,7 @@
     },
     {
       "id": "sites",
-      "status": "gap-ui",
+      "status": "both",
       "cli": [
         "unv site ls",
         "unv site add",
@@ -329,9 +329,14 @@
         "unv site family rm",
         "unv site family use"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "Phase 33 gap: addresses and families of an entry (R40). The form and card chips arrive in the next slice.",
+      "ui": [
+        "id:f-sites",
+        "id:f-site-family"
+      ],
+      "tauri": [
+        "normalise_sites"
+      ],
+      "note": "",
       "cli_flags": []
     },
     {
