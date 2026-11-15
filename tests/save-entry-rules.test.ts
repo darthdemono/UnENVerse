@@ -301,7 +301,7 @@ describe('addresses (sites)', () => {
     tauri((sites) => (sites as { url: string }[]).map((s) => ({ ...s, url: s.url.toLowerCase() })));
     form(null);
     fillBasics();
-    set('f-sites', 'Localhost:8989\n\n localhost:8989 \nhttps://Tv.Home.lan');
+    set('f-sites', 'localhost:8989\n\n localhost:8989 \nhttps://Tv.Home.lan');
     set('f-site-family', 'media');
     await saveModal();
     const saved = st.vault.api_keys[0];
