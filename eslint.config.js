@@ -50,6 +50,9 @@ export default tseslint.config(
       // The browser paste guard is plain browser scripts (no build step, no tsconfig).
       // tests/browser-extension.test.ts exercises them and Prettier formats them.
       'browser-extension/**',
+      // The site's search script is a plain browser script (no build step, no tsconfig);
+      // tests/site-pages.test.ts exercises its ranking and Prettier formats it.
+      'website/assets/**',
       '**/*.d.ts',
     ],
   },
