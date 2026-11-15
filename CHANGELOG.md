@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.77.0 (2026-11-15)
+
 ### Security
 
 - `unv exec --sandbox` now empties the user's runtime directory (`$XDG_RUNTIME_DIR`) and the vault's own directory as well as the home directory. Before, a sandboxed command with the network off could still connect to sockets there: the desktop's local-scripts socket (and read the flagged entries), the session bus, or another agent's socket.
@@ -11,7 +13,6 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - The browser paste guard ignores paste events a page creates itself. A chat page could send a made-up paste holding a list of guessed passwords and learn from the warning appearing that one of them is in the vault.
 - `unv canary listen` serves at most 32 connections at once and reads the vault at most once every five seconds. It used to start a thread and read the whole vault for every request, so anyone who could reach the port could exhaust the machine.
 - The VS Code hover no longer passes a reference name that starts with a dash to `unv`, where it was read as an option.
-
 - `rusqlite` 0.42.0 (SQLCipher 4.20.0 on SQLite 3.54.1 through `libsqlite3-sys` 0.40.0) and `rustix` 1.1.6, for RUSTSEC-2026-0459, RUSTSEC-2026-0502 and RUSTSEC-2026-0486.
 
 ### Added
