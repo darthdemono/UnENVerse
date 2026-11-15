@@ -214,11 +214,17 @@ describe('dynamicSecretFields', () => {
     expect($('f-storage-tokens-group').style.display).toBe('none');
   });
 
-  it('shows the username row for password and ssh_key only', () => {
-    typeIs('password');
-    expect($('f-username-row').style.display).toBe('grid');
-    typeIs('api_key');
-    expect($('f-username-row').style.display).toBe('none');
+  // The bug: username and email were typed fields only on passwords and SSH keys, so an API key,
+  // a database or a Wi-Fi network could not hold the login name or the address it was made with.
+  it('shows the separate username and email fields for every secret type', () => {
+    for (const t of Object.keys(TYPE_CONFIG)) {
+      typeIs(t);
+      if (!Array.from(($('f-secret-type') as HTMLSelectElement).options).some((o) => o.value === t))
+        continue;
+      expect($('f-username-row').style.display, t).toBe('grid');
+      expect($('f-username')).not.toBeNull();
+      expect($('f-email')).not.toBeNull();
+    }
   });
 
   it('shows the env_var subtype picker only for env_var', () => {

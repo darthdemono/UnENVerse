@@ -353,7 +353,6 @@ export function dynamicSecretFields() {
     !!(document.getElementById('f-secret') as HTMLInputElement | null)?.value ||
     !!(document.getElementById('f-secret-role') as HTMLInputElement | null)?.value;
   const showSecret = type === 'api_key' && legacySecret;
-  const showUser = type === 'password' || type === 'ssh_key';
   // A composite's payload is its template plus its parts (extra_vars); a
   // bundle's is entirely its members and its local variables (extra_vars).
   // Neither has a single primary value the way every other type does.
@@ -365,7 +364,10 @@ export function dynamicSecretFields() {
   secretGroup.style.display = showSecret ? 'flex' : 'none';
   const secretRoleGroup = document.getElementById('f-secret-role-group');
   if (secretRoleGroup) secretRoleGroup.style.display = showSecret ? 'flex' : 'none';
-  usernameRow.style.display = showUser ? 'grid' : 'none';
+  // Username and email are separate fields on every secret, not only on passwords and SSH keys: an
+  // API key has an account that signed up with an address, a database has a login name, and a stored
+  // value must never be unreachable because of its type (invariant 7).
+  usernameRow.style.display = 'grid';
   certGroup.style.display = type === 'certificate' ? 'flex' : 'none';
   certKeyGroup.style.display = type === 'certificate' ? 'flex' : 'none';
   certIssuerGroup.style.display = type === 'certificate' ? 'flex' : 'none';
@@ -561,6 +563,9 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
     purpose: getVal('f-purpose') || undefined,
     app_name: getVal('f-app-name') || undefined,
     app_purpose: getVal('f-app-purpose') || undefined,
+    app_org: getVal('f-app-org') || undefined,
+    app_url: getVal('f-app-url') || undefined,
+    app_version: getVal('f-app-version') || undefined,
     pool: getVal('f-pool') || undefined,
     expires_at: getVal('f-expires') || undefined,
     // Keeps the stored timestamp when the shown date was not touched, so editing an
@@ -1018,6 +1023,9 @@ export function fillForm(source: Partial<VaultEntry>) {
   (document.getElementById('f-purpose') as HTMLInputElement).value = entry.purpose || '';
   (document.getElementById('f-app-name') as HTMLInputElement).value = entry.app_name || '';
   (document.getElementById('f-app-purpose') as HTMLInputElement).value = entry.app_purpose || '';
+  (document.getElementById('f-app-org') as HTMLInputElement).value = entry.app_org || '';
+  (document.getElementById('f-app-url') as HTMLInputElement).value = entry.app_url || '';
+  (document.getElementById('f-app-version') as HTMLInputElement).value = entry.app_version || '';
   (document.getElementById('f-pool') as HTMLInputElement).value = entry.pool || '';
   (document.getElementById('f-expires') as HTMLInputElement).value = entry.expires_at || '';
   (document.getElementById('f-created') as HTMLInputElement).value = entry.created_at

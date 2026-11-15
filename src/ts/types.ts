@@ -282,6 +282,15 @@ export interface VaultEntry {
   app_name?: string | null;
   /** What that app does with this secret. */
   app_purpose?: string | null;
+  /** The organisation that owns that app, or its account with the issuer. */
+  app_org?: string | null;
+  /**
+   * Where that app lives: its homepage or console. Not `sites` (where the secret is used) and not
+   * `api_url` (the issuer's API). Only an http(s) address is shown as a link.
+   */
+  app_url?: string | null;
+  /** The version of that app that uses this secret. The API or SDK version stays in `version`. */
+  app_version?: string | null;
   /**
    * Name of the key pool this entry belongs to, or `null` for a standalone key.
    *

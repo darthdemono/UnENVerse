@@ -741,6 +741,22 @@ describe('additional values, app metadata and blank values', { timeout: 30000 },
     $('modal-cancel').click();
   });
 
+  it('saves the app org, app URL and app version and fills them back in when editing', async () => {
+    await openAdd();
+    set('f-provider', 'Acme');
+    set('f-key', 'acme-key-value-12345');
+    set('f-app-org', 'darthdemono-labs');
+    set('f-app-url', 'https://github.com/apps/release-bot');
+    set('f-app-version', '2.4.1');
+    await save();
+    expect(last()).toMatchObject({
+      app_org: 'darthdemono-labs',
+      app_url: 'https://github.com/apps/release-bot',
+      app_version: '2.4.1',
+    });
+    $('modal-cancel').click();
+  });
+
   it('does not save a named variable with no value, and does not let it stand in for the primary', async () => {
     // Bug: a variable name with an empty value counted as the entry's payload, so an
     // env_var entry with a name and nothing else was saved as a blank secret.

@@ -1375,6 +1375,9 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
   if (entry.purpose) metaRows.push(['Purpose', entry.purpose]);
   if (entry.app_name) metaRows.push(['App', entry.app_name]);
   if (entry.app_purpose) metaRows.push(['App purpose', entry.app_purpose]);
+  if (entry.app_org) metaRows.push(['Org', entry.app_org]);
+  if (entry.app_url) metaRows.push(['App URL', safeUrl(entry.app_url)]);
+  if (entry.app_version) metaRows.push(['App version', entry.app_version]);
   if (entry.pool) metaRows.push(['Key Pool', entry.pool]);
   if (entry.expires_at) metaRows.push(['Expires', entry.expires_at]);
   if (entry.api_url) metaRows.push(['API URL', safeUrl(entry.api_url)]);
