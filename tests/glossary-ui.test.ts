@@ -8,9 +8,10 @@ import {
   categories,
   definitionFor,
   findTerm,
+  glossaryTerms,
   searchTerms,
 } from '../src/ts/glossary';
-import { initGlossaryPane } from '../src/ts/glossary-pane';
+import { initGlossaryPane, renderGlossary } from '../src/ts/glossary-pane';
 import { loadRealIndexHtml } from './helpers';
 import { mountToolsPanes } from '../src/ts/tools-markup';
 
@@ -32,6 +33,15 @@ describe('glossary lookup', () => {
     expect(only.length).toBeGreaterThanOrEqual(26);
     expect(only.every((t) => t.category === 'secret type')).toBe(true);
     expect(categories()).toContain('command');
+  });
+});
+
+describe('glossary data', () => {
+  it('holds every term once, and each category has terms', () => {
+    const all = glossaryTerms();
+    expect(all.length).toBeGreaterThan(800);
+    expect(new Set(all.map((t) => t.id)).size).toBe(all.length);
+    for (const c of categories()) expect(searchTerms('', c).length, c).toBeGreaterThan(0);
   });
 });
 
@@ -77,6 +87,27 @@ describe('the Tools glossary pane', () => {
     expect(status.textContent).toContain('No term matches');
     const cat = document.getElementById('glossary-cat') as HTMLSelectElement;
     expect([...cat.options].map((o) => o.value)).toContain('secret type');
+  });
+
+  it('counts one term, several terms and a capped list in its status line', () => {
+    initGlossaryPane();
+    const q = document.getElementById('glossary-q') as HTMLInputElement;
+    const cat = document.getElementById('glossary-cat') as HTMLSelectElement;
+    const status = document.getElementById('glossary-status')!;
+    q.value = 'unv glossary --category';
+    expect(searchTerms(q.value)).toHaveLength(1);
+    q.dispatchEvent(new Event('input'));
+    expect(status.textContent).toBe('1 term.');
+    q.value = '';
+    cat.value = 'secret type';
+    cat.dispatchEvent(new Event('change'));
+    expect(status.textContent).toMatch(/^\d+ terms\.$/);
+  });
+
+  it('does nothing, and does not throw, when the pane is not on the page', () => {
+    document.body.innerHTML = '';
+    expect(() => initGlossaryPane()).not.toThrow();
+    expect(() => renderGlossary()).not.toThrow();
   });
 
   it('escapes what it shows', () => {
