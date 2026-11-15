@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search the UnENVerse site</title>
+  <meta name="description" content="Search the UnENVerse guides, FAQ, glossary and pages.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/search/">
+  <link rel="icon" href="/assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+{{HEADER}}
+<main id="main">
+  <section>
+    <div class="wrap prose">
+      <h1>Search</h1>
+      <form role="search" action="/search/" method="get">
+        <p><label for="search-page-q">Search the guides, FAQ, glossary and pages <input id="search-page-q" type="search" name="q" autocomplete="off" placeholder="provider, import, nodes"></label></p>
+      </form>
+      <p id="search-note" class="small" aria-live="polite">Search needs JavaScript. Without it, use the <a href="/guides/">guides</a>, the <a href="/faq/">FAQ</a> or the <a href="/glossary/">glossary</a>.</p>
+      <ul id="search-results" class="search-results"></ul>
+    </div>
+  </section>
+</main>
+{{FOOTER}}
+</body>
+</html>

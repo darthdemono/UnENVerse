@@ -164,6 +164,13 @@ export const AUTHOR = {
   ],
 };
 
+const slugify = (v) =>
+  v
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+
 const attr = (html, re) => re.exec(html)?.[1];
 const escAttr = (v) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
@@ -419,6 +426,164 @@ export function changelogSite({ out, partials, vars, today, md }) {
 }
 
 /**
+ * Writes /search-index.json (one entry per page, glossary term and FAQ question) and the /search/
+ * page. The index is built from the pages already written, so it cannot list a page that is not
+ * there, and the search runs in the reader's browser: nothing is sent anywhere.
+ */
+export function searchSite({ out, partials, vars }) {
+  const decode = (v) =>
+    v
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  const strip = (v) =>
+    v
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const skip = (rel) =>
+    /^(docs|reference\/(ts|rust)|book|ts|rust|search)\//.test(rel) ||
+    /^changelog\/[^/]+\//.test(rel);
+  const walk = (d) =>
+    fs
+      .readdirSync(d, { withFileTypes: true })
+      .flatMap((e) =>
+        e.isDirectory()
+          ? walk(path.join(d, e.name))
+          : e.name === 'index.html'
+            ? [path.join(d, e.name)]
+            : [],
+      );
+  const entries = [];
+  for (const f of walk(out)) {
+    const rel = path.relative(out, f).split(path.sep).join('/');
+    if (skip(rel)) continue;
+    const html = fs.readFileSync(f, 'utf8');
+    if (/name="robots" content="noindex"/.test(html)) continue;
+    const title = decode(/<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '');
+    if (!title) continue;
+    const desc = decode(/<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '');
+    const heads = [...html.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/g)]
+      .map((m) => decode(strip(m[1])))
+      .filter(Boolean);
+    const url = '/' + rel.replace(/index\.html$/, '');
+    entries.push({
+      t: title,
+      u: url,
+      k: url.startsWith('/guides/') && url !== '/guides/' ? 'guide' : 'page',
+      d: desc,
+      h: heads.join(' | ').slice(0, 500),
+    });
+  }
+  const { terms } = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary/terms.json'), 'utf8'));
+  for (const t of terms)
+    entries.push({
+      t: t.term,
+      u: `/glossary/#${t.id}`,
+      k: 'glossary',
+      d: t.definition,
+      h: (t.aliases ?? []).join(' '),
+    });
+  const faq = JSON.parse(fs.readFileSync(path.join(ROOT, 'website/partials/faq.json'), 'utf8'));
+  for (const { q, a } of faq)
+    entries.push({ t: q, u: `/faq/#${slugify(q)}`, k: 'faq', d: a.slice(0, 200), h: '' });
+  fs.writeFileSync(path.join(out, 'search-index.json'), JSON.stringify(entries));
+  const tpl = fs.readFileSync(path.join(ROOT, 'website/partials/search-page.html'), 'utf8');
+  fs.mkdirSync(path.join(out, 'search'), { recursive: true });
+  fs.writeFileSync(path.join(out, 'search/index.html'), fill(tpl, vars, partials, 'search'));
+  return entries.length;
+}
+
+/**
+ * Renders /glossary/ from glossary/terms.json: an A to Z list of what every term means in this
+ * product, with a stable anchor per term, a letter index and the DefinedTermSet structured data.
+ * The page says how many of the required terms are defined (from glossary/pending.json), so it
+ * never claims more than the file holds.
+ * @returns the page URLs for the sitemap.
+ */
+export function glossarySite({ out, partials, vars }) {
+  const { terms } = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary/terms.json'), 'utf8'));
+  const { pending } = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary/pending.json'), 'utf8'));
+  const sorted = [...terms].sort((a, b) =>
+    a.term.localeCompare(b.term, 'en', { sensitivity: 'base' }),
+  );
+  const letterOf = (t) => {
+    const c = (t.term[0] ?? '#').toUpperCase();
+    return /[A-Z]/.test(c) ? c : '#';
+  };
+  const byId = new Map(terms.map((t) => [t.id, t]));
+  const groups = new Map();
+  for (const t of sorted) {
+    const k = letterOf(t);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  }
+  const link = (id) => `<a href="#${esc(id)}">${esc(byId.get(id)?.term ?? id)}</a>`;
+  const entry = (t) =>
+    [
+      `      <div class="gloss-term" id="${esc(t.id)}">`,
+      `        <dt><a href="#${esc(t.id)}">${esc(t.term)}</a> <span class="gloss-cat">${esc(t.category)}</span></dt>`,
+      `        <dd>`,
+      `          <p>${esc(t.definition)}</p>`,
+      t.general ? `          <p class="small">In general use: ${esc(t.general)}</p>` : '',
+      t.example ? `          <p class="small">Example: <code>${esc(t.example)}</code></p>` : '',
+      t.aliases?.length
+        ? `          <p class="small">Also written: ${t.aliases.map((a) => `<code>${esc(a)}</code>`).join(', ')}</p>`
+        : '',
+      t.see_also?.length
+        ? `          <p class="small">See also: ${t.see_also.map(link).join(', ')}</p>`
+        : '',
+      `        </dd>`,
+      `      </div>`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  const body = [...groups.entries()]
+    .map(
+      ([k, list]) =>
+        `      <h2 id="letter-${k === '#' ? 'other' : k}">${k}</h2>\n      <dl>\n${list.map(entry).join('\n')}\n      </dl>`,
+    )
+    .join('\n');
+  const index = [...groups.keys()]
+    .map((k) => `<a href="#letter-${k === '#' ? 'other' : k}">${k}</a>`)
+    .join(' ');
+  const ld = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'DefinedTermSet',
+    name: 'UnENVerse glossary',
+    hasDefinedTerm: sorted.map((t) => ({
+      '@type': 'DefinedTerm',
+      name: t.term,
+      termCode: t.id,
+      description: t.definition,
+      url: `${vars.SITE_URL}/glossary/#${t.id}`,
+    })),
+  }).replace(/</g, '\\u003c');
+  const tpl = fs.readFileSync(path.join(ROOT, 'website/partials/glossary-page.html'), 'utf8');
+  const html = seo(
+    fill(
+      tpl,
+      {
+        ...vars,
+        GLOSSARY_BODY: body,
+        GLOSSARY_INDEX: index,
+        GLOSSARY_LD: ld,
+        GLOSSARY_COUNT: String(terms.length),
+        GLOSSARY_PENDING: String(pending.length),
+      },
+      partials,
+      'glossary',
+    ),
+    '/glossary/',
+  );
+  fs.mkdirSync(path.join(out, 'glossary'), { recursive: true });
+  fs.writeFileSync(path.join(out, 'glossary/index.html'), html);
+  return ['/glossary/'];
+}
+
+/**
  * Renders /faq/ from website/partials/faq.json, so the visible answers and the FAQPage
  * structured data are the same strings and cannot drift apart.
  * @returns the page URLs for the sitemap.
@@ -428,7 +593,7 @@ export function faqSite({ out, partials, vars }) {
   const body = items
     .map(
       ({ q, a }) =>
-        `      <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">\n        <h2 itemprop="name">${esc(q)}</h2>\n        <div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer"><p itemprop="text">${esc(a)}</p></div>\n      </div>`,
+        `      <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">\n        <h2 itemprop="name" id="${slugify(q)}">${esc(q)}</h2>\n        <div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer"><p itemprop="text">${esc(a)}</p></div>\n      </div>`,
     )
     .join('\n');
   const ld = JSON.stringify({
@@ -580,8 +745,13 @@ export function build({ src, out, release, sums, today = new Date().toISOString(
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(APP_ICON, dest);
   }
-  urls.push(...changelogSite({ out, partials, vars, today }), ...faqSite({ out, partials, vars }));
+  urls.push(
+    ...changelogSite({ out, partials, vars, today }),
+    ...faqSite({ out, partials, vars }),
+    ...glossarySite({ out, partials, vars }),
+  );
   llmsSite({ out, vars });
+  searchSite({ out, partials, vars });
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemap(urls.sort(), today));
   return { version, pages: urls };
 }

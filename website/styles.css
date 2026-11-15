@@ -178,11 +178,25 @@ header.site {
 .brand { display: inline-flex; align-items: center; gap: 8px; font: 800 0.8rem var(--font-head); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink); text-decoration: none; white-space: nowrap; }
 .brand-mark { width: 28px; height: 28px; flex: none; }
 .searchlike {
-  display: none; align-items: center; gap: 8px; flex: 1; max-width: 30rem; margin: 0 auto;
-  height: 34px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 8px;
-  background: var(--bg); color: var(--muted); text-decoration: none; font-size: 0.8rem; white-space: nowrap; overflow: hidden;
+  display: none; align-items: center; gap: 8px; flex: 1; max-width: 30rem; margin: 0 auto; position: relative;
+  height: 34px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 8px;
+  background: var(--bg); color: var(--muted); font-size: 0.8rem;
 }
-.searchlike:hover { border-color: var(--accent); }
+.searchlike:hover, .searchlike:focus-within { border-color: var(--accent); }
+.searchlike input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; outline: none; }
+.searchlike input::placeholder { color: var(--muted); }
+.searchlike:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sr-key { padding: 0 6px; border: 1px solid var(--line2); border-radius: 4px; font: 0.7rem var(--font-mono); color: var(--muted); }
+.searchlike:focus-within .sr-key { display: none; }
+.sr-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; max-height: 70vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--line2); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); padding: 6px; }
+.sr-list[hidden] { display: none; }
+.sr-list a, .search-results a { display: block; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+.sr-list a:hover, .sr-list a[aria-selected="true"], .search-results a:hover { background: var(--accent-dim); }
+.sr-kind { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 999px; background: var(--accent-dim); color: var(--accent); font: 0.68rem var(--font-mono); }
+.sr-desc { display: block; margin-top: 2px; color: var(--muted); font-size: 0.78rem; white-space: normal; }
+.sr-all { color: var(--accent) !important; font-size: 0.8rem; }
+.search-results { list-style: none; padding: 0; max-width: 60rem; }
+.search-results li { margin: 0; border-top: 1px solid var(--line); }
 @media (min-width: 760px) { .searchlike { display: flex; } }
 nav.top { display: flex; align-items: center; gap: 4px 14px; margin-left: auto; }
 nav.top a { color: var(--ink); text-decoration: none; font-size: 0.85rem; padding: 6px 4px; }
@@ -266,3 +280,13 @@ ul.changelog-list li { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1p
 .tl-chip-done { margin-left: 8px; vertical-align: middle; background: var(--accent-dim); color: var(--accent); }
 .tl-list { margin: 4px 0 10px; padding-left: 1.1em; }
 .tl-list li { margin-bottom: 6px; }
+.gloss-index { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 18px 0 8px; font-family: var(--font-mono); }
+.gloss-index a { padding: 2px 6px; border: 1px solid var(--line2); border-radius: 6px; text-decoration: none; }
+.gloss-term { padding: 14px 0; border-top: 1px solid var(--line); scroll-margin-top: calc(var(--header-h) + 12px); }
+.gloss-term dt { font-family: var(--font-head); font-size: 1.1rem; }
+.gloss-term dt a { text-decoration: none; }
+.gloss-cat { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--accent-dim); color: var(--accent); font-family: var(--font-mono); font-size: 0.72rem; }
+.gloss-term dd { margin: 6px 0 0; }
+#gloss-q { margin-left: 8px; padding: 6px 10px; border: 1px solid var(--line2); border-radius: 6px; background: var(--surface); color: var(--ink); min-width: min(320px, 70vw); }
+.search-icon { display: inline-flex; align-items: center; margin-left: auto; padding: 6px; color: var(--ink); }
+@media (min-width: 760px) { .search-icon { display: none; } }
