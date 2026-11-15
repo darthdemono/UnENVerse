@@ -8,7 +8,7 @@
  * message has to say what to fix (a toast that only says "failed" sends people
  * hunting).
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { st } from '../src/ts/state';
 import { saveModal, fillForm, populateProjectSelect, buildCatChips } from '../src/ts/modals';
 import { loadRealIndexHtml, makeEntry, makeVault, resetState } from './helpers';
@@ -275,5 +275,77 @@ describe('what a save does', () => {
     duringConfirm = null;
     expect(toasts.some((t) => t.includes('changed or deleted elsewhere'))).toBe(true);
     expect(st.vault.api_keys.map((x) => x.api_key)).toEqual(['o']);
+  });
+});
+
+describe('addresses (sites)', () => {
+  const tauri = (answer: (sites: unknown[]) => unknown) => {
+    (window as any).__TAURI__ = {
+      core: {
+        invoke: async (c: string, a: { sites?: unknown[] }) =>
+          c === 'normalise_sites' ? answer(a.sites ?? []) : null,
+      },
+    };
+  };
+  afterEach(() => {
+    delete (window as any).__TAURI__;
+  });
+
+  const fillBasics = () => {
+    set('f-provider', 'Sonarr');
+    set('f-key', 'k');
+    set('f-role', 'key');
+  };
+
+  it('stores the addresses the desktop normalised and the family', async () => {
+    tauri((sites) => (sites as { url: string }[]).map((s) => ({ ...s, url: s.url.toLowerCase() })));
+    form(null);
+    fillBasics();
+    set('f-sites', 'Localhost:8989\n\n localhost:8989 \nhttps://Tv.Home.lan');
+    set('f-site-family', 'media');
+    await saveModal();
+    const saved = st.vault.api_keys[0];
+    expect(saved.sites?.map((s) => s.url)).toEqual(['localhost:8989', 'https://tv.home.lan']);
+    expect(saved.site_family).toBe('media');
+  });
+
+  it('keeps the kind and date of an address that was already stored', async () => {
+    tauri((sites) => sites);
+    form({ sites: [{ url: 'localhost:8989', kind: 'local', added_at: '2026-01-01T00:00:00Z' }] });
+    fillBasics();
+    set('f-sites', 'localhost:8989');
+    await saveModal();
+    expect(st.vault.api_keys[0].sites?.[0]).toMatchObject({
+      kind: 'local',
+      added_at: '2026-01-01T00:00:00Z',
+    });
+  });
+
+  it('refuses the save when the desktop rejects an address', async () => {
+    tauri(() => {
+      throw new Error('an address with a user name or password is not stored');
+    });
+    form(null);
+    fillBasics();
+    set('f-sites', 'https://u:p@x.test');
+    await saveModal();
+    expect(st.vault.api_keys).toHaveLength(0);
+  });
+
+  it('clearing the box removes the addresses', async () => {
+    tauri((sites) => sites);
+    form({ sites: [{ url: 'localhost:8989' }], site_family: 'media' });
+    fillBasics();
+    set('f-sites', '');
+    set('f-site-family', '');
+    await saveModal();
+    expect(st.vault.api_keys[0].sites).toBeUndefined();
+    expect(st.vault.api_keys[0].site_family).toBeUndefined();
+  });
+
+  it('shows the stored addresses when an entry is edited', () => {
+    form({ sites: [{ url: 'a.test' }, { url: 'b.test:81' }], site_family: 'fam' });
+    expect($<HTMLTextAreaElement>('f-sites').value).toBe('a.test\nb.test:81');
+    expect($<HTMLInputElement>('f-site-family').value).toBe('fam');
   });
 });

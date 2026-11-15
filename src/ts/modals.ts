@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright the UnENVerse contributors.
-import type { VaultEntry, SecretType } from './types';
+import type { VaultEntry, SecretType, SiteRef } from './types';
 import { renderComposite, renderErrorMessage, type CompositeKind } from './composite';
 import {
   st,
@@ -478,6 +478,22 @@ function refreshRequiredMarker(
  * the input is empty, so clearing a box still clears the field: object spread
  * copies a key whose value is `undefined`.
  */
+/**
+ * The addresses typed in the form, one per line. A line that was already on the entry keeps its
+ * kind, mode, label and date; a new line is stored plain and normalised by `normalise_sites` when
+ * the form is saved (the parser lives in Rust only).
+ */
+function readSites(base?: VaultEntry): SiteRef[] | undefined {
+  const box = document.getElementById('f-sites') as HTMLTextAreaElement | null;
+  const lines = (box?.value ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return undefined;
+  const had = new Map((base?.sites ?? []).map((s) => [s.url, s]));
+  return [...new Set(lines)].map((url) => had.get(url) ?? { url, source: 'manual' });
+}
+
 export function formToEntry(base?: VaultEntry): VaultEntry {
   const getVal = (id: string, fallback = '') => {
     const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
@@ -538,6 +554,8 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
       ? selectedProjectIds
       : ['Universal', ...selectedProjectIds],
     api_url: getVal('f-apiurl') || undefined,
+    sites: readSites(base),
+    site_family: getVal('f-site-family') || undefined,
     callback_url: getVal('f-cburl') || undefined,
     version: getVal('f-version') || undefined,
     // The rate limit is three fields that must agree, so it is read as a unit
@@ -967,6 +985,10 @@ export function fillForm(source: Partial<VaultEntry>) {
     });
   }
   (document.getElementById('f-apiurl') as HTMLInputElement).value = entry.api_url || '';
+  (document.getElementById('f-sites') as HTMLTextAreaElement).value = (entry.sites ?? [])
+    .map((s) => s.url)
+    .join('\n');
+  (document.getElementById('f-site-family') as HTMLInputElement).value = entry.site_family || '';
   (document.getElementById('f-cburl') as HTMLInputElement).value = entry.callback_url || '';
   (document.getElementById('f-version') as HTMLInputElement).value = entry.version || '';
   (document.getElementById('f-role') as HTMLInputElement).value = entry.primary_role || '';
@@ -2326,6 +2348,14 @@ export async function saveModal() {
           ))
         )
           return;
+      }
+    }
+    if (entry.sites?.length && isTauri()) {
+      try {
+        entry.sites = (await invokeTauri('normalise_sites', { sites: entry.sites })) as SiteRef[];
+      } catch (err) {
+        showToast(`Address: ${errorMessage(err)}`, 'err', 5000);
+        return;
       }
     }
     if (t === 'certificate' && !entry.certificate_data) {

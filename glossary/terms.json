@@ -6138,6 +6138,20 @@
       "aliases": ["typeOrder"],
       "definition": "Your own order for the Group by type headings. Types you do not list follow the built-in order.",
       "see_also": ["groupbytype"]
+    },
+    {
+      "id": "sites",
+      "term": "Addresses",
+      "category": "field",
+      "aliases": ["sites"],
+      "definition": "Every address this entry is used at: a login page, an API, a service on your network with its port. Several are allowed. localhost and 127.0.0.1 count as the same machine, but a different port is a different service."
+    },
+    {
+      "id": "site-family",
+      "term": "Site family",
+      "category": "field",
+      "aliases": ["site_family"],
+      "definition": "A named set of hosts that share one entry, such as musicbrainz.org, listenbrainz.org and metabrainz.org. An entry that names a family is offered on every host in it. The families live in the vault; manage them with `unv site family`."
     }
   ]
 }

@@ -1079,6 +1079,14 @@
             <input class="form-input mono" id="f-cburl" type="text" placeholder="https://yourapp.com/oauth/cb">
           </div>
         </div>
+        <div class="form-group" id="f-sites-group">
+          <label for="f-sites" class="form-label" data-field="sites">Addresses <span class="opt">optional, one per line</span></label>
+          <textarea class="form-input mono" id="f-sites" rows="2" autocomplete="off" spellcheck="false" placeholder="localhost:8989&#10;https://sonarr.home.lan"></textarea>
+        </div>
+        <div class="form-group" id="f-site-family-group">
+          <label for="f-site-family" class="form-label" data-field="site_family">Site family <span class="opt">optional</span></label>
+          <input class="form-input mono" id="f-site-family" type="text" autocomplete="off" placeholder="metabrainz">
+        </div>
         <div class="form-group" id="f-scopes-group">
           <label for="f-scopes" class="form-label" data-field="scopes">Scopes <span class="opt">optional — comma
               separated</span></label>

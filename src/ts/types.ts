@@ -174,6 +174,16 @@ export interface EntryAttachment {
   [key: string]: unknown;
 }
 
+/** One stored address of an entry. */
+export interface SiteRef {
+  url: string;
+  kind?: string;
+  mode?: string;
+  label?: string;
+  source?: string;
+  added_at?: string;
+}
+
 export interface VaultEntry {
   /**
    * Stable unique identifier, assigned once on creation and never mutated.
@@ -228,6 +238,13 @@ export interface VaultEntry {
   categories: string[];
   /** Base URL of the service's API. */
   api_url?: string | null;
+  /**
+   * Every address this entry is used at: a login page, an API, a service on the LAN with its port.
+   * The desktop normalises them on save (`vault_core::sites`); `api_url` still counts as one more.
+   */
+  sites?: SiteRef[];
+  /** A named set of hosts (kept in the vault) on which this entry is offered, such as `metabrainz`. */
+  site_family?: string | null;
   /** OAuth or webhook callback URL. */
   callback_url?: string | null;
   /** ISO-8601 expiry date string, or `null` if the credential does not expire. */
