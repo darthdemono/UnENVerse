@@ -1086,7 +1086,7 @@ fn spell(n: u64) -> String {
         0..=19 => ONES[n as usize].into(),
         20..=99 => {
             let t = TENS[(n / 10) as usize];
-            if n % 10 == 0 {
+            if n.is_multiple_of(10) {
                 t.into()
             } else {
                 format!("{t}-{}", ONES[(n % 10) as usize])
@@ -1094,7 +1094,7 @@ fn spell(n: u64) -> String {
         }
         100..=999 => {
             let h = format!("{} hundred", ONES[(n / 100) as usize]);
-            if n % 100 == 0 {
+            if n.is_multiple_of(100) {
                 h
             } else {
                 format!("{h} {}", spell(n % 100))
@@ -1102,7 +1102,7 @@ fn spell(n: u64) -> String {
         }
         1000..=999_999 => {
             let t = format!("{} thousand", spell(n / 1000));
-            if n % 1000 == 0 {
+            if n.is_multiple_of(1000) {
                 t
             } else {
                 format!("{t} {}", spell(n % 1000))
@@ -1110,7 +1110,7 @@ fn spell(n: u64) -> String {
         }
         _ => {
             let m = format!("{} million", spell(n / 1_000_000));
-            if n % 1_000_000 == 0 {
+            if n.is_multiple_of(1_000_000) {
                 m
             } else {
                 format!("{m} {}", spell(n % 1_000_000))
@@ -1292,7 +1292,7 @@ fn apply_transform(mut v: Val, name: &str, a: &Args) -> Result<Val, String> {
         "dedupe" => {
             let mut out = String::new();
             for c in v.text.chars() {
-                if out.chars().last() != Some(c) {
+                if !out.ends_with(c) {
                     out.push(c);
                 }
             }
@@ -1790,7 +1790,7 @@ pub fn generate(
                     break;
                 }
             }
-            if ctx.avoid.iter().any(|v| *v == shown) {
+            if ctx.avoid.contains(&shown) {
                 last = "a value this entry already used";
                 continue;
             }
