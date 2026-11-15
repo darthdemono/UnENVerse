@@ -1184,6 +1184,9 @@ async fn unlock(
         }
     };
 
+    if let Err(e) = refuse_short_new_password(&state.db_path, &req.password) {
+        return err_json(StatusCode::BAD_REQUEST, &e).into_response();
+    }
     // Finish or undo an interrupted password change first: it decides which salt is the right one.
     if let Err(e) =
         vault_core::rekey::recover_interrupted(&state.db_path, &state.salt_path, &req.password)
@@ -3714,8 +3717,22 @@ impl utoipa::Modify for SecurityAddon {
     }
 }
 
+/// A vault that does not exist yet is created under whatever password the first caller gives,
+/// so that password gets the same floor as the desktop and `unv vault rekey`. An existing vault
+/// is never refused here: a short password that already guards one must still open it.
+pub fn refuse_short_new_password(db_path: &std::path::Path, password: &str) -> Result<(), String> {
+    let min = vault_core::rekey::MIN_PASSWORD_CHARS;
+    if !db_path.exists() && password.chars().count() < min {
+        return Err(format!(
+            "A new vault needs a master password of at least {min} characters"
+        ));
+    }
+    Ok(())
+}
+
 /// Unlock the vault from a password string (used by UNV_PASSWORD env var on startup).
 pub fn auto_unlock(state: &AppState, password: &str) -> Result<(), String> {
+    refuse_short_new_password(&state.db_path, password)?;
     vault_core::rekey::recover_interrupted(&state.db_path, &state.salt_path, password)?;
     vault_core::check_salt_pairing(&state.db_path, &state.salt_path)?;
     let salt = read_or_create_salt(&state.salt_path)?;
@@ -5710,5 +5727,27 @@ mod selective_read_tests {
         assert!(filter_entries(&restricted, &qq, None, None).is_empty());
         let all = filter_entries(&restricted, &q(), None, None);
         assert_eq!(names(&all), ["WebKey"]);
+    }
+}
+
+#[cfg(test)]
+mod new_vault_password_tests {
+    use super::refuse_short_new_password;
+
+    /// The bug: the first `POST /api/unlock` or `UNV_PASSWORD` on a server with no vault created
+    /// it under any password at all, a single character included, while the desktop and the CLI
+    /// refuse anything under twelve.
+    #[test]
+    fn a_new_vault_needs_twelve_characters_and_an_existing_one_opens_with_any() {
+        let dir = std::env::temp_dir().join(format!("unv-newpw-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("vault.db");
+        let id = uuid::Uuid::new_v4().to_string();
+        assert!(refuse_short_new_password(&db, &id[..0]).is_err());
+        assert!(refuse_short_new_password(&db, &id[..11]).is_err());
+        assert!(refuse_short_new_password(&db, &id[..12]).is_ok());
+        std::fs::write(&db, b"x").unwrap();
+        assert!(refuse_short_new_password(&db, &id[..3]).is_ok());
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
