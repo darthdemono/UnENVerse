@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "terms": [
+    {
+      "id": "account-name",
+      "term": "Account",
+      "category": "field",
+      "aliases": ["account_name"],
+      "definition": "An optional name that tells apart several accounts you hold with the same provider, for example a personal account and a work account."
+    },
+    {
+      "id": "api-description",
+      "term": "API Description",
+      "category": "field",
+      "aliases": ["api_description"],
+      "definition": "A short description of what the key is used for."
+    },
+    {
+      "id": "api-key",
+      "term": "API Key",
+      "category": "field",
+      "aliases": ["api_key"],
+      "definition": "The primary secret of an entry: an API key, a password, a variable's value, or whatever the entry's type treats as its main value. It is printed redacted unless you reveal it.",
+      "see_also": ["api-secret"]
+    },
+    {
+      "id": "api-secret",
+      "term": "API Secret",
+      "category": "field",
+      "aliases": ["api_secret"],
+      "definition": "A second secret kept beside an API key, such as a client secret or a shared secret. Only the api_key type uses it. A new entry keeps such extra secrets as additional values instead, and the field stays for entries that already hold one.",
+      "see_also": ["api-key"]
+    },
+    {
+      "id": "api-url",
+      "term": "API URL",
+      "category": "field",
+      "aliases": ["api_url"],
+      "definition": "The base URL of the service's API. The form relabels this field by type, for example Login URL for a password and Site URL for a certificate.",
+      "example": "https://api.example.com"
+    },
+    {
+      "id": "app-name",
+      "term": "App name",
+      "category": "field",
+      "aliases": ["app_name"],
+      "definition": "The app you built or run that uses this secret. It is separate from Purpose, which is what you told the issuer.",
+      "see_also": ["app-purpose"]
+    },
+    {
+      "id": "app-purpose",
+      "term": "App purpose",
+      "category": "field",
+      "aliases": ["app_purpose"],
+      "definition": "What that app does with this secret.",
+      "see_also": ["app-name"]
+    },
+    {
+      "id": "attachments",
+      "term": "Attachments",
+      "category": "field",
+      "aliases": ["attachments"],
+      "definition": "Descriptors of files attached to an entry. The bytes and locators are redacted unless you reveal."
+    },
+    {
+      "id": "auth-param",
+      "term": "Header / parameter name",
+      "category": "field",
+      "aliases": ["auth_param"],
+      "definition": "The header or query-parameter name that the Sent as setting puts the value in. It defaults to X-Api-Key for a named header and to api_key for a query parameter, and it means nothing for bearer and basic, whose shapes are fixed.",
+      "see_also": ["auth-scheme", "auth-template"]
+    },
+    {
+      "id": "auth-scheme",
+      "term": "Sent as",
+      "category": "field",
+      "aliases": ["auth_scheme"],
+      "definition": "How a credential is sent in a request: as a bearer token, as basic authentication, in a named header, or in a query parameter. It turns a stored string into a working request, which two entries that look identical can need in completely different ways.",
+      "see_also": ["auth-param", "auth-template"]
+    },
+    {
+      "id": "auth-template",
+      "term": "Header value template",
+      "category": "field",
+      "aliases": ["auth_template"],
+      "definition": "For a named header, the value that is sent, with {key} standing for the credential. Empty sends the credential on its own.",
+      "example": "MediaBrowser Token=\"{key}\"",
+      "see_also": ["auth-scheme", "auth-param"]
+    },
+    {
+      "id": "authority",
+      "term": "Authority",
+      "category": "field",
+      "aliases": ["authority"],
+      "definition": "Who owns the credential and under which account. The fields that locate the account are redacted in command-line output."
+    },
+    {
+      "id": "blob-data",
+      "term": "Blob data",
+      "category": "field",
+      "aliases": ["blob_data"],
+      "definition": "The contents of a file-shaped credential, such as a service-account JSON, an Apple .p8 file, an mTLS bundle or a kubeconfig. These are used by pointing a program at a file, so the vault stores the contents here and the mount path says where to write them. The size is capped, because storing a truncated credential silently would be worse than refusing it.",
+      "see_also": ["blob-ref"]
+    },
+    {
+      "id": "blob-ref",
+      "term": "File Path / Reference",
+      "category": "field",
+      "aliases": ["blob_ref"],
+      "definition": "The file-system path or reference of a credential file. Entries of the file_blob type only.",
+      "see_also": ["blob-data"]
+    },
+    {
+      "id": "bundle-id",
+      "term": "Bundle id",
+      "category": "field",
+      "aliases": ["bundle_id"],
+      "definition": "The id of the bundle entry this entry belongs to. Membership is stored once, on the member, the same way a pool is, so an older build that deletes the bundle cannot leave two disagreeing copies of it. Empty means the entry is not in a bundle.",
+      "see_also": ["bundle-slot", "bundle-order", "bundle-primary"]
+    },
+    {
+      "id": "bundle-order",
+      "term": "Bundle order",
+      "category": "field",
+      "aliases": ["bundle_order"],
+      "definition": "A sort key that places a member within its bundle. It has gaps and is never an identity: nothing refers to an entry by its position.",
+      "see_also": ["bundle-id"]
+    },
+    {
+      "id": "bundle-primary",
+      "term": "Bundle primary",
+      "category": "field",
+      "aliases": ["bundle_primary"],
+      "definition": "On a bundle entry, the id of the member that the card's main Copy button copies. Empty means nothing can be copied from the collapsed card yet.",
+      "see_also": ["bundle-id"]
+    },
+    {
+      "id": "bundle-slot",
+      "term": "Bundle slot",
+      "category": "field",
+      "aliases": ["bundle_slot"],
+      "definition": "A member's own name inside its bundle, such as discord, web or v3. It is unique within the bundle and is how templates address the member, as ${bundle:Name/slot} or {slot.field}.",
+      "see_also": ["bundle-id"]
+    },
+    {
+      "id": "callback-url",
+      "term": "Callback URL",
+      "category": "field",
+      "aliases": ["callback_url"],
+      "definition": "The callback URL of an OAuth or webhook service."
+    },
+    {
+      "id": "categories",
+      "term": "Categories",
+      "category": "field",
+      "aliases": ["categories"],
+      "definition": "The category tags an entry carries. They are listed in the sidebar's Categories section and can be used as a scope when giving a user access."
+    },
+    {
+      "id": "cert-issuer",
+      "term": "Issuer / Provider",
+      "category": "field",
+      "aliases": ["cert_issuer"],
+      "definition": "The authority that issued the certificate, for example Let's Encrypt or Google. Certificate entries only.",
+      "see_also": ["certificate-data", "cert-key-data"]
+    },
+    {
+      "id": "cert-key-data",
+      "term": "Privkey (PEM)",
+      "category": "field",
+      "aliases": ["cert_key_data"],
+      "definition": "The private key, in PEM form, that pairs with the entry's certificate.",
+      "see_also": ["certificate-data"]
+    },
+    {
+      "id": "certificate-data",
+      "term": "Fullchain (PEM)",
+      "category": "field",
+      "aliases": ["certificate_data"],
+      "definition": "The certificate content in PEM form, as the full chain. Certificate entries only.",
+      "see_also": ["cert-key-data", "cert-issuer"]
+    },
+    {
+      "id": "composite-kind",
+      "term": "Composite kind",
+      "category": "field",
+      "aliases": ["composite_kind"],
+      "definition": "What kind of thing a composite template is. It decides how values are encoded into the template and whether an Open action is offered.",
+      "see_also": ["composite-template"]
+    },
+    {
+      "id": "composite-template",
+      "term": "Composite template",
+      "category": "field",
+      "aliases": ["composite_template"],
+      "definition": "The shape of a composite entry's rendered value with its holes left in. It is printed as it is and not masked, because it holds the holes and not the values.",
+      "example": "https://.../{mailbox_id}@.../{calendar_key}/calendar.ics",
+      "see_also": ["composite-kind"]
+    },
+    {
+      "id": "compromised",
+      "term": "Compromised",
+      "category": "field",
+      "aliases": ["compromised"],
+      "definition": "Marks a credential as known to be leaked and in need of rotation at once. It shows up as a critical item in the health scan."
+    },
+    {
+      "id": "console-url",
+      "term": "Console URL",
+      "category": "field",
+      "aliases": ["console_url"],
+      "definition": "Where to revoke or rotate this credential."
+    },
+    {
+      "id": "created-at",
+      "term": "Created",
+      "category": "field",
+      "aliases": ["created_at"],
+      "definition": "When the entry was first written to the vault, as an ISO-8601 time. It is never rewritten on edit, and it is a creation date, not a modification date. Entries from before the field existed get a date inferred from the vault's own records, or none, and then show as unknown."
+    },
+    {
+      "id": "custom-icon",
+      "term": "Icon",
+      "category": "field",
+      "aliases": ["custom_icon"],
+      "definition": "The Simple Icons name to use as the provider's icon. Empty means the icon is detected automatically."
+    }
+  ]
+}
