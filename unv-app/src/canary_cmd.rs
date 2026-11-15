@@ -144,6 +144,10 @@ pub const MAX_LISTEN_CONNECTIONS: usize = 32;
 #[cfg(unix)]
 const TOKEN_CACHE: std::time::Duration = std::time::Duration::from_secs(5);
 
+/// When the token list was read and what it held.
+#[cfg(unix)]
+type TokenCache = Option<(std::time::Instant, HashMap<String, String>)>;
+
 /// Takes a connection slot, or says no when `max` are in use. The caller gives the slot back.
 pub fn admit(live: &std::sync::atomic::AtomicUsize, max: usize) -> bool {
     use std::sync::atomic::Ordering;
@@ -176,7 +180,7 @@ pub fn listen(access: &Access, addr: &str) -> CliResult {
     // The listener faces whoever stole a decoy, so a stranger must not be able to make it work
     // hard: connections are capped, and the vault is read at most once every few seconds
     // however many requests arrive, not once per request.
-    let known_tokens: Arc<Mutex<Option<(Instant, HashMap<String, String>)>>> = Arc::default();
+    let known_tokens: Arc<Mutex<TokenCache>> = Arc::default();
     let live = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
