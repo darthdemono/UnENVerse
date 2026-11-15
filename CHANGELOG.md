@@ -16,6 +16,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Fixed
 
+- A second copy of the desktop app can unlock the vault. It used to fail with "Operations executor is already held" on a correct password; now it opens and leaves scheduled operations to the copy that started first.
 - The VS Code exposure scan cleared the warnings of a sibling folder whose name starts with the scanned folder's name.
 
 ## 0.76.0 (2026-11-07)

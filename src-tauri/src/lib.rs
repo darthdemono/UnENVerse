@@ -285,9 +285,15 @@ fn retain_unlocked_session(
         key.zeroize();
         return Ok(());
     }
-    let executor = unv_app::recovery_ops::Executor::start(key, paths)?;
+    // The executor runs scheduled backups; the vault works without it. A second window of the
+    // app, or a data folder that cannot take a file lock, makes `start` fail, and that used to
+    // fail the whole unlock with a message about an "operations executor". The session opens
+    // regardless; the copy that holds the lock keeps the schedules.
+    match unv_app::recovery_ops::Executor::start(key, paths) {
+        Ok(executor) => *ops_guard = Some(executor),
+        Err(e) => eprintln!("Scheduled operations are off in this window: {e}"),
+    }
     *state_guard = Some(key);
-    *ops_guard = Some(executor);
     Ok(())
 }
 
@@ -3040,6 +3046,41 @@ mod unlocked_session_tests {
         let path = std::env::temp_dir().join(format!("unenverse-unlock-reload-test-{nanos}"));
         fs::create_dir_all(&path).unwrap();
         path
+    }
+
+    /// The bug: with the app already open, a second copy could not unlock at all. Its
+    /// executor could not take the operations lock, and that error was returned as the
+    /// unlock's own, so a correct password ended in "Operations executor is already held".
+    #[test]
+    fn a_second_copy_of_the_app_unlocks_without_the_operations_executor() {
+        let dir = scratch();
+        let salt = dir.join("vault.salt");
+        fs::write(&salt, &vault_core::new_uuid().as_bytes()[..16]).unwrap();
+        let paths = unv_app::recovery_ops::RecoveryPaths {
+            db_path: dir.join("vault.db"),
+            salt_path: salt.clone(),
+            materialisation_log: dir.join("materialisations.jsonl"),
+            data_dir: dir.clone(),
+        };
+        let password = vault_core::new_uuid();
+        let derive = || vault_core::derive_key(&password, &fs::read(&salt).unwrap()).unwrap();
+        let (first_state, first_ops) = (Mutex::new(None), Mutex::new(None));
+        retain_unlocked_session(&first_state, &first_ops, derive(), paths.clone()).unwrap();
+        assert!(first_ops.lock().unwrap().is_some());
+
+        let (second_state, second_ops) = (Mutex::new(None), Mutex::new(None));
+        retain_unlocked_session(&second_state, &second_ops, derive(), paths).unwrap();
+        assert!(second_state.lock().unwrap().is_some());
+        assert!(second_ops.lock().unwrap().is_none());
+
+        let mut executor = first_ops.lock().unwrap().take().unwrap();
+        executor.stop();
+        for state in [&first_state, &second_state] {
+            if let Some(mut key) = state.lock().unwrap().take() {
+                key.zeroize();
+            }
+        }
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
