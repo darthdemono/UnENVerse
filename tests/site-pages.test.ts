@@ -114,7 +114,13 @@ describe('the glossary page', () => {
     const html = read('glossary/index.html');
     for (const t of terms) {
       expect(html, t.id).toContain(`id="${t.id}"`);
-      expect(html, t.id).toContain(t.definition.replace(/&/g, '&amp;'));
+      // The page escapes & < > and " (the build's esc), so compare against the same.
+      const escaped = t.definition
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+      expect(html, t.id).toContain(escaped);
     }
     expect(html).toContain(
       pending.length
