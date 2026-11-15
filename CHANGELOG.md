@@ -12,7 +12,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - `unv canary listen` serves at most 32 connections at once and reads the vault at most once every five seconds. It used to start a thread and read the whole vault for every request, so anyone who could reach the port could exhaust the machine.
 - The VS Code hover no longer passes a reference name that starts with a dash to `unv`, where it was read as an option.
 
-- `rusqlite` 0.41.1 (bundled SQLite source through `libsqlite3-sys` 0.39.1) and `rustix` 1.1.6, for RUSTSEC-2026-0459 and RUSTSEC-2026-0486.
+- `rusqlite` 0.42.0 (SQLCipher 4.20.0 on SQLite 3.54.1 through `libsqlite3-sys` 0.40.0) and `rustix` 1.1.6, for RUSTSEC-2026-0459, RUSTSEC-2026-0502 and RUSTSEC-2026-0486.
 
 ### Fixed
 
