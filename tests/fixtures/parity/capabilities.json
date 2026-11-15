@@ -317,6 +317,34 @@
       "cli_flags": []
     },
     {
+      "id": "recipes",
+      "status": "gap-ui",
+      "cli": [
+        "unv recipe tokens",
+        "unv recipe ls",
+        "unv recipe show",
+        "unv recipe add",
+        "unv recipe rm",
+        "unv recipe test",
+        "unv recipe apply",
+        "unv recipe default",
+        "unv recipe rule add",
+        "unv recipe rule ls",
+        "unv recipe rule rm",
+        "unv recipe rule test",
+        "unv recipe list add",
+        "unv recipe list ls",
+        "unv recipe list rm",
+        "unv recipe fact set",
+        "unv recipe fact ls",
+        "unv recipe fact rm"
+      ],
+      "ui": [],
+      "tauri": [],
+      "note": "Phase 33 gap: password recipes (R41). The Tools pane and the entry form recipe chip follow in the next slice.",
+      "cli_flags": []
+    },
+    {
       "id": "sites",
       "status": "both",
       "cli": [

@@ -188,6 +188,24 @@ Contract version 1.
 | `unv project rename <project> [new_name]` | Rename a project, carrying its sub-projects and entry links |
 | `unv project rm <project>` | Delete a project; sub-projects are promoted to top level |
 | `unv project show <project>` | Print a project as JSON, chunks included |
+| `unv recipe add <name> <template>` | Save a recipe: a template such as `{prefix}-{random:12:base62}` and its options |
+| `unv recipe apply <entry>` | Make a password for an entry from its recipe and store it as its password |
+| `unv recipe default <name>` | Set the vault's default recipe (an empty name clears it) |
+| `unv recipe fact ls` | List your facts; private values are redacted |
+| `unv recipe fact rm <name>` | Remove a fact |
+| `unv recipe fact set <name> <value>` | Save a fact (private unless --public) |
+| `unv recipe list add <name> [words]` | Save a list of words (positional, or one per line from --file) |
+| `unv recipe list ls` | List the built-in lists and yours |
+| `unv recipe list rm <name>` | Remove one of your lists |
+| `unv recipe ls` | List the saved recipes |
+| `unv recipe rm <name>` | Remove a recipe and the rules that name it |
+| `unv recipe rule add <kind> <value> <recipe>` | Add a rule at the end of the list |
+| `unv recipe rule ls` | List the rules in order |
+| `unv recipe rule rm <n>` | Remove a rule by its number |
+| `unv recipe rule test <entry>` | Which recipe applies to an entry, and why |
+| `unv recipe show <name>` | Show a recipe's template and options |
+| `unv recipe test <target>` | Make samples from a saved recipe or a template. Redacted unless --reveal |
+| `unv recipe tokens` | Every token and transform a template may use, from the registry |
 | `unv recover inspect <package>` | Read non-secret envelope metadata without decrypting the package |
 | `unv recover restore <package>` | Decrypt into an empty directory after validating every member |
 | `unv recover verify <directory>` | Verify hashes, SQLCipher, storage, audit and configuration history |

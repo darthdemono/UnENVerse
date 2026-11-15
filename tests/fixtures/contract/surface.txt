@@ -180,6 +180,24 @@ unv project ls --json
 unv project rename <project> [new_name] --slug=
 unv project rm <project>
 unv project show <project>
+unv recipe add <name> <template> --allow= --avoid-ambiguous --chunk-sep= --chunk= --floor= --forbid= --max-run= --max= --min= --no-edge-symbol --no-sequences --policy= --replace --require= --start-letter
+unv recipe apply <entry> --recipe=
+unv recipe default <name>
+unv recipe fact ls
+unv recipe fact rm <name>
+unv recipe fact set <name> <value> --public
+unv recipe list add <name> [words] --file= --private
+unv recipe list ls
+unv recipe list rm <name>
+unv recipe ls
+unv recipe rm <name>
+unv recipe rule add <kind> <value> <recipe>
+unv recipe rule ls
+unv recipe rule rm <n>
+unv recipe rule test <entry>
+unv recipe show <name>
+unv recipe test <target> --allow= --avoid-ambiguous --chunk-sep= --chunk= --count= --floor= --for= --forbid= --max-run= --max= --min= --no-edge-symbol --no-sequences --policy= --require= --start-letter
+unv recipe tokens --group=
 unv recover inspect <package>
 unv recover restore <package> --identity= --to=
 unv recover verify <directory>
