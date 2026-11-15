@@ -106,7 +106,7 @@ jobs:
           # builds on it. Anything that is not clearly one crate or clearly
           # TypeScript (manifests, lockfile, CI, scripts, fixtures, Docker) tests
           # the whole workspace.
-          ts_only='^(src/|tests/[^/]+\.ts$|ui-lab/|public/|index\.html$|vscode-extension/|(vitest|eslint|vite|playwright)\.config\.[jt]s$|\.prettier|tsconfig\.json$|package(-lock)?\.json$)'
+          ts_only='^(src/|tests/[^/]+\.ts$|ui-lab/|public/|glossary/|scripts/(build-site|check-site|changelog-site|glossary-extract)\.mjs$|index\.html$|vscode-extension/|(vitest|eslint|vite|playwright)\.config\.[jt]s$|\.prettier|tsconfig\.json$|package(-lock)?\.json$)'
           other=$(printf '%s' "$not_site" | grep -Ev "$ts_only" || true)
           crates=""
           add() { case " $crates " in *" $1 "*) ;; *) crates="$crates $1" ;; esac; }
