@@ -2123,6 +2123,62 @@ mod commands {
             })
     }
 
+    /// The recipe token registry and the built-in list sizes, for the recipe pane's forms (R41).
+    #[tauri::command]
+    pub fn recipe_registry() -> serde_json::Value {
+        let lists: Vec<serde_json::Value> = vault_core::recipe::builtin_lists()
+            .iter()
+            .map(|(n, w)| serde_json::json!({ "name": n, "words": w.len() }))
+            .collect();
+        serde_json::json!({ "tokens": vault_core::recipe::registry()["tokens"], "lists": lists })
+    }
+
+    /// Samples and the strength of a recipe. `vault` carries only what a recipe may read: the saved
+    /// recipes, lists, facts and rules and the project names. The parser and the generator exist
+    /// once, here in Rust; the pane has no twin of them.
+    #[tauri::command]
+    pub fn recipe_preview(
+        template: String,
+        options: serde_json::Value,
+        vault: serde_json::Value,
+        entry: Option<serde_json::Value>,
+        count: Option<usize>,
+    ) -> Result<serde_json::Value, String> {
+        let options = vault_core::recipe::Options::from_value(&options)?;
+        let now: String = vault_core::iso_now().chars().take(10).collect();
+        let ctx = vault_core::recipe::context(&vault, entry.as_ref(), &now);
+        let t = vault_core::recipe::parse(&template)?;
+        let mut rng = vault_core::recipe::PoolDraw::new(vault_core::entropy::Source::Os);
+        let mut samples = Vec::new();
+        let mut last = None;
+        for _ in 0..count.unwrap_or(1).clamp(1, 10) {
+            let g = vault_core::recipe::generate(&t, &options, &ctx, &mut rng)?;
+            samples.push(g.text.clone());
+            last = Some(g);
+        }
+        let g = last.ok_or("nothing was generated")?;
+        Ok(serde_json::json!({
+            "samples": samples,
+            "bits": g.bits.round(),
+            "private_bits": g.private_bits.round(),
+            "length": g.text.chars().count(),
+            "parts": g.parts,
+            "dropped": g.dropped,
+            "warnings": g.warnings,
+            "rebuildable_from_memory": g.rebuildable_from_memory,
+        }))
+    }
+
+    /// Which saved recipe applies to an entry, and why (`null` when none does).
+    #[tauri::command]
+    pub fn recipe_resolve(
+        vault: serde_json::Value,
+        entry: serde_json::Value,
+    ) -> Option<serde_json::Value> {
+        vault_core::recipe::resolve(&vault, &entry)
+            .map(|(r, why)| serde_json::json!({ "recipe": r.name, "why": why }))
+    }
+
     /// `Ok(())` when `mnemonic` is a valid BIP39 phrase; the error never echoes a word.
     #[tauri::command]
     pub fn bip39_validate(mnemonic: String) -> Result<(), String> {
@@ -2826,6 +2882,9 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::oauth_refresh,
             commands::bip39_validate,
             commands::normalise_sites,
+            commands::recipe_registry,
+            commands::recipe_preview,
+            commands::recipe_resolve,
             commands::enrich_plan,
             commands::enrich_online_targets,
             commands::enrich_online,
