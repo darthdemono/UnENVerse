@@ -259,6 +259,287 @@ pub fn site_matches(stored: &Site, mode: Mode, origin: &Site) -> bool {
     stored_port == origin_port
 }
 
+// ── Entry level: the `sites` list, families, and "is this entry offered here" ─────────────────────
+
+/// What a site is for. Free text is refused so the list stays something a UI can offer.
+pub const KINDS: [&str; 5] = ["web", "api", "local", "other", "android_app"];
+
+/// One address on an entry, as stored in the entry's `sites` array.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntrySite {
+    pub site: Site,
+    pub mode: Mode,
+    pub kind: String,
+    pub label: String,
+    pub source: String,
+}
+
+/// A named set of hosts that share a credential (for example MetaBrainz and its sister sites).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Family {
+    pub name: String,
+    pub hosts: Vec<String>,
+}
+
+fn mode_name(m: Mode) -> &'static str {
+    match m {
+        Mode::Exact => "exact",
+        Mode::AnyPort => "any_port",
+        Mode::Host => "host",
+        Mode::Never => "never",
+    }
+}
+
+/// The kind a bare address most likely has: a private host is `local`, an `api.` host is `api`,
+/// anything else is `web`.
+pub fn guess_kind(site: &Site) -> &'static str {
+    if is_private_host(&site.host) {
+        "local"
+    } else if site.host.starts_with("api.") || site.host.contains(".api.") {
+        "api"
+    } else {
+        "web"
+    }
+}
+
+/// Builds the stored form of one site. The address is normalised, so what is stored is what is
+/// matched; the path of a URL is dropped (a credential belongs to a service, not a page).
+pub fn site_value(
+    input: &str,
+    kind: Option<&str>,
+    mode: Option<&str>,
+    label: &str,
+    source: &str,
+) -> Result<serde_json::Value, String> {
+    let site = parse_site(input)?;
+    let kind = match kind {
+        Some(k) if KINDS.contains(&k) => k,
+        Some(k) => return Err(format!("`{k}` is not a site kind ({})", KINDS.join(", "))),
+        None => guess_kind(&site),
+    };
+    let mode = match mode {
+        Some(m) => Mode::parse(m).ok_or_else(|| {
+            format!("`{m}` is not a mode (exact, any_port, host, never)")
+        })?,
+        None => Mode::Exact,
+    };
+    Ok(serde_json::json!({
+        "url": site.display(),
+        "kind": kind,
+        "mode": mode_name(mode),
+        "label": label.trim(),
+        "source": source,
+        "added_at": crate::iso_now(),
+    }))
+}
+
+/// Every address an entry answers to: its `sites`, plus the older `api_url` read as one more site
+/// (a `web` site for a password, `api` for anything else), so nothing needs a migration.
+pub fn entry_sites(entry: &serde_json::Value) -> Vec<EntrySite> {
+    let mut out = Vec::new();
+    if let Some(list) = entry.get("sites").and_then(|v| v.as_array()) {
+        for s in list {
+            let Some(url) = s.get("url").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let Ok(site) = parse_site(url) else { continue };
+            let text = |k: &str| s.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            out.push(EntrySite {
+                mode: Mode::parse(&text("mode")).unwrap_or(Mode::Exact),
+                kind: if text("kind").is_empty() {
+                    guess_kind(&site).into()
+                } else {
+                    text("kind")
+                },
+                label: text("label"),
+                source: text("source"),
+                site,
+            });
+        }
+    }
+    if let Some(url) = entry.get("api_url").and_then(|v| v.as_str()) {
+        if let Ok(site) = parse_site(url) {
+            if !out.iter().any(|e| e.site == site) {
+                let password = entry.get("secretType").and_then(|v| v.as_str()) == Some("password");
+                out.push(EntrySite {
+                    site,
+                    mode: Mode::Exact,
+                    kind: if password { "web" } else { "api" }.into(),
+                    label: String::new(),
+                    source: "api_url".into(),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// Adds `value` (from [`site_value`]) to the entry unless the same address is already there.
+/// Returns whether it was added.
+pub fn add_site(entry: &mut serde_json::Value, value: serde_json::Value) -> bool {
+    let url = value.get("url").and_then(|v| v.as_str()).unwrap_or("");
+    let have = entry
+        .get("sites")
+        .and_then(|v| v.as_array())
+        .is_some_and(|l| l.iter().any(|s| s.get("url").and_then(|v| v.as_str()) == Some(url)));
+    if have {
+        return false;
+    }
+    match entry.get_mut("sites").and_then(|v| v.as_array_mut()) {
+        Some(list) => list.push(value),
+        None => entry["sites"] = serde_json::json!([value]),
+    }
+    true
+}
+
+/// Removes the site that normalises to `input`. Returns whether one was removed.
+pub fn remove_site(entry: &mut serde_json::Value, input: &str) -> Result<bool, String> {
+    let want = parse_site(input)?.display();
+    let Some(list) = entry.get_mut("sites").and_then(|v| v.as_array_mut()) else {
+        return Ok(false);
+    };
+    let before = list.len();
+    list.retain(|s| s.get("url").and_then(|v| v.as_str()) != Some(want.as_str()));
+    let removed = list.len() != before;
+    if list.is_empty() {
+        if let Some(o) = entry.as_object_mut() {
+            o.remove("sites");
+        }
+    }
+    Ok(removed)
+}
+
+/// The families kept in the vault: `site_families: [{name, hosts}]`.
+pub fn families(vault: &serde_json::Value) -> Vec<Family> {
+    vault
+        .get("site_families")
+        .and_then(|v| v.as_array())
+        .map(|list| {
+            list.iter()
+                .filter_map(|f| {
+                    let name = f.get("name")?.as_str()?.to_string();
+                    let hosts = f
+                        .get("hosts")?
+                        .as_array()?
+                        .iter()
+                        .filter_map(|h| h.as_str().map(String::from))
+                        .collect();
+                    Some(Family { name, hosts })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Adds hosts to the named family (creating it). Hosts are normalised to a bare host; a scheme,
+/// port or path in the input is dropped, because a family is a set of hosts.
+pub fn family_add(
+    vault: &mut serde_json::Value,
+    name: &str,
+    hosts: &[String],
+) -> Result<(), String> {
+    let name = name.trim();
+    if name.is_empty() || name.len() > 64 || name.chars().any(|c| c.is_control()) {
+        return Err("a family name is 1 to 64 characters".into());
+    }
+    let mut clean = Vec::new();
+    for h in hosts {
+        let host = parse_site(h)?.host;
+        if !clean.contains(&host) {
+            clean.push(host);
+        }
+    }
+    if vault.get("site_families").and_then(|v| v.as_array()).is_none() {
+        vault["site_families"] = serde_json::json!([]);
+    }
+    let list = vault["site_families"].as_array_mut().expect("just made");
+    match list
+        .iter_mut()
+        .find(|f| f.get("name").and_then(|v| v.as_str()) == Some(name))
+    {
+        Some(f) => {
+            let mut have: Vec<String> = f["hosts"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|h| h.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            for h in clean {
+                if !have.contains(&h) {
+                    have.push(h);
+                }
+            }
+            f["hosts"] = serde_json::json!(have);
+        }
+        None => list.push(serde_json::json!({ "name": name, "hosts": clean })),
+    }
+    Ok(())
+}
+
+/// Removes a host from a family, or the whole family when `host` is `None`. Returns whether
+/// anything was removed.
+pub fn family_remove(
+    vault: &mut serde_json::Value,
+    name: &str,
+    host: Option<&str>,
+) -> Result<bool, String> {
+    let host = match host {
+        Some(h) => Some(parse_site(h)?.host),
+        None => None,
+    };
+    let Some(list) = vault.get_mut("site_families").and_then(|v| v.as_array_mut()) else {
+        return Ok(false);
+    };
+    let mut changed = false;
+    match host {
+        None => {
+            let before = list.len();
+            list.retain(|f| f.get("name").and_then(|v| v.as_str()) != Some(name));
+            changed = list.len() != before;
+        }
+        Some(h) => {
+            for f in list.iter_mut() {
+                if f.get("name").and_then(|v| v.as_str()) != Some(name) {
+                    continue;
+                }
+                if let Some(hosts) = f.get_mut("hosts").and_then(|v| v.as_array_mut()) {
+                    let before = hosts.len();
+                    hosts.retain(|x| x.as_str() != Some(h.as_str()));
+                    changed |= hosts.len() != before;
+                }
+            }
+        }
+    }
+    Ok(changed)
+}
+
+/// Whether `origin` is a host of the family. The family host itself and its subdomains match; a
+/// look-alike (`evilmusicbrainz.org`) does not. A public host is matched over `https` only.
+pub fn family_has(family: &Family, origin: &Site) -> bool {
+    if origin.scheme.as_deref() == Some("http") && !is_private_host(&origin.host) {
+        return false;
+    }
+    family.hosts.iter().any(|h| {
+        canonical_host(h) == canonical_host(&origin.host)
+            || origin.host.strip_suffix(h.as_str()).is_some_and(|p| p.ends_with('.'))
+    })
+}
+
+/// Whether the entry may be offered at `origin`: one of its sites matches, or the family it names
+/// has the origin's host. A result of `true` still only means "offer it".
+pub fn entry_offered(entry: &serde_json::Value, families: &[Family], origin: &Site) -> bool {
+    if entry_sites(entry)
+        .iter()
+        .any(|e| site_matches(&e.site, e.mode, origin))
+    {
+        return true;
+    }
+    let Some(name) = entry.get("site_family").and_then(|v| v.as_str()) else {
+        return false;
+    };
+    families
+        .iter()
+        .any(|f| f.name == name && family_has(f, origin))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -498,5 +779,52 @@ mod tests {
         assert_eq!(Mode::parse("host"), Some(Mode::Host));
         assert_eq!(Mode::parse("never"), Some(Mode::Never));
         assert_eq!(Mode::parse("base_domain"), None);
+    }
+    #[test]
+    fn an_entry_lists_several_sites_and_reads_api_url_as_one_more() {
+        let mut e = serde_json::json!({ "secretType": "password", "api_url": "https://login.example.org" });
+        assert!(add_site(&mut e, site_value("localhost:8989", None, None, "tv", "manual").unwrap()));
+        let sites = entry_sites(&e);
+        assert!(sites.iter().any(|s| s.source == "api_url" && s.kind == "web"));
+        assert!(sites.iter().any(|s| s.kind == "local" && s.label == "tv"));
+    }
+
+    #[test]
+    fn a_loopback_spelling_is_offered_the_entry_but_another_port_is_not() {
+        let mut e = serde_json::json!({});
+        add_site(&mut e, site_value("localhost:8989", None, None, "", "manual").unwrap());
+        assert!(entry_offered(&e, &[], &site("http://127.0.0.1:8989")));
+        assert!(!entry_offered(&e, &[], &site("http://127.0.0.1:7878")));
+    }
+
+    #[test]
+    fn a_family_offers_the_entry_on_every_host_and_not_on_a_lookalike() {
+        let mut v = serde_json::json!({});
+        family_add(
+            &mut v,
+            "metabrainz",
+            &["musicbrainz.org".into(), "https://listenbrainz.org/x".into()],
+        )
+        .unwrap();
+        let fams = families(&v);
+        assert_eq!(fams[0].hosts, ["musicbrainz.org", "listenbrainz.org"]);
+        let e = serde_json::json!({ "site_family": "metabrainz" });
+        assert!(entry_offered(&e, &fams, &site("https://listenbrainz.org")));
+        assert!(entry_offered(&e, &fams, &site("https://beta.musicbrainz.org")));
+        assert!(!entry_offered(&e, &fams, &site("https://evilmusicbrainz.org")));
+        assert!(!entry_offered(&e, &fams, &site("http://listenbrainz.org")));
+        assert!(family_remove(&mut v, "metabrainz", Some("listenbrainz.org")).unwrap());
+        assert!(!entry_offered(&e, &families(&v), &site("https://listenbrainz.org")));
+        assert!(family_remove(&mut v, "metabrainz", None).unwrap());
+    }
+
+    #[test]
+    fn a_site_with_a_credential_or_a_bad_kind_is_refused_and_remove_clears_the_field() {
+        assert!(site_value("https://u:p@x.test", None, None, "", "manual").is_err());
+        assert!(site_value("x.test", Some("blog"), None, "", "manual").is_err());
+        let mut e = serde_json::json!({});
+        add_site(&mut e, site_value("x.test", None, None, "", "manual").unwrap());
+        assert!(remove_site(&mut e, "x.test").unwrap());
+        assert!(e.get("sites").is_none());
     }
 }
