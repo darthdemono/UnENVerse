@@ -451,3 +451,48 @@ fn form_addresses_are_normalised_and_a_bad_one_is_refused() {
         .unwrap_err();
     assert!(bad.to_string().contains("user name"), "{bad}");
 }
+
+#[test]
+fn a_recipe_previews_with_the_vaults_facts_and_reports_its_strength() {
+    let d = desk("recipes");
+    let reg = d.ok("recipe_registry", json!({}));
+    assert!(reg["tokens"].as_array().unwrap().len() > 80);
+    assert!(reg["lists"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|l| l["name"] == "prefix"));
+    let vault = json!({ "recipe_vars": [{ "name": "pet", "value": "rex", "private": true }], "projects": [] });
+    let out = d.ok(
+        "recipe_preview",
+        json!({ "template": "{var:pet}-{random:16:base62}", "options": {}, "vault": vault, "count": 3 }),
+    );
+    assert_eq!(out["samples"].as_array().unwrap().len(), 3);
+    assert!(out["samples"][0].as_str().unwrap().starts_with("rex-"));
+    assert!(out["bits"].as_f64().unwrap() > 90.0);
+    assert_eq!(out["rebuildable_from_memory"], false);
+    let weak = d
+        .call(
+            "recipe_preview",
+            json!({ "template": "{digits:3}", "options": {}, "vault": {}, "entry": null }),
+        )
+        .unwrap_err();
+    assert!(weak.to_string().contains("below the floor"), "{weak}");
+    let bad = d
+        .call(
+            "recipe_preview",
+            json!({ "template": "{nope}", "options": {}, "vault": {} }),
+        )
+        .unwrap_err();
+    assert!(bad.to_string().contains("not a token"), "{bad}");
+    let vault = json!({ "recipes": [{ "name": "r", "template": "{random:16}", "options": {} }], "recipe_default": "r" });
+    let hit = d.ok(
+        "recipe_resolve",
+        json!({ "vault": vault, "entry": { "provider": "X" } }),
+    );
+    assert_eq!(hit["recipe"], "r");
+    assert_eq!(hit["why"], "vault default");
+    assert!(d
+        .ok("recipe_resolve", json!({ "vault": {}, "entry": {} }))
+        .is_null());
+}
