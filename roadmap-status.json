@@ -205,6 +205,16 @@
       "id": "R39",
       "title": "full test coverage",
       "state": "planned"
+    },
+    {
+      "id": "R40",
+      "title": "sites, many addresses per secret",
+      "state": "partial"
+    },
+    {
+      "id": "R41",
+      "title": "pattern password generator",
+      "state": "planned"
     }
   ]
 }
