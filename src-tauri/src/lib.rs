@@ -2114,7 +2114,13 @@ mod commands {
                 }
                 Ok(v)
             })
-            .collect()
+            .collect::<Result<Vec<_>, String>>()
+            .map(|mut all| {
+                // Two spellings of one address (`Localhost:8989`, `localhost:8989`) are one site.
+                let mut seen = std::collections::HashSet::new();
+                all.retain(|v| seen.insert(v["url"].as_str().unwrap_or("").to_string()));
+                all
+            })
     }
 
     /// `Ok(())` when `mnemonic` is a valid BIP39 phrase; the error never echoes a word.

@@ -430,8 +430,14 @@ fn form_addresses_are_normalised_and_a_bad_one_is_refused() {
         "normalise_sites",
         json!({ "sites": [
             { "url": "Localhost:8989" },
+            { "url": "localhost:8989" },
             { "url": "https://Sonarr.Home.lan/app", "kind": "web", "label": "tv", "added_at": "2026-01-01T00:00:00Z" },
         ] }),
+    );
+    assert_eq!(
+        out.as_array().unwrap().len(),
+        2,
+        "two spellings of one address are one site"
     );
     assert_eq!(out[0]["url"], "localhost:8989");
     assert_eq!(out[0]["kind"], "local");
