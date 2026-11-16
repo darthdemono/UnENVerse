@@ -38,5 +38,14 @@
   "s-support-bundle": "R25: hidden outside the desktop app (it needs the Tauri support_bundle command); the Tauri path is driven by tests/support-row.test.ts.",
   "s-rekey": "R20: hidden outside the desktop app (it needs the Tauri change_master_password command); the Tauri path is driven by tests/password-rows.test.ts.",
   "s-forget": "R20: hidden outside the desktop app (it needs the Tauri forget_entry_history command); the Tauri path is driven by tests/password-rows.test.ts.",
-  "s-autokey-show": "R12: hidden outside the desktop app (it needs the Tauri hub_automation_key command); the Tauri path is driven by tests/automation-key-row.test.ts."
+  "s-autokey-show": "R12: hidden outside the desktop app (it needs the Tauri hub_automation_key command); the Tauri path is driven by tests/automation-key-row.test.ts.",
+  "rcp-use-preset": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-insert": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-preview-btn": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-save": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-delete": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-list-add": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-fact-add": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-rule-add": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "rcp-rule-test": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane."
 }

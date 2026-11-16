@@ -263,7 +263,11 @@ function paintRules(): void {
 
 function paintPalette(): void {
   const sel = el<HTMLSelectElement>('rcp-token');
-  if (!sel || !registry) return;
+  if (!sel) return;
+  if (!registry) {
+    setHtml(sel, '');
+    return;
+  }
   const groups = [...new Set(registry.tokens.map((t) => t.group))];
   setHtml(
     sel,
