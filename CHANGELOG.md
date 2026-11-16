@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.79.0 (2026-11-16)
+
 ### Added
 
 - **Several addresses per secret.** An entry can list any number of places it is used: a login page, an API, a service on your network with its port. `unv site add ENTRY ADDRESS` takes a URL, `host:port` or a bare host (the path is dropped, and an address that carries a user name or password is refused), `unv site ls`, `unv site rm`, and `unv site match ORIGIN` lists which entries are offered at a page (names and ids, never values). `localhost`, `*.localhost`, `127.0.0.1` and `::1` are one host, so an entry saved for `localhost:8989` also answers at `127.0.0.1:8989`; a different port is a different service, and a bare address never matches a public site over plain `http`. The older `api_url` counts as one more address. The add and edit form has an **Addresses** box (one per line, normalised by the desktop's Rust parser when you save) and a **Site family** field.
