@@ -3,7 +3,7 @@
 // The Tools, Password recipes pane (R41). The generator is in Rust and reached over IPC; these tests
 // stand in for it with a recording stub and check what the pane stores, shows and sends.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { st } from '../src/ts/state';
+import { st, switchTool } from '../src/ts/state';
 import {
   initRecipesPane,
   load,
@@ -523,5 +523,66 @@ describe('your lists, facts and rules', () => {
     renderRecipes();
     expect(recipeView().recipes).toEqual([]);
     expect(recipeView().projects).toEqual(expect.any(Array));
+  });
+});
+
+describe('opening the tool and a page without the pane', () => {
+  it('wires the pane when its tool is opened', async () => {
+    document.getElementById('rcp-token')!.replaceChildren();
+    switchTool('recipes');
+    await tick();
+    await tick();
+    expect($('rcp-token').querySelectorAll('optgroup').length).toBe(4);
+  });
+
+  it('does nothing, and throws nothing, where the pane is not on the page', () => {
+    document.body.innerHTML = '';
+    expect(() => initRecipesPane()).not.toThrow();
+    expect(() => renderRecipes()).not.toThrow();
+    expect(() => writeOptions({ min_len: 3 })).not.toThrow();
+    expect(readOptions()).toEqual({});
+  });
+
+  it('reads a vault that has no recipe data at all', () => {
+    st.vault = makeVault({ api_keys: [] });
+    expect(recipeView()).toMatchObject({
+      recipes: [],
+      recipe_lists: [],
+      recipe_vars: [],
+      recipe_rules: [],
+    });
+    renderRecipes();
+    expect($('rcp-rules').textContent).toContain('No rules');
+  });
+
+  it('removes lists, facts and rules from a vault that holds none', async () => {
+    st.vault = makeVault({ api_keys: [] });
+    for (const [action, name] of [
+      ['rcp-list-rm', 'x'],
+      ['rcp-fact-rm', 'x'],
+      ['rcp-rule-rm', ''],
+    ]) {
+      const b = document.createElement('button');
+      b.dataset.action = action;
+      b.dataset.name = name;
+      b.dataset.n = '0';
+      $('rcp-lists').append(b);
+      b.click();
+      await tick();
+    }
+    expect(toasts.length).toBeGreaterThan(0);
+  });
+
+  it('saves in a vault with no recipe list yet, and previews without an entry when none matches', async () => {
+    st.vault = makeVault({ api_keys: [] });
+    set('rcp-name', 'first');
+    set('rcp-template', '{random:16}');
+    click('rcp-save');
+    await tick();
+    expect((st.vault as never as { recipes: unknown[] }).recipes).toHaveLength(1);
+    set('rcp-entry', 'nobody');
+    click('rcp-preview-btn');
+    await tick();
+    expect(calls.filter((c) => c.cmd === 'recipe_preview').pop()!.args.entry).toBeNull();
   });
 });
