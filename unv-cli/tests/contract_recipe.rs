@@ -15,6 +15,8 @@ fn reveal(v: &Vault, args: &[&str]) -> common::Out {
 #[test]
 fn recipes_are_saved_listed_replaced_and_removed() {
     let v = Vault::new("recipe-crud");
+    // A recipe command needs a vault that exists; one entry makes it.
+    v.ok(&["entry", "add", "Seed", "--key", "k"]);
     v.ok(&[
         "recipe",
         "add",
@@ -67,6 +69,8 @@ fn recipes_are_saved_listed_replaced_and_removed() {
 #[test]
 fn samples_are_redacted_unless_revealed_and_say_how_strong_they_are() {
     let v = Vault::new("recipe-test");
+    // A recipe command needs a vault that exists; one entry makes it.
+    v.ok(&["entry", "add", "Seed", "--key", "k"]);
     let hidden = v
         .run(&["recipe", "test", "{random:20:base62}", "--count", "3"])
         .json();
@@ -189,6 +193,8 @@ fn rules_and_the_default_choose_the_recipe_and_none_switches_it_off() {
 #[test]
 fn your_lists_and_facts_feed_the_tokens_and_private_facts_are_redacted() {
     let v = Vault::new("recipe-lists");
+    // A recipe command needs a vault that exists; one entry makes it.
+    v.ok(&["entry", "add", "Seed", "--key", "k"]);
     let f = v.dir.join("words.txt");
     std::fs::write(&f, "kimchi\nnaan\ntacos\n\nramen\n").unwrap();
     v.ok(&[
