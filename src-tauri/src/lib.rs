@@ -248,6 +248,15 @@ fn legacy_json_path<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<PathBuf, St
         .map(|d| d.join("vault.json"))
         .map_err(|e| e.to_string())
 }
+/// Removes the files of a vault that unlock just created, after a later step failed.
+fn discard_new_vault(db: &Path, salt: &Path) {
+    for suffix in ["", "-wal", "-shm"] {
+        let mut name = db.as_os_str().to_owned();
+        name.push(suffix);
+        let _ = fs::remove_file(PathBuf::from(name));
+    }
+    let _ = fs::remove_file(salt);
+}
 fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(p) = path.parent() {
         fs::create_dir_all(p).map_err(|e| e.to_string())?;
@@ -405,32 +414,50 @@ mod commands {
         // password that was perfectly correct.
         vault_core::rekey::recover_interrupted(&db, &salt_file, &password)?;
         vault_core::check_salt_pairing(&db, &salt_file)?;
+        // Opening creates the vault when there is none, under this password. If a later step
+        // fails, that vault must not stay behind: the retry (perhaps with another password) would
+        // meet "Wrong master password" for a vault the person never saw.
+        let fresh = !db.exists();
         let salt = vault_core::read_or_create_salt(&salt_file)?;
         let key = vault_core::derive_key(&password, &salt)?;
-        let conn = vault_core::open_db(&db, &key)?;
-        vault_core::init_schema(&conn)?;
-        vault_core::rekey::cleanup_after_unlock(&db, &salt_file);
+        let setup = || -> Result<(), String> {
+            let conn = vault_core::open_db(&db, &key)?;
+            vault_core::init_schema(&conn)?;
+            vault_core::rekey::cleanup_after_unlock(&db, &salt_file);
 
-        // Phase 1 migration: import legacy vault.json then remove it.
-        let legacy = legacy_json_path(&app)?;
-        if legacy.exists() {
-            let raw = fs::read_to_string(&legacy).map_err(|e| e.to_string())?;
-            let _: serde_json::Value = serde_json::from_str(&raw)
-                .map_err(|e| format!("Legacy vault.json invalid: {e}"))?;
-            vault_core::migrate_legacy_json(&conn, &raw)?;
-            fs::remove_file(&legacy).ok();
+            // Phase 1 migration: import legacy vault.json then remove it.
+            let legacy = legacy_json_path(&app)?;
+            if legacy.exists() {
+                let raw = fs::read_to_string(&legacy).map_err(|e| e.to_string())?;
+                let _: serde_json::Value = serde_json::from_str(&raw)
+                    .map_err(|e| format!("Legacy vault.json invalid: {e}"))?;
+                vault_core::migrate_legacy_json(&conn, &raw)?;
+                fs::remove_file(&legacy).ok();
+            }
+
+            // Ensure the owner row exists (password_hash NULL — it cannot be logged
+            // into; it exists so owner actions have a resolvable identity in the
+            // audit log and the user list).
+            //
+            // Deliberately no *password* seeding: a previous version created an
+            // "admin" row whose hash was the master password itself, turning the
+            // sub-user login path into an oracle for the vault key.
+            vault_core::ensure_owner_user(&conn)?;
+            Ok(())
+        };
+        if let Err(e) = setup() {
+            if fresh {
+                discard_new_vault(&db, &salt_file);
+            }
+            return Err(e);
         }
 
-        // Ensure the owner row exists (password_hash NULL — it cannot be logged
-        // into; it exists so owner actions have a resolvable identity in the
-        // audit log and the user list).
-        //
-        // Deliberately no *password* seeding: a previous version created an
-        // "admin" row whose hash was the master password itself, turning the
-        // sub-user login path into an oracle for the vault key.
-        vault_core::ensure_owner_user(&conn)?;
-
-        retain_unlocked_session(&state.0, &ops.0, key, recovery_paths(&app)?)?;
+        if let Err(e) = retain_unlocked_session(&state.0, &ops.0, key, recovery_paths(&app)?) {
+            if fresh {
+                discard_new_vault(&db, &salt_file);
+            }
+            return Err(e);
+        }
         // A failure to open the socket must not fail the unlock: scripts just fall back to a prompt.
         if let Err(e) = bridge_apply(&app, &bridge.0, Some(key)) {
             eprintln!("Local scripts bridge not started: {e}");
@@ -2904,9 +2931,9 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::recipe_registry,
             commands::recipe_preview,
             commands::recipe_resolve,
-        commands::codes_parse,
-        commands::codes_add,
-        commands::codes_unmark,
+            commands::codes_parse,
+            commands::codes_add,
+            commands::codes_unmark,
             commands::enrich_plan,
             commands::enrich_online_targets,
             commands::enrich_online,
