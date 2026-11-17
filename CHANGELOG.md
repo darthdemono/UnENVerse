@@ -4,6 +4,16 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Added
+
+- `unv entry add NAME --recipe RECIPE` makes the password from a saved recipe when the entry is created, stored whole with the public `generated_by` record. It cannot be combined with `--key`, `--key-stdin` or `--generate`, and an unknown recipe exits 3 and writes nothing.
+- `--site ADDRESS` on `unv entry add` and `unv entry set` (repeatable) adds the addresses an entry answers to, the same as `unv site add`; an address already present in another spelling is not stored twice.
+
+### Changed
+
+- Using a recovery code is audited as "recovery codes changed" (with the acting user) instead of "codes rotated".
+- Decision records 0174 (password recipes are configuration) and 0175 (the login sequence is decided once and carries no values).
+
 ## 0.79.0 (2026-11-16)
 
 ### Added
