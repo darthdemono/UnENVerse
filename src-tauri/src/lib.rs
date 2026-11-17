@@ -2119,6 +2119,24 @@ mod commands {
         Ok(serde_json::json!({ "generated_at": c.generated_at, "providers": c.providers.len() }))
     }
 
+    /// Pairs of addresses in the entry form that are one place spelled two ways (R40).
+    #[tauri::command]
+    pub fn site_alternate_spellings(urls: Vec<String>) -> Vec<(String, String)> {
+        vault_core::sites::alternate_spellings(&urls)
+    }
+
+    /// One family from a name and hosts typed in the Site families tool: hosts normalised to bare
+    /// hosts by the same parser `unv site family add` uses (R40).
+    #[tauri::command]
+    pub fn site_family_normalise(
+        name: String,
+        hosts: Vec<String>,
+    ) -> Result<serde_json::Value, String> {
+        let mut vault = serde_json::json!({});
+        vault_core::sites::family_add(&mut vault, &name, &hosts)?;
+        Ok(vault["site_families"][0].clone())
+    }
+
     /// Normalises the addresses typed in the entry form (R40). The parser is `vault_core::sites`;
     /// the form has no twin of it. A site that was already stored keeps its date.
     #[tauri::command]
@@ -2934,6 +2952,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::codes_parse,
             commands::codes_add,
             commands::codes_unmark,
+            commands::site_alternate_spellings,
+            commands::site_family_normalise,
             commands::enrich_plan,
             commands::enrich_online_targets,
             commands::enrich_online,
@@ -3001,6 +3021,16 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         ])
 }
 
+/// Brings the main window to the front: shown again when it was hidden to the tray, restored when
+/// minimised, focused. What a second launch of the app does to the copy that is already running.
+pub fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
+}
+
 // ── App entry ─────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -3027,7 +3057,15 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     configure_linux_webkit();
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "desktop starting");
-    register(tauri::Builder::default())
+    let builder = tauri::Builder::default();
+    // R38 row 8: a second launch raises the window that is already open and exits, so two copies
+    // never work on one vault. It must be the first plugin. Where no session bus exists (a bare
+    // container, WSL) the plugin logs that and the app starts normally.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        show_main_window(app)
+    }));
+    register(builder)
         .plugin(tauri_plugin_shell::init())
         // Restore the window where the user left it.
         //
