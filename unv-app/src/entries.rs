@@ -1000,6 +1000,7 @@ pub fn cmd_add(
     fields: &EntryFields,
     if_missing: bool,
     template: Option<&str>,
+    recipe: Option<&str>,
 ) -> CliResult {
     let template = match template {
         Some(id) => Some(vault_core::templates::find(id).ok_or_else(|| {
@@ -1037,6 +1038,22 @@ pub fn cmd_add(
         entry["provider"] = json!(provider);
     }
     fields.apply(&mut entry, &projs)?;
+    // `--recipe NAME` makes the password from a saved recipe. It does not mix with a value
+    // given another way: two sources for one field would silently drop one.
+    if let Some(name) = recipe {
+        if entry
+            .get("api_key")
+            .and_then(|v| v.as_str())
+            .is_some_and(|v| !v.is_empty())
+        {
+            return Err(CliError::invalid(
+                "--recipe cannot be combined with --key, --key-stdin or --generate",
+            ));
+        }
+        let (_, _, g, by) = crate::recipe_cmd::generate_for(&vault, &entry, Some(name))?;
+        entry["api_key"] = json!(g.text);
+        entry["generated_by"] = by;
+    }
     // Every secret with a primary value carries a value role, so the variable it
     // generates is PROVIDER_ROLE (GITHUB_KEY, ELTE_PASSWORD), never a bare PROVIDER.
     // `--role` wins; the desktop form starts a new entry on the same defaults.
@@ -1197,7 +1214,7 @@ pub fn cmd_set(
         // `--create` makes set an upsert, so a provisioning script can run once
         // or a hundred times with the same result.
         Err(e) if create && e.code == crate::error::Code::NotFound => {
-            return cmd_add(access, query, fields, false, None);
+            return cmd_add(access, query, fields, false, None, None);
         }
         Err(e) => return Err(e),
     };

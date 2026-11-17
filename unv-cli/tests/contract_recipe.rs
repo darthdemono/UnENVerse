@@ -272,3 +272,32 @@ fn the_token_list_comes_from_the_registry_and_can_be_narrowed_by_group() {
     let text = v.run_text(&["recipe", "tokens", "--group", "random"]).all();
     assert!(text.contains("random") && !text.contains("expand"));
 }
+
+/// `entry add --recipe` makes the password at creation: stored whole as an ordinary password with
+/// the public record, and refused when another source already gave the value.
+#[test]
+fn entry_add_with_a_recipe_creates_the_entry_with_a_generated_password() {
+    let v = Vault::new("recipe-entry-add");
+    v.ok(&["entry", "add", "Seed", "--key", "k"]);
+    v.ok(&["recipe", "add", "plain", "{random:24:base62}"]);
+    v.ok(&[
+        "entry", "add", "Mastodon", "--type", "password", "--recipe", "plain",
+    ]);
+    let shown = reveal(&v, &["entry", "get", "Mastodon", "--field", "api_key"]).json();
+    let text = shown["data"]["value"].as_str().unwrap_or_default();
+    assert_eq!(text.len(), 24, "{shown}");
+    let got = v.run(&["entry", "get", "Mastodon"]).json();
+    assert_eq!(got["data"]["generated_by"]["name"], "plain", "{got}");
+    // An unknown recipe is not found, and no entry is left behind.
+    assert_eq!(
+        v.run(&["entry", "add", "Ghost", "--recipe", "nope"]).code,
+        3
+    );
+    assert_eq!(v.run(&["entry", "get", "Ghost"]).code, 3);
+    // A value from another source is refused, not silently replaced.
+    assert_eq!(
+        v.run(&["entry", "add", "Both", "--key", "x", "--recipe", "plain"])
+            .code,
+        10
+    );
+}
