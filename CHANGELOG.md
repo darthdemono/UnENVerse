@@ -11,7 +11,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 - **Login steps on a bundle card.** A bundle with a password and at least one more credential shows its steps in the one fixed order (password, 2FA code, security phrase, recovery code) and, when it holds recovery codes, a choice for what happens to a code once it has been filled: ask, mark it used straight away, or leave it. The order is the Rust one `unv login-plan` prints.
 - **Recipe blocks.** The recipe editor shows the template as blocks (each token, and the text between), with buttons to move or remove one; the text view stays and the two stay in step.
 - **Read recipe list words from a file**, and five more starting recipes (dice words, dice words with a number and a symbol, BIP39 words and a number, pronounceable, hex key), each checked to clear the default 64 bit floor.
-- **A second launch raises the window that is already open** instead of starting another copy on the same vault (a Linux session without a D-Bus bus just starts normally).
+- **A second launch raises the window that is already open** instead of starting another copy on the same vault. The first copy holds a lock file in the data directory; a later one asks it to raise its window and exits. If the lock cannot be tried (a read-only directory), the app starts normally. No new dependency.
 
 
 ## 0.80.0 (2026-11-17)

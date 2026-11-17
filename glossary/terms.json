@@ -2,6 +2,13 @@
   "version": 1,
   "terms": [
     {
+      "id": "terminate-codes",
+      "term": "Terminate codes",
+      "category": "setting",
+      "aliases": ["terminate_codes", "--terminate-codes"],
+      "definition": "What happens to a recovery code once it has been filled into a page: ask whether to mark it used, mark it used straight away, or leave it for you to mark. Set per bundle."
+    },
+    {
       "id": "unv-acme",
       "term": "unv acme",
       "category": "command",
