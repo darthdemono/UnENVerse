@@ -324,6 +324,15 @@ export const TYPE_CONFIG: Record<SecretType, TypeConfig> = {
     keyLabel: 'Security phrase',
     keyPlaceholder: 'The phrase the site asks for',
   },
+  // Ordered words (a seed or recovery phrase). Pasting a whole phrase is fine: the words are
+  // joined by single spaces when the entry is saved.
+  secret_phrase: {
+    providerLabel: 'Name',
+    providerPlaceholder: 'e.g. Hardware wallet seed',
+    showAccount: false,
+    keyLabel: 'Words',
+    keyPlaceholder: 'Paste or type the words in order',
+  },
 };
 
 // ── Dynamic form fields ───────────────────────────────────────────────────
@@ -2245,6 +2254,11 @@ const SUGGESTED_VARS: Partial<Record<SecretType, [string, boolean][]>> = {
     ['maintenance_until', false],
     ['order_id', false],
   ],
+  secret_phrase: [
+    ['wordlist', false],
+    ['passphrase', true],
+    ['derivation_path', false],
+  ],
   crypto_wallet: [
     ['bip39_passphrase', true],
     ['derivation_path', false],
@@ -2418,7 +2432,20 @@ export async function saveModal() {
       showToast(`${TYPE_CONFIG[t]?.providerLabel || 'Provider'} is required`, 'err');
       return;
     }
-    if (t === 'crypto_wallet' && entry.api_key && isTauri()) {
+    if (t === 'secret_phrase' && entry.api_key) {
+      // Any whitespace between words (a pasted numbered grid, line breaks) becomes one space.
+      entry.api_key = entry.api_key.trim().split(/\s+/).join(' ');
+    }
+    if (
+      (t === 'crypto_wallet' || t === 'secret_phrase') &&
+      entry.api_key &&
+      isTauri() &&
+      // A phrase in another word list cannot be checked against BIP39.
+      (t === 'crypto_wallet' ||
+        ['', 'bip39-english'].includes(
+          entry.extra_vars?.find((v) => v.key === 'wordlist')?.value?.trim() ?? '',
+        ))
+    ) {
       // A mistyped word is otherwise discovered when the funds are needed. The
       // check is a warning, not a gate: another wordlist or a non-BIP39 seed is
       // legitimate, and the error never echoes a word.

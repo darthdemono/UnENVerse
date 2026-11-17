@@ -80,6 +80,7 @@ const BY_TYPE: Partial<Record<SecretType, Partial<FieldSchema>>> = {
   secure_note: { urlLabel: 'Related URL', urlPlaceholder: 'https://example.com', ...none },
   identity_document: { urlLabel: 'Issuer URL', urlPlaceholder: 'https://issuer.example', ...none },
   security_phrase: { urlLabel: 'Site URL', urlPlaceholder: 'https://example.com', ...none },
+  secret_phrase: { urlLabel: 'Site URL', urlPlaceholder: 'https://example.com', ...none },
 };
 
 /** The field schema of a type; an unknown type gets the full default set. */

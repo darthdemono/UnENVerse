@@ -85,7 +85,13 @@ export type SecretType =
    * A phrase a site asks for beside the password and the 2FA code (a memorable phrase, a security
    * answer). It lives in a bundle with the login it belongs to, filled third in the login sequence.
    */
-  | 'security_phrase';
+  | 'security_phrase'
+  /**
+   * An ordered word list: a seed phrase, a recovery phrase or a security answer kept as words. The
+   * words are the primary value, separated by single spaces; the list name, a 25th-word passphrase
+   * and a derivation path are variables.
+   */
+  | 'secret_phrase';
 
 /**
  * The editor/validator/preview an `extra_vars` value gets (Phase 24.1).

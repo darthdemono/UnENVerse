@@ -170,3 +170,38 @@ fn a_security_phrase_is_accepted_and_never_printed() {
         "the phrase must not be printed: {text}"
     );
 }
+
+/// A secret phrase is a secret type of its own: accepted by `--type`, stored, and never printed
+/// (the words are the primary value and the whole value is masked).
+#[test]
+fn a_secret_phrase_is_accepted_and_never_printed() {
+    let dir = scratch("secretphrase");
+    let pw = long_password();
+    let words = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    let added = unv(
+        &dir,
+        Some(&pw),
+        &[
+            "--init",
+            "entry",
+            "add",
+            "Hardware wallet",
+            "--type",
+            "secret_phrase",
+            "--key",
+            words,
+        ],
+    );
+    assert!(
+        added.status.success(),
+        "{}",
+        String::from_utf8_lossy(&added.stderr)
+    );
+    let shown = unv(&dir, Some(&pw), &["get", "Hardware wallet"]);
+    let text = String::from_utf8_lossy(&shown.stdout).to_string();
+    assert!(text.contains("secret_phrase"), "{text}");
+    assert!(
+        !text.contains("legal winner"),
+        "the words must not be printed: {text}"
+    );
+}

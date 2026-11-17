@@ -247,7 +247,18 @@ pub fn analyse(vault: &Value) -> Vec<Issue> {
         }
         // A mnemonic with a bad checksum is a typo discovered when the funds are
         // needed. Checked against the bundled BIP39 wordlist; never echoed.
-        if crate::data::secret_type_of(k) == "crypto_wallet" {
+        let ty = crate::data::secret_type_of(k);
+        // A secret phrase in another word list cannot be checked against BIP39.
+        let other_list = k
+            .get("extra_vars")
+            .and_then(|v| v.as_array())
+            .and_then(|vars| {
+                vars.iter()
+                    .find(|v| v.get("key").and_then(|x| x.as_str()) == Some("wordlist"))
+            })
+            .and_then(|v| v.get("value").and_then(|x| x.as_str()))
+            .is_some_and(|w| !w.trim().is_empty() && w.trim() != "bip39-english");
+        if ty == "crypto_wallet" || (ty == "secret_phrase" && !other_list) {
             let m = k.get("api_key").and_then(|v| v.as_str()).unwrap_or("");
             if !m.trim().is_empty() {
                 if let Err(e) = vault_core::type_emit::bip39_validate(m) {
@@ -860,6 +871,33 @@ mod finding_shape_tests {
         assert_eq!(wallet.field, "api_key");
         // The phrase itself never appears in a finding.
         assert!(!wallet.message.contains("abandon"));
+    }
+
+    /// A secret phrase is checked like a wallet's: a bad BIP39 checksum is a finding that never
+    /// echoes a word, a good one is not, and a phrase in another word list is left alone.
+    #[test]
+    fn a_secret_phrase_is_checked_against_bip39_unless_it_names_another_list() {
+        let bad = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
+        let good = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let vault = json!({ "api_keys": [
+            { "provider": "Bad", "secretType": "secret_phrase", "description": "d", "api_key": bad },
+            { "provider": "Good", "secretType": "secret_phrase", "description": "d", "api_key": good },
+            { "provider": "Other", "secretType": "secret_phrase", "description": "d", "api_key": bad,
+              "extra_vars": [{ "key": "wordlist", "value": "eff-large" }] },
+            { "provider": "Named", "secretType": "secret_phrase", "description": "d", "api_key": good,
+              "extra_vars": [{ "key": "wordlist", "value": "bip39-english" }] },
+        ]});
+        let issues = analyse(&vault);
+        let phrase = |name: &str| {
+            issues
+                .iter()
+                .any(|i| i.subject == name && i.message.starts_with("Recovery phrase"))
+        };
+        assert!(phrase("Bad"));
+        assert!(!phrase("Good"));
+        assert!(!phrase("Other"));
+        assert!(!phrase("Named"));
+        assert!(issues.iter().all(|i| !i.message.contains("abandon")));
     }
 }
 

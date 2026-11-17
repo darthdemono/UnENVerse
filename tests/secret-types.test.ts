@@ -50,10 +50,10 @@ const NEW_SIXTEEN = [
 describe('secret-types registry', () => {
   it('has exactly the ten existing, sixteen new and the security phrase', () => {
     const ids = registry().map((t) => t.id);
-    for (const id of [...EXISTING_TEN, ...NEW_SIXTEEN, 'security_phrase']) {
+    for (const id of [...EXISTING_TEN, ...NEW_SIXTEEN, 'security_phrase', 'secret_phrase']) {
       expect(ids).toContain(id);
     }
-    expect(ids.length).toBe(EXISTING_TEN.length + NEW_SIXTEEN.length + 1);
+    expect(ids.length).toBe(EXISTING_TEN.length + NEW_SIXTEEN.length + 2);
   });
 
   // A phrase is filled third in a login (password, 2FA, phrase, recovery code), so unlike the

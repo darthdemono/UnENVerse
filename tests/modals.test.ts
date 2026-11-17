@@ -152,6 +152,7 @@ describe('TYPE_CONFIG', () => {
       'password',
       'recovery_codes',
       'registry_token',
+      'secret_phrase',
       'secure_note',
       'security_phrase',
       'signing_key',
