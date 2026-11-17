@@ -145,5 +145,130 @@
     "field": "ID",
     "var_key": "ID",
     "value": "client-abc123"
+  },
+  "_derived_sites_comment": [
+    "${NAME/host}, ${NAME/port} and ${NAME/url} (for an entry with no api_url) read the entry's first address:",
+    "`sites`, then `api_url`. Asserted from derived_site_field in unv-app/src/refs.rs and derivedSiteField in",
+    "src/ts/chunk-ops.ts. A stored field or variable of the same name wins over the derived answer."
+  ],
+  "derived_sites": {
+    "entries": [
+      {
+        "provider": "Sonarr",
+        "api_key": "k",
+        "sites": [
+          {
+            "url": "localhost:8989"
+          },
+          {
+            "url": "tv.example.org"
+          }
+        ]
+      },
+      {
+        "provider": "Plex",
+        "api_key": "k",
+        "sites": [
+          {
+            "url": "https://Media.Example.org.:8443/web/index.html"
+          }
+        ]
+      },
+      {
+        "provider": "Router",
+        "api_key": "k",
+        "sites": [
+          {
+            "url": "[::1]:8080"
+          }
+        ]
+      },
+      {
+        "provider": "Legacy",
+        "api_key": "k",
+        "api_url": "https://old.example.org"
+      },
+      {
+        "provider": "Bare",
+        "api_key": "k"
+      },
+      {
+        "provider": "Owned",
+        "api_key": "k",
+        "sites": [
+          {
+            "url": "x.example.org:9"
+          }
+        ],
+        "extra_vars": [
+          {
+            "key": "HOST",
+            "value": "my-own-host"
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "ref": "Sonarr/host",
+        "expect": "localhost",
+        "why": "the first address wins"
+      },
+      {
+        "ref": "Sonarr/port",
+        "expect": "8989",
+        "why": "the port the address spells out"
+      },
+      {
+        "ref": "Sonarr/url",
+        "expect": "localhost:8989",
+        "why": "no api_url, so the first address as stored"
+      },
+      {
+        "ref": "Plex/hostname",
+        "expect": "media.example.org",
+        "why": "lowercased, trailing dot dropped, path ignored"
+      },
+      {
+        "ref": "Plex/port",
+        "expect": "8443",
+        "why": "explicit port"
+      },
+      {
+        "ref": "Plex/url",
+        "expect": "https://media.example.org:8443",
+        "why": "scheme, host and port, no path"
+      },
+      {
+        "ref": "Router/host",
+        "expect": "::1",
+        "why": "no brackets in a host"
+      },
+      {
+        "ref": "Router/port",
+        "expect": "8080",
+        "why": "port after a bracketed host"
+      },
+      {
+        "ref": "Legacy/host",
+        "expect": "old.example.org",
+        "why": "api_url counts as an address"
+      },
+      {
+        "ref": "Legacy/port",
+        "expect": null,
+        "why": "a port nobody wrote is not invented from the scheme"
+      },
+      {
+        "ref": "Bare/host",
+        "expect": null,
+        "why": "no address, nothing to read"
+      },
+      {
+        "ref": "Owned/HOST",
+        "expect": "my-own-host",
+        "why": "a stored variable beats the derived answer"
+      }
+    ]
   }
 }

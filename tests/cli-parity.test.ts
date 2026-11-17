@@ -271,6 +271,17 @@ describe('exporter parity fixtures', () => {
     }
     const ri = doc.role_aware_id;
     expect(resolveFieldRef(`\${S/${ri.field}}`, true).resolved, ri._why).toBe(ri.expect);
+
+    // R40: host, port and url are read from the entry's first address.
+    const ds = doc.derived_sites;
+    st.vault.api_keys = ds.entries.map((e: any, i: number) => ({
+      ...e,
+      id: `d-${i}`,
+      projectIds: ['Universal'],
+    })) as any;
+    for (const c of ds.cases as any[]) {
+      expect(resolveFieldRef(`\${${c.ref}}`, true).resolved, c.why).toBe(c.expect);
+    }
   });
 
   /**

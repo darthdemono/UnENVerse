@@ -558,6 +558,29 @@ fn declared_roles_beat_the_alias_table() {
     );
 }
 
+/// `${NAME/host}`, `${NAME/port}` and `${NAME/url}` read the entry's first address (R40); the same
+/// cases run against `derivedSiteField` in the app. Pinned by `field-aliases.json`.
+#[test]
+fn derived_site_references_resolve_like_the_app() {
+    let doc: Value = serde_json::from_str(&golden("field-aliases.json")).expect("fixture parses");
+    let ds = &doc["derived_sites"];
+    let entries = ds["entries"].as_array().expect("entries");
+    for c in ds["cases"].as_array().expect("cases") {
+        let (provider, field) = c["ref"].as_str().unwrap().split_once('/').unwrap();
+        let entry = entries
+            .iter()
+            .find(|e| e["provider"] == provider)
+            .expect("case names an entry");
+        let got = unv_app::refs::entry_field(entry, field);
+        assert_eq!(
+            got.as_deref(),
+            c["expect"].as_str(),
+            "{}",
+            c["why"].as_str().unwrap_or("")
+        );
+    }
+}
+
 /// `${bundle:…}` references — Phase 24.1. Pinned by `bundle-refs.json`.
 #[test]
 fn bundle_references_resolve_like_the_app() {

@@ -89,6 +89,21 @@ fn role_key(raw: &str) -> String {
         .collect()
 }
 
+/// `${NAME/host}`, `${NAME/port}` and a `${NAME/url}` for an entry whose `api_url` is empty, read
+/// from the entry's first address (`sites`, then the older `api_url`). Last in the lookup, so a
+/// stored field or variable of the same name always wins. The host has no brackets and no
+/// trailing dot; the port is only what the address spells out. Twin of `derivedSiteField` in
+/// `src/ts/chunk-ops.ts`, pinned by `tests/fixtures/parity/field-aliases.json`.
+fn derived_site_field(entry: &Value, field: &str) -> Option<String> {
+    let first = vault_core::sites::entry_sites(entry).into_iter().next()?;
+    match field.to_uppercase().as_str() {
+        "HOST" | "HOSTNAME" => Some(first.site.host),
+        "PORT" => first.site.port.map(|p| p.to_string()),
+        "URL" | "URI" | "ENDPOINT" | "API_URL" | "BASE_URL" => Some(first.site.display()),
+        _ => None,
+    }
+}
+
 /// Resolve a named field on a vault entry (roles, built-in fields, aliases, then extra_vars).
 pub fn entry_field(entry: &Value, field: &str) -> Option<String> {
     let canonical = canonical_field(field);
@@ -150,7 +165,7 @@ pub fn entry_field(entry: &Value, field: &str) -> Option<String> {
             }
         }
     }
-    None
+    derived_site_field(entry, field)
 }
 
 /// Find the entry a bare `${NAME}` or a `${NAME/field}` prefix addresses.
