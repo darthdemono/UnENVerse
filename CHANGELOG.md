@@ -4,6 +4,16 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+### Added
+
+- **Site families tool.** Tools has a Site families pane: your families and the shipped ones side by side, add a family (hosts are normalised by the same Rust parser `unv site family add` uses), add hosts to one, remove a host or a whole family. A family of yours with the same name as a shipped one replaces it.
+- **Another spelling of an address.** Adding `127.0.0.1:8989` to an entry that has `localhost:8989` still stores it, but `unv site add` says "that is the same address as localhost:8989, spelled differently" (and returns `same_as`), and the add and edit form shows the same note when you save.
+- **Login steps on a bundle card.** A bundle with a password and at least one more credential shows its steps in the one fixed order (password, 2FA code, security phrase, recovery code) and, when it holds recovery codes, a choice for what happens to a code once it has been filled: ask, mark it used straight away, or leave it. The order is the Rust one `unv login-plan` prints.
+- **Recipe blocks.** The recipe editor shows the template as blocks (each token, and the text between), with buttons to move or remove one; the text view stays and the two stay in step.
+- **Read recipe list words from a file**, and five more starting recipes (dice words, dice words with a number and a symbol, BIP39 words and a number, pronounceable, hex key), each checked to clear the default 64 bit floor.
+- **A second launch raises the window that is already open** instead of starting another copy on the same vault (a Linux session without a D-Bus bus just starts normally).
+
+
 ## 0.80.0 (2026-11-17)
 
 ### Added
