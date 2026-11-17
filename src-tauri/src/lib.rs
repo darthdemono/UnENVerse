@@ -3096,7 +3096,8 @@ pub fn run() {
     }
     // Only the first copy watches for rings. (The guard itself stays in `_instance`, outside every
     // closure, so the lock lasts until the app ends.)
-    let watch_dir = data_dir.filter(|_| matches!(_instance, Some(single_instance::Claim::First(_))));
+    let watch_dir =
+        data_dir.filter(|_| matches!(_instance, Some(single_instance::Claim::First(_))));
     register(tauri::Builder::default())
         .plugin(tauri_plugin_shell::init())
         // Restore the window where the user left it.
