@@ -8,6 +8,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Added
 
+- **`stretch` lengthener.** `{random:8:base36|stretch:22:base36:host}` derives the value after an Argon2id hash (19 MiB, two passes, a fixed v1 salt), so each guess costs far more. It adds length and cost, never bits.
+- **`${NAME/host}`, `${NAME/port}` and `${NAME/url}`** in references read the entry's first address (`sites`, then `api_url`), for an entry with no `api_url` of its own. A stored field or variable of the same name always wins; the host has no brackets and no trailing dot, and a port is only what the address spells out. The desktop and the CLI resolve them the same way (pinned by one shared fixture).
 - `unv entry add NAME --recipe RECIPE` makes the password from a saved recipe when the entry is created, stored whole with the public `generated_by` record. It cannot be combined with `--key`, `--key-stdin` or `--generate`, and an unknown recipe exits 3 and writes nothing.
 - `--site ADDRESS` on `unv entry add` and `unv entry set` (repeatable) adds the addresses an entry answers to, the same as `unv site add`; the same address given twice is stored once.
 
