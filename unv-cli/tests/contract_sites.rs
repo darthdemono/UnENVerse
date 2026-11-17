@@ -141,8 +141,9 @@ fn the_site_flag_adds_addresses_on_add_and_set() {
     ]);
     assert_eq!(names(&v, "http://127.0.0.1:8989"), ["Sonarr"]);
     assert_eq!(names(&v, "https://tv.example.org"), ["Sonarr"]);
-    // Same address in another spelling is not stored twice.
-    v.ok(&["entry", "set", "Sonarr", "--site", "http://127.0.0.1:8989"]);
+    // The same address again is not stored twice. (Another spelling of it is a separate row until
+    // the "same address, other spelling" hint exists.)
+    v.ok(&["entry", "set", "Sonarr", "--site", "localhost:8989"]);
     let ls = v.run(&["site", "ls", "Sonarr"]).json();
     assert_eq!(ls["data"]["sites"].as_array().unwrap().len(), 2, "{ls}");
     v.ok(&["entry", "set", "Sonarr", "--site", "other.example.org"]);

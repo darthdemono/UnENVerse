@@ -7,7 +7,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 ### Added
 
 - `unv entry add NAME --recipe RECIPE` makes the password from a saved recipe when the entry is created, stored whole with the public `generated_by` record. It cannot be combined with `--key`, `--key-stdin` or `--generate`, and an unknown recipe exits 3 and writes nothing.
-- `--site ADDRESS` on `unv entry add` and `unv entry set` (repeatable) adds the addresses an entry answers to, the same as `unv site add`; an address already present in another spelling is not stored twice.
+- `--site ADDRESS` on `unv entry add` and `unv entry set` (repeatable) adds the addresses an entry answers to, the same as `unv site add`; the same address given twice is stored once.
 
 ### Changed
 
