@@ -2221,6 +2221,15 @@ enum RecipeCmd {
     },
     /// Set the vault's default recipe (an empty name clears it).
     Default { name: String },
+    /// Print a recipe as one JSON line that `recipe import` reads: name, template and options.
+    Export { name: String },
+    /// Save a recipe from the JSON `recipe export` printed (a file, or `-` for stdin).
+    Import {
+        file: String,
+        /// Replace a recipe of the same name.
+        #[arg(long)]
+        replace: bool,
+    },
     /// Rules that assign a recipe by provider, site family, host, type, project or tag.
     Rule {
         #[command(subcommand)]
@@ -4614,6 +4623,8 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             } => recipe_cmd::test(a, target, for_entry.as_deref(), *count, opts),
             RecipeCmd::Apply { entry, recipe } => recipe_cmd::apply(a, entry, recipe.as_deref()),
             RecipeCmd::Default { name } => recipe_cmd::set_default(a, name),
+            RecipeCmd::Export { name } => recipe_cmd::export(a, name),
+            RecipeCmd::Import { file, replace } => recipe_cmd::import(a, file, *replace),
             RecipeCmd::Rule { cmd } => match cmd {
                 RuleCmd::Add { kind, value, recipe } => recipe_cmd::rule_add(a, kind, value, recipe),
                 RuleCmd::Ls => recipe_cmd::rule_ls(a),

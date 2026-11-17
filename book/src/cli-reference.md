@@ -191,9 +191,11 @@ Contract version 1.
 | `unv recipe add <name> <template>` | Save a recipe: a template such as `{prefix}-{random:12:base62}` and its options |
 | `unv recipe apply <entry>` | Make a password for an entry from its recipe and store it as its password |
 | `unv recipe default <name>` | Set the vault's default recipe (an empty name clears it) |
+| `unv recipe export <name>` | Print a recipe as one JSON line that `recipe import` reads: name, template and options |
 | `unv recipe fact ls` | List your facts; private values are redacted |
 | `unv recipe fact rm <name>` | Remove a fact |
 | `unv recipe fact set <name> <value>` | Save a fact (private unless --public) |
+| `unv recipe import <file>` | Save a recipe from the JSON `recipe export` printed (a file, or `-` for stdin) |
 | `unv recipe list add <name> [words]` | Save a list of words (positional, or one per line from --file) |
 | `unv recipe list ls` | List the built-in lists and yours |
 | `unv recipe list rm <name>` | Remove one of your lists |
