@@ -2663,3 +2663,22 @@ mark.search-hl {
     white-space: pre-wrap;
   }
 }
+
+/* Recipe blocks (R41) */
+.rcp-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+.rcp-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+}
+.rcp-block.token {
+  background: var(--surface2, rgba(127, 127, 127, 0.12));
+}
