@@ -122,3 +122,36 @@ fn the_addresses_are_public_metadata_in_a_redacted_listing() {
         "{got}"
     );
 }
+
+/// `--site` on `entry add` and `entry set` stores the same addresses `unv site add` does: repeatable,
+/// the same spelling twice stays one, and a bad address is refused before anything is written.
+#[test]
+fn the_site_flag_adds_addresses_on_add_and_set() {
+    let v = Vault::new("sites-flag");
+    v.ok(&[
+        "entry",
+        "add",
+        "Sonarr",
+        "--key",
+        "k",
+        "--site",
+        "localhost:8989",
+        "--site",
+        "tv.example.org",
+    ]);
+    assert_eq!(names(&v, "http://127.0.0.1:8989"), ["Sonarr"]);
+    assert_eq!(names(&v, "https://tv.example.org"), ["Sonarr"]);
+    // Same address in another spelling is not stored twice.
+    v.ok(&["entry", "set", "Sonarr", "--site", "http://127.0.0.1:8989"]);
+    let ls = v.run(&["site", "ls", "Sonarr"]).json();
+    assert_eq!(ls["data"]["sites"].as_array().unwrap().len(), 2, "{ls}");
+    v.ok(&["entry", "set", "Sonarr", "--site", "other.example.org"]);
+    assert_eq!(names(&v, "https://other.example.org"), ["Sonarr"]);
+    // A bad address is invalid input and changes nothing.
+    assert_eq!(
+        v.run(&["entry", "add", "Bad", "--key", "k", "--site", ""])
+            .code,
+        10
+    );
+    assert_eq!(v.run(&["entry", "get", "Bad"]).code, 3);
+}
