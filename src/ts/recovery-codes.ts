@@ -49,3 +49,13 @@ export function markUsed(
   all[idx] = `${all[idx]}\tUSED ${date}`;
   return all.join('\n');
 }
+
+/** Every code with the date it was used, or `null` while it is unused. For the Recovery codes pane. */
+export function listCodes(
+  entry: Pick<VaultEntry, 'extra_vars'>,
+): { code: string; used: string | null }[] {
+  return lines(entry).map((l) => {
+    const [code, mark] = l.split('\t');
+    return { code, used: mark === undefined ? null : mark.replace(/^USED\s*/, '') };
+  });
+}

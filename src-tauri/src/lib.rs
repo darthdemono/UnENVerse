@@ -2179,6 +2179,25 @@ mod commands {
             .map(|(r, why)| serde_json::json!({ "recipe": r.name, "why": why }))
     }
 
+    /// Recovery codes found in pasted text, in the layouts the services use (R36).
+    #[tauri::command]
+    pub fn codes_parse(text: String) -> Vec<String> {
+        vault_core::type_emit::parse_codes(&text)
+    }
+
+    /// The `codes` value with `codes` added (already-present ones skipped) and how many were new.
+    #[tauri::command]
+    pub fn codes_add(entry: serde_json::Value, codes: Vec<String>) -> serde_json::Value {
+        let (value, added) = vault_core::type_emit::add_codes(&entry, &codes);
+        serde_json::json!({ "value": value, "added": added })
+    }
+
+    /// The `codes` value with one used code put back (the undo for a code a page rejected).
+    #[tauri::command]
+    pub fn codes_unmark(entry: serde_json::Value, code: String) -> Result<String, String> {
+        vault_core::type_emit::unmark_used(&entry, &code)
+    }
+
     /// `Ok(())` when `mnemonic` is a valid BIP39 phrase; the error never echoes a word.
     #[tauri::command]
     pub fn bip39_validate(mnemonic: String) -> Result<(), String> {
@@ -2885,6 +2904,9 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::recipe_registry,
             commands::recipe_preview,
             commands::recipe_resolve,
+        commands::codes_parse,
+        commands::codes_add,
+        commands::codes_unmark,
             commands::enrich_plan,
             commands::enrich_online_targets,
             commands::enrich_online,
