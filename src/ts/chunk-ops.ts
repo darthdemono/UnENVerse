@@ -313,7 +313,54 @@ export function getEntryFieldValue(entry: VaultEntry, field: string): string | n
   if (canonical === 'api_secret') {
     return entry.extra_vars?.find((v) => SECRET_ALIASES.has(v.key.toUpperCase()))?.value;
   }
-  return undefined;
+  return derivedSiteField(entry, field);
+}
+
+/**
+ * `${NAME/host}`, `${NAME/port}`, and `${NAME/url}` for an entry with no `api_url`, read from
+ * the entry's first address (`sites`, then `api_url`). Last in the lookup so a stored field or
+ * variable of the same name wins. Twin of `derived_site_field` in `unv-app/src/refs.rs`; the
+ * parser below reads what `vault_core::sites::parse_site` reads for the forms the fixture pins.
+ */
+function derivedSiteField(entry: VaultEntry, field: string): string | undefined {
+  const first = entry.sites?.map((s) => s.url).find((u) => u) ?? entry.api_url;
+  if (!first) return undefined;
+  const text = first.trim();
+  const rest = text.includes('://') ? text.slice(text.indexOf('://') + 3) : text;
+  const authority = rest.slice(0, rest.search(/[/?#]|$/));
+  if (!authority) return undefined;
+  let host = authority;
+  let port: string | undefined;
+  if (authority.startsWith('[')) {
+    const end = authority.indexOf(']');
+    host = authority.slice(1, end);
+    if (authority.slice(end + 1).startsWith(':')) port = authority.slice(end + 2);
+  } else {
+    const at = authority.lastIndexOf(':');
+    if (at > 0) {
+      host = authority.slice(0, at);
+      port = authority.slice(at + 1);
+    }
+  }
+  host = host.toLowerCase().replace(/\.$/, '');
+  switch (field.toUpperCase()) {
+    case 'HOST':
+    case 'HOSTNAME':
+      return host;
+    case 'PORT':
+      return port && /^\d+$/.test(port) ? String(Number(port)) : undefined;
+    case 'URL':
+    case 'URI':
+    case 'ENDPOINT':
+    case 'API_URL':
+    case 'BASE_URL': {
+      const scheme = text.includes('://') ? text.slice(0, text.indexOf('://')).toLowerCase() : '';
+      const shown = host.includes(':') ? `[${host}]` : host;
+      return `${scheme ? `${scheme}://` : ''}${shown}${port ? `:${Number(port)}` : ''}`;
+    }
+    default:
+      return undefined;
+  }
 }
 
 const SECRET_ALIASES = new Set(['SECRET', 'API_SECRET', 'CLIENT_SECRET', 'SHARED_SECRET']);
