@@ -10,7 +10,13 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { st } from '../src/ts/state';
-import { saveModal, fillForm, populateProjectSelect, buildCatChips } from '../src/ts/modals';
+import {
+  saveModal,
+  fillForm,
+  fillSiteFamilyList,
+  populateProjectSelect,
+  buildCatChips,
+} from '../src/ts/modals';
 import { loadRealIndexHtml, makeEntry, makeVault, resetState } from './helpers';
 
 const toasts: string[] = [];
@@ -388,5 +394,23 @@ describe('addresses (sites)', () => {
     form({ sites: [{ url: 'a.test' }, { url: 'b.test:81' }], site_family: 'fam' });
     expect($<HTMLTextAreaElement>('f-sites').value).toBe('a.test\nb.test:81');
     expect($<HTMLInputElement>('f-site-family').value).toBe('fam');
+  });
+});
+
+describe('the site family suggestions', () => {
+  it('offers the vault families and the shipped ones, once each, sorted', () => {
+    form({});
+    (st.vault as unknown as { site_families: unknown }).site_families = [
+      { name: 'zebra', hosts: ['zebra.example'] },
+      { name: 'google', hosts: ['only.example'] },
+    ];
+    fillSiteFamilyList();
+    const names = [...document.querySelectorAll('#f-site-family-list option')].map(
+      (o) => (o as HTMLOptionElement).value,
+    );
+    expect(names).toContain('metabrainz');
+    expect(names).toContain('zebra');
+    expect(names.filter((n) => n === 'google')).toHaveLength(1);
+    expect(names).toEqual([...names].sort());
   });
 });
