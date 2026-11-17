@@ -247,6 +247,10 @@ pub struct EntryFields {
     /// Extra field as key=value. Repeatable. Prefix the key with `!` to mark it secret.
     #[arg(long = "var")]
     pub vars: Vec<String>,
+    /// An address this secret answers to (a URL, host, host:port or app id). Repeatable; an
+    /// address already present is left alone. Remove one with `unv site rm`.
+    #[arg(long = "site")]
+    pub sites: Vec<String>,
     /// Comma-separated env-var prefixes (e.g. ND,SPOTIFYD).
     #[arg(long)]
     pub env_prefixes: Option<String>,
@@ -967,6 +971,11 @@ impl EntryFields {
             } else {
                 entry["extra_vars"] = json!(list);
             }
+        }
+        for raw in &self.sites {
+            let value = vault_core::sites::site_value(raw, None, None, "", "manual")
+                .map_err(CliError::invalid)?;
+            vault_core::sites::add_site(entry, value);
         }
         if let Some(v) = &self.projects {
             let mut ids = split_list(v);
