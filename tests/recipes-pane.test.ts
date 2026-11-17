@@ -442,6 +442,33 @@ describe('your lists, facts and rules', () => {
     expect(doc.recipe_lists).toEqual([]);
   });
 
+  it('sorts a list and removes its duplicate words without changing the distinct ones', async () => {
+    st.vault = makeVault({
+      api_keys: [],
+      recipe_lists: [{ name: 'dups', words: ['pear', 'apple', 'pear', 'fig', 'apple'] }],
+    } as never);
+    renderRecipes();
+    const doc = st.vault as never as { recipe_lists: { words: string[] }[] };
+    const press = async (action: string, name = 'dups') => {
+      const b = document.createElement('button');
+      b.dataset.action = action;
+      b.dataset.name = name;
+      $('rcp-lists').append(b);
+      b.click();
+      await tick();
+    };
+    await press('rcp-list-dedupe');
+    expect(doc.recipe_lists[0].words).toEqual(['pear', 'apple', 'fig']);
+    expect(toasts[toasts.length - 1]).toBe('2 duplicates removed');
+    await press('rcp-list-sort');
+    expect(doc.recipe_lists[0].words).toEqual(['apple', 'fig', 'pear']);
+    expect(toasts[toasts.length - 1]).toBe('Sorted');
+    // A name that is not a list changes nothing.
+    const saved = saves;
+    await press('rcp-list-sort', 'ghost');
+    expect(saves).toBe(saved);
+  });
+
   it('validates and stores a fact, hides private values, and removes it', async () => {
     set('rcp-fact-name', 'Pet');
     click('rcp-fact-add');

@@ -222,6 +222,8 @@ function paintLists(): void {
               l.words.length < 256 ? ', a small list' : ''
             }</span
           >
+          <button class="btn btn-ghost btn-sm" data-action="rcp-list-sort" data-name="${l.name}" aria-label="Sort list ${l.name}">Sort</button>
+          <button class="btn btn-ghost btn-sm" data-action="rcp-list-dedupe" data-name="${l.name}" aria-label="Remove duplicate words from ${l.name}">Remove duplicates</button>
           <button class="btn btn-ghost btn-sm" data-action="rcp-list-rm" data-name="${l.name}" aria-label="Remove list ${l.name}">Remove</button>
         </div>`,
     )}`,
@@ -527,7 +529,22 @@ async function rowAction(action: string, name: string, n: number): Promise<void>
   const d = doc();
   if (action === 'rcp-list-rm')
     d.recipe_lists = (d.recipe_lists ?? []).filter((l) => l.name !== name);
-  else if (action === 'rcp-fact-rm')
+  else if (action === 'rcp-list-sort' || action === 'rcp-list-dedupe') {
+    // Duplicates make a word likelier than the list size says, so removing them is the honest
+    // size; sorting only makes a long list readable. Neither adds or drops a distinct word.
+    const list = (d.recipe_lists ?? []).find((l) => l.name === name);
+    if (!list) return;
+    const before = list.words.length;
+    if (action === 'rcp-list-dedupe') list.words = [...new Set(list.words)];
+    else list.words = [...list.words].sort((a, b) => a.localeCompare(b));
+    await persist();
+    renderRecipes();
+    showToast(
+      action === 'rcp-list-dedupe' ? `${before - list.words.length} duplicates removed` : 'Sorted',
+      'ok',
+    );
+    return;
+  } else if (action === 'rcp-fact-rm')
     d.recipe_vars = (d.recipe_vars ?? []).filter((f) => f.name !== name);
   else if (action === 'rcp-rule-rm') (d.recipe_rules ?? []).splice(n, 1);
   else return;
