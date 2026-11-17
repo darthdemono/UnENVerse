@@ -32,7 +32,7 @@ Only random draws add bits: a random character adds log2 of its alphabet, a list
 
 ## Lengtheners
 
-`expand`, `expand_words`, `expand_groups`, `site_bound`, `family_bound` and `rotate_by_counter` derive a longer value from a short one with HKDF-SHA256. They add length and no strength, so a random part of 8 characters expanded to 40 still counts 8 characters of bits. The context decides what is shared: `host` gives every host its own result, `family` gives every host of a site family (see [Sites and login plans](sites-and-login-plans.md)) one result, `counter` gives a new result by bumping a number. The construction is versioned and its results never change.
+`expand`, `expand_words`, `expand_groups`, `site_bound`, `family_bound` and `rotate_by_counter` derive a longer value from a short one with HKDF-SHA256. `stretch` does the same after an Argon2id hash (19 MiB, two passes), so each guess at the result costs far more. They add length and no strength, so a random part of 8 characters expanded to 40 still counts 8 characters of bits. The context decides what is shared: `host` gives every host its own result, `family` gives every host of a site family (see [Sites and login plans](sites-and-login-plans.md)) one result, `counter` gives a new result by bumping a number. The construction is versioned and its results never change.
 
 ## Options
 
