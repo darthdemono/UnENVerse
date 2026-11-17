@@ -61,6 +61,22 @@ describe('badges', { timeout: 30000 }, () => {
     ).toBeNull();
   });
 
+  it('says which recipe made a password and when, and escapes the name', async () => {
+    await show([
+      entry('a', 'Made', {
+        generated_by: { recipe: 'social', version: 1, counter: 2, at: '2026-11-17' },
+      }),
+      entry('b', 'Plain', {}),
+      entry('c', 'Odd', {
+        generated_by: { recipe: '<b>x</b>', version: 1, counter: 1, at: '2026-11-17' },
+      }),
+    ]);
+    expect(badges(card('Made'))).toContain('recipe: social');
+    expect(card('Made').querySelector('.badge[title^="Made by recipe social"]')).not.toBeNull();
+    expect(badges(card('Plain')).join(' ')).not.toContain('recipe:');
+    expect(card('Odd').querySelector('.card-provider b')).toBeNull();
+  });
+
   it('flags a leaked key and a key past its rotation cadence, but not a session', async () => {
     await show([
       entry('a', 'Leaky', { compromised: true }),

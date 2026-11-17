@@ -1223,6 +1223,14 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
     entry.secretType && entry.secretType !== 'api_key'
       ? html`<span class="badge badge-keyid">${secretTypeLabel(entry.secretType)}</span>`
       : '';
+  // A password made from a recipe says so, and when (R41); the entry holds only the name.
+  const recipeBadge = entry.generated_by?.recipe
+    ? html`<span
+        class="badge badge-keyid"
+        title="${`Made by recipe ${entry.generated_by.recipe} on ${entry.generated_by.at}`}"
+        >recipe: ${entry.generated_by.recipe}</span
+      >`
+    : '';
   const compromisedBadge = entry.compromised
     ? html`<span class="badge badge-compromised" title="Marked compromised — rotate immediately"
         >⚠ LEAKED</span
@@ -1456,7 +1464,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
         <div class="card-meta">
           <div class="card-provider">
             <span class="card-provider-name" title="${entry.provider}">${entry.provider}</span>${entry.pinned ? PIN_BADGE : ''}
-            <span class="badge badge-price" data-price="${pt}">${pt}</span>${envBadge}${keyIdBadge}${typeBadge}${expiry}${compromisedBadge}${rotBadge}${entry.env_prefixes?.length ? entry.env_prefixes.map((p) => html`<span class="badge badge-prefix" title="Env prefix">${p}_</span>`) : ''}</div>
+            <span class="badge badge-price" data-price="${pt}">${pt}</span>${envBadge}${keyIdBadge}${typeBadge}${recipeBadge}${expiry}${compromisedBadge}${rotBadge}${entry.env_prefixes?.length ? entry.env_prefixes.map((p) => html`<span class="badge badge-prefix" title="Env prefix">${p}_</span>`) : ''}</div>
           <div class="card-account">${entry.account_name || entry.username || entry.email || ''}</div>
           <div class="card-projects">${projectBadges}</div>
         </div>
