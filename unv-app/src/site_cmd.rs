@@ -30,16 +30,38 @@ pub fn add(
     let value = vs::site_value(url, kind, mode, label.unwrap_or(""), "manual")
         .map_err(CliError::invalid)?;
     let added = vs::add_site(&mut entries_mut(&mut vault)[idx], value.clone());
+    // The new address may be another spelling of one the entry already has. Both stay; the person is told.
+    let new_url = value["url"].as_str().unwrap_or("").to_string();
+    let same_as: Vec<String> = if added {
+        let all: Vec<String> = vs::entry_sites(&entries(&vault)[idx])
+            .iter()
+            .map(|s| s.site.display())
+            .collect();
+        vs::alternate_spellings(&all)
+            .into_iter()
+            .filter(|(a, b)| a == &new_url || b == &new_url)
+            .map(|(a, b)| if a == new_url { b } else { a })
+            .collect()
+    } else {
+        Vec::new()
+    };
     if added {
         access.save(&vault)?;
     }
-    out::ok("site.add", json!({ "added": added, "site": value }), || {
-        if added {
-            println!("Added {}", value["url"].as_str().unwrap_or(""));
-        } else {
-            println!("Already there: {}", value["url"].as_str().unwrap_or(""));
-        }
-    });
+    out::ok(
+        "site.add",
+        json!({ "added": added, "site": value, "same_as": same_as }),
+        || {
+            if added {
+                println!("Added {new_url}");
+                for other in &same_as {
+                    println!("Note: that is the same address as {other}, spelled differently");
+                }
+            } else {
+                println!("Already there: {new_url}");
+            }
+        },
+    );
     Ok(())
 }
 

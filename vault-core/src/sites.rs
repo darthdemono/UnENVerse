@@ -223,6 +223,31 @@ fn canonical_host(host: &str) -> &str {
     }
 }
 
+/// Pairs of addresses that name the same place in a different spelling: `localhost:8989` and
+/// `127.0.0.1:8989`, or `tv.example.org` and `https://tv.example.org`. Both are kept (a stored
+/// address is never rewritten), but a person adding the second usually did not mean to. The same
+/// text twice is not a pair, and addresses that do not parse are skipped.
+pub fn alternate_spellings(urls: &[String]) -> Vec<(String, String)> {
+    let parsed: Vec<(&String, Site)> = urls
+        .iter()
+        .filter_map(|u| parse_site(u).ok().map(|s| (u, s)))
+        .collect();
+    let mut pairs = Vec::new();
+    for (i, (a, x)) in parsed.iter().enumerate() {
+        for (b, y) in &parsed[i + 1..] {
+            let schemes_agree = x.scheme.is_none() || y.scheme.is_none() || x.scheme == y.scheme;
+            if x.display() != y.display()
+                && schemes_agree
+                && x.port == y.port
+                && canonical_host(&x.host) == canonical_host(&y.host)
+            {
+                pairs.push(((*a).clone(), (*b).clone()));
+            }
+        }
+    }
+    pairs
+}
+
 /// Whether a page at `origin` may be offered a credential stored for `stored`.
 ///
 /// `origin` is what a browser reports: it always has a scheme. A result of `false` is final; a
@@ -910,5 +935,39 @@ mod tests {
         assert_eq!(all.len(), shipped.len());
         let google = all.iter().find(|f| f.name == "google").unwrap();
         assert_eq!(google.hosts, ["only.example"]);
+    }
+
+    #[test]
+    fn another_spelling_of_an_address_is_reported_once_and_a_different_one_is_not() {
+        let l = |a: &[&str]| -> Vec<String> { a.iter().map(|s| s.to_string()).collect() };
+        // Loopback spellings, and a bare host against the same host with a scheme.
+        assert_eq!(
+            alternate_spellings(&l(&[
+                "localhost:8989",
+                "http://127.0.0.1:8989",
+                "other.test"
+            ])),
+            [(
+                "localhost:8989".to_string(),
+                "http://127.0.0.1:8989".to_string()
+            )]
+        );
+        assert_eq!(
+            alternate_spellings(&l(&["tv.example.org", "https://tv.example.org"])).len(),
+            1
+        );
+        // A different port, a different scheme on both, a different host, the same text twice, and
+        // text that is not an address are all not pairs.
+        for none in [
+            l(&["localhost:8989", "127.0.0.1:9999"]),
+            l(&["http://a.test", "https://a.test"]),
+            l(&["a.test", "b.test"]),
+            l(&["a.test", "a.test"]),
+            l(&["a.test", "not an address"]),
+            l(&["only.test"]),
+            l(&[]),
+        ] {
+            assert!(alternate_spellings(&none).is_empty(), "{none:?}");
+        }
     }
 }

@@ -356,6 +356,41 @@ describe('addresses (sites)', () => {
     expect(saved.site_family).toBe('media');
   });
 
+  it('says so when two addresses are one place spelled two ways, and saves both', async () => {
+    (window as any).__TAURI__ = {
+      core: {
+        invoke: async (c: string, a: { sites?: unknown[] }) => {
+          if (c === 'normalise_sites') return a.sites;
+          if (c === 'site_alternate_spellings')
+            return [['localhost:8989', 'http://127.0.0.1:8989']];
+          return null;
+        },
+      },
+    };
+    form(null);
+    fillBasics();
+    set('f-sites', 'localhost:8989\nhttp://127.0.0.1:8989');
+    await saveModal();
+    expect(st.vault.api_keys[0].sites).toHaveLength(2);
+    expect(toasts.some((t) => t.includes('same address as localhost:8989'))).toBe(true);
+  });
+
+  it('saves without the hint when the desktop cannot answer it', async () => {
+    (window as any).__TAURI__ = {
+      core: {
+        invoke: async (c: string, a: { sites?: unknown[] }) => {
+          if (c === 'normalise_sites') return a.sites;
+          throw new Error('no hint today');
+        },
+      },
+    };
+    form(null);
+    fillBasics();
+    set('f-sites', 'a.test');
+    await saveModal();
+    expect(st.vault.api_keys).toHaveLength(1);
+  });
+
   it('keeps the kind and date of an address that was already stored', async () => {
     tauri((sites) => sites);
     form({ sites: [{ url: 'localhost:8989', kind: 'local', added_at: '2026-01-01T00:00:00Z' }] });

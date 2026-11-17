@@ -369,10 +369,14 @@
       ],
       "ui": [
         "id:f-sites",
-        "id:f-site-family"
+        "id:f-site-family",
+        "tool:families",
+        "id:fam-add"
       ],
       "tauri": [
-        "normalise_sites"
+        "normalise_sites",
+        "site_family_normalise",
+        "site_alternate_spellings"
       ],
       "note": "",
       "cli_flags": []
