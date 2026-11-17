@@ -297,3 +297,25 @@ describe('listCodes', () => {
     expect(listCodes({ extra_vars: undefined })).toEqual([]);
   });
 });
+
+describe('small guards', () => {
+  it('ignores a click that is not on a Restore button, and does nothing without the pane', () => {
+    $('cod-list').click();
+    expect(calls).toHaveLength(0);
+    $('tool-codes').remove();
+    expect(() => initCodesPane()).not.toThrow();
+    expect(() => paintCodes()).not.toThrow();
+  });
+
+  it('shows the account name chosen at the start, and an empty provider as blank', () => {
+    st.vault.api_keys = [
+      {
+        id: 'c9',
+        secretType: 'recovery_codes',
+        extra_vars: [{ key: 'codes', value: 'a' }],
+      } as never,
+    ];
+    initCodesPane();
+    expect($<HTMLSelectElement>('cod-entry').value).toBe('c9');
+  });
+});
