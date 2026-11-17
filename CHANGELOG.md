@@ -4,6 +4,8 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ## Unreleased
 
+## 0.80.0 (2026-11-17)
+
 ### Added
 
 - `unv entry add NAME --recipe RECIPE` makes the password from a saved recipe when the entry is created, stored whole with the public `generated_by` record. It cannot be combined with `--key`, `--key-stdin` or `--generate`, and an unknown recipe exits 3 and writes nothing.
