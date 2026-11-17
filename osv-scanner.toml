@@ -28,3 +28,11 @@ reason = "crypto-bigint 0.5.5 timing variability: reached only through ssh-key's
 [[IgnoredVulns]]
 id = "GHSA-qwgh-2vcv-g2f7"
 reason = "block-buffer 0.10.4 EagerBuffer/ReadBuffer cursor corruption after a caught panic: reached only through the RustCrypto digests, whose compression callbacks never panic and are never run under catch_unwind here. No patched 0.10 release exists. Ends when the RustCrypto 0.10 digest line is retired."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+reason = "chrono is marked unmaintained; no advisory names a flaw in it, no replacement is a drop-in for every dependent (Tauri, rusqlite, reqwest paths), and all versions are affected so there is nothing to upgrade to. Ends when the dependents move to another time crate or chrono is maintained again."
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+reason = "picomatch 4.0.7 ReDoS on crafted extglob patterns: a dev-only dependency of the build and lint tools, which only match this repository's own file globs and never a pattern from outside. No patched release exists yet. Ends when picomatch publishes a fix and the lockfile takes it."
