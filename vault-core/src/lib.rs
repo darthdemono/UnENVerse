@@ -1078,7 +1078,13 @@ fn save_vault_txn(
                             "update",
                             &provider,
                             &now_str,
-                            Some(&format!("{key} rotated")),
+                            // Marking, restoring or importing a recovery code all change
+                            // this one variable; "rotated" would misdescribe a code being used.
+                            Some(&if key == "codes" {
+                                "recovery codes changed".to_string()
+                            } else {
+                                format!("{key} rotated")
+                            }),
                             actor,
                         )?;
                     }
@@ -1625,6 +1631,36 @@ mod tests {
         assert_eq!(hist.len(), 1, "{hist:?}");
         assert_eq!(hist[0]["field"], json!("extra_vars/SESSION_TOKEN"));
         assert_eq!(hist[0]["value"], json!("tok-v1"));
+    }
+
+    /// Using a recovery code was audited as "codes rotated", which reads as a new set of
+    /// codes. The row names the entry and the actor and now says the codes changed.
+    #[test]
+    fn using_a_recovery_code_is_audited_as_a_change() {
+        let (conn, _d) = open_scratch("auditcodes");
+        let base = json!({ "api_keys": [{
+            "id": "e1", "provider": "Mail", "api_key": "k",
+            "extra_vars": [{ "key": "codes", "value": "aaaa-1111\nbbbb-2222" }],
+        }]});
+        save_vault(&conn, base.clone(), SaveCtx::default()).unwrap();
+        let mut next = base.clone();
+        next["api_keys"][0]["extra_vars"][0]["value"] = json!("aaaa-1111 #used\nbbbb-2222");
+        save_vault(
+            &conn,
+            next,
+            SaveCtx {
+                actor: Some("user-9"),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let rows = load_audit(&conn).unwrap();
+        let row = rows
+            .iter()
+            .find(|r| r.action == "update" && r.entry_provider.as_deref() == Some("Mail"))
+            .expect("an update row");
+        assert_eq!(row.details.as_deref(), Some("recovery codes changed"));
+        assert_eq!(row.actor.as_deref(), Some("user-9"));
     }
 
     /// Variables are matched by **name**, never by position.
