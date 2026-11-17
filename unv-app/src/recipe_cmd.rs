@@ -360,30 +360,43 @@ pub fn test(
     Ok(())
 }
 
-/// Generates a password for an entry and stores it as its ordinary password.
-pub fn apply(access: &Access, query: &str, recipe: Option<&str>) -> CliResult {
-    let mut vault = access.load_vault()?;
-    let idx = find_entry_index(&vault, query)?;
-    let entry = entries(&vault)[idx].clone();
+/// Picks the recipe (named, or the one that applies to `entry`) and generates one password
+/// for it. Returns the recipe, why it was chosen, the result and the `generated_by` record.
+/// Shared by `recipe apply` and `entry add --recipe`.
+pub fn generate_for(
+    vault: &Value,
+    entry: &Value,
+    recipe: Option<&str>,
+) -> CliResult<(rc::Saved, String, rc::Generated, Value)> {
     let (saved, why) = match recipe {
         Some(name) => (
-            rc::saved(&vault)
+            rc::saved(vault)
                 .into_iter()
                 .find(|r| r.name == name)
                 .ok_or_else(|| CliError::not_found(format!("No recipe named '{name}'")))?,
             "named".to_string(),
         ),
-        None => rc::resolve(&vault, &entry).ok_or_else(|| {
+        None => rc::resolve(vault, entry).ok_or_else(|| {
             CliError::not_found(
                 "No recipe applies to this entry (pass --recipe, add a rule or set a default)",
             )
         })?,
     };
-    let ctx = rc::context(&vault, Some(&entry), &now());
+    let ctx = rc::context(vault, Some(entry), &now());
     let g = rc::make(&saved.template, &saved.options, &ctx, &mut draw()).map_err(invalid)?;
+    let by = rc::generated_by(&saved.name, ctx.counter, &now());
+    Ok((saved, why, g, by))
+}
+
+/// Generates a password for an entry and stores it as its ordinary password.
+pub fn apply(access: &Access, query: &str, recipe: Option<&str>) -> CliResult {
+    let mut vault = access.load_vault()?;
+    let idx = find_entry_index(&vault, query)?;
+    let entry = entries(&vault)[idx].clone();
+    let (saved, why, g, by) = generate_for(&vault, &entry, recipe)?;
     let target = &mut entries_mut(&mut vault)[idx];
     target["api_key"] = json!(g.text);
-    target["generated_by"] = rc::generated_by(&saved.name, ctx.counter, &now());
+    target["generated_by"] = by;
     access.save(&vault)?;
     let provider = data::provider_of(&entries(&vault)[idx]).to_string();
     let mut data = generated_json(&g);

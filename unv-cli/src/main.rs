@@ -1782,6 +1782,9 @@ enum EntryCmd {
         /// it. Not `--template`: that flag is a composite's `{part}` template.
         #[arg(long)]
         preset: Option<String>,
+        /// Make the password from a saved recipe (see `unv recipe ls`).
+        #[arg(long)]
+        recipe: Option<String>,
     },
     /// Change fields on an existing entry.
     Set {
@@ -4453,7 +4456,15 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 fields,
                 if_missing,
                 preset,
-            } => entries::cmd_add(a, provider, fields, *if_missing, preset.as_deref()),
+                recipe,
+            } => entries::cmd_add(
+                a,
+                provider,
+                fields,
+                *if_missing,
+                preset.as_deref(),
+                recipe.as_deref(),
+            ),
             EntryCmd::Set {
                 provider,
                 fields,
@@ -4689,7 +4700,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     generate_format: "base64url".into(),
                     ..Default::default()
                 };
-                entries::cmd_add(a, provider, &fields, false, None)
+                entries::cmd_add(a, provider, &fields, false, None, None)
             }
             GenCmd::Ssh { comment, save_as } => {
                 let v = gen::ssh_keypair(comment, &gen::current())?;
@@ -4708,7 +4719,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                     generate_format: "base64url".into(),
                     ..Default::default()
                 };
-                entries::cmd_add(a, provider, &fields, false, None)
+                entries::cmd_add(a, provider, &fields, false, None, None)
             }
             // The offline generators were handled before the vault was opened.
             _ => Ok(()),
