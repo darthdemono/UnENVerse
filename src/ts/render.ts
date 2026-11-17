@@ -34,6 +34,7 @@ import { normalizeRateLimit } from './ratelimit';
 import { poolsOf, poolBadgeInfo } from './pools';
 import { secretTypeLabel, groupLabel, groupOrder } from './secret-types';
 import { hasTotp, startTotpTicker, stopTotpTicker } from './totp';
+import { loginPlanSection } from './login-plan';
 import { codeStatus } from './recovery-codes';
 import { renderComposite, renderErrorMessage } from './composite';
 import {
@@ -932,6 +933,8 @@ function buildBundleCard(
     );
     body.appendChild(locals);
   }
+  const plan = loginPlanSection(bundle, members);
+  if (plan) body.appendChild(plan);
   const sortedMembers = members
     .slice()
     .sort((a, b) => (a.bundle_order ?? 0) - (b.bundle_order ?? 0));

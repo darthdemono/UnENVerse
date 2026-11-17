@@ -507,6 +507,8 @@ export interface VaultEntry {
    * disagreeing copies of "is this bundled". `null`/absent means unbundled.
    */
   bundle_id?: string | null;
+  /** What happens to a recovery code once it has been filled: `ask` (default), `auto` or `never`. */
+  terminate_codes?: 'ask' | 'auto' | 'never';
   /**
    * This member's slot name within its bundle — `"discord"`, `"web"`, `"v3"`.
    * Validated like {@link label} (`^[A-Za-z0-9][A-Za-z0-9_-]{0,23}$`), unique

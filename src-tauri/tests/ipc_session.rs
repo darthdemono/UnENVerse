@@ -769,18 +769,61 @@ fn a_failed_first_unlock_leaves_no_vault_behind() {
     d.unlock("second-typed-password-2").unwrap();
 }
 
-/// R38 row 8: a second launch of the app calls this on the copy that is already running. A window
-/// hidden to the tray must come back, and a second call must change nothing.
+/// R38 row 8: a second launch of the app calls this on the copy that is already running. It raises
+/// the main window and says so; with no window (the app is shutting down) it says that too and does
+/// not panic. (The mock runtime does not model visibility, so what is asserted is the answer.)
 #[test]
-fn a_second_launch_brings_a_hidden_window_back() {
-    use tauri::Manager;
+fn a_second_launch_raises_the_main_window_when_there_is_one() {
     let d = desk("second-launch");
     let h = d.handle();
-    let win = h.get_webview_window("main").expect("main window");
-    win.hide().unwrap();
-    assert!(!win.is_visible().unwrap());
-    unenverse_lib::show_main_window(&h);
-    assert!(win.is_visible().unwrap(), "the window stays hidden");
-    unenverse_lib::show_main_window(&h);
-    assert!(win.is_visible().unwrap());
+    assert!(unenverse_lib::show_main_window(&h));
+    assert!(
+        unenverse_lib::show_main_window(&h),
+        "a second call is harmless"
+    );
+    // An app with no window (it is shutting down, or has not made one yet) is told so, not panicked at.
+    let bare = tauri::test::mock_app();
+    assert!(
+        !unenverse_lib::show_main_window(bare.handle()),
+        "no window to raise"
+    );
+}
+
+/// The login plan on a bundle card comes from `vault_core::login`: steps in the fixed order whatever
+/// order the members are given in, no value anywhere, and the bundle's `terminate_codes` setting.
+#[test]
+fn the_login_plan_is_ordered_by_rust_and_carries_no_values() {
+    let d = desk("login-plan");
+    let bundle =
+        json!({ "id": "b", "provider": "Bank", "secretType": "bundle", "terminate_codes": "auto" });
+    let members = json!([
+        { "id": "c", "provider": "Bank codes", "secretType": "recovery_codes", "bundle_id": "b",
+          "extra_vars": [{ "key": "codes", "value": "secret-code-1" }] },
+        { "id": "p", "provider": "Bank", "secretType": "password", "bundle_id": "b",
+          "api_key": "secret-password-1" },
+    ]);
+    let plan = d.ok(
+        "login_plan",
+        json!({ "bundle": bundle, "entries": members }),
+    );
+    let steps: Vec<&str> = plan["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["step"].as_str().unwrap())
+        .collect();
+    assert_eq!(steps, ["password", "recovery_code"]);
+    assert_eq!(plan["terminate"], "auto");
+    let text = plan.to_string();
+    assert!(
+        !text.contains("secret-password-1") && !text.contains("secret-code-1"),
+        "{text}"
+    );
+    // No setting stored means `ask`; a bundle with no members has no steps.
+    let bare = d.ok(
+        "login_plan",
+        json!({ "bundle": { "id": "x" }, "entries": [] }),
+    );
+    assert_eq!(bare["terminate"], "ask");
+    assert!(bare["steps"].as_array().unwrap().is_empty());
 }

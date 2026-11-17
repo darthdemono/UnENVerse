@@ -2119,6 +2119,27 @@ mod commands {
         Ok(serde_json::json!({ "generated_at": c.generated_at, "providers": c.providers.len() }))
     }
 
+    /// The login steps of a bundle in their fixed order, and its `terminate_codes` setting (R36).
+    /// `entries` are the bundle's members; the order is decided once, in `vault_core::login`.
+    #[tauri::command]
+    pub fn login_plan(
+        bundle: serde_json::Value,
+        entries: Vec<serde_json::Value>,
+    ) -> serde_json::Value {
+        let steps: Vec<serde_json::Value> = vault_core::login::login_sequence(&entries, &bundle)
+            .into_iter()
+            .map(|s| {
+                serde_json::json!({
+                    "step": s.step, "label": s.label, "entry_id": s.entry_id, "field": s.field
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "steps": steps,
+            "terminate": vault_core::login::terminate_mode(&bundle).name(),
+        })
+    }
+
     /// Pairs of addresses in the entry form that are one place spelled two ways (R40).
     #[tauri::command]
     pub fn site_alternate_spellings(urls: Vec<String>) -> Vec<(String, String)> {
@@ -2953,6 +2974,7 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::codes_add,
             commands::codes_unmark,
             commands::site_alternate_spellings,
+            commands::login_plan,
             commands::site_family_normalise,
             commands::enrich_plan,
             commands::enrich_online_targets,
@@ -3023,12 +3045,15 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
 
 /// Brings the main window to the front: shown again when it was hidden to the tray, restored when
 /// minimised, focused. What a second launch of the app does to the copy that is already running.
-pub fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.show();
-        let _ = win.unminimize();
-        let _ = win.set_focus();
-    }
+/// Returns whether there was a window to raise.
+pub fn show_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
+    let Some(win) = app.get_webview_window("main") else {
+        return false;
+    };
+    let _ = win.show();
+    let _ = win.unminimize();
+    let _ = win.set_focus();
+    true
 }
 
 // ── App entry ─────────────────────────────────────────────────────────────────
@@ -3063,7 +3088,7 @@ pub fn run() {
     // container, WSL) the plugin logs that and the app starts normally.
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-        show_main_window(app)
+        show_main_window(app);
     }));
     register(builder)
         .plugin(tauri_plugin_shell::init())
