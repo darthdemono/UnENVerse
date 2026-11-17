@@ -147,7 +147,7 @@ describe('spending a code', () => {
     await tick();
     expect(codes()).toContain('aaaa-1111\tUSED ');
     expect(saves).toBe(1);
-    expect(toasts.at(-1)).toBe('1 recovery codes left');
+    expect(toasts[toasts.length - 1]).toBe('1 recovery codes left');
   });
 
   it('spends nothing when the question is declined', async () => {
@@ -160,10 +160,10 @@ describe('spending a code', () => {
 
   it('reports a failure to mark and saves nothing', async () => {
     st.vault.api_keys[0].extra_vars![0].value = 'aaaa-1111\tUSED x';
-    $('cod-use').disabled = false;
+    $<HTMLButtonElement>('cod-use').disabled = false;
     $('cod-use').click();
     await tick();
-    expect(toasts.at(-1)).toContain('no unused codes remain');
+    expect(toasts[toasts.length - 1]).toContain('no unused codes remain');
     expect(saves).toBe(0);
   });
 
@@ -205,7 +205,7 @@ describe('restoring and importing (Rust does the work)', () => {
     };
     $('cod-list').querySelector<HTMLElement>('[data-action="cod-restore"]')!.click();
     await tick();
-    expect(toasts.at(-1)).toContain('not marked used');
+    expect(toasts[toasts.length - 1]).toContain('not marked used');
     expect(saves).toBe(0);
   });
 
@@ -222,7 +222,7 @@ describe('restoring and importing (Rust does the work)', () => {
     expect(calls.map((c) => c.cmd)).toEqual(['codes_parse', 'codes_add']);
     expect(codes()).toContain('dddd-4444');
     expect($<HTMLTextAreaElement>('cod-paste').value).toBe('');
-    expect(toasts.at(-1)).toBe('2 added (2 found)');
+    expect(toasts[toasts.length - 1]).toBe('2 added (2 found)');
   });
 
   it('adds the variable when the entry has none', async () => {
@@ -240,7 +240,7 @@ describe('restoring and importing (Rust does the work)', () => {
     $<HTMLTextAreaElement>('cod-paste').value = 'nothing here';
     $('cod-import').click();
     await tick();
-    expect(toasts.at(-1)).toBe('No recovery codes found in that text');
+    expect(toasts[toasts.length - 1]).toBe('No recovery codes found in that text');
     expect(saves).toBe(0);
   });
 
@@ -251,7 +251,7 @@ describe('restoring and importing (Rust does the work)', () => {
     $<HTMLTextAreaElement>('cod-paste').value = 'x';
     $('cod-import').click();
     await tick();
-    expect(toasts.at(-1)).toContain('boom');
+    expect(toasts[toasts.length - 1]).toContain('boom');
   });
 
   it('needs the desktop app to restore or import', async () => {
