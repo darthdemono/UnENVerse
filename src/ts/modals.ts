@@ -1790,9 +1790,12 @@ function wireGeneratorPopover(): void {
   let genBytes = 32;
   let activeTab = 'bytes';
   let lastValue = '';
+  // Set only by the Recipe tab: "Use" then records which recipe made the value.
+  let pendingMadeBy: VaultEntry['generated_by'] = null;
 
   const setOutput = (v: string) => {
     lastValue = v;
+    pendingMadeBy = null;
     output.textContent = v;
     useBtn.disabled = !v;
     copyBtn.disabled = !v;
@@ -1806,6 +1809,10 @@ function wireGeneratorPopover(): void {
     popover.hidden = false;
     caret.setAttribute('aria-expanded', 'true');
     setOutput('');
+    // The Recipe tab offers the saved recipes, or the automatic pick (the entry's own, a rule, the default).
+    const pick = document.getElementById('gp-recipe') as HTMLSelectElement;
+    pick.replaceChildren(new Option('Automatic (rule or default)', ''));
+    for (const r of recipeView().recipes ?? []) pick.add(new Option(r.name, r.name));
   };
 
   caret.onclick = (e) => {
@@ -1925,6 +1932,17 @@ function wireGeneratorPopover(): void {
           (m) => showToast(m, 'err'),
         );
         if (out !== undefined) setOutput(out);
+      } else if (activeTab === 'recipe') {
+        try {
+          const made = await recipeSample(
+            _editTarget,
+            (document.getElementById('gp-recipe') as HTMLSelectElement).value,
+          );
+          setOutput(made.text);
+          pendingMadeBy = madeBy(_editTarget, made.name);
+        } catch (e) {
+          showToast(errorMessage(e), 'err', 5000);
+        }
       } else if (activeTab === 'hash') {
         const input = (document.getElementById('gp-hash-input') as HTMLTextAreaElement).value;
         const algo = (document.getElementById('gp-hash-algo') as HTMLSelectElement)
@@ -1946,6 +1964,8 @@ function wireGeneratorPopover(): void {
     // about a change through a real event — setting `.value` alone leaves
     // them showing what was there before.
     fKey.dispatchEvent(new Event('input', { bubbles: true }));
+    // Typing into the field clears the record; set it after that event so it survives.
+    if (pendingMadeBy) _madeBy = pendingMadeBy;
     close();
     fKey.focus();
     showToast('Generated value applied', 'ok');
@@ -2058,48 +2078,56 @@ function wireRecipeField(entry: VaultEntry | undefined): void {
   };
 }
 
-async function makeFromRecipe(entry: VaultEntry | undefined): Promise<void> {
-  const note = document.getElementById('f-recipe-note')!;
-  if (!isTauri()) {
-    note.textContent = 'Recipes need the desktop app: the generator runs in Rust.';
-    return;
-  }
-  try {
-    const draft = formToEntry(entry);
-    const view = recipeView();
-    let name = draft.recipe ?? '';
-    if (!name) {
-      const hit = await invokeTauri<{ recipe: string } | null>('recipe_resolve', {
-        vault: view,
-        entry: draft,
-      });
-      if (!hit) {
-        note.textContent = 'No recipe applies to this entry. Pick one, or add a rule in Tools.';
-        return;
-      }
-      name = hit.recipe;
-    }
-    const recipe = (view.recipes ?? []).find((r) => r.name === name);
-    if (!recipe) {
-      note.textContent =
-        name === 'none' ? 'Recipes are switched off for this entry.' : `No recipe named ${name}.`;
-      return;
-    }
-    const made = await invokeTauri<{ samples: string[] }>('recipe_preview', {
-      template: recipe.template,
-      options: recipe.options ?? {},
+/**
+ * Makes one password from a recipe: the one named in `pick`, else the form's own pick, else the one
+ * that applies to the form's values. Rust generates it; a refusal comes back as an Error whose
+ * message is meant for the person.
+ */
+async function recipeSample(
+  entry: VaultEntry | undefined,
+  pick = '',
+): Promise<{ text: string; name: string }> {
+  if (!isTauri()) throw new Error('Recipes need the desktop app: the generator runs in Rust.');
+  const draft = formToEntry(entry);
+  const view = recipeView();
+  let name = pick || (draft.recipe ?? '');
+  if (!name) {
+    const hit = await invokeTauri<{ recipe: string } | null>('recipe_resolve', {
       vault: view,
       entry: draft,
-      count: 1,
     });
-    (document.getElementById('f-key') as HTMLInputElement).value = made.samples[0];
-    _madeBy = {
-      recipe: name,
-      version: 1,
-      counter: (entry?.generated_by?.counter ?? 0) + 1,
-      at: new Date().toISOString().slice(0, 10),
-    };
-    note.textContent = `Made from recipe ${name}. Save to keep it.`;
+    if (!hit) throw new Error('No recipe applies to this entry. Pick one, or add a rule in Tools.');
+    name = hit.recipe;
+  }
+  const recipe = (view.recipes ?? []).find((r) => r.name === name);
+  if (!recipe)
+    throw new Error(
+      name === 'none' ? 'Recipes are switched off for this entry.' : `No recipe named ${name}.`,
+    );
+  const made = await invokeTauri<{ samples: string[] }>('recipe_preview', {
+    template: recipe.template,
+    options: recipe.options ?? {},
+    vault: view,
+    entry: draft,
+    count: 1,
+  });
+  return { text: made.samples[0], name };
+}
+
+const madeBy = (entry: VaultEntry | undefined, name: string): VaultEntry['generated_by'] => ({
+  recipe: name,
+  version: 1,
+  counter: (entry?.generated_by?.counter ?? 0) + 1,
+  at: new Date().toISOString().slice(0, 10),
+});
+
+async function makeFromRecipe(entry: VaultEntry | undefined): Promise<void> {
+  const note = document.getElementById('f-recipe-note')!;
+  try {
+    const made = await recipeSample(entry);
+    (document.getElementById('f-key') as HTMLInputElement).value = made.text;
+    _madeBy = madeBy(entry, made.name);
+    note.textContent = `Made from recipe ${made.name}. Save to keep it.`;
   } catch (e) {
     note.textContent = errorMessage(e);
   }
