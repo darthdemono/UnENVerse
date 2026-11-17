@@ -355,6 +355,8 @@ fn taken(e: String) -> String {
     }
 }
 
+pub mod single_instance;
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 mod commands {
@@ -3082,15 +3084,20 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     configure_linux_webkit();
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "desktop starting");
-    let builder = tauri::Builder::default();
-    // R38 row 8: a second launch raises the window that is already open and exits, so two copies
-    // never work on one vault. It must be the first plugin. Where no session bus exists (a bare
-    // container, WSL) the plugin logs that and the app starts normally.
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-        show_main_window(app);
-    }));
-    register(builder)
+    // R38 row 8: a second launch asks the copy that is already open to raise its window and exits,
+    // so two copies never work on one vault. `_instance` keeps the lock until the app ends.
+    let data_dir = unv_app::access::default_db_path()
+        .parent()
+        .map(std::path::Path::to_path_buf);
+    let _instance = data_dir.as_deref().map(single_instance::claim);
+    if matches!(_instance, Some(single_instance::Claim::Second)) {
+        eprintln!("UnENVerse is already open; its window has been raised.");
+        return;
+    }
+    // Only the first copy watches for rings. (The guard itself stays in `_instance`, outside every
+    // closure, so the lock lasts until the app ends.)
+    let watch_dir = data_dir.filter(|_| matches!(_instance, Some(single_instance::Claim::First(_))));
+    register(tauri::Builder::default())
         .plugin(tauri_plugin_shell::init())
         // Restore the window where the user left it.
         //
@@ -3113,7 +3120,19 @@ pub fn run() {
                 )
                 .build(),
         )
-        .setup(|app| {
+        .setup(move |app| {
+            // A later launch rings this copy; raise the window when it does. The watcher lives as
+            // long as the app does.
+            if let Some(dir) = watch_dir {
+                let handle = app.handle().clone();
+                std::mem::forget(single_instance::watch(
+                    dir,
+                    std::time::Duration::from_millis(400),
+                    move || {
+                        show_main_window(&handle);
+                    },
+                ));
+            }
             // ── System Tray (item 18) ────────────────────────────────────────
             let tray = tauri::tray::TrayIconBuilder::new()
                 .tooltip("UnENVerse")
