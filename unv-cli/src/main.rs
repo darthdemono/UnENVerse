@@ -2328,8 +2328,11 @@ enum SiteCmd {
 
 #[derive(Subcommand)]
 enum FamilyCmd {
-    /// List the families.
-    Ls,
+    /// List the families in the vault, or with --builtin the ones that ship with the program.
+    Ls {
+        #[arg(long)]
+        builtin: bool,
+    },
     /// Add hosts to a family, creating it.
     Add { name: String, hosts: Vec<String> },
     /// Remove a host from a family, or the whole family when no host is given.
@@ -4655,7 +4658,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             SiteCmd::Rm { entry, url } => site_cmd::rm(a, entry, url),
             SiteCmd::Match { origin } => site_cmd::matches(a, origin),
             SiteCmd::Family { cmd } => match cmd {
-                FamilyCmd::Ls => site_cmd::family_ls(a),
+                FamilyCmd::Ls { builtin } => site_cmd::family_ls(a, *builtin),
                 FamilyCmd::Add { name, hosts } => site_cmd::family_add(a, name, hosts),
                 FamilyCmd::Rm { name, host } => site_cmd::family_rm(a, name, host.as_deref()),
                 FamilyCmd::Use { entry, name } => {

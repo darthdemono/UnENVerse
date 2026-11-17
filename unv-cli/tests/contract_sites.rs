@@ -156,3 +156,32 @@ fn the_site_flag_adds_addresses_on_add_and_set() {
     );
     assert_eq!(v.run(&["entry", "get", "Bad"]).code, 3);
 }
+
+/// Families that ship with the program: an entry may name one without making it, it is offered on
+/// every host of the family and not on a look-alike, `ls` shows only the vault's own unless
+/// `--builtin`, and a family of the same name in the vault replaces the shipped one.
+#[test]
+fn a_shipped_family_can_be_named_without_being_created() {
+    let v = Vault::new("sites-builtin-family");
+    v.ok(&["entry", "add", "Brainz", "--key", "k"]);
+    assert_eq!(
+        v.run(&["site", "family", "use", "Brainz", "nope"]).code,
+        3,
+        "an unknown family is still refused"
+    );
+    v.ok(&["site", "family", "use", "Brainz", "metabrainz"]);
+    assert_eq!(names(&v, "https://listenbrainz.org"), ["Brainz"]);
+    assert_eq!(names(&v, "https://beta.musicbrainz.org"), ["Brainz"]);
+    assert!(names(&v, "https://notmusicbrainz.org").is_empty());
+
+    let own = v.run(&["site", "family", "ls"]).json();
+    assert!(own["data"]["families"].as_array().unwrap().is_empty());
+    let shipped = v.run(&["site", "family", "ls", "--builtin"]).json();
+    let list = shipped["data"]["families"].as_array().unwrap();
+    assert!(list.iter().any(|f| f["name"] == "metabrainz"), "{shipped}");
+
+    // Your own family of that name wins: now only its hosts count.
+    v.ok(&["site", "family", "add", "metabrainz", "only.example.org"]);
+    assert!(names(&v, "https://listenbrainz.org").is_empty());
+    assert_eq!(names(&v, "https://only.example.org"), ["Brainz"]);
+}
