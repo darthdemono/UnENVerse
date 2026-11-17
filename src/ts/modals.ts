@@ -33,6 +33,7 @@ import { normalizeRateLimit } from './ratelimit';
 import { invokeTauri, isTauri } from './tauri';
 import { recipeView } from './recipes-pane';
 import { emittersFor } from './secret-types';
+import shippedFamilies from '../../vault-core/data/site-families.json';
 import { showWifiQr } from './wifi-qr';
 import { buildCopyText, type CopyProfile, type MetadataStyle } from './copy-profile';
 import { authHeaderFor, curlFor } from './auth-request';
@@ -334,6 +335,17 @@ export const TYPE_CONFIG: Record<SecretType, TypeConfig> = {
     keyPlaceholder: 'Paste or type the words in order',
   },
 };
+
+/** The family names the Site family field suggests: the vault's own, then the shipped ones. */
+export function fillSiteFamilyList(): void {
+  const list = document.getElementById('f-site-family-list');
+  if (!list) return;
+  const mine = (st.vault as { site_families?: { name?: string }[] }).site_families ?? [];
+  const names = new Set<string>();
+  for (const f of mine) if (f.name) names.add(f.name);
+  for (const f of shippedFamilies.families) names.add(f.name);
+  setHtml(list, html`${[...names].sort().map((n) => html`<option value="${n}"></option>`)}`);
+}
 
 // ── Dynamic form fields ───────────────────────────────────────────────────
 
@@ -1000,6 +1012,7 @@ export function fillForm(source: Partial<VaultEntry>) {
     .map((s) => s.url)
     .join('\n');
   (document.getElementById('f-site-family') as HTMLInputElement).value = entry.site_family || '';
+  fillSiteFamilyList();
   (document.getElementById('f-cburl') as HTMLInputElement).value = entry.callback_url || '';
   (document.getElementById('f-version') as HTMLInputElement).value = entry.version || '';
   (document.getElementById('f-role') as HTMLInputElement).value = entry.primary_role || '';
