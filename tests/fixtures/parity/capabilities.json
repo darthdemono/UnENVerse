@@ -344,7 +344,8 @@
       "ui": [
         "tool:recipes",
         "id:rcp-template",
-        "id:f-recipe"
+        "id:f-recipe",
+        "id:rcp-list-file"
       ],
       "tauri": [
         "recipe_registry",
@@ -400,7 +401,8 @@
       "tauri": [
         "codes_parse",
         "codes_add",
-        "codes_unmark"
+        "codes_unmark",
+        "login_plan"
       ],
       "note": "",
       "cli_flags": []
