@@ -189,7 +189,7 @@
     {
       "id": "R36",
       "title": "secret phrases + recovery codes",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R37",
@@ -214,7 +214,7 @@
     {
       "id": "R41",
       "title": "pattern password generator",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R42",
