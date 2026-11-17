@@ -742,3 +742,29 @@ fn the_local_nodes_pane_is_answered_by_the_embedded_hub_and_only_while_unlocked(
         json!("Vault is locked")
     );
 }
+
+/// First-run row 7: unlock creates the vault under the typed password, then a later step failed
+/// (here an unreadable legacy `vault.json`), and the vault stayed behind. The next try, with the
+/// password the person meant, met "Wrong master password" for a vault they never saw.
+#[test]
+fn a_failed_first_unlock_leaves_no_vault_behind() {
+    use tauri::Manager;
+    let d = desk("first-run-row-7");
+    let data = d.handle().path().app_data_dir().unwrap();
+    std::fs::create_dir_all(&data).unwrap();
+    std::fs::write(data.join("vault.json"), "this is not json").unwrap();
+
+    let err = d.unlock("first-typed-password-1").unwrap_err();
+    assert!(
+        err.to_string().contains("Legacy vault.json invalid"),
+        "{err}"
+    );
+    assert!(!data.join("vault.db").exists(), "the half-made vault stays");
+    assert!(!data.join("vault.salt").exists(), "the salt stays");
+
+    // The cause is fixed; any password now makes a vault, and it reopens with that password.
+    std::fs::remove_file(data.join("vault.json")).unwrap();
+    d.unlock("second-typed-password-2").unwrap();
+    d.ok("lock_vault", json!({}));
+    d.unlock("second-typed-password-2").unwrap();
+}
