@@ -287,7 +287,10 @@ fn entry_add_with_a_recipe_creates_the_entry_with_a_generated_password() {
     let text = shown["data"]["value"].as_str().unwrap_or_default();
     assert_eq!(text.len(), 24, "{shown}");
     let got = v.run(&["entry", "get", "Mastodon"]).json();
-    assert_eq!(got["data"]["entries"][0]["generated_by"]["recipe"], "plain", "{got}");
+    assert_eq!(
+        got["data"]["entries"][0]["generated_by"]["recipe"], "plain",
+        "{got}"
+    );
     // An unknown recipe is not found, and no entry is left behind.
     assert_eq!(
         v.run(&["entry", "add", "Ghost", "--recipe", "nope"]).code,
