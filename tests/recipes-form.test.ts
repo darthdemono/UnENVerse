@@ -197,3 +197,80 @@ describe('Make from recipe', () => {
     expect($<HTMLInputElement>('f-key').value).not.toContain('cannot fit');
   });
 });
+
+describe('the Recipe tab of the generator popover', () => {
+  const tab = () => document.querySelector<HTMLElement>('[data-gen-tab="recipe"]')!;
+  const generate = async () => {
+    $('gp-generate-btn').click();
+    await tick();
+  };
+  const openTab = () => {
+    $('f-key-generate-caret').click();
+    tab().click();
+  };
+
+  it('lists the saved recipes and the automatic pick', () => {
+    stub();
+    open({}, RECIPES);
+    openTab();
+    expect([...$<HTMLSelectElement>('gp-recipe').options].map((o) => o.value)).toEqual([
+      '',
+      'social',
+      'plain',
+    ]);
+    expect(document.querySelector<HTMLElement>('[data-gen-pane="recipe"]')!.hidden).toBe(false);
+  });
+
+  it('generates with the chosen recipe, and Use applies the value and records the recipe', async () => {
+    stub();
+    answer = (cmd) => (cmd === 'recipe_preview' ? { samples: ['Tab-Made-7'] } : null);
+    open({}, RECIPES);
+    openTab();
+    $<HTMLSelectElement>('gp-recipe').value = 'plain';
+    await generate();
+    expect($('gp-output').textContent).toBe('Tab-Made-7');
+    expect(calls.find((c) => c.cmd === 'recipe_preview')!.args.template).toBe('{random:16}');
+    $('gp-use-btn').click();
+    expect($<HTMLInputElement>('f-key').value).toBe('Tab-Made-7');
+    await saveModal();
+    expect(st.vault.api_keys[0].api_key).toBe('Tab-Made-7');
+    expect(st.vault.api_keys[0].generated_by).toMatchObject({ recipe: 'plain', counter: 1 });
+  });
+
+  it('with automatic asks Rust which recipe applies', async () => {
+    stub();
+    answer = (cmd) =>
+      cmd === 'recipe_resolve' ? { recipe: 'social', why: 'rule' } : { samples: ['Auto-1'] };
+    open({}, RECIPES);
+    openTab();
+    await generate();
+    expect(calls.map((c) => c.cmd)).toEqual(['recipe_resolve', 'recipe_preview']);
+    expect($('gp-output').textContent).toBe('Auto-1');
+  });
+
+  it('shows nothing and records nothing when Rust refuses', async () => {
+    stub();
+    answer = (cmd) => {
+      if (cmd === 'recipe_preview') throw new Error('cannot fit');
+      return null;
+    };
+    open({}, RECIPES);
+    openTab();
+    $<HTMLSelectElement>('gp-recipe').value = 'plain';
+    await generate();
+    expect($('gp-output').textContent).toBe('');
+    expect($<HTMLButtonElement>('gp-use-btn').disabled).toBe(true);
+  });
+
+  it('needs the desktop app, and a value from another tab records no recipe', async () => {
+    open({}, RECIPES);
+    openTab();
+    await generate();
+    expect($('gp-output').textContent).toBe('');
+    document.querySelector<HTMLElement>('[data-gen-tab="bytes"]')!.click();
+    await generate();
+    $('gp-use-btn').click();
+    await saveModal();
+    expect(st.vault.api_keys[0].generated_by).toBeUndefined();
+  });
+});
