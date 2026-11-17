@@ -118,6 +118,9 @@ export function getFiltered(): VaultEntry[] {
         k.app_url,
         k.app_version,
         k.api_url,
+        // Every address the secret answers to, so a host or a port finds it (`8989`, `tv.example`).
+        ...(k.sites ?? []).map((site) => site.url),
+        k.site_family,
         k.api_description,
         k.description,
         k.details,

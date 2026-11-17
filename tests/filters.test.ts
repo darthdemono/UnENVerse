@@ -430,4 +430,27 @@ describe('text search reads every descriptive field', () => {
     expect(getFiltered()).toHaveLength(0);
     st.searchQ = '';
   });
+
+  it('finds an entry by a host, a port or a family of its addresses', () => {
+    st.vault.api_keys = [
+      makeEntry({
+        provider: 'Sonarr',
+        sites: [
+          { url: 'localhost:8989', kind: 'local', mode: 'exact', label: '', source: 'manual' },
+          { url: 'tv.example.org', kind: 'web', mode: 'exact', label: '', source: 'manual' },
+        ],
+      }),
+      makeEntry({ provider: 'MusicBrainz', site_family: 'metabrainz' }),
+      makeEntry({ provider: 'Other' }),
+    ];
+    for (const [q, who] of [
+      ['8989', 'Sonarr'],
+      ['tv.example', 'Sonarr'],
+      ['metabrainz', 'MusicBrainz'],
+    ]) {
+      st.searchQ = q;
+      expect(getFiltered().map((e) => e.provider)).toEqual([who]);
+    }
+    st.searchQ = '';
+  });
 });
