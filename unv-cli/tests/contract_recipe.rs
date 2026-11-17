@@ -304,3 +304,65 @@ fn entry_add_with_a_recipe_creates_the_entry_with_a_generated_password() {
         10
     );
 }
+
+/// `recipe export` prints one JSON line and `recipe import` reads it back: a recipe survives the
+/// round trip with its options, a second import is a conflict unless `--replace`, and text that is
+/// not a recipe is invalid input that changes nothing.
+#[test]
+fn a_recipe_round_trips_through_export_and_import() {
+    let v = Vault::new("recipe-export");
+    v.ok(&["entry", "add", "Seed", "--key", "k"]);
+    v.ok(&[
+        "recipe",
+        "add",
+        "social",
+        "{prefix}-{random:16:base62}",
+        "--max",
+        "40",
+    ]);
+    let line = v.run(&["recipe", "export", "social"]).json();
+    assert_eq!(line["data"]["name"], "social");
+    assert_eq!(line["data"]["template"], "{prefix}-{random:16:base62}");
+    assert_eq!(line["data"]["options"]["max_len"], 40, "{line}");
+    assert_eq!(v.run(&["recipe", "export", "ghost"]).code, 3);
+
+    let dir = std::env::temp_dir().join(format!("unv-recipe-export-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("social.json");
+    std::fs::write(&file, line["data"].to_string()).unwrap();
+    let path = file.to_str().unwrap();
+
+    v.ok(&["recipe", "rm", "social"]);
+    v.ok(&["recipe", "import", path]);
+    let back = v.run(&["recipe", "show", "social"]).json();
+    assert_eq!(back["data"]["template"], "{prefix}-{random:16:base62}");
+    assert_eq!(back["data"]["options"]["max_len"], 40, "{back}");
+    assert_eq!(v.run(&["recipe", "import", path]).code, 6, "exists");
+    v.ok(&["recipe", "import", path, "--replace"]);
+
+    for (name, text) in [
+        ("notjson", "this is not json"),
+        ("noname", r#"{"template":"{random:9}"}"#),
+        ("notemplate", r#"{"name":"x"}"#),
+        ("badtemplate", r#"{"name":"bad","template":"{nope}"}"#),
+    ] {
+        let f = dir.join(format!("{name}.json"));
+        std::fs::write(&f, text).unwrap();
+        assert_eq!(
+            v.run(&["recipe", "import", f.to_str().unwrap()]).code,
+            10,
+            "{name}"
+        );
+    }
+    assert_eq!(v.run(&["recipe", "show", "bad"]).code, 3);
+    assert_ne!(
+        v.run(&[
+            "recipe",
+            "import",
+            dir.join("missing.json").to_str().unwrap()
+        ])
+        .code,
+        0
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

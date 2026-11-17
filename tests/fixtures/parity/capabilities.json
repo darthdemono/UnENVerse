@@ -328,6 +328,8 @@
         "unv recipe test",
         "unv recipe apply",
         "unv recipe default",
+        "unv recipe export",
+        "unv recipe import",
         "unv recipe rule add",
         "unv recipe rule ls",
         "unv recipe rule rm",

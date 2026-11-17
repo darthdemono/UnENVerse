@@ -251,6 +251,58 @@ pub fn add(
     Ok(())
 }
 
+/// One JSON line that [`import`] reads back. A recipe is configuration, so nothing here is secret.
+pub fn export(access: &Access, name: &str) -> CliResult {
+    let vault = access.load_vault()?;
+    let r = rc::saved(&vault)
+        .into_iter()
+        .find(|r| r.name == name)
+        .ok_or_else(|| CliError::not_found(format!("No recipe named '{name}'")))?;
+    let doc =
+        json!({ "name": r.name, "template": r.template, "options": options_json(&r.options) });
+    out::ok("recipe.export", doc.clone(), || println!("{doc}"));
+    Ok(())
+}
+
+/// Saves the recipe in the JSON `export` printed (a file, or `-` for stdin).
+pub fn import(access: &Access, source: &str, replace: bool) -> CliResult {
+    let text = if source == "-" {
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)
+            .map_err(|e| CliError::from(format!("Cannot read stdin: {e}")))?;
+        buf
+    } else {
+        std::fs::read_to_string(source)
+            .map_err(|e| CliError::from(format!("Cannot read {source}: {e}")))?
+    };
+    let doc: Value = serde_json::from_str(text.trim())
+        .map_err(|e| CliError::invalid(format!("Not a recipe: {e}")))?;
+    let field = |k: &str| {
+        doc.get(k)
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| CliError::invalid(format!("Not a recipe: `{k}` is missing")))
+    };
+    let (name, template) = (field("name")?, field("template")?);
+    let options = match doc.get("options") {
+        Some(o) => rc::Options::from_value(o).map_err(invalid)?,
+        None => rc::Options::default(),
+    };
+    let mut vault = access.load_vault_or_empty()?;
+    rc::save(&mut vault, name, template, &options, replace).map_err(|e| {
+        if e.contains("--replace") {
+            CliError::conflict(e)
+        } else {
+            invalid(e)
+        }
+    })?;
+    access.save(&vault)?;
+    out::ok("recipe.import", json!({ "name": name }), || {
+        println!("Saved recipe {name}")
+    });
+    Ok(())
+}
+
 pub fn rm(access: &Access, name: &str) -> CliResult {
     let mut vault = access.load_vault()?;
     if !rc::remove(&mut vault, name) {

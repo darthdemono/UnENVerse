@@ -183,9 +183,11 @@ unv project show <project>
 unv recipe add <name> <template> --allow= --avoid-ambiguous --chunk-sep= --chunk= --floor= --forbid= --max-run= --max= --min= --no-edge-symbol --no-sequences --policy= --replace --require= --start-letter
 unv recipe apply <entry> --recipe=
 unv recipe default <name>
+unv recipe export <name>
 unv recipe fact ls
 unv recipe fact rm <name>
 unv recipe fact set <name> <value> --public
+unv recipe import <file> --replace
 unv recipe list add <name> [words] --file= --private
 unv recipe list ls
 unv recipe list rm <name>
