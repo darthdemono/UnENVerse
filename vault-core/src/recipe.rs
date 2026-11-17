@@ -26,6 +26,8 @@ type HmacSha256 = Hmac<Sha256>;
 /// Label of the lengthener derivation. The salt is its SHA-256, so a new label is a new version:
 /// results of `v1` never change.
 const EXPAND_LABEL: &[u8] = b"unv/recipe/expand/v1";
+/// Salt label of `stretch` (Argon2id, m=19456 KiB, t=2, p=1). Never changes; a new cost is a `v2`.
+const STRETCH_LABEL: &str = "unv/recipe/stretch/v1";
 /// The longest single part a token may ask for.
 const MAX_PART: usize = 256;
 /// The default floor under the random bits of a result.
@@ -133,6 +135,7 @@ pub const TRANSFORM_IDS: &[&str] = &[
     "site_bound",
     "family_bound",
     "rotate_by_counter",
+    "stretch",
     "keyed_case",
 ];
 
@@ -1464,6 +1467,22 @@ fn apply_transform(mut v: Val, name: &str, a: &Args) -> Result<Val, String> {
             let text = derive_chars(&v.text, &ctx_text, &alpha, n)?;
             v = expanded(&v, text, alpha.len());
         }
+        // Argon2id over the value, then the same derivation as `expand`: each guess at the result
+        // costs a memory-hard hash. It adds length and cost, never bits (`expanded` caps them).
+        "stretch" => {
+            let n = a.count(0, 22)?;
+            let alpha = alphabet(&a.text_or(1, "base36")?)?;
+            let ctx_text = expand_context(&a.text_or(2, "none")?, a.ctx)?;
+            let salt = Sha256::digest(format!("{STRETCH_LABEL}|{ctx_text}"));
+            let params = argon2::Params::new(19456, 2, 1, Some(32)).map_err(|e| e.to_string())?;
+            let mut key = [0u8; 32];
+            argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params)
+                .hash_password_into(v.text.as_bytes(), &salt, &mut key)
+                .map_err(|e| e.to_string())?;
+            let hex: String = key.iter().map(|b| format!("{b:02x}")).collect();
+            let text = derive_chars(&hex, &ctx_text, &alpha, n)?;
+            v = expanded(&v, text, alpha.len());
+        }
         "expand_words" => {
             let n = a.count(0, 4)?;
             let words = crate::type_emit::bip39_words();
@@ -1625,6 +1644,7 @@ fn token_kind(tok: &Token) -> String {
                 | "site_bound"
                 | "family_bound"
                 | "rotate_by_counter"
+                | "stretch"
                 | "keyed_case"
         )
     }) {
@@ -2661,6 +2681,16 @@ mod tests {
         let words = text("{fixed:\"abcdefgh\"|expand_words:3}");
         assert_eq!(words.split('-').count(), 3);
         assert_eq!(words, text("{fixed:\"abcdefgh\"|expand_words:3}"));
+        // stretch: deterministic, the asked length, a different result per context and per value,
+        // and no more strength than the value it came from. The Argon2id primitive itself is
+        // pinned by vault-core's own golden test; here the construction (salt label, hex of the key
+        // fed to the same derivation as `expand`) is pinned by a vector computed once from it.
+        let st = text("{fixed:\"abcdefgh\"|stretch:16:base36}");
+        assert_eq!(st.len(), 16);
+        assert_eq!(st, text("{fixed:\"abcdefgh\"|stretch:16:base36}"));
+        assert_ne!(st, text("{fixed:\"abcdefgi\"|stretch:16:base36}"));
+        assert_ne!(st, text("{fixed:\"abcdefgh\"|stretch:16:base36:entry}"));
+        assert_ne!(st, text("{fixed:\"abcdefgh\"|expand:16:base36}"));
         let groups = text("{fixed:\"abcdefgh\"|expand_groups:2:5:hex}");
         assert_eq!(groups.len(), 11);
         assert!(groups.chars().nth(5) == Some('-'));

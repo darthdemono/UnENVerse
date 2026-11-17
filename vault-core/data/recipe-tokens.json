@@ -1424,6 +1424,32 @@
       "example": "{random:8:base36|expand_groups:3:5}"
     },
     {
+      "id": "stretch",
+      "group": "Lengtheners",
+      "kind": "derive",
+      "label": "Lengthener: stretch",
+      "summary": "Derives from the value: N characters after a memory-hard Argon2id hash, so each guess at the result costs far more; adds length and cost, not strength.",
+      "args": [
+        {
+          "name": "length",
+          "type": "int",
+          "default": "22"
+        },
+        {
+          "name": "alphabet",
+          "type": "text",
+          "default": "base36"
+        },
+        {
+          "name": "context",
+          "type": "text",
+          "default": "none"
+        }
+      ],
+      "bits": "never more than the value it came from",
+      "example": "{random:8:base36|stretch:22:base36:host}"
+    },
+    {
       "id": "site_bound",
       "group": "Lengtheners",
       "kind": "derive",
