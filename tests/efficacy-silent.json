@@ -51,5 +51,6 @@
   "cod-use": "The Recovery codes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/codes-pane.test.ts drives it after initCodesPane.",
   "cod-import": "The Recovery codes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/codes-pane.test.ts drives it after initCodesPane.",
   "cod-print": "The Recovery codes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/codes-pane.test.ts drives it after initCodesPane.",
-  "fam-add": "The Site families pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/families-pane.test.ts drives it after initFamiliesPane."
+  "fam-add": "The Site families pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/families-pane.test.ts drives it after initFamiliesPane.",
+  "rcp-list-file": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane."
 }

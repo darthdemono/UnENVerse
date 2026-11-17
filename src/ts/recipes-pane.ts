@@ -78,6 +78,12 @@ export const PRESETS: { name: string; template: string }[] = [
     template: '{provider}_{random:8:base36|expand:22:base36:host}_{suffix}',
   },
   { name: 'Mask', template: '{mask:"CvcvCvcv"}-{number:100..999}-{symbols:1}' },
+  // Each of these was run through `unv recipe test` and clears the default 64 bit floor.
+  { name: 'Dice words', template: '{dice:6}' },
+  { name: 'Dice words, a number and a symbol', template: '{dice:5}-{digits:4}-{symbols:1}' },
+  { name: 'BIP39 words and a number', template: '{bip39:5:-}-{digits:4}' },
+  { name: 'Pronounceable', template: '{syllables:8}-{digits:4}-{symbols:1}' },
+  { name: 'Hex key', template: '{hex:32}' },
 ];
 
 const RULE_KINDS = ['provider', 'family', 'host', 'type', 'project', 'tag'];
@@ -553,6 +559,31 @@ async function rowAction(action: string, name: string, n: number): Promise<void>
   showToast('Removed', 'ok');
 }
 
+/**
+ * "Read words from a file": puts the file's text in the words box (one word per line or commas, as
+ * the box already takes) and names the list after the file when the name box is empty. The input is
+ * made when the button is pressed, never left in the page (WebKitGTK rule).
+ */
+function pickListFile(): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.txt,.csv,.lst,text/plain';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      el<HTMLTextAreaElement>('rcp-list-words')!.value =
+        typeof reader.result === 'string' ? reader.result : '';
+      const name = el<HTMLInputElement>('rcp-list-name');
+      if (name && !name.value.trim()) name.value = file.name.replace(/\.[^.]*$/, '');
+    };
+    reader.onerror = () => showToast('Could not read that file', 'err');
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 /** Wires the pane once; every later call only repaints. Handlers are assigned, not added. */
 export function initRecipesPane(): void {
   if (!el('rcp-template')) return;
@@ -585,6 +616,7 @@ export function initRecipesPane(): void {
     (el<HTMLTextAreaElement>('rcp-template') as HTMLTextAreaElement).value = val('rcp-preset');
   };
   el('rcp-list-add')!.onclick = () => void addList();
+  el('rcp-list-file')!.onclick = pickListFile;
   el('rcp-fact-add')!.onclick = () => void addFact();
   el('rcp-rule-add')!.onclick = () => void addRule();
   el('rcp-rule-test')!.onclick = () => void testRule();

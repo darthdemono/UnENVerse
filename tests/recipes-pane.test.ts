@@ -442,6 +442,38 @@ describe('your lists, facts and rules', () => {
     expect(doc.recipe_lists).toEqual([]);
   });
 
+  it('reads the words of a chosen file into the box and names the list after the file', async () => {
+    let made: HTMLInputElement | null = null;
+    const create = document.createElement.bind(document);
+    const spy = vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+      const node = create(tag);
+      if (tag === 'input') {
+        made = node as HTMLInputElement;
+        vi.spyOn(node, 'click').mockImplementation(() => {});
+      }
+      return node;
+    }) as never);
+    click('rcp-list-file');
+    spy.mockRestore();
+    expect(made).not.toBeNull();
+    expect(made!.type).toBe('file');
+    // No file chosen: nothing changes.
+    made!.onchange!(new Event('change'));
+    expect($<HTMLTextAreaElement>('rcp-list-words').value).toBe('');
+    const file = new File(['kimchi\nnaan\ntacos'], 'meals.txt', { type: 'text/plain' });
+    Object.defineProperty(made!, 'files', { value: [file] });
+    set('rcp-list-name', '');
+    made!.onchange!(new Event('change'));
+    await new Promise((r) => setTimeout(r, 30));
+    expect($<HTMLTextAreaElement>('rcp-list-words').value).toBe('kimchi\nnaan\ntacos');
+    expect($<HTMLInputElement>('rcp-list-name').value).toBe('meals');
+    // A name already typed is kept.
+    set('rcp-list-name', 'mine');
+    made!.onchange!(new Event('change'));
+    await new Promise((r) => setTimeout(r, 30));
+    expect($<HTMLInputElement>('rcp-list-name').value).toBe('mine');
+  });
+
   it('sorts a list and removes its duplicate words without changing the distinct ones', async () => {
     st.vault = makeVault({
       api_keys: [],

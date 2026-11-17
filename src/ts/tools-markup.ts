@@ -446,6 +446,7 @@ export const TOOLS_PANES_HTML = String.raw`
               <label class="tool-label" for="rcp-list-words">Words (one per line or comma separated)</label>
               <textarea id="rcp-list-words" class="form-input mono" rows="2"></textarea>
               <label class="tool-label" for="rcp-list-private"><input id="rcp-list-private" type="checkbox"> Private</label>
+              <button id="rcp-list-file" class="btn btn-ghost btn-sm">Read words from a file</button>
               <button id="rcp-list-add" class="btn btn-ghost btn-sm">Save list</button>
             </div>
             <div id="rcp-lists"></div>
