@@ -433,6 +433,25 @@ pub fn families(vault: &serde_json::Value) -> Vec<Family> {
         .unwrap_or_default()
 }
 
+/// The families that ship with the program (`data/site-families.json`).
+pub fn builtin_families() -> Vec<Family> {
+    let doc: serde_json::Value = serde_json::from_str(include_str!("../data/site-families.json"))
+        .expect("site-families.json is valid JSON");
+    families(&serde_json::json!({ "site_families": doc["families"] }))
+}
+
+/// Every family an entry may name: the ones in the vault, then the shipped ones whose name the
+/// vault does not use (a family of yours with the same name replaces the shipped one).
+pub fn known_families(vault: &serde_json::Value) -> Vec<Family> {
+    let mut all = families(vault);
+    for f in builtin_families() {
+        if !all.iter().any(|mine| mine.name == f.name) {
+            all.push(f);
+        }
+    }
+    all
+}
+
 /// Adds hosts to the named family (creating it). Hosts are normalised to a bare host; a scheme,
 /// port or path in the input is dropped, because a family is a set of hosts.
 pub fn family_add(
@@ -869,5 +888,27 @@ mod tests {
         );
         assert!(remove_site(&mut e, "x.test").unwrap());
         assert!(e.get("sites").is_none());
+    }
+
+    #[test]
+    fn shipped_families_are_well_formed_and_yield_to_the_vaults_own() {
+        let shipped = builtin_families();
+        assert!(shipped.len() >= 5);
+        let mut names = std::collections::BTreeSet::new();
+        for f in &shipped {
+            assert!(names.insert(f.name.clone()), "{} twice", f.name);
+            assert!(f.hosts.len() >= 2, "{} is one host, not a family", f.name);
+            for h in &f.hosts {
+                assert_eq!(&parse_site(h).unwrap().host, h, "{h} is not a bare host");
+            }
+        }
+        let mut vault = serde_json::json!({});
+        let all = known_families(&vault);
+        assert_eq!(all.len(), shipped.len());
+        family_add(&mut vault, "google", &["only.example".to_string()]).unwrap();
+        let all = known_families(&vault);
+        assert_eq!(all.len(), shipped.len());
+        let google = all.iter().find(|f| f.name == "google").unwrap();
+        assert_eq!(google.hosts, ["only.example"]);
     }
 }

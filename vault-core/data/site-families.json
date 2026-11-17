@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "comment": "Sites that share one sign-in. An entry that names one of these families is offered on every host in it and on its subdomains, never on a look-alike. A family of the same name in your vault replaces the shipped one. Only sign-in groups that are one account belong here.",
+  "families": [
+    {
+      "name": "google",
+      "hosts": ["google.com", "youtube.com", "gmail.com", "googleapis.com", "accounts.google.com"]
+    },
+    {
+      "name": "microsoft",
+      "hosts": [
+        "microsoft.com",
+        "live.com",
+        "office.com",
+        "microsoftonline.com",
+        "outlook.com",
+        "xbox.com"
+      ]
+    },
+    { "name": "apple", "hosts": ["apple.com", "icloud.com"] },
+    {
+      "name": "metabrainz",
+      "hosts": [
+        "musicbrainz.org",
+        "listenbrainz.org",
+        "metabrainz.org",
+        "acousticbrainz.org",
+        "critiquebrainz.org"
+      ]
+    },
+    {
+      "name": "stackexchange",
+      "hosts": [
+        "stackexchange.com",
+        "stackoverflow.com",
+        "serverfault.com",
+        "superuser.com",
+        "askubuntu.com"
+      ]
+    },
+    {
+      "name": "atlassian",
+      "hosts": ["atlassian.com", "atlassian.net", "bitbucket.org", "trello.com"]
+    }
+  ]
+}

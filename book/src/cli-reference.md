@@ -222,7 +222,7 @@ Contract version 1.
 | `unv shield <argv>` | Run a command while replacing known vault values in its text output |
 | `unv site add <entry> <url>` | Add an address: a URL, `host:port` or a bare host. The path is dropped |
 | `unv site family add <name> [hosts]` | Add hosts to a family, creating it |
-| `unv site family ls` | List the families |
+| `unv site family ls` | List the families in the vault, or with --builtin the ones that ship with the program |
 | `unv site family rm <name> [host]` | Remove a host from a family, or the whole family when no host is given |
 | `unv site family use <entry> <name>` | Make an entry answer on every host of a family (an empty NAME clears it) |
 | `unv site ls <entry>` | List an entry's addresses (its `api_url` counts as one) and its family |

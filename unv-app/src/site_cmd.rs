@@ -94,7 +94,7 @@ pub fn matches(access: &Access, origin: &str) -> CliResult {
     if origin_site.scheme.is_none() {
         origin_site.scheme = Some("https".into());
     }
-    let fams = vs::families(&vault);
+    let fams = vs::known_families(&vault);
     let hits: Vec<Value> = entries(&vault)
         .iter()
         .filter(|e| vs::entry_offered(e, &fams, &origin_site))
@@ -119,9 +119,13 @@ pub fn matches(access: &Access, origin: &str) -> CliResult {
     Ok(())
 }
 
-pub fn family_ls(access: &Access) -> CliResult {
+pub fn family_ls(access: &Access, builtin: bool) -> CliResult {
     let vault = access.load_vault()?;
-    let fams = vs::families(&vault);
+    let fams = if builtin {
+        vs::builtin_families()
+    } else {
+        vs::families(&vault)
+    };
     let list: Vec<Value> = fams
         .iter()
         .map(|f| json!({ "name": f.name, "hosts": f.hosts }))
@@ -162,7 +166,7 @@ pub fn family_rm(access: &Access, name: &str, host: Option<&str>) -> CliResult {
 pub fn family_use(access: &Access, query: &str, name: Option<&str>) -> CliResult {
     let mut vault = access.load_vault()?;
     if let Some(n) = name {
-        if !vs::families(&vault).iter().any(|f| f.name == n) {
+        if !vs::known_families(&vault).iter().any(|f| f.name == n) {
             return Err(CliError::not_found(format!(
                 "No family '{n}' (see `unv site family ls`)"
             )));
