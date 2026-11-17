@@ -768,3 +768,19 @@ fn a_failed_first_unlock_leaves_no_vault_behind() {
     d.ok("lock_vault", json!({}));
     d.unlock("second-typed-password-2").unwrap();
 }
+
+/// R38 row 8: a second launch of the app calls this on the copy that is already running. A window
+/// hidden to the tray must come back, and a second call must change nothing.
+#[test]
+fn a_second_launch_brings_a_hidden_window_back() {
+    use tauri::Manager;
+    let d = desk("second-launch");
+    let h = d.handle();
+    let win = h.get_webview_window("main").expect("main window");
+    win.hide().unwrap();
+    assert!(!win.is_visible().unwrap());
+    unenverse_lib::show_main_window(&h);
+    assert!(win.is_visible().unwrap(), "the window stays hidden");
+    unenverse_lib::show_main_window(&h);
+    assert!(win.is_visible().unwrap());
+}
