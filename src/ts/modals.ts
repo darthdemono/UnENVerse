@@ -2508,6 +2508,20 @@ export async function saveModal() {
         showToast(`Address: ${errorMessage(err)}`, 'err', 5000);
         return;
       }
+      // Both spellings stay; a person who typed the second one usually did not mean to. A hint only.
+      try {
+        const same = await invokeTauri<[string, string][] | null>('site_alternate_spellings', {
+          urls: entry.sites.map((s) => s.url),
+        });
+        if (same?.length)
+          showToast(
+            `${same[0][1]} is the same address as ${same[0][0]}, spelled differently`,
+            'ok',
+            6000,
+          );
+      } catch {
+        // The hint is a courtesy; the save goes on without it.
+      }
     }
     if (t === 'certificate' && !entry.certificate_data) {
       showToast('Certificate data is required', 'err');

@@ -334,6 +334,23 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Site families (R40): sets of hosts that share one sign-in -->
+        <div id="tool-families" class="tool-pane" style="display:none">
+          <div class="tool-section">
+            <h3 class="tool-title">Site families</h3>
+            <p>Sites that share one sign-in, such as MusicBrainz and its sister sites. An entry that names a family is offered on every host in it and on subdomains, never on a look-alike. A family of yours with the same name replaces the shipped one.</p>
+            <div id="fam-status" class="tool-status" style="font-size:11px;color:var(--text3)" role="status" aria-live="polite"></div>
+            <div id="fam-list" class="cod-list"></div>
+            <div class="tool-row">
+              <label class="tool-label" for="fam-name">Name</label>
+              <input id="fam-name" class="form-input" type="text" autocomplete="off" placeholder="metabrainz">
+            </div>
+            <label class="tool-label" for="fam-hosts">Hosts (one per line, or separated by commas)</label>
+            <textarea id="fam-hosts" class="form-input" rows="3" spellcheck="false" autocomplete="off"></textarea>
+            <div class="tool-row"><button id="fam-add" class="btn btn-accent btn-sm">Save family</button></div>
+          </div>
+        </div>
+
         <!-- Tool: Recovery codes (R36): the single-use codes of each account -->
         <div id="tool-codes" class="tool-pane" style="display:none">
           <div class="tool-section">

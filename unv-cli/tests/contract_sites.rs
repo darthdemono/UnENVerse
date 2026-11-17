@@ -185,3 +185,28 @@ fn a_shipped_family_can_be_named_without_being_created() {
     assert!(names(&v, "https://listenbrainz.org").is_empty());
     assert_eq!(names(&v, "https://only.example.org"), ["Brainz"]);
 }
+
+/// Another spelling of an address the entry already holds is added (nothing is rewritten) but the
+/// person is told, in the output and in `same_as`.
+#[test]
+fn adding_another_spelling_of_an_address_says_so() {
+    let v = Vault::new("sites-spelling");
+    v.ok(&["entry", "add", "Sonarr", "--key", "k"]);
+    let first = v.run(&["site", "add", "Sonarr", "localhost:8989"]).json();
+    assert!(first["data"]["same_as"].as_array().unwrap().is_empty());
+    let second = v
+        .run(&["site", "add", "Sonarr", "http://127.0.0.1:8989"])
+        .json();
+    assert_eq!(second["data"]["added"], true, "{second}");
+    assert_eq!(second["data"]["same_as"][0], "localhost:8989", "{second}");
+    let text = v
+        .run_text(&["site", "add", "Sonarr", "http://[::1]:8989"])
+        .all();
+    assert!(text.contains("same address as"), "{text}");
+    let ls = v.run(&["site", "ls", "Sonarr"]).json();
+    assert_eq!(ls["data"]["sites"].as_array().unwrap().len(), 3, "{ls}");
+    // The same address again is "already there", with no note.
+    let again = v.run(&["site", "add", "Sonarr", "localhost:8989"]).json();
+    assert_eq!(again["data"]["added"], false);
+    assert!(again["data"]["same_as"].as_array().unwrap().is_empty());
+}
