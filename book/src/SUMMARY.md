@@ -15,6 +15,7 @@
 - [Keeping secrets away from an agent](agent-safety.md)
 - [Password recipes](password-recipes.md)
 - [Sites and login plans](sites-and-login-plans.md)
+- [Secret phrases and recovery codes](phrases-and-codes.md)
 - [Roadmap](roadmap.md)
 - [Dependency plan](dependencies.md)
 - [Plugins](plugins.md)
