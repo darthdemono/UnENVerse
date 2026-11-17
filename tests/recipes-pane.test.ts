@@ -10,7 +10,9 @@ import {
   PRESETS,
   readOptions,
   recipeView,
+  paintBlocks,
   renderRecipes,
+  splitTemplate,
   writeOptions,
 } from '../src/ts/recipes-pane';
 import { mountToolsPanes } from '../src/ts/tools-markup';
@@ -472,6 +474,96 @@ describe('your lists, facts and rules', () => {
     made!.onchange!(new Event('change'));
     await new Promise((r) => setTimeout(r, 30));
     expect($<HTMLInputElement>('rcp-list-name').value).toBe('mine');
+  });
+
+  it('splits a template into tokens and the text between them, and joins back exactly', () => {
+    for (const t of [
+      '{prefix}-{list:food}-{random:12:base62}',
+      'plain',
+      '',
+      '{a}{b}',
+      'x{y',
+      '}{',
+    ]) {
+      expect(splitTemplate(t).join(''), t).toBe(t);
+    }
+    expect(splitTemplate('{prefix}-{random:12}')).toEqual(['{prefix}', '-', '{random:12}']);
+  });
+
+  it('shows the template as blocks and moves or removes one, rewriting the text view', () => {
+    set('rcp-template', '{prefix}-{random:12:base62}');
+    paintBlocks();
+    const blocks = () =>
+      [...$('rcp-blocks').querySelectorAll('.rcp-block code')].map((c) => c.textContent);
+    expect(blocks()).toEqual(['{prefix}', '-', '{random:12:base62}']);
+    const press = (action: string, i: number) =>
+      $('rcp-blocks')
+        .querySelector<HTMLElement>(`[data-action="${action}"][data-i="${i}"]`)!
+        .click();
+    press('rcp-block-right', 0);
+    expect($<HTMLTextAreaElement>('rcp-template').value).toBe('-{prefix}{random:12:base62}');
+    press('rcp-block-left', 2);
+    expect($<HTMLTextAreaElement>('rcp-template').value).toBe('-{random:12:base62}{prefix}');
+    press('rcp-block-rm', 0);
+    expect($<HTMLTextAreaElement>('rcp-template').value).toBe('{random:12:base62}{prefix}');
+    expect(blocks()).toEqual(['{random:12:base62}', '{prefix}']);
+  });
+
+  it('disables moving past either end, ignores a stale index, and says so when empty', () => {
+    set('rcp-template', '{a}{b}');
+    paintBlocks();
+    expect(
+      $('rcp-blocks').querySelector<HTMLButtonElement>(
+        '[data-action="rcp-block-left"][data-i="0"]',
+      )!.disabled,
+    ).toBe(true);
+    expect(
+      $('rcp-blocks').querySelector<HTMLButtonElement>(
+        '[data-action="rcp-block-right"][data-i="1"]',
+      )!.disabled,
+    ).toBe(true);
+    for (const [action, i] of [
+      ['rcp-block-left', 0],
+      ['rcp-block-right', 1],
+      ['rcp-block-rm', 9],
+    ] as const) {
+      const b = document.createElement('button');
+      b.dataset.action = action;
+      b.dataset.i = String(i);
+      $('rcp-blocks').append(b);
+      b.click();
+    }
+    expect($<HTMLTextAreaElement>('rcp-template').value).toBe('{a}{b}');
+    $('rcp-blocks').click();
+    set('rcp-template', '');
+    paintBlocks();
+    expect($('rcp-blocks').textContent).toContain('No blocks yet');
+  });
+
+  it('repaints the blocks when the text is typed, a preset is used, a token is inserted or a recipe loads', () => {
+    set('rcp-template', '{digits:4}');
+    $('rcp-template').dispatchEvent(new Event('input'));
+    expect($('rcp-blocks').textContent).toContain('{digits:4}');
+    $<HTMLSelectElement>('rcp-preset').selectedIndex = 1;
+    click('rcp-use-preset');
+    expect($('rcp-blocks').querySelectorAll('.rcp-block').length).toBeGreaterThan(0);
+    set('rcp-template', '');
+    set('rcp-token', 'random');
+    click('rcp-insert');
+    expect($('rcp-blocks').textContent).toContain('{random');
+    load('');
+    expect($('rcp-blocks').textContent).toContain('No blocks yet');
+  });
+
+  it('gives a token block the registry summary as its hover text', () => {
+    set('rcp-template', '{random:12}x{unknown}');
+    paintBlocks();
+    const titles = [...$('rcp-blocks').querySelectorAll('.rcp-block')].map((b) =>
+      b.getAttribute('title'),
+    );
+    expect(titles[0]).toBe(REGISTRY.tokens.find((t) => t.id === 'random')!.summary);
+    expect(titles[1]).toBe('Fixed text');
+    expect(titles[2]).toBe('');
   });
 
   it('sorts a list and removes its duplicate words without changing the distinct ones', async () => {

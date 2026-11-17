@@ -297,6 +297,55 @@ function paintPresets(): void {
   }
 }
 
+/**
+ * A template as its pieces: each `{token}` is one piece and the text between tokens is another.
+ * Joining the pieces gives the template back exactly, which is what the block buttons rely on.
+ */
+export function splitTemplate(template: string): string[] {
+  return template.match(/\{[^{}]*\}|[^{}]+|[{}]/g) ?? [];
+}
+
+/** Shows the template as blocks. Moving or removing a block rewrites the text view. */
+export function paintBlocks(): void {
+  const box = el('rcp-blocks');
+  const text = el<HTMLTextAreaElement>('rcp-template');
+  if (!box || !text) return;
+  const pieces = splitTemplate(text.value);
+  const tokenSummary = (piece: string): string => {
+    const id = piece.slice(1, -1).split(/[:|?]/)[0];
+    return registry?.tokens.find((t) => t.id === id)?.summary ?? '';
+  };
+  setHtml(
+    box,
+    pieces.length === 0
+      ? html`<span class="rcp-dim">No blocks yet. Add a token below, or type a template.</span>`
+      : html`${pieces.map((piece, i) => {
+          const isToken = piece.startsWith('{') && piece.endsWith('}') && piece.length > 1;
+          return html`<span class="rcp-block${isToken ? ' token' : ''}" title="${isToken ? tokenSummary(piece) : 'Fixed text'}">
+            <code>${piece}</code>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="rcp-block-left" data-i="${i}" aria-label="${`Move ${piece} earlier`}" ${i === 0 ? 'disabled' : ''}>&larr;</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="rcp-block-right" data-i="${i}" aria-label="${`Move ${piece} later`}" ${i === pieces.length - 1 ? 'disabled' : ''}>&rarr;</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="rcp-block-rm" data-i="${i}" aria-label="${`Remove ${piece}`}">&times;</button>
+          </span>`;
+        })}`,
+  );
+}
+
+function blockAction(action: string, i: number): void {
+  const text = el<HTMLTextAreaElement>('rcp-template');
+  if (!text) return;
+  const pieces = splitTemplate(text.value);
+  if (i < 0 || i >= pieces.length) return;
+  if (action === 'rcp-block-rm') pieces.splice(i, 1);
+  else {
+    const j = action === 'rcp-block-left' ? i - 1 : i + 1;
+    if (j < 0 || j >= pieces.length) return;
+    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+  }
+  text.value = pieces.join('');
+  paintBlocks();
+}
+
 function paintPreview(p: Preview | null, error = ''): void {
   const box = el('rcp-preview');
   if (!box) return;
@@ -419,6 +468,7 @@ export function load(name: string): void {
   (el<HTMLInputElement>('rcp-name') as HTMLInputElement).value = r?.name ?? '';
   (el<HTMLTextAreaElement>('rcp-template') as HTMLTextAreaElement).value = r?.template ?? '';
   writeOptions(r?.options ?? {});
+  paintBlocks();
   paintPreview(null);
 }
 
@@ -445,6 +495,7 @@ function insertToken(): void {
     box.value = `${box.value.slice(0, at)}{${call}}${box.value.slice(end)}`;
   }
   box.focus();
+  paintBlocks();
 }
 
 async function addList(): Promise<void> {
@@ -614,6 +665,12 @@ export function initRecipesPane(): void {
   el('rcp-insert')!.onclick = insertToken;
   el('rcp-use-preset')!.onclick = () => {
     (el<HTMLTextAreaElement>('rcp-template') as HTMLTextAreaElement).value = val('rcp-preset');
+    paintBlocks();
+  };
+  el<HTMLTextAreaElement>('rcp-template')!.oninput = paintBlocks;
+  el('rcp-blocks')!.onclick = (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-action^="rcp-block-"]');
+    if (t) blockAction(t.dataset.action ?? '', Number(t.dataset.i));
   };
   el('rcp-list-add')!.onclick = () => void addList();
   el('rcp-list-file')!.onclick = pickListFile;

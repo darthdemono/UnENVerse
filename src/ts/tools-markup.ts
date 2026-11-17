@@ -393,6 +393,8 @@ export const TOOLS_PANES_HTML = String.raw`
               <select id="rcp-preset" class="form-input"></select>
               <button id="rcp-use-preset" class="btn btn-ghost btn-sm">Copy into the editor</button>
             </div>
+            <div class="tool-label" id="rcp-blocks-label">Blocks (each token is one block; move or remove them here)</div>
+            <div id="rcp-blocks" class="rcp-blocks" role="group" aria-labelledby="rcp-blocks-label"></div>
             <label class="tool-label" for="rcp-template">Template (text view)</label>
             <textarea id="rcp-template" class="form-input mono" rows="3" spellcheck="false" autocomplete="off" placeholder="{prefix}-{list:food}-{random:12:base62}"></textarea>
             <div class="tool-row">
