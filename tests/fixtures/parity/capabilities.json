@@ -387,9 +387,15 @@
         "unv login-plan"
       ],
       "ui": [
-        "src:src/ts/render.ts"
+        "src:src/ts/render.ts",
+        "tool:codes",
+        "id:cod-import"
       ],
-      "tauri": [],
+      "tauri": [
+        "codes_parse",
+        "codes_add",
+        "codes_unmark"
+      ],
       "note": "",
       "cli_flags": []
     },

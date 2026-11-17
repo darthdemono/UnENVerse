@@ -47,5 +47,8 @@
   "rcp-list-add": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
   "rcp-fact-add": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
   "rcp-rule-add": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
-  "rcp-rule-test": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane."
+  "rcp-rule-test": "The Password recipes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/recipes-pane.test.ts drives it after initRecipesPane.",
+  "cod-use": "The Recovery codes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/codes-pane.test.ts drives it after initCodesPane.",
+  "cod-import": "The Recovery codes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/codes-pane.test.ts drives it after initCodesPane.",
+  "cod-print": "The Recovery codes pane wires its handlers when its tool opens (lazy), so before that a click does nothing; tests/codes-pane.test.ts drives it after initCodesPane."
 }

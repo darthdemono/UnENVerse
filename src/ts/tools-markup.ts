@@ -334,6 +334,29 @@ export const TOOLS_PANES_HTML = String.raw`
           </div>
         </div>
 
+        <!-- Tool: Recovery codes (R36): the single-use codes of each account -->
+        <div id="tool-codes" class="tool-pane" style="display:none">
+          <div class="tool-section">
+            <h3 class="tool-title">Recovery codes</h3>
+            <p>Single-use codes a service gives you for when your second factor is gone. A code is spent only when you say so; showing it never spends it.</p>
+            <div id="cod-status" class="tool-status" style="font-size:11px;color:var(--text3)" role="status" aria-live="polite"></div>
+            <div class="tool-row">
+              <label class="tool-label" for="cod-entry">Account</label>
+              <select id="cod-entry" class="form-input"></select>
+              <label class="tool-label"><input type="checkbox" id="cod-reveal"> Show the codes</label>
+            </div>
+            <div id="cod-list" class="cod-list"></div>
+            <div class="tool-row">
+              <button id="cod-use" class="btn btn-ghost btn-sm">Mark next used</button>
+              <button id="cod-print" class="btn btn-ghost btn-sm">Print sheet</button>
+            </div>
+            <label class="tool-label" for="cod-paste">Import codes (paste the text the service gave you)</label>
+            <textarea id="cod-paste" class="form-input" rows="4" spellcheck="false" autocomplete="off"></textarea>
+            <div class="tool-row"><button id="cod-import" class="btn btn-accent btn-sm">Add the codes</button></div>
+            <div id="cod-sheet" class="cod-sheet" aria-hidden="true"></div>
+          </div>
+        </div>
+
         <!-- Tool: Password recipes (R41): every setting of the password generator -->
         <div id="tool-recipes" class="tool-pane" style="display:none">
           <div class="tool-section">
