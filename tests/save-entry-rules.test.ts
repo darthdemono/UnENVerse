@@ -214,6 +214,47 @@ describe('recovery phrases', () => {
   });
 });
 
+describe('secret phrases', () => {
+  const tauri = (calls: string[]) => {
+    (window as any).__TAURI__ = {
+      core: {
+        invoke: async (c: string) => {
+          calls.push(c);
+          if (c === 'bip39_validate') return null;
+          return null;
+        },
+      },
+    };
+  };
+
+  it('joins pasted words by single spaces and checks them against BIP39', async () => {
+    const calls: string[] = [];
+    tauri(calls);
+    form(null);
+    $<HTMLSelectElement>('f-secret-type').value = 'secret_phrase';
+    $('f-secret-type').dispatchEvent(new Event('change'));
+    set('f-provider', 'Seed');
+    set('f-role', 'secret_phrase');
+    set('f-key', '  abandon\n abandon   about \n');
+    await saveModal();
+    expect(st.vault.api_keys[0].api_key).toBe('abandon abandon about');
+    expect(calls).toContain('bip39_validate');
+  });
+
+  it('does not check a phrase that names another word list', async () => {
+    const calls: string[] = [];
+    tauri(calls);
+    form({
+      secretType: 'secret_phrase',
+      api_key: 'correct horse battery',
+      extra_vars: [{ key: 'wordlist', value: 'eff-large' }],
+    });
+    await saveModal();
+    expect(st.vault.api_keys[0].api_key).toBe('correct horse battery');
+    expect(calls).not.toContain('bip39_validate');
+  });
+});
+
 describe('what a save does', () => {
   it('a new entry gets an id and a creation date, and the form closes', async () => {
     form(null);

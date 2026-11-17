@@ -5755,6 +5755,13 @@
       "definition": "A token for a package registry such as npm, kept with the registry's URL."
     },
     {
+      "id": "secret-phrase",
+      "term": "Secret Phrase",
+      "category": "secret type",
+      "aliases": ["secret_phrase"],
+      "definition": "An ordered list of words kept as one secret, such as a wallet seed or a recovery phrase, with an optional word list name, extra passphrase and derivation path. Words are masked by default, and a BIP39 phrase is checked for typos when you save it and in a scan."
+    },
+    {
       "id": "secure-note",
       "term": "Secure Note",
       "category": "secret type",
