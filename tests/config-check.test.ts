@@ -249,8 +249,13 @@ describe('config check: names and wording', () => {
     const host = document.createElement('section');
     document.body.appendChild(host);
     await mountConfigCheck(project, host);
+    vi.useFakeTimers();
     host.querySelector<HTMLElement>('[data-check-chunk]')!.click();
     expect(document.getElementById('bare')!.classList.contains('flash')).toBe(true);
+    // The flash fades by itself.
+    vi.advanceTimersByTime(1200);
+    expect(document.getElementById('bare')!.classList.contains('flash')).toBe(false);
+    vi.useRealTimers();
   });
 
   it('a check the desktop fails to run is silent', async () => {
