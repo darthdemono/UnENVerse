@@ -63,10 +63,11 @@ pub fn emit(
 
 fn codes_entry(vault: &Value, query: &str) -> CliResult<usize> {
     let idx = find_entry_index(vault, query)?;
-    let ty = data::secret_type_of(&data::entries(vault)[idx]).to_string();
-    if ty != "recovery_codes" {
+    let e = &data::entries(vault)[idx];
+    // Any entry can carry codes (a password card holds its own); the type does not matter.
+    if data::secret_type_of(e) != "recovery_codes" && te::var(e, "codes").is_empty() {
         return Err(CliError::invalid(format!(
-            "'{query}' is a {ty} entry, not recovery_codes"
+            "'{query}' has no recovery codes (add a `codes` value or use a recovery_codes entry)"
         )));
     }
     Ok(idx)
@@ -110,13 +111,9 @@ pub fn codes_next(access: &Access, query: &str) -> CliResult {
 pub fn codes_use(access: &Access, query: &str, code: Option<&str>) -> CliResult {
     let mut vault = access.load_vault()?;
     let idx = codes_entry(&vault, query)?;
+    // The full timestamp: "used when" is worth more than "used which day".
     let date = vault_core::iso_now();
-    let new = te::mark_used(
-        &data::entries(&vault)[idx],
-        code,
-        &date[..10.min(date.len())],
-    )
-    .map_err(CliError::invalid)?;
+    let new = te::mark_used(&data::entries(&vault)[idx], code, &date).map_err(CliError::invalid)?;
     let entry = &mut entries_mut(&mut vault)[idx];
     let vars = entry
         .get_mut("extra_vars")

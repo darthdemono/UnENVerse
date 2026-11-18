@@ -124,7 +124,14 @@ pub fn login_sequence(entries: &[Value], bundle: &Value) -> Vec<Step> {
             field: "api_key",
         });
     }
-    if let Some(rc) = by("recovery_codes").filter(|m| code_status(m).remaining > 0) {
+    // A dedicated recovery_codes member first, else any member that carries codes (the password's own).
+    let has_codes = |m: &&Value| code_status(m).remaining > 0;
+    let rc = members
+        .iter()
+        .copied()
+        .find(|m| kind(m) == "recovery_codes" && has_codes(m))
+        .or_else(|| members.iter().copied().find(|m| has_codes(m)));
+    if let Some(rc) = rc {
         out.push(Step {
             step: "recovery_code",
             label: "Recovery code",
@@ -204,6 +211,27 @@ mod tests {
             member("o", "api_key", json!({ "totp_secret": "AAAA" })),
         ];
         assert_eq!(login_sequence(&e, &json!({ "id": "b1" }))[1].entry_id, "o");
+    }
+
+    #[test]
+    fn a_password_that_carries_its_own_codes_gives_the_recovery_step() {
+        let e = vec![member(
+            "p",
+            "password",
+            json!({ "api_key": "pw", "extra_vars": [{ "key": "codes", "value": "aaaa-1111" }] }),
+        )];
+        let steps = login_sequence(&e, &json!({ "id": "b1" }));
+        let names: Vec<_> = steps.iter().map(|s| s.step).collect();
+        assert_eq!(names, ["password", "recovery_code"]);
+        assert_eq!(steps[1].entry_id, "p");
+        // A dedicated recovery_codes member wins over the password's own.
+        let mut e = e;
+        e.push(member(
+            "rc",
+            "recovery_codes",
+            json!({ "extra_vars": [{ "key": "codes", "value": "bbbb-2222" }] }),
+        ));
+        assert_eq!(login_sequence(&e, &json!({ "id": "b1" }))[1].entry_id, "rc");
     }
 
     #[test]

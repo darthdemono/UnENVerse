@@ -113,6 +113,39 @@ fn when_every_code_is_used_next_is_not_found_and_other_entry_types_are_refused()
     );
 }
 
+#[test]
+fn a_password_card_can_hold_its_own_codes_and_spend_them() {
+    let v = Vault::new("codesonpassword");
+    v.ok(&[
+        "entry",
+        "add",
+        "Bank",
+        "--type",
+        "password",
+        "--key",
+        "plain-secret-value-123",
+        "--var",
+        "codes=alpha-1111\nbeta-2222",
+    ]);
+    let s = v.run(&["codes", "status", "Bank"]);
+    assert_eq!(s.code, 0, "{}", s.all());
+    assert_eq!(s.json()["data"]["remaining"], 2, "{}", s.all());
+    v.ok(&["codes", "use", "Bank"]);
+    let s = v.run(&["codes", "status", "Bank"]);
+    assert_eq!(
+        (
+            s.json()["data"]["total"].as_u64(),
+            s.json()["data"]["remaining"].as_u64()
+        ),
+        (Some(2), Some(1)),
+        "{}",
+        s.all()
+    );
+    // One left is low: the scan names the card, which is not a recovery_codes entry.
+    let scan = v.run(&["scan"]);
+    assert!(scan.all().contains("recovery codes left"), "{}", scan.all());
+}
+
 // ---- file write
 
 #[test]
