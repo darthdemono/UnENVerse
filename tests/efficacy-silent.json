@@ -1,4 +1,5 @@
 {
+  "f-codes-paste-add": "Pasting nothing adds nothing; the box is empty until text is pasted (covered by tests/codes-editor.test.ts).",
   "st-convert": "Empty input converts to empty output; the output box is already empty.",
   "b64-convert": "Empty input converts to empty output; the output box is already empty.",
   "import-file-btn": "Opens the native file picker (a detached input the DOM never shows); jsdom has none.",

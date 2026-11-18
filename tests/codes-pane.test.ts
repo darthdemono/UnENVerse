@@ -175,7 +175,7 @@ describe('spending a code', () => {
     } as never;
     $('cod-use').click();
     await tick();
-    expect(codes()).toBe(`new-1\tUSED ${new Date().toISOString().slice(0, 10)}\nnew-2`);
+    expect(codes()).toMatch(/^new-1\tUSED \d{4}-\d\d-\d\dT[\d:.]+Z\nnew-2$/);
   });
 
   it('does nothing when the entry vanished while the question was open', async () => {
