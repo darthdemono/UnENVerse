@@ -12,7 +12,7 @@ For a login that asks a memorable phrase or a security answer beside the passwor
 
 ## Recovery codes
 
-The type **Recovery Codes** keeps one code per line in its `codes` variable. A used code keeps its text and gains `USED <date>`, so you can still tell which you burned. Reading a code never spends it: only you know the service accepted it.
+Recovery codes live in the `codes` variable of any entry: a password card can hold its password, 2FA seed, recovery phrase (the `phrase` variable) and recovery codes together, and the type **Recovery Codes** is for a set with no password of its own. The add and edit form shows them as a list, one row per code with a "used" tick and the time it was used. Stored as one code per line, a used code keeps its text and gains `USED <time>` (a full ISO timestamp from this release, a bare date in older entries), so you can still tell which you burned and when. Reading a code never spends it: only you know the service accepted it.
 
 In the desktop, **Tools, Recovery codes** lists each account's codes, masked until you tick **Show the codes**, with how many are left (a warning at two or fewer). **Mark next used** asks first. **Restore** puts back a code a page rejected. **Add the codes** takes the text the service showed you, in any of the common layouts (one per line, numbered, dash or space groups, several on a line) and skips prose and codes already held. **Print sheet** prints the unused codes as a plain page and empties it again; nothing leaves the machine.
 
