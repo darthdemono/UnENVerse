@@ -226,7 +226,7 @@ pub fn analyse(vault: &Value) -> Vec<Issue> {
         }
         // A recovery-code set is single-use: at two left, the next lockout is
         // permanent. Actionable — generate a fresh set at the service.
-        if crate::data::secret_type_of(k) == "recovery_codes" {
+        {
             let st = vault_core::type_emit::code_status(k);
             if st.total > 0 && st.remaining <= 2 {
                 issues.push(Issue {
