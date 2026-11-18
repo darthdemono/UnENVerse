@@ -307,6 +307,35 @@ describe('small guards', () => {
     expect(() => paintCodes()).not.toThrow();
   });
 
+  it('lists a password card that carries its own codes, and not one that does not', () => {
+    st.vault.api_keys.push({
+      id: 'p2',
+      provider: 'Bank',
+      secretType: 'password',
+      extra_vars: [{ key: 'codes', value: 'zzzz-9999' }],
+    } as never);
+    paintCodes();
+    expect([...$<HTMLSelectElement>('cod-entry').options].map((o) => o.text)).toEqual([
+      'GitHub codes',
+      'Bank',
+    ]);
+  });
+
+  it('paints without the status line or the Show tick, and a Restore button with no code asks for none', async () => {
+    $('cod-status').remove();
+    $('cod-reveal').remove();
+    expect(() => paintCodes()).not.toThrow();
+    const btn = document.createElement('button');
+    btn.dataset.action = 'cod-restore';
+    $('cod-list').appendChild(btn);
+    answer = () => {
+      throw new Error('that code is not in this entry');
+    };
+    btn.click();
+    await tick();
+    expect(calls[calls.length - 1]).toMatchObject({ cmd: 'codes_unmark', args: { code: '' } });
+  });
+
   it('shows the account name chosen at the start, and an empty provider as blank', () => {
     st.vault.api_keys = [
       {
