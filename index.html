@@ -1175,6 +1175,21 @@
           </div>
         </div>
         </section>
+        <section class="form-section" aria-labelledby="fs-recovery">
+          <h3 class="form-section-title" id="fs-recovery">Recovery phrase and codes</h3>
+          <div class="form-group">
+            <label for="f-phrase" class="form-label" title="The words this account gave you for getting back in. Kept with the password so one card holds every key.">Recovery phrase <span class="opt">optional, the words this account gave you</span></label>
+            <input class="form-input mono" id="f-phrase" type="password" autocomplete="off" spellcheck="false">
+            <label class="extra-var-secret-label"><input type="checkbox" id="f-phrase-show"> show the phrase</label>
+          </div>
+          <div class="form-group" id="f-codes-group">
+            <div class="form-label" id="f-codes-label">Recovery codes <span class="opt">optional, one row per code; tick a code when the service has accepted it</span></div>
+            <div id="f-codes-list" class="codes-list" role="group" aria-labelledby="f-codes-label"></div>
+            <button type="button" id="f-codes-add" class="btn btn-ghost btn-sm">+ Add code</button>
+            <textarea id="f-codes-paste" class="form-input mono" rows="2" spellcheck="false" aria-label="Paste recovery codes" placeholder="Paste the whole list the service showed you"></textarea>
+            <button type="button" id="f-codes-paste-add" class="btn btn-ghost btn-sm">Add pasted codes</button>
+          </div>
+        </section>
         <section class="form-section" aria-labelledby="fs-about">
           <h3 class="form-section-title" id="fs-about">About this secret</h3>
         <div class="form-row-2">

@@ -1655,7 +1655,7 @@ function buildCard(entry: VaultEntry, idx: number, animIdx: number): HTMLElement
               : ''
           }
           ${
-            entry.secretType === 'recovery_codes'
+            entry.secretType === 'recovery_codes' || codeStatus(entry).total > 0
               ? (() => {
                   const { total, remaining } = codeStatus(entry);
                   return html`<div class="key-row">

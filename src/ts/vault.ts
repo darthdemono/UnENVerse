@@ -1557,7 +1557,7 @@ async function init() {
       case 'codes-use': {
         const entry = st.vault.api_keys[parseInt(el.dataset.idx ?? '-1', 10)] as
           VaultEntry | undefined;
-        if (entry?.secretType !== 'recovery_codes') break;
+        if (!entry || codeStatus(entry).total === 0) break;
         // Marking is explicit: showing a code never spends it. This is the
         // "the service accepted it" button.
         void (async () => {
@@ -1566,10 +1566,7 @@ async function init() {
           if (!(await showConfirm(`Mark the next recovery code as used for "${entry.provider}"?`)))
             return;
           // The dialog was an await: mark the entry that is in the vault now.
-          const spent = spendRecoveryCodeLive(
-            entry.id as string,
-            new Date().toISOString().slice(0, 10),
-          );
+          const spent = spendRecoveryCodeLive(entry.id as string, new Date().toISOString());
           if ('error' in spent) {
             showToast(spent.error, 'err');
             return;

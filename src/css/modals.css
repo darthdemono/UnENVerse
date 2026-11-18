@@ -384,6 +384,17 @@ select.form-input {
   gap: 5px;
 }
 
+.code-row {
+  display: grid;
+  grid-template-columns: 1.6em 1fr auto auto auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.code-row .code-when[hidden] {
+  display: none;
+}
+
 .extra-var-row {
   display: grid;
   grid-template-columns: 1fr 2fr auto auto;
