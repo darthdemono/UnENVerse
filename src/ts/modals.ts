@@ -32,6 +32,7 @@ import { renameProviderRefs } from './chunk-ops';
 import { normalizeRateLimit } from './ratelimit';
 import { invokeTauri, isTauri } from './tauri';
 import { recipeView } from './recipes-pane';
+import { fillCodes, initCodesEditor, readCodes } from './codes-editor';
 import { emittersFor } from './secret-types';
 import shippedFamilies from '../../vault-core/data/site-families.json';
 import { showWifiQr } from './wifi-qr';
@@ -677,7 +678,24 @@ export function formToEntry(base?: VaultEntry): VaultEntry {
         // A named row with no value stores a blank secret, and made the primary value
         // "optional" on the strength of a variable that holds nothing. A row the entry
         // already had is kept as it was; a new, empty one is not saved.
-        .filter((v) => v.key && (v.value || baseVars.has(v.key)));
+        .filter((v) => v.key && (v.value || baseVars.has(v.key)))
+        // `codes` and `phrase` have their own inputs; a stray row of that name must not shadow them.
+        .filter((v) => v.key !== 'codes' && v.key !== 'phrase');
+      for (const [key, value] of [
+        ['codes', readCodes()],
+        [
+          'phrase',
+          (document.getElementById('f-phrase') as HTMLInputElement | null)?.value.trim() ?? '',
+        ],
+      ]) {
+        if (value)
+          result.push({
+            ...baseVars.get(key),
+            key,
+            value,
+            secret: true,
+          } as (typeof result)[number]);
+      }
       return result.length ? result : undefined;
     })(),
     env_prefixes: (() => {
@@ -1121,12 +1139,19 @@ export function fillForm(source: Partial<VaultEntry>) {
   if (extraList) {
     setHtml(extraList, '');
     for (const xv of entry.extra_vars || []) {
+      if (xv.key === 'codes' || xv.key === 'phrase') continue; // shown by their own inputs below
       const row = _makeExtraVarRow(xv.key, xv.value, xv.secret, xv.public);
       row.dataset.originalKey = xv.key;
       if (xv.attrs) row.dataset.cookieAttrs = JSON.stringify(xv.attrs);
       extraList.appendChild(row);
     }
   }
+  const varOf = (k: string) => entry.extra_vars?.find((v) => v.key === k)?.value ?? '';
+  fillCodes(varOf('codes'));
+  const phraseInput = document.getElementById('f-phrase') as HTMLInputElement | null;
+  if (phraseInput) phraseInput.value = varOf('phrase');
+  const more = document.getElementById('f-more') as HTMLDetailsElement | null;
+  if (more && (varOf('codes') || varOf('phrase'))) more.open = true;
   const pfxInput = document.getElementById('f-env-prefixes') as HTMLInputElement;
   pfxInput.value = (entry.env_prefixes || []).join(', ');
   dynamicSecretFields();
@@ -1711,6 +1736,7 @@ let _extraVarsAddBound = false;
 function wireExtraVarsAdd(): void {
   if (_extraVarsAddBound) return;
   _extraVarsAddBound = true;
+  initCodesEditor((err) => showToast(errorMessage(err), 'err'));
   document.getElementById('f-extra-vars-add')?.addEventListener('click', () => {
     // The dropdown beside the button names the role; "custom" leaves the key empty.
     const role = (document.getElementById('f-extra-vars-role') as HTMLSelectElement).value;
@@ -2255,10 +2281,6 @@ const SUGGESTED_VARS: Partial<Record<SecretType, [string, boolean][]>> = {
     ['database', false],
     ['user', false],
     ['sslmode', false],
-  ],
-  recovery_codes: [
-    ['codes', true],
-    ['used_at', false],
   ],
   gpg_key: [
     ['fingerprint', false],

@@ -1302,9 +1302,7 @@ export function spendRecoveryCodeLive(
   entryId: string,
   date: string,
 ): { entry: VaultEntry } | { error: string } {
-  const entry = st.vault.api_keys.find(
-    (e) => e.id === entryId && e.secretType === 'recovery_codes',
-  );
+  const entry = st.vault.api_keys.find((e) => e.id === entryId);
   if (!entry) return { error: 'That entry changed or was deleted while you were deciding.' };
   const codes = entry.extra_vars?.find((v) => v.key === 'codes');
   if (!codes) return { error: 'That entry has no recovery codes.' };

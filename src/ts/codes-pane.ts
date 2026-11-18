@@ -21,7 +21,7 @@ const el = <T extends HTMLElement = HTMLElement>(id: string) =>
 let selectedId = '';
 
 const accounts = (): VaultEntry[] =>
-  st.vault.api_keys.filter((e) => e.secretType === 'recovery_codes');
+  st.vault.api_keys.filter((e) => e.secretType === 'recovery_codes' || codeStatus(e).total > 0);
 /** Looked up again by id each time: a dialog or a save may have replaced the document. */
 const current = (): VaultEntry | undefined => accounts().find((e) => e.id === selectedId);
 
@@ -85,7 +85,7 @@ async function useNext(): Promise<void> {
   const live = current();
   if (!live) return;
   try {
-    store(live, markUsed(live, null, new Date().toISOString().slice(0, 10)));
+    store(live, markUsed(live, null, new Date().toISOString()));
   } catch (err) {
     showToast(errorMessage(err), 'err');
     return;
