@@ -3126,7 +3126,8 @@ pub fn run() {
             // long as the app does.
             if let Some(dir) = watch_dir {
                 let handle = app.handle().clone();
-                std::mem::forget(single_instance::watch(
+                // Managed state keeps the watcher alive until the app exits.
+                app.manage(single_instance::watch(
                     dir,
                     std::time::Duration::from_millis(400),
                     move || {
