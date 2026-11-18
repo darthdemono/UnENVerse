@@ -457,7 +457,9 @@ describe('recovery codes', { timeout: 30000 }, () => {
     btn().click();
     await flush(80);
     expect(toasts.some(([m]) => m === '2 recovery codes left')).toBe(true);
-    expect(member('rc').extra_vars![0].value).toMatch(/^aaaa-1111\tUSED \d{4}-\d\d-\d\d\n/);
+    expect(member('rc').extra_vars![0].value).toMatch(
+      /^aaaa-1111\tUSED \d{4}-\d\d-\d\dT[\d:.]+Z\n/,
+    );
   });
 });
 
