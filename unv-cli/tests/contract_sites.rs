@@ -210,3 +210,57 @@ fn adding_another_spelling_of_an_address_says_so() {
     assert_eq!(again["data"]["added"], false);
     assert!(again["data"]["same_as"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn exec_with_urls_gives_a_command_the_exact_address_and_port() {
+    let v = Vault::new("sites-with-urls");
+    v.ok(&["entry", "add", "Sonarr", "--key", "sonarr-key-value-12345"]);
+    v.ok(&["entry", "set", "Sonarr", "--site", "http://localhost:8989"]);
+    v.ok(&["entry", "add", "Bare", "--key", "bare-key-value-12345"]);
+    let show = "printenv SONARR_URL SONARR_HOST SONARR_PORT";
+    let o = v.run(&[
+        "exec",
+        "--entry",
+        "Sonarr=SONARR_KEY",
+        "--with-urls",
+        "--",
+        "sh",
+        "-c",
+        show,
+    ]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert_eq!(
+        o.stdout.trim(),
+        "http://localhost:8989\nlocalhost\n8989",
+        "{}",
+        o.all()
+    );
+    // Without the flag nothing but the key is set.
+    let none = v.run(&[
+        "exec",
+        "--entry",
+        "Sonarr=SONARR_KEY",
+        "--",
+        "sh",
+        "-c",
+        show,
+    ]);
+    assert_ne!(none.code, 0, "{}", none.all());
+    // An entry with no address adds no variables, and the key still arrives.
+    let bare = v.run(&[
+        "exec",
+        "--entry",
+        "Bare=BARE_KEY",
+        "--with-urls",
+        "--",
+        "sh",
+        "-c",
+        "printenv BARE_KEY; printenv BARE_URL",
+    ]);
+    assert!(
+        bare.stdout.contains("bare-key-value-12345"),
+        "{}",
+        bare.all()
+    );
+    assert!(!bare.stdout.contains("http"), "{}", bare.all());
+}
