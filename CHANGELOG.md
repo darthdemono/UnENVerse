@@ -2,10 +2,11 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
-## Unreleased
+## 0.81.0 (2026-11-19)
 
 ### Added
 
+- **`unv exec --with-urls`** sets `NAME_URL`, `NAME_HOST` and `NAME_PORT` beside the value of each `--entry`, from the entry's first address, so a command (or an agent) is given the exact address and port of your Sonarr or Prowlarr instead of guessing them. `NAME` comes from the entry's provider name; an entry with no address adds nothing.
 - **One card holds every key.** The add and edit form has a Recovery phrase and codes section for any entry, so a password card can carry its password, 2FA seed, recovery phrase and recovery codes together. Recovery codes are a list: one row per code with a "used" tick and the time it was used (a full timestamp, editable). Paste a list to add many; a code already there is skipped. `unv codes status|next|use|unuse|import`, the scan warning at two codes left, the Recovery codes tool, the card's "Mark next used" and the login plan all work on any entry that carries codes, not only the Recovery Codes type. Existing entries keep their codes unchanged; a date-only used mark stays as written until you change it.
 - **Site families tool.** Tools has a Site families pane: your families and the shipped ones side by side, add a family (hosts are normalised by the same Rust parser `unv site family add` uses), add hosts to one, remove a host or a whole family. A family of yours with the same name as a shipped one replaces it.
 - **Another spelling of an address.** Adding `127.0.0.1:8989` to an entry that has `localhost:8989` still stores it, but `unv site add` says "that is the same address as localhost:8989, spelled differently" (and returns `same_as`), and the add and edit form shows the same note when you save.
