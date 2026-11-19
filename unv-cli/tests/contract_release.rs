@@ -200,18 +200,24 @@ fn the_directory_default_applies_to_entries_without_a_rule_and_survives_unv_use(
 
 /// The pin end to end: a symlink pinned by content is released to while it points at the program
 /// that was hashed, and refused (11) once it is retargeted, with the value nowhere in the output.
+/// The programs are small scripts, so the test does not depend on how the system's own tools are
+/// packaged (some are one multi-call binary that refuses to run under another name).
 #[cfg(unix)]
 #[test]
 fn a_pinned_program_is_refused_when_its_symlink_is_retargeted() {
-    use std::os::unix::fs::symlink;
+    use std::os::unix::fs::{symlink, PermissionsExt};
     let v = Vault::new("release-pin-swap");
     v.ok(&["entry", "add", "Deploy", "--key", SECRET]);
     let dir = v.db().with_file_name("pin-dir");
     std::fs::create_dir_all(&dir).unwrap();
-    let real = dir.join("real-tool");
-    let other = dir.join("other-tool");
-    std::fs::copy(which("printenv"), &real).unwrap();
-    std::fs::copy(which("env"), &other).unwrap();
+    let script = |name: &str, body: &str| {
+        let p = dir.join(name);
+        std::fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        p
+    };
+    let real = script("real-tool", "printenv TOK");
+    let other = script("other-tool", "printenv TOK; echo swapped");
     let link = dir.join("tool");
     symlink(&real, &link).unwrap();
     let hash = std::process::Command::new("sha256sum")
@@ -220,25 +226,21 @@ fn a_pinned_program_is_refused_when_its_symlink_is_retargeted() {
         .unwrap();
     let hash = String::from_utf8(hash.stdout).unwrap();
     let hash = hash.split_whitespace().next().unwrap();
-    let rule = format!("{}@sha256:{hash} TOK", link.display());
-    v.ok(&["entry", "set", "Deploy", "--release", &rule]);
+    v.ok(&[
+        "entry",
+        "set",
+        "Deploy",
+        "--release",
+        &format!("{}@sha256:{hash}", link.display()),
+    ]);
     let tool = link.display().to_string();
-    let ok = v.run(&["exec", "--entry", "Deploy=TOK", "--", &tool, "TOK"]);
+    let ok = v.run(&["exec", "--entry", "Deploy=TOK", "--", &tool]);
     assert_eq!(ok.code, 0, "{}", ok.all());
     assert!(ok.stdout.contains(SECRET), "{}", ok.stdout);
-    // Retarget the link: same name, different program.
+    // Retarget the link: same name, a different program that would also print the value.
     std::fs::remove_file(&link).unwrap();
     symlink(&other, &link).unwrap();
-    let no = v.run(&["exec", "--entry", "Deploy=TOK", "--", &tool, "TOK"]);
+    let no = v.run(&["exec", "--entry", "Deploy=TOK", "--", &tool]);
     assert_eq!(no.code, 11, "{}", no.all());
     assert!(!no.all().contains(SECRET), "{}", no.all());
-}
-
-/// A program on `PATH`, found the way a shell would.
-#[cfg(unix)]
-fn which(name: &str) -> std::path::PathBuf {
-    std::env::split_paths(&std::env::var_os("PATH").unwrap())
-        .map(|d| d.join(name))
-        .find(|p| p.is_file())
-        .unwrap()
 }
