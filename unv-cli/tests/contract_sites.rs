@@ -217,7 +217,7 @@ fn exec_with_urls_gives_a_command_the_exact_address_and_port() {
     v.ok(&["entry", "add", "Sonarr", "--key", "sonarr-key-value-12345"]);
     v.ok(&["entry", "set", "Sonarr", "--site", "http://localhost:8989"]);
     v.ok(&["entry", "add", "Bare", "--key", "bare-key-value-12345"]);
-    let show = "printenv SONARR_URL SONARR_HOST SONARR_PORT";
+    let show = "echo \"$SONARR_URL $SONARR_HOST $SONARR_PORT\"";
     let o = v.run(&[
         "exec",
         "--entry",
@@ -231,7 +231,7 @@ fn exec_with_urls_gives_a_command_the_exact_address_and_port() {
     assert_eq!(o.code, 0, "{}", o.all());
     assert_eq!(
         o.stdout.trim(),
-        "http://localhost:8989\nlocalhost\n8989",
+        "http://localhost:8989 localhost 8989",
         "{}",
         o.all()
     );
@@ -241,9 +241,8 @@ fn exec_with_urls_gives_a_command_the_exact_address_and_port() {
         "--entry",
         "Sonarr=SONARR_KEY",
         "--",
-        "sh",
-        "-c",
-        show,
+        "printenv",
+        "SONARR_URL",
     ]);
     assert_ne!(none.code, 0, "{}", none.all());
     // An entry with no address adds no variables, and the key still arrives.

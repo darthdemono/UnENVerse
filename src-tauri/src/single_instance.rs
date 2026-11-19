@@ -84,7 +84,9 @@ pub fn watch(dir: PathBuf, every: Duration, on_ring: impl Fn() + Send + 'static)
         while !flag.load(Ordering::Relaxed) {
             std::thread::sleep(every);
             let now = read();
-            if now != seen {
+            // `fs::write` truncates before it writes, so a read can land on an empty file: that is
+            // a ring half written, not a second ring.
+            if !now.is_empty() && now != seen {
                 seen = now;
                 on_ring();
             }
