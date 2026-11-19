@@ -82,7 +82,7 @@ unv entry tag <provider> --add= --remove=
 unv entry timeline <provider>
 unv entry verify <provider> --off
 unv env <project> --migrate= --out= --refs
-unv exec <argv> --clean --entry= --pool= --prefix= --project= --sandbox --sandbox-net
+unv exec <argv> --clean --entry= --pool= --prefix= --project= --sandbox --sandbox-net --with-urls
 unv export --format= --metadata= --name= --out= --profile= --project=
 unv file write <provider> --out=
 unv gen cert <common_name> --days= --save-as=
