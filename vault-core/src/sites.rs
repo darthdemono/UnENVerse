@@ -970,4 +970,44 @@ mod tests {
             assert!(alternate_spellings(&none).is_empty(), "{none:?}");
         }
     }
+
+    /// Loopback spellings answer each other in both directions on the same port, and no pair of
+    /// different canonical hosts ever matches, in any mode.
+    #[test]
+    fn matching_is_symmetric_across_loopback_spellings_and_never_crosses_hosts() {
+        let loop_hosts = [
+            "localhost",
+            "LOCALHOST",
+            "foo.localhost",
+            "127.0.0.1",
+            "127.9.9.9",
+            "[::1]",
+        ];
+        let other_hosts = ["example.test", "192.0.2.7", "sonarr.home"];
+        let modes = [Mode::Exact, Mode::AnyPort, Mode::Host];
+        for scheme in ["http", "https"] {
+            for a in loop_hosts {
+                for b in loop_hosts {
+                    let sa = parse_site(&format!("{scheme}://{a}:8989")).unwrap();
+                    let sb = parse_site(&format!("{scheme}://{b}:8989")).unwrap();
+                    for m in modes {
+                        assert!(site_matches(&sa, m, &sb), "{a} vs {b} {m:?}");
+                        assert_eq!(site_matches(&sa, m, &sb), site_matches(&sb, m, &sa));
+                    }
+                    // The port stays significant unless the mode says otherwise.
+                    let moved = parse_site(&format!("{scheme}://{b}:7878")).unwrap();
+                    assert!(!site_matches(&sa, Mode::Exact, &moved), "{a} vs {b}:7878");
+                    assert!(site_matches(&sa, Mode::AnyPort, &moved));
+                }
+                for o in other_hosts {
+                    let sa = parse_site(&format!("{scheme}://{a}:8989")).unwrap();
+                    let so = parse_site(&format!("{scheme}://{o}:8989")).unwrap();
+                    for m in modes {
+                        assert!(!site_matches(&sa, m, &so), "{a} vs {o} {m:?}");
+                        assert!(!site_matches(&so, m, &sa), "{o} vs {a} {m:?}");
+                    }
+                }
+            }
+        }
+    }
 }
