@@ -845,6 +845,9 @@ enum Commands {
         /// With --sandbox, leave the network on.
         #[arg(long, requires = "sandbox")]
         sandbox_net: bool,
+        /// Also set NAME_URL, NAME_HOST and NAME_PORT from each --entry's first address.
+        #[arg(long)]
+        with_urls: bool,
         /// The command to run, after `--`.
         #[arg(last = true, required = true)]
         argv: Vec<String>,
@@ -4335,6 +4338,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             clean,
             sandbox,
             sandbox_net,
+            with_urls,
             argv,
         } => {
             let project = scoped_project(a, project.as_deref())?;
@@ -4347,6 +4351,7 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
                 argv,
                 sandbox: *sandbox,
                 sandbox_net: *sandbox_net,
+                with_urls: *with_urls,
             };
             let code = exec::run(a, &opts, argv)?;
             if code != 0 {

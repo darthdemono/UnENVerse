@@ -43,6 +43,27 @@ pub struct ExecOpts<'a> {
     pub sandbox: bool,
     /// With `sandbox`, leave the network on. Off by default.
     pub sandbox_net: bool,
+    /// Beside each `--entry` value, also set `NAME_URL`, `NAME_HOST` and `NAME_PORT` from the
+    /// entry's first address (R40), so a command is given the exact address and never guesses it.
+    pub with_urls: bool,
+}
+
+/// `NAME_URL`, `NAME_HOST` and `NAME_PORT` for the entry's first address, where `NAME` comes from
+/// the provider. Addresses are public metadata, never a secret; an entry with no address, or a
+/// port its address does not spell out, simply gets fewer variables.
+pub fn site_vars(entry: &Value) -> Vec<(String, String)> {
+    let Some(first) = vault_core::sites::entry_sites(entry).into_iter().next() else {
+        return Vec::new();
+    };
+    let name = crate::envfile::env_name_from_text(data::provider_of(entry));
+    let mut out = vec![
+        (format!("{name}_URL"), first.site.display()),
+        (format!("{name}_HOST"), first.site.host.clone()),
+    ];
+    if let Some(port) = first.site.port {
+        out.push((format!("{name}_PORT"), port.to_string()));
+    }
+    out
 }
 
 /// The release rule `.unv.json` sets for the working directory, if any. A file that cannot be read
@@ -191,6 +212,11 @@ pub fn build_env_and_files(access: &Access, opts: &ExecOpts<'_>) -> CliResult<En
         let idx = data::find_entry_index(&vault, query)?;
         let entry = &data::entries(&vault)[idx];
         check_release(access, entry, opts.argv)?;
+        if opts.with_urls {
+            for (k, v) in site_vars(entry) {
+                env.entry(k).or_insert(v);
+            }
+        }
         // `--entry Provider=VAR:field` selects a field other than the secret.
         // With no `=VAR`, the name comes from the **template** (Phase 23), so a
         // variable injected here is spelled exactly as an export of the same
