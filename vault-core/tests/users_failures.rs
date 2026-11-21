@@ -17,10 +17,21 @@ fn bare() -> Conn {
     Conn::open_in_memory().unwrap()
 }
 
-/// A password made at run time, so no literal credential sits in the source.
+/// A password made at run time from the clock and the process, so no credential is written in
+/// the source and no two calls return the same one.
 fn pw(tag: &str) -> String {
-    format!("{tag}-{}-pw", std::process::id())
+    use sha2::{Digest, Sha256};
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    hex::encode(Sha256::digest(format!(
+        "{tag}{now}{n}{}",
+        std::process::id()
+    )))
 }
+
+static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn ready() -> Conn {
     let c = bare();
