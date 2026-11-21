@@ -237,9 +237,9 @@ fn the_flat_secret_files_show_only_fingerprints_on_stdout() {
     for (id, exporter) in [("ha", "homeassistant"), ("cs", "compose-secret")] {
         let out = exporters::export_stack(exporter, &project(&v, id), &resolver(&v, true));
         for secret in ["ha-db-pass-1", "tok_ha_abc", "123456", "compose-pg-value-9"] {
-            assert!(!out.contains(secret), "{exporter} leaked {secret}:\n{out}");
+            assert!(!out.contains(secret), "{exporter} printed a secret value");
         }
-        assert!(out.contains("sha256:"), "{exporter}:\n{out}");
+        assert!(out.contains("sha256:"), "{exporter} showed no fingerprint");
     }
 }
 
