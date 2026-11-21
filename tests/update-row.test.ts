@@ -26,6 +26,26 @@ describe('desktop update settings row', () => {
     expect(el('s-update-install').hidden).toBe(true);
   });
 
+  it('does nothing when the row is missing from the page', async () => {
+    document.getElementById('s-update-hint')?.remove();
+    await open(async () => null);
+    expect(el('s-update-check').onclick).toBeNull();
+  });
+
+  it('sends an empty version, which the desktop refuses, when none was shown', async () => {
+    const invoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'update_install') throw new Error('No update is available.');
+      return null;
+    });
+    await open(invoke);
+    el('s-update-install').hidden = false;
+    el('s-update-install').click();
+    await tick();
+    await tick();
+    expect(invoke).toHaveBeenCalledWith('update_install', { version: '' });
+    expect(hint()).toContain('Not installed');
+  });
+
   it('asks nothing when the pane opens', async () => {
     const asked: string[] = [];
     await open(async (cmd) => {
