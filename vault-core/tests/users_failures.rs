@@ -81,7 +81,7 @@ fn every_account_operation_reports_a_database_it_cannot_use() {
     );
     err(
         "verify_user_password",
-        verify_user_password(&c, "a", "x").map(|_| ()),
+        verify_user_password(&c, "a", &pw("probe")).map(|_| ()),
     );
     err(
         "verify_user_token",
