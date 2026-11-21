@@ -26,8 +26,18 @@
       "csp": "default-src 'self' blob: ipc: http://ipc.localhost tauri:; connect-src 'self' ipc: http://ipc.localhost tauri:; img-src 'self' data: blob: tauri:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEwRkNCMERFRDQxMUExNkEKUldScW9SSFUzckQ4RUJyZlhtL01vY2NLWTg4L0VVZXA4T1lqb0tieExZRjV2U0ZGbUtKc2RnZ04K",
+      "endpoints": [
+        "https://github.com/darthdemono/UnENVerse/releases/latest/download/latest.json"
+      ],
+      "windows": { "installMode": "passive" }
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["appimage", "deb", "rpm", "nsis"],
     "icon": [
       "icons/32x32.png",

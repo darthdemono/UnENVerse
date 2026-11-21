@@ -707,6 +707,73 @@ mod commands {
         serde_json::to_string_pretty(&b).map_err(|e| e.to_string())
     }
 
+    /// R26: what an update check found. No update is `Ok(None)`, never an empty record.
+    #[derive(serde::Serialize)]
+    pub struct UpdateInfo {
+        pub version: String,
+        pub current: String,
+        pub notes: String,
+        pub date: Option<String>,
+    }
+
+    /// R26: ask the signed feed whether a newer desktop build exists. Runs only when the person
+    /// presses Check for updates; nothing is downloaded or installed here.
+    #[tauri::command]
+    pub async fn update_check<R: tauri::Runtime>(
+        app: AppHandle<R>,
+    ) -> Result<Option<UpdateInfo>, String> {
+        use tauri_plugin_updater::UpdaterExt;
+        if let Some(why) = super::update_blocked(
+            cfg!(target_os = "linux"),
+            std::env::var("APPIMAGE").ok().as_deref(),
+        ) {
+            return Err(why.into());
+        }
+        let found = app
+            .updater()
+            .map_err(|e| e.to_string())?
+            .check()
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(found.map(|u| UpdateInfo {
+            version: u.version.clone(),
+            current: u.current_version.clone(),
+            notes: u.body.clone().unwrap_or_default(),
+            date: u.date.map(|d| d.to_string()),
+        }))
+    }
+
+    /// R26: download and install the version the person was shown. The updater checks the
+    /// signature against the key embedded in the app before it installs anything; the app is
+    /// never restarted here.
+    #[tauri::command]
+    pub async fn update_install<R: tauri::Runtime>(
+        app: AppHandle<R>,
+        version: String,
+    ) -> Result<(), String> {
+        use tauri_plugin_updater::UpdaterExt;
+        if let Some(why) = super::update_blocked(
+            cfg!(target_os = "linux"),
+            std::env::var("APPIMAGE").ok().as_deref(),
+        ) {
+            return Err(why.into());
+        }
+        let found = app
+            .updater()
+            .map_err(|e| e.to_string())?
+            .check()
+            .await
+            .map_err(|e| e.to_string())?;
+        match found {
+            Some(u) if u.version == version => u
+                .download_and_install(|_, _| {}, || {})
+                .await
+                .map_err(|e| e.to_string()),
+            Some(_) => Err("A different version is offered now. Check again.".into()),
+            None => Err("No update is available.".into()),
+        }
+    }
+
     /// R19: which instance of the vault this is (the same record `unv vault status` prints).
     #[tauri::command]
     pub fn vault_identity<R: tauri::Runtime>(
@@ -2910,6 +2977,29 @@ fn configure_linux_webkit() {
 /// The state and every IPC command, on any runtime. `run()` adds the window,
 /// plugins and tray around it; the tests drive the same registration through
 /// Tauri's mock runtime, so what they call is what the app ships.
+/// R26: why this install cannot update itself, if it cannot. Only the AppImage replaces itself on
+/// Linux; a .deb or .rpm belongs to the package manager.
+fn update_blocked(linux: bool, appimage: Option<&str>) -> Option<&'static str> {
+    if linux && appimage.is_none_or(str::is_empty) {
+        Some("This copy was installed with a package. Update it with your package manager.")
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod update_tests {
+    use super::update_blocked;
+
+    #[test]
+    fn only_a_linux_copy_outside_an_appimage_is_left_to_the_package_manager() {
+        assert!(update_blocked(true, None).is_some());
+        assert!(update_blocked(true, Some("")).is_some());
+        assert!(update_blocked(true, Some("/tmp/UnENVerse.AppImage")).is_none());
+        assert!(update_blocked(false, None).is_none());
+    }
+}
+
 pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     // reqwest is built with `rustls-no-provider`, so a client without an explicit TLS
     // config (an unpinned `remote_request`, OAuth refresh, online enrich, the
@@ -3028,6 +3118,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::vault_identity,
             commands::vault_activate,
             commands::support_bundle,
+            commands::update_check,
+            commands::update_install,
             commands::nodes_local_request,
             commands::hub_automation_key,
             commands::operations_overview,
@@ -3100,6 +3192,7 @@ pub fn run() {
         data_dir.filter(|_| matches!(_instance, Some(single_instance::Claim::First(_))));
     register(tauri::Builder::default())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // Restore the window where the user left it.
         //
         // VISIBLE is deliberately excluded from the saved flags. Clicking the
