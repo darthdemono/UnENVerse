@@ -47,3 +47,17 @@ SQLite's write-ahead log needs shared memory and locks that NFS and SMB do not p
 ## Replacing files
 
 A file written by "write a temp file, rename it over the target" is retried briefly on Windows when another program (an antivirus scan, a backup agent) holds the target open, instead of failing the save.
+
+## Updating the desktop app
+
+Settings, Updates has a **Check for updates** button. It is the only thing that contacts the release feed: the app never checks in the background, and nothing is downloaded until you press **Install update**, which appears after the version and its notes are shown. The app verifies the download against the update public key built into it before it installs anything, and it never restarts itself; on Windows the installer runs in its visible (passive) mode.
+
+| Install                  | How it updates                                          |
+| ------------------------ | ------------------------------------------------------- |
+| AppImage                 | the button above                                        |
+| Windows installer (NSIS) | the button above                                        |
+| `.deb` and `.rpm`        | your package manager (`apt`, `dnf`); the button says so |
+
+The feed is `latest.json` on the newest release. Each release signs the AppImage and the installer with a separate update key (not the catalogue or CLI key); only the public half is in the repository. A key rotation needs a release that still trusts the old key, so the old key is kept until every install has moved past it. To roll back, install the previous release by hand.
+
+If the check fails (offline, a proxy, the feed missing), the row shows the error and nothing changes.
