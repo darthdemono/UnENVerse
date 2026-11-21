@@ -205,3 +205,29 @@ fn every_credential_kind_is_named_when_a_second_one_is_refused() {
     );
     assert!(slots.iter().all(|s| !s.is_empty()));
 }
+
+/// Bug: a secure note with variables was exported as a native CXF note, which holds text only, so
+/// the variables were gone after an export and import. It now goes out as custom fields and comes
+/// back as the same note with the same text and variables.
+#[test]
+fn a_secure_note_with_variables_keeps_them_and_its_text() {
+    let back = one(
+        json!({ "id": "n", "provider": "Safe", "secretType": "secure_note",
+        "description": "behind the picture",
+        "extra_vars": [{ "key": "code", "value": "4711" }, { "key": "room", "value": "study" }] }),
+    );
+    assert_eq!(back["secretType"], "secure_note");
+    assert_eq!(back["description"], "behind the picture");
+    let vars = back["extra_vars"].as_array().unwrap();
+    assert!(vars
+        .iter()
+        .any(|v| v["key"] == "code" && v["value"] == "4711"));
+    assert!(vars
+        .iter()
+        .any(|v| v["key"] == "room" && v["value"] == "study"));
+    // A plain note stays a native note.
+    let doc = serde_json::to_value(export(&[json!({ "id": "p", "provider": "P",
+        "secretType": "secure_note", "description": "text" })]))
+    .unwrap();
+    assert_eq!(doc["items"][0]["credentials"][0]["type"], "note");
+}
