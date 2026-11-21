@@ -552,6 +552,53 @@ pub fn render_project_as(
     })
 }
 
+/// `unv env <project> --with-urls`: the project's `.env`, then `NAME_URL`, `NAME_HOST` and
+/// `NAME_PORT` for the first address of every entry its values point at (the same variables
+/// `unv exec --with-urls` sets). Addresses are public metadata, so they are written as they are
+/// even to stdout; a name the file already sets is never overwritten.
+pub fn export_env_with_urls(access: &Access, project: &str, out: Option<&Path>) -> CliResult {
+    let vault = access.load_vault()?;
+    let pi = find_project_index(&vault, project)?;
+    let p = projects(&vault)[pi].clone();
+    let r = if out.is_some() {
+        Resolver::materialising(&vault)
+    } else {
+        Resolver::for_output(&vault)
+    };
+    let e = exporters::export_project_env(&p, &r);
+    if !e.had_chunks {
+        return Err(CliError::not_found(format!(
+            "Project '{project}' has no env_file chunks"
+        )));
+    }
+    for u in &e.unresolved {
+        eprintln!("# WARN unresolved ref: {u}");
+    }
+    let mut taken: std::collections::HashSet<String> = e
+        .text
+        .lines()
+        .filter_map(|l| l.split_once('=').map(|(k, _)| k.trim().to_string()))
+        .collect();
+    let all = crate::data::entries(&vault);
+    let mut text = e.text.clone();
+    let mut added = false;
+    for head in exporters::referenced_providers(&p) {
+        let Some(entry) = crate::refs::find_entry(&all, &head) else {
+            continue;
+        };
+        for (k, v) in crate::exec::site_vars(entry) {
+            if taken.insert(k.clone()) {
+                if !added {
+                    text.push_str("# addresses\n");
+                    added = true;
+                }
+                text.push_str(&format!("{k}={}\n", crate::envfile::quote_env_value(&v)));
+            }
+        }
+    }
+    emit(&text, out)
+}
+
 pub fn export(
     access: &Access,
     project: &str,

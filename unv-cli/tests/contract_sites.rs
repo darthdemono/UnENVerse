@@ -263,3 +263,65 @@ fn exec_with_urls_gives_a_command_the_exact_address_and_port() {
     );
     assert!(!bare.stdout.contains("http"), "{}", bare.all());
 }
+
+/// `unv env --with-urls`: the project's `.env` carries the exact address and port beside the key,
+/// in the same names `exec --with-urls` uses. The key stays redacted on stdout; the address is
+/// public metadata and is shown as it is. A name the file already sets is not overwritten.
+#[test]
+fn env_with_urls_appends_the_address_variables_and_keeps_the_key_redacted() {
+    let v = Vault::new("sites-env-urls");
+    v.ok(&["entry", "add", "Sonarr", "--key", "sonarr-key-value-12345"]);
+    v.ok(&["entry", "set", "Sonarr", "--site", "http://localhost:8989"]);
+    v.ok(&["entry", "add", "Bare", "--key", "bare-key-value-12345"]);
+    v.ok(&["project", "add", "Media"]);
+    v.ok(&[
+        "project", "chunk", "add", "Media", "app", "--type", "env_file",
+    ]);
+    v.ok(&[
+        "project",
+        "chunk",
+        "set",
+        "Media",
+        "app",
+        "SONARR_KEY=${Sonarr}",
+        "BARE_KEY=${Bare}",
+        "SONARR_HOST=custom-host",
+    ]);
+    let o = v.run(&["env", "Media", "--with-urls"]);
+    assert_eq!(o.code, 0, "{}", o.all());
+    assert!(
+        o.stdout.contains("SONARR_URL=http://localhost:8989"),
+        "{}",
+        o.stdout
+    );
+    assert!(o.stdout.contains("SONARR_PORT=8989"), "{}", o.stdout);
+    // The file already set SONARR_HOST, so the address does not replace it (it is not written twice).
+    assert_eq!(o.stdout.matches("SONARR_HOST=").count(), 1, "{}", o.stdout);
+    assert!(
+        !o.stdout.contains("BARE_URL"),
+        "no address, no variables: {}",
+        o.stdout
+    );
+    assert!(!o.all().contains("sonarr-key-value-12345"), "{}", o.all());
+    // Without the flag nothing is added.
+    let plain = v.run(&["env", "Media"]);
+    assert!(!plain.stdout.contains("SONARR_URL"), "{}", plain.stdout);
+    // To a file the real key is written beside the address.
+    let path = v.db().with_file_name("media.env");
+    let f = v.run(&[
+        "env",
+        "Media",
+        "--with-urls",
+        "--out",
+        path.to_str().unwrap(),
+    ]);
+    assert_eq!(f.code, 0, "{}", f.all());
+    let written = std::fs::read_to_string(&path).unwrap();
+    assert!(written.contains("sonarr-key-value-12345"), "{written}");
+    assert!(
+        written.contains("SONARR_URL=http://localhost:8989"),
+        "{written}"
+    );
+    // --with-urls and --refs say different things about the file; the pair is refused.
+    assert_ne!(v.run(&["env", "Media", "--with-urls", "--refs"]).code, 0);
+}
