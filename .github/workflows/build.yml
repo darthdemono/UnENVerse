@@ -376,6 +376,11 @@ jobs:
           # GitHub runners have no FUSE for the AppImage tooling to mount with.
           NO_STRIP: "1"
           APPIMAGE_EXTRACT_AND_RUN: "1"
+          # R26: createUpdaterArtifacts signs the AppImage and the NSIS installer with this
+          # key (a .sig beside each). A build without it fails, which is the point: an
+          # unsigned desktop bundle would leave the in-app updater with nothing to verify.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           # vault-core/bundled compiles SQLCipher and OpenSSL in. Without it an
           # AppImage built here links the runner's libsqlcipher0 and dies on any
@@ -392,6 +397,8 @@ jobs:
           # version and per-format arch conventions (_amd64.deb vs .x86_64.rpm).
           shopt -s nullglob
           for f in target/release/bundle/appimage/*.AppImage \
+                   target/release/bundle/appimage/*.AppImage.sig \
+                   target/release/bundle/nsis/*-setup.exe.sig \
                    target/release/bundle/deb/*.deb \
                    target/release/bundle/rpm/*.rpm \
                    target/release/bundle/nsis/*-setup.exe \
@@ -891,6 +898,23 @@ jobs:
             fi
           else
             echo "::notice::UNV_UPDATE_KEY is not set; publishing without a CLI update feed"
+          fi
+
+          # The desktop updater feed (R26): the file the in-app Check for updates reads from
+          # releases/latest/download. Built from the bundles and the .sig files Tauri wrote;
+          # the script refuses a platform without a signature. The negative control proves
+          # that by removing one signature and requiring the script to fail.
+          echo "See the release page for v${VERSION}." > "$RUNNER_TEMP/desktop-notes.md"
+          node scripts/updater-manifest.mjs release-assets "$VERSION" \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}" \
+            "$RUNNER_TEMP/desktop-notes.md" > release-assets/latest.json
+          jq -e --arg v "$VERSION" '.version == $v and (.platforms | length == 4)
+            and ([.platforms[] | .signature | length > 80] | all)' release-assets/latest.json >/dev/null
+          mkdir -p "$RUNNER_TEMP/unsigned"
+          cp release-assets/*.AppImage release-assets/*-setup.exe "$RUNNER_TEMP/unsigned/"
+          if node scripts/updater-manifest.mjs "$RUNNER_TEMP/unsigned" "$VERSION" https://example.invalid \
+               "$RUNNER_TEMP/desktop-notes.md" >/dev/null 2>&1; then
+            echo "::error::the desktop feed script accepted bundles without signatures"; exit 1
           fi
 
           # `--` so an asset whose name begins with a dash is read as a file
