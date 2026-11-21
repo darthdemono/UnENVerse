@@ -14,6 +14,12 @@ libfuzzer-sys = "0.4"
 unv-app = { path = "../unv-app" }
 
 [[bin]]
+name = "migrate_homeassistant"
+path = "fuzz_targets/migrate_homeassistant.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "migrate_env"
 path = "fuzz_targets/migrate_env.rs"
 test = false

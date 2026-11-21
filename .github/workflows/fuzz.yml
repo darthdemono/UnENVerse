@@ -29,6 +29,7 @@ jobs:
         target:
           - env_names
           - migrate_env
+          - migrate_homeassistant
           - migrate_compose
           - migrate_wireguard
           - migrate_nginx
