@@ -1,0 +1,43 @@
+{
+  "id": "e-sonarr",
+  "provider": "Sonarr",
+  "api_key": "sonarr-key-22",
+  "secretType": "api_key",
+  "price_type": "free",
+  "categories": [],
+  "projectIds": [
+    "Universal"
+  ],
+  "scopes": [],
+  "api_url": "https://sonarr.home.lan/api",
+  "sites": [
+    {
+      "url": "http://localhost:8989",
+      "kind": "local",
+      "mode": "any_port",
+      "label": "on this PC",
+      "source": "manual",
+      "added_at": "2026-11-10T09:00:00Z"
+    },
+    {
+      "url": "https://sonarr.home.lan",
+      "kind": "web",
+      "mode": "exact",
+      "label": "",
+      "source": "learned",
+      "added_at": "2026-11-12T18:30:00Z"
+    },
+    {
+      "url": "https://api.sonarr.example",
+      "kind": "api",
+      "mode": "host",
+      "label": "hosted",
+      "source": "catalogue",
+      "added_at": "2026-11-13T07:15:00Z"
+    }
+  ],
+  "site_family": "servarr",
+  "a_field_from_a_newer_build": {
+    "kept": true
+  }
+}

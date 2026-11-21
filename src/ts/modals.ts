@@ -507,14 +507,84 @@ function refreshRequiredMarker(
  * the form is saved (the parser lives in Rust only).
  */
 function readSites(base?: VaultEntry): SiteRef[] | undefined {
+  const urls = siteLines();
+  if (!urls.length) return undefined;
+  const had = new Map((base?.sites ?? []).map((s) => [s.url, s]));
+  return urls.map((url) => {
+    const prev: SiteRef = had.get(url) ?? { url, source: 'manual' };
+    const edit = siteEdits.get(url);
+    if (!edit) return prev;
+    // The rows are the whole truth for kind and mode; "Auto" clears the kind.
+    const { kind: _k, mode: _m, ...rest } = prev;
+    return {
+      ...rest,
+      ...(edit.kind ? { kind: edit.kind } : {}),
+      ...(edit.mode ? { mode: edit.mode } : {}),
+    };
+  });
+}
+
+/** The unique, non-empty lines of the Addresses box, in order. */
+function siteLines(): string[] {
   const box = document.getElementById('f-sites') as HTMLTextAreaElement | null;
   const lines = (box?.value ?? '')
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
-  if (!lines.length) return undefined;
-  const had = new Map((base?.sites ?? []).map((s) => [s.url, s]));
-  return [...new Set(lines)].map((url) => had.get(url) ?? { url, source: 'manual' });
+  return [...new Set(lines)];
+}
+
+const SITE_KINDS: [string, string][] = [
+  ['', 'Auto'],
+  ['web', 'Login page'],
+  ['api', 'API'],
+  ['local', 'Local service'],
+  ['other', 'Other'],
+];
+const SITE_MODES: [string, string][] = [
+  ['exact', 'Exact'],
+  ['any_port', 'Any port'],
+  ['host', 'Whole host'],
+  ['never', 'Never offer'],
+];
+/** Kind and mode chosen on the chips, keyed by the address as it stands in the box. */
+const siteEdits = new Map<string, { kind: string; mode: string }>();
+
+/** Fills the chips from a stored entry (or empties them for a new one). */
+export function seedSiteEdits(entry?: Partial<VaultEntry>): void {
+  siteEdits.clear();
+  for (const s of entry?.sites ?? [])
+    siteEdits.set(s.url, { kind: s.kind ?? '', mode: s.mode ?? '' });
+  renderSiteChips();
+}
+
+/** One row per address in the box: its kind, and how strictly a page must match it. */
+export function renderSiteChips(): void {
+  const host = document.getElementById('f-sites-chips');
+  if (!host) return;
+  const urls = siteLines();
+  const opts = (list: [string, string][]) =>
+    list.map(([v, l]) => html`<option value="${v}">${l}</option>`);
+  setHtml(
+    host,
+    html`${urls.map(
+      (url) => html`<div class="site-chip">
+        <span class="site-chip-url mono">${url}</span>
+        <select class="form-input" data-site-field="kind" data-url="${url}" aria-label="Kind of ${url}">${opts(SITE_KINDS)}</select>
+        <select class="form-input" data-site-field="mode" data-url="${url}" aria-label="Matching rule for ${url}">${opts(SITE_MODES)}</select>
+      </div>`,
+    )}`,
+  );
+  host.querySelectorAll<HTMLSelectElement>('select[data-site-field]').forEach((sel) => {
+    const url = sel.dataset.url ?? '';
+    const field = sel.dataset.siteField === 'mode' ? 'mode' : 'kind';
+    // An address with no stored rule shows the default one, which is Exact.
+    sel.value = siteEdits.get(url)?.[field] || (field === 'mode' ? 'exact' : '');
+    sel.onchange = () => {
+      const cur = siteEdits.get(url) ?? { kind: '', mode: '' };
+      siteEdits.set(url, { ...cur, [field]: sel.value });
+    };
+  });
 }
 
 export function formToEntry(base?: VaultEntry): VaultEntry {
@@ -1029,6 +1099,7 @@ export function fillForm(source: Partial<VaultEntry>) {
   (document.getElementById('f-sites') as HTMLTextAreaElement).value = (entry.sites ?? [])
     .map((s) => s.url)
     .join('\n');
+  seedSiteEdits(entry);
   (document.getElementById('f-site-family') as HTMLInputElement).value = entry.site_family || '';
   fillSiteFamilyList();
   (document.getElementById('f-cburl') as HTMLInputElement).value = entry.callback_url || '';
@@ -1584,6 +1655,9 @@ function wireCookieSplit(): void {
   wireCaptureImport();
   wirePgpImport();
   wireLocalServicePreset();
+  // Assigned, not added, and before the once-only guard below (invariant 9): the Addresses rows follow the box on every open.
+  const sitesBox = document.getElementById('f-sites');
+  if (sitesBox) sitesBox.oninput = renderSiteChips;
   if (_cookieSplitBound) return;
   _cookieSplitBound = true;
   document.getElementById('f-key')?.addEventListener('input', refreshCookieSplit);

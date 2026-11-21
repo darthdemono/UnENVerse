@@ -1010,4 +1010,65 @@ mod tests {
             }
         }
     }
+
+    /// The entry a 0.81 desktop saved, shared with the TypeScript form test
+    /// (`tests/sites-roundtrip.test.ts`): what a stored address means must not change when the
+    /// entry is read, re-normalised on save, or carried through a desktop that has no field for it.
+    const STORED: &str = include_str!("../../tests/fixtures/parity/entry-sites.json");
+
+    #[test]
+    fn a_stored_entry_reads_back_with_every_kind_mode_label_and_source() {
+        let e: serde_json::Value = serde_json::from_str(STORED).unwrap();
+        let got: Vec<(String, String, Mode, String, String)> = entry_sites(&e)
+            .into_iter()
+            .map(|s| (s.site.display(), s.kind, s.mode, s.label, s.source))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                (
+                    "http://localhost:8989".into(),
+                    "local".into(),
+                    Mode::AnyPort,
+                    "on this PC".into(),
+                    "manual".into()
+                ),
+                (
+                    "https://sonarr.home.lan".into(),
+                    "web".into(),
+                    Mode::Exact,
+                    "".into(),
+                    "learned".into()
+                ),
+                (
+                    "https://api.sonarr.example".into(),
+                    "api".into(),
+                    Mode::Host,
+                    "hosted".into(),
+                    "catalogue".into()
+                ),
+            ]
+        );
+        // `api_url` is the same address as the second site (a path is dropped), so it adds none.
+        assert_eq!(got.len(), 3);
+    }
+
+    #[test]
+    fn saving_a_stored_site_again_changes_nothing_but_the_date() {
+        let e: serde_json::Value = serde_json::from_str(STORED).unwrap();
+        for s in e["sites"].as_array().unwrap() {
+            let text = |k: &str| s[k].as_str().unwrap();
+            let again = site_value(
+                text("url"),
+                Some(text("kind")),
+                Some(text("mode")),
+                text("label"),
+                text("source"),
+            )
+            .unwrap();
+            for k in ["url", "kind", "mode", "label", "source"] {
+                assert_eq!(again[k], s[k], "{k} of {}", text("url"));
+            }
+        }
+    }
 }
