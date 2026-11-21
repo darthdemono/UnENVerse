@@ -655,11 +655,9 @@ impl NodeConfig {
                             t.id
                         ));
                     }
-                    if !t
-                        .compose_file
-                        .as_ref()
-                        .is_some_and(|f| f.is_absolute() && !f.to_string_lossy().contains('\0'))
-                    {
+                    if !t.compose_file.as_ref().is_some_and(|f| {
+                        (f.is_absolute() || f.has_root()) && !f.to_string_lossy().contains('\0')
+                    }) {
                         return Err(format!(
                             "target '{}': compose_project needs compose_file, an absolute path",
                             t.id
