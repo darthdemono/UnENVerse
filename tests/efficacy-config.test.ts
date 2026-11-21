@@ -39,6 +39,8 @@ const factories: Record<string, () => SecretChunk[]> = {
   prometheus: () => stackStarterChunks(stackAdapter('prometheus')!),
   grafana: () => stackStarterChunks(stackAdapter('grafana')!),
   homepage: () => stackStarterChunks(stackAdapter('homepage')!),
+  homeassistant: () => stackStarterChunks(stackAdapter('homeassistant')!),
+  'compose-secret': () => stackStarterChunks(stackAdapter('compose-secret')!),
 };
 
 /**

@@ -88,7 +88,7 @@ describe('creating a stack project', () => {
   });
 
   it('has a creation button for each', () => {
-    for (const id of ['prometheus', 'grafana', 'homepage']) {
+    for (const id of ['prometheus', 'grafana', 'homepage', 'homeassistant', 'compose-secret']) {
       expect(document.querySelector(`.project-type-btn[data-ptype="${id}"]`), id).not.toBeNull();
     }
   });

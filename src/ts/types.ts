@@ -811,6 +811,8 @@ export type ChunkType =
   | 'prom_remote_write'
   | 'grafana_datasource'
   | 'homepage_service'
+  | 'homeassistant_secret'
+  | 'compose_secret_value'
   | 'generic';
 
 /** A named section within a structured project config. */
@@ -848,7 +850,9 @@ export type ProjectType =
   // accepted by the software they target in CI (.github/workflows/exporters.yml).
   | 'prometheus'
   | 'grafana'
-  | 'homepage';
+  | 'homepage'
+  | 'homeassistant'
+  | 'compose-secret';
 
 /**
  * Project types that have actually been exercised end to end.

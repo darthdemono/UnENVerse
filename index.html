@@ -1108,6 +1108,7 @@
         <div class="form-group" id="f-sites-group">
           <label for="f-sites" class="form-label" data-field="sites">Addresses <span class="opt">optional, one per line</span></label>
           <textarea class="form-input mono" id="f-sites" rows="2" autocomplete="off" spellcheck="false" placeholder="localhost:8989&#10;https://sonarr.home.lan"></textarea>
+          <div id="f-sites-chips" class="site-chips" aria-label="Kind and matching rule for each address"></div>
         </div>
         <div class="form-group" id="f-site-family-group">
           <label for="f-site-family" class="form-label" data-field="site_family">Site family <span class="opt">optional</span></label>
@@ -2108,6 +2109,14 @@
             <button class="project-type-btn" data-ptype="homepage">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               Homepage
+            </button>
+            <button class="project-type-btn" data-ptype="homeassistant">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+              Home Assistant
+            </button>
+            <button class="project-type-btn" data-ptype="compose-secret">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+              Compose secret
             </button>
           </div>
         </div>

@@ -201,9 +201,13 @@ fn describe_lists_the_new_types() {
         "prometheus",
         "grafana",
         "homepage",
+        "homeassistant",
+        "compose-secret",
         "prom_scrape",
         "grafana_datasource",
         "homepage_service",
+        "homeassistant_secret",
+        "compose_secret_value",
     ] {
         assert!(d.contains(t), "describe does not mention {t}");
     }
