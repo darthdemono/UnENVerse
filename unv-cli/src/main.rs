@@ -464,6 +464,10 @@ enum Commands {
         /// pointers. `--dry-run` lists the keys and writes nothing.
         #[arg(long, value_name = "PATH", conflicts_with_all = ["refs", "out"])]
         migrate: Option<PathBuf>,
+        /// Also write NAME_URL, NAME_HOST and NAME_PORT for the first address of each entry the
+        /// project's values point at, so a file carries the exact address beside the key.
+        #[arg(long, conflicts_with_all = ["refs", "migrate"])]
+        with_urls: bool,
     },
     /// Create, edit and delete secret entries.
     /// Key pools — several interchangeable credentials for one service.
@@ -4320,11 +4324,14 @@ fn dispatch(cli: &Cli, a: &Access) -> CliResult {
             out,
             refs,
             migrate,
+            with_urls,
         } => {
             if let Some(path) = migrate {
                 envfile::migrate(a, project, path)
             } else if *refs {
                 chunks::export_refs(a, project, out.as_deref())
+            } else if *with_urls {
+                chunks::export_env_with_urls(a, project, out.as_deref())
             } else {
                 chunks::export(a, project, Some("env"), out.as_deref())
             }
