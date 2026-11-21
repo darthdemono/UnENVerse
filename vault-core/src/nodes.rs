@@ -424,6 +424,59 @@ pub struct Target {
     /// policy change cannot turn it off.
     #[serde(default)]
     pub require_approval: bool,
+    /// Permission bits of the written file, as octal text (`"0400"`). Unix only. A Compose
+    /// target defaults to `0400`; any other target keeps the mode the file already has.
+    #[serde(default)]
+    pub file_mode: Option<String>,
+    /// Owner of the written file as numeric `uid` or `uid:gid` (the user inside the container
+    /// that reads the secret, e.g. `999:999` for the Postgres image). Needs the node to run as
+    /// root or that user. Unix only.
+    #[serde(default)]
+    pub owner: Option<String>,
+    /// Makes this a Docker Compose secret-file target: after the write the node runs
+    /// `docker compose -p <project> -f <compose_file> config -q` and then recreates only
+    /// `services`. Replaces `validate` and `reload`, which it generates.
+    #[serde(default)]
+    pub compose_project: Option<String>,
+    #[serde(default)]
+    pub compose_file: Option<PathBuf>,
+    #[serde(default)]
+    pub services: Vec<String>,
+}
+
+impl Target {
+    /// `file_mode` as bits: `Some` when set, or `0o400` for a Compose target.
+    pub fn file_mode_bits(&self) -> Option<u32> {
+        match &self.file_mode {
+            Some(m) => parse_file_mode(m),
+            None => self.compose_project.as_ref().map(|_| 0o400),
+        }
+    }
+
+    /// `owner` as `(uid, gid)`; a bare uid uses the same number as gid.
+    pub fn owner_ids(&self) -> Option<(u32, u32)> {
+        parse_owner(self.owner.as_deref()?)
+    }
+}
+
+/// `"0400"`, `"640"`: three or four octal digits, no setuid/setgid/sticky bits.
+pub fn parse_file_mode(text: &str) -> Option<u32> {
+    if !(3..=4).contains(&text.len()) || !text.bytes().all(|b| (b'0'..=b'7').contains(&b)) {
+        return None;
+    }
+    u32::from_str_radix(text, 8).ok().filter(|b| *b <= 0o777)
+}
+
+/// `"999"` or `"999:999"`.
+pub fn parse_owner(text: &str) -> Option<(u32, u32)> {
+    fn id(t: &str) -> Option<u32> {
+        if t.is_empty() || !t.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        t.parse().ok()
+    }
+    let (u, g) = text.split_once(':').unwrap_or((text, text));
+    Some((id(u)?, id(g)?))
 }
 
 fn default_mode() -> String {
@@ -570,6 +623,68 @@ impl NodeConfig {
                         "target '{}': accept_rule_approval needs automation_approver (the public key shown in Settings)",
                         t.id
                     ));
+                }
+            }
+            if let Some(m) = &t.file_mode {
+                if parse_file_mode(m).is_none() {
+                    return Err(format!(
+                        "target '{}': file_mode must be octal like \"0400\" (no setuid bits)",
+                        t.id
+                    ));
+                }
+            }
+            if let Some(o) = &t.owner {
+                if parse_owner(o).is_none() {
+                    return Err(format!(
+                        "target '{}': owner must be a numeric uid or uid:gid",
+                        t.id
+                    ));
+                }
+            }
+            match &t.compose_project {
+                Some(project) => {
+                    if t.mode != "push" {
+                        return Err(format!(
+                            "target '{}': a Compose target is written by the hub, so its mode is \"push\"",
+                            t.id
+                        ));
+                    }
+                    if !valid_id(project) {
+                        return Err(format!(
+                            "target '{}': compose_project must be letters, digits, '_', '.' or '-'",
+                            t.id
+                        ));
+                    }
+                    if !t
+                        .compose_file
+                        .as_ref()
+                        .is_some_and(|f| f.is_absolute() && !f.to_string_lossy().contains('\0'))
+                    {
+                        return Err(format!(
+                            "target '{}': compose_project needs compose_file, an absolute path",
+                            t.id
+                        ));
+                    }
+                    if t.services.is_empty() || !t.services.iter().all(|x| valid_id(x)) {
+                        return Err(format!(
+                            "target '{}': compose_project needs services, the names to recreate",
+                            t.id
+                        ));
+                    }
+                    if t.validate.is_some() || t.reload.is_some() {
+                        return Err(format!(
+                            "target '{}': a Compose target generates validate and reload; remove them (use check for a health probe)",
+                            t.id
+                        ));
+                    }
+                }
+                None => {
+                    if t.compose_file.is_some() || !t.services.is_empty() {
+                        return Err(format!(
+                            "target '{}': compose_file and services belong to a target that sets compose_project",
+                            t.id
+                        ));
+                    }
                 }
             }
             for (name, v) in [
@@ -2951,6 +3066,113 @@ reload = "systemctl reload nginx"
         assert!(NodeConfig::parse(t).unwrap_err().contains("only read"));
         let ok = "[[target]]\nid=\"a\"\npath=\"/etc/a\"\nproject=\"p\"\nexporter=\"nginx\"\napply=true\nrequire_approval=true\n";
         assert!(NodeConfig::parse(ok).unwrap().targets[0].require_approval);
+    }
+
+    #[test]
+    fn file_mode_and_owner_are_checked_text_not_free_form() {
+        for (text, bits) in [("0400", 0o400), ("640", 0o640), ("0000", 0)] {
+            assert_eq!(parse_file_mode(text), Some(bits), "{text}");
+        }
+        // No setuid bit, no non-octal digit, no wrong length, no sign.
+        for bad in ["4755", "0o400", "89", "12", "07777", "", "+400", "40 0"] {
+            assert_eq!(parse_file_mode(bad), None, "{bad:?}");
+        }
+        assert_eq!(parse_owner("999"), Some((999, 999)));
+        assert_eq!(parse_owner("70:71"), Some((70, 71)));
+        for bad in ["", "root", "1:", ":1", "1:2:3", "-1", "99999999999"] {
+            assert_eq!(parse_owner(bad), None, "{bad:?}");
+        }
+    }
+
+    fn compose_target(extra: &str) -> String {
+        format!(
+            "[[target]]\nid=\"pw\"\npath=\"/srv/secrets/db_password\"\nproject=\"p\"\nexporter=\"compose-secret\"\napply=true\n{extra}"
+        )
+    }
+
+    #[test]
+    fn a_compose_target_needs_its_file_and_services_and_generates_the_commands() {
+        let ok = compose_target(
+            "compose_project=\"demo\"\ncompose_file=\"/srv/compose.yaml\"\nservices=[\"db\"]\nowner=\"999:999\"\n",
+        );
+        let t = NodeConfig::parse(&ok).unwrap().targets.remove(0);
+        // 0400 unless the operator says otherwise; the owner is the container user.
+        assert_eq!(t.file_mode_bits(), Some(0o400));
+        assert_eq!(t.owner_ids(), Some((999, 999)));
+        let ok = compose_target(
+            "file_mode=\"0440\"\ncompose_project=\"demo\"\ncompose_file=\"/srv/compose.yaml\"\nservices=[\"db\"]\n",
+        );
+        assert_eq!(
+            NodeConfig::parse(&ok).unwrap().targets[0].file_mode_bits(),
+            Some(0o440)
+        );
+        // A plain target keeps the file's own mode.
+        let plain = "[[target]]\nid=\"a\"\npath=\"/etc/a\"\nproject=\"p\"\nexporter=\"nginx\"\n";
+        assert_eq!(
+            NodeConfig::parse(plain).unwrap().targets[0].file_mode_bits(),
+            None
+        );
+        for (extra, needle) in [
+            ("compose_project=\"demo\"\nservices=[\"db\"]\n", "needs compose_file"),
+            (
+                "compose_project=\"demo\"\ncompose_file=\"rel.yaml\"\nservices=[\"db\"]\n",
+                "needs compose_file",
+            ),
+            (
+                "compose_project=\"demo\"\ncompose_file=\"/srv/c.yaml\"\n",
+                "needs services",
+            ),
+            (
+                "compose_project=\"demo\"\ncompose_file=\"/srv/c.yaml\"\nservices=[\"db; rm\"]\n",
+                "needs services",
+            ),
+            (
+                "compose_project=\"de mo\"\ncompose_file=\"/srv/c.yaml\"\nservices=[\"db\"]\n",
+                "compose_project must be",
+            ),
+            (
+                "compose_project=\"demo\"\ncompose_file=\"/srv/c.yaml\"\nservices=[\"db\"]\nreload=\"true\"\n",
+                "generates validate and reload",
+            ),
+            (
+                "compose_project=\"demo\"\ncompose_file=\"/srv/c.yaml\"\nservices=[\"db\"]\nmode=\"pull\"\n",
+                "mode is",
+            ),
+            ("services=[\"db\"]\n", "belong to a target that sets compose_project"),
+            ("compose_file=\"/srv/c.yaml\"\n", "belong to a target that sets compose_project"),
+            ("file_mode=\"4755\"\n", "file_mode must be octal"),
+            ("owner=\"root\"\n", "owner must be a numeric"),
+        ] {
+            let err = NodeConfig::parse(&compose_target(extra)).unwrap_err();
+            assert!(err.contains(needle), "{extra:?} -> {err}");
+        }
+    }
+
+    /// The target examples in the Compose and Home Assistant guides are the config a reader
+    /// copies, so they must be accepted by the parser that will read them.
+    #[test]
+    fn the_guides_node_examples_parse_and_mean_what_the_text_says() {
+        fn toml_blocks(page: &str) -> Vec<String> {
+            page.split("```toml\n")
+                .skip(1)
+                .map(|b| b.split("```").next().unwrap_or("").to_string())
+                .collect()
+        }
+        let compose = toml_blocks(include_str!("../../book/src/compose-secrets.md"));
+        assert_eq!(compose.len(), 1);
+        let t = NodeConfig::parse(&compose[0]).unwrap().targets.remove(0);
+        assert_eq!(t.exporter, "compose-secret");
+        assert_eq!(t.compose_project.as_deref(), Some("stack"));
+        assert_eq!(t.services, vec!["db".to_string()]);
+        assert_eq!(t.file_mode_bits(), Some(0o400));
+        assert_eq!(t.owner_ids(), Some((999, 999)));
+
+        let ha = toml_blocks(include_str!("../../book/src/home-assistant.md"));
+        assert_eq!(ha.len(), 1);
+        let t = NodeConfig::parse(&ha[0]).unwrap().targets.remove(0);
+        assert_eq!(t.exporter, "homeassistant");
+        assert!(t.validate.as_deref().unwrap().contains("check_config"));
+        assert!(t.check.as_deref().unwrap().starts_with("http://"));
     }
 
     fn listen(endpoint: &str) -> ListenInfo {

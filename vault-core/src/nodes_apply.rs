@@ -175,6 +175,7 @@ fn write_atomic(
     path: &Path,
     bytes: &[u8],
     mode_from: Option<&std::fs::Metadata>,
+    perm: Perm,
 ) -> Result<(), String> {
     use std::io::Write;
     let dir = path.parent().ok_or("target has no parent directory")?;
@@ -193,15 +194,30 @@ fn write_atomic(
     {
         use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
         // Keep the mode the operator gave the file; a new one is private.
-        opts.mode(mode_from.map_or(0o600, |m| m.mode() & 0o7777));
+        opts.mode(
+            perm.mode
+                .unwrap_or_else(|| mode_from.map_or(0o600, |m| m.mode() & 0o7777)),
+        );
     }
     #[cfg(not(unix))]
-    let _ = mode_from;
+    let _ = (mode_from, perm.mode, perm.owner);
     let mut f = opts
         .open(&tmp)
         .map_err(|e| format!("cannot write beside {}: {e}", path.display()))?;
     f.write_all(bytes).map_err(|e| e.to_string())?;
     f.sync_all().map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    if let Some((uid, gid)) = perm.owner {
+        // Before the rename, so the file is never visible with the wrong owner.
+        if let Err(e) = std::os::unix::fs::fchown(&f, Some(uid), Some(gid)) {
+            drop(f);
+            let _ = std::fs::remove_file(&tmp);
+            return Err(format!(
+                "cannot give {} to {uid}:{gid}: {e}",
+                path.display()
+            ));
+        }
+    }
     drop(f);
     crate::platform::replace_file(&tmp, path).map_err(|e| {
         let _ = std::fs::remove_file(&tmp);
@@ -222,6 +238,7 @@ fn restore(
     wrote: &[u8],
     previous: &Option<Vec<u8>>,
     meta: Option<&std::fs::Metadata>,
+    perm: Perm,
 ) -> Result<(), String> {
     if std::fs::read(path).ok().as_deref() != Some(wrote) {
         return Err(
@@ -229,7 +246,7 @@ fn restore(
         );
     }
     match previous {
-        Some(b) => write_atomic(path, b, meta),
+        Some(b) => write_atomic(path, b, meta, perm),
         None => std::fs::remove_file(path).map_err(|e| e.to_string()),
     }
 }
@@ -244,7 +261,7 @@ fn keep_version(state_dir: &Path, id: &str, bytes: &[u8]) -> Result<(), String> 
     let p = dir.join(name);
     // 0600 through the same helper: a kept copy of wg0.conf is as secret as
     // wg0.conf.
-    write_atomic(&p, bytes, None)?;
+    write_atomic(&p, bytes, None, Perm::default())?;
     let mut all: Vec<_> = std::fs::read_dir(&dir)
         .map_err(|e| e.to_string())?
         .flatten()
@@ -297,7 +314,7 @@ fn signal_reload(state_dir: &Path, id: &str, sha: &str) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     // The content differs on every applied version, so the watcher sees a change.
-    write_atomic(&p, format!("{sha}\n").as_bytes(), None)
+    write_atomic(&p, format!("{sha}\n").as_bytes(), None, Perm::default())
 }
 
 /// The steps a successful apply went through, in order: `written`, `validated`, `reloaded`,
@@ -409,6 +426,8 @@ fn apply_inner(
     }
     let text = String::from_utf8_lossy(content).into_owned();
     let path = &target.path;
+    let perm = Perm::of(target);
+    let (validate, reload) = (effective_validate(target), effective_reload(target));
     let meta = std::fs::metadata(path).ok();
     let previous = match std::fs::read(path) {
         Ok(b) => Some(b),
@@ -423,10 +442,10 @@ fn apply_inner(
     }
 
     // A path-taking validator checks a temporary file first, so the live file is never invalid.
-    let path_validator = target.validate.as_deref().filter(|v| v.contains("{file}"));
+    let path_validator = validate.as_deref().filter(|v| v.contains("{file}"));
     if let Some(v) = path_validator {
         let tmp = temp_beside(path)?;
-        write_atomic(&tmp, content, meta.as_ref())?;
+        write_atomic(&tmp, content, meta.as_ref(), perm)?;
         let outcome = run(
             &v.replace("{file}", &shell_quote(&tmp)),
             &text,
@@ -438,23 +457,25 @@ fn apply_inner(
         }
         phases.push("validated");
     }
-    write_atomic(path, content, meta.as_ref())?;
+    write_atomic(path, content, meta.as_ref(), perm)?;
     phases.insert(0, "written");
 
-    if let Some(v) = target.validate.as_deref().filter(|v| !v.contains("{file}")) {
+    if let Some(v) = validate.as_deref().filter(|v| !v.contains("{file}")) {
         if let Err(e) = run(v, &text, COMMAND_TIMEOUT) {
-            return Err(match restore(path, content, &previous, meta.as_ref()) {
-                Ok(()) => format!("validate failed, previous file restored: {e}"),
-                Err(r) => {
-                    format!("validate failed AND restoring the previous file failed ({r}): {e}")
-                }
-            });
+            return Err(
+                match restore(path, content, &previous, meta.as_ref(), perm) {
+                    Ok(()) => format!("validate failed, previous file restored: {e}"),
+                    Err(r) => {
+                        format!("validate failed AND restoring the previous file failed ({r}): {e}")
+                    }
+                },
+            );
         }
         phases.push("validated");
     }
-    if let Some(r) = &target.reload {
+    if let Some(r) = &reload {
         if let Err(e) = run(r, &text, COMMAND_TIMEOUT) {
-            return Err(match restore(path, content, &previous, meta.as_ref()) {
+            return Err(match restore(path, content, &previous, meta.as_ref(), perm) {
                 Ok(()) => format!(
                     "reload failed, previous file restored and the service was not reloaded again: {e}"
                 ),
@@ -465,9 +486,9 @@ fn apply_inner(
     }
     if let Some(c) = &target.check {
         if let Err(e) = run_check(c, &text) {
-            let restored = restore(path, content, &previous, meta.as_ref());
+            let restored = restore(path, content, &previous, meta.as_ref(), perm);
             // The service is running the new file: put the old one back and reload it.
-            let reloaded = match (&restored, &target.reload) {
+            let reloaded = match (&restored, &reload) {
                 (Ok(()), Some(r)) => run(r, &text, COMMAND_TIMEOUT).err(),
                 _ => None,
             };
@@ -484,10 +505,16 @@ fn apply_inner(
         phases.push("checked");
     }
     if let Err(e) = signal_reload(state_dir, &target.id, expected_sha) {
-        return Err(match restore(path, content, &previous, meta.as_ref()) {
-            Ok(()) => format!("could not signal the reload, previous file restored: {e}"),
-            Err(x) => format!("could not signal the reload AND restoring failed ({x}): {e}"),
-        });
+        return Err(
+            match restore(path, content, &previous, meta.as_ref(), perm) {
+                Ok(()) => format!("could not signal the reload, previous file restored: {e}"),
+                Err(x) => format!("could not signal the reload AND restoring failed ({x}): {e}"),
+            },
+        );
+    }
+    // A secret file's previous copy lives only while the change can still be rolled back.
+    if target.compose_project.is_some() {
+        let _ = std::fs::remove_dir_all(versions_dir(state_dir, &target.id));
     }
     Ok(Applied::Written)
 }
@@ -502,6 +529,47 @@ fn temp_beside(path: &Path) -> Result<PathBuf, String> {
         std::process::id(),
         TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     )))
+}
+
+/// The command a target validates with: its own `validate`, or for a Compose target
+/// `docker compose -p P -f F config -q`.
+fn effective_validate(t: &Target) -> Option<String> {
+    match (&t.compose_project, &t.compose_file) {
+        (Some(p), Some(f)) => Some(format!(
+            "docker compose -p {p} -f {} config -q",
+            shell_quote(f)
+        )),
+        _ => t.validate.clone(),
+    }
+}
+
+/// The command a target reloads with: its own `reload`, or for a Compose target a recreate of
+/// only the listed services (`--no-deps`, so a database is not restarted with its neighbours).
+fn effective_reload(t: &Target) -> Option<String> {
+    match (&t.compose_project, &t.compose_file) {
+        (Some(p), Some(f)) => Some(format!(
+            "docker compose -p {p} -f {} up -d --no-deps --force-recreate {}",
+            shell_quote(f),
+            t.services.join(" ")
+        )),
+        _ => t.reload.clone(),
+    }
+}
+
+/// What a written file's owner and mode are, beyond the default of keeping the old one.
+#[derive(Clone, Copy, Default)]
+struct Perm {
+    mode: Option<u32>,
+    owner: Option<(u32, u32)>,
+}
+
+impl Perm {
+    fn of(t: &Target) -> Self {
+        Self {
+            mode: t.file_mode_bits(),
+            owner: t.owner_ids(),
+        }
+    }
 }
 
 /// A path as one shell word.
@@ -551,6 +619,11 @@ mod tests {
             require_approval: false,
             check: None,
             accept_rule_approval: false,
+            file_mode: None,
+            owner: None,
+            compose_project: None,
+            compose_file: None,
+            services: Vec::new(),
         }
     }
 
@@ -658,8 +731,8 @@ mod tests {
     fn two_writes_never_share_a_temp_file() {
         let d = scratch("tmpname");
         let p = d.join("app.conf");
-        write_atomic(&p, b"a", None).unwrap();
-        write_atomic(&p, b"b", None).unwrap();
+        write_atomic(&p, b"a", None, Perm::default()).unwrap();
+        write_atomic(&p, b"b", None, Perm::default()).unwrap();
         let strays = std::fs::read_dir(&d)
             .unwrap()
             .flatten()
@@ -912,5 +985,143 @@ mod tests {
         assert!(err.contains("503"), "{err}");
         handle.join().unwrap();
         assert!(probe_http("https://example.test", Duration::from_secs(1)).is_err());
+    }
+
+    /// A `docker` that logs its arguments beside the compose file it is given and fails while a
+    /// file named `fail` sits there, so the Compose steps run for real without a Docker daemon.
+    #[cfg(unix)]
+    fn stub_docker() {
+        use std::os::unix::fs::PermissionsExt;
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            let bin = scratch("docker-stub");
+            let script = bin.join("docker");
+            std::fs::write(
+                &script,
+                "#!/bin/sh\nd=$(dirname \"$5\")\necho \"$@\" >> \"$d/docker.log\"\n[ -e \"$d/fail\" ] && { echo 'service db: invalid' >&2; exit 1; }\nexit 0\n",
+            )
+            .unwrap();
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let old = std::env::var("PATH").unwrap_or_default();
+            std::env::set_var("PATH", format!("{}:{old}", bin.display()));
+        });
+    }
+
+    #[cfg(unix)]
+    fn compose(d: &Path) -> Target {
+        Target {
+            path: d.join("db_password"),
+            exporter: "compose-secret".into(),
+            compose_project: Some("demo".into()),
+            compose_file: Some(d.join("compose.yaml")),
+            services: vec!["db".into()],
+            ..target(d, None, None)
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_compose_target_writes_a_0400_file_validates_then_recreates_only_its_services() {
+        use std::os::unix::fs::PermissionsExt;
+        stub_docker();
+        let d = scratch("compose-ok");
+        let t = compose(&d);
+        std::fs::write(&t.path, "old").unwrap();
+        let (r, phases) = apply_with_phases(&t, b"s3cret", &sha256_hex(b"s3cret"), &d);
+        assert_eq!(r.unwrap(), Applied::Written);
+        assert_eq!(phases, vec!["written", "validated", "reloaded"]);
+        assert_eq!(std::fs::read(&t.path).unwrap(), b"s3cret");
+        assert_eq!(
+            std::fs::metadata(&t.path).unwrap().permissions().mode() & 0o777,
+            0o400
+        );
+        let f = d.join("compose.yaml");
+        let log = std::fs::read_to_string(d.join("docker.log")).unwrap();
+        assert_eq!(
+            log,
+            format!(
+                "compose -p demo -f {f} config -q\ncompose -p demo -f {f} up -d --no-deps --force-recreate db\n",
+                f = f.display()
+            )
+        );
+        // The previous value is not kept once the change cannot be rolled back any more.
+        assert!(kept_versions(&d, "t").is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failing_compose_validation_puts_the_old_file_back_with_its_mode_and_recreates_nothing() {
+        use std::os::unix::fs::PermissionsExt;
+        stub_docker();
+        let d = scratch("compose-bad");
+        let t = compose(&d);
+        std::fs::write(&t.path, "old").unwrap();
+        std::fs::set_permissions(&t.path, std::fs::Permissions::from_mode(0o400)).unwrap();
+        std::fs::write(d.join("fail"), "").unwrap();
+        let (r, phases) = apply_with_phases(&t, b"s3cret", &sha256_hex(b"s3cret"), &d);
+        let e = r.unwrap_err();
+        assert!(e.contains("validate failed, previous file restored"), "{e}");
+        assert!(!e.contains("s3cret"));
+        assert_eq!(phases, vec!["written"]);
+        assert_eq!(std::fs::read(&t.path).unwrap(), b"old");
+        assert_eq!(
+            std::fs::metadata(&t.path).unwrap().permissions().mode() & 0o777,
+            0o400
+        );
+        let log = std::fs::read_to_string(d.join("docker.log")).unwrap();
+        assert_eq!(log.lines().count(), 1, "only the config check ran: {log}");
+        assert!(!log.contains("up -d"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_first_write_that_fails_validation_leaves_no_file_at_all() {
+        stub_docker();
+        let d = scratch("compose-new-bad");
+        let t = compose(&d);
+        std::fs::write(d.join("fail"), "").unwrap();
+        assert!(apply(&t, b"s3cret", &sha256_hex(b"s3cret"), &d).is_err());
+        assert!(!t.path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_explicit_file_mode_and_an_owner_apply_to_any_target() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let d = scratch("perm");
+        let me = std::fs::metadata(&d).unwrap();
+        let t = Target {
+            file_mode: Some("0440".into()),
+            owner: Some(format!("{}:{}", me.uid(), me.gid())),
+            ..target(&d, None, None)
+        };
+        apply(&t, b"x", &sha256_hex(b"x"), &d).unwrap();
+        let m = std::fs::metadata(&t.path).unwrap();
+        assert_eq!(m.permissions().mode() & 0o777, 0o440);
+        assert_eq!((m.uid(), m.gid()), (me.uid(), me.gid()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_owner_the_node_may_not_give_is_refused_before_the_file_changes() {
+        use std::os::unix::fs::MetadataExt;
+        let d = scratch("perm-refused");
+        if std::fs::metadata(&d).unwrap().uid() == 0 {
+            return; // root may give a file to anyone, so there is nothing to refuse.
+        }
+        let t = Target {
+            owner: Some("0:0".into()),
+            ..target(&d, None, None)
+        };
+        std::fs::write(&t.path, "old").unwrap();
+        let e = apply(&t, b"new", &sha256_hex(b"new"), &d).unwrap_err();
+        assert!(e.contains("cannot give"), "{e}");
+        assert_eq!(std::fs::read(&t.path).unwrap(), b"old");
+        let stray: Vec<_> = std::fs::read_dir(&d)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(stray.is_empty(), "no temporary file is left behind");
     }
 }
