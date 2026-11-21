@@ -582,6 +582,56 @@ function wireSupportRow(): void {
   };
 }
 
+/** R26: Check for updates, then Install the version that was shown. Nothing runs until a click. */
+function wireUpdateRow(): void {
+  const check = document.getElementById('s-update-check') as HTMLButtonElement | null;
+  const install = document.getElementById('s-update-install') as HTMLButtonElement | null;
+  const hint = document.getElementById('s-update-hint');
+  if (!check || !install || !hint) return;
+  check.hidden = !inTauri;
+  install.hidden = true;
+  if (!inTauri) return;
+  // Assignment, not addEventListener: this pane is opened repeatedly (invariant 9).
+  check.onclick = () => {
+    void (async () => {
+      install.hidden = true;
+      hint.textContent = 'Checking the release feed...';
+      try {
+        const u = await invokeTauri<{
+          version: string;
+          current: string;
+          notes: string;
+        } | null>('update_check');
+        if (!u) {
+          hint.textContent = 'You have the newest version.';
+          return;
+        }
+        hint.textContent = `Version ${u.version} is available (you have ${u.current}). ${u.notes}`;
+        install.dataset.version = u.version;
+        install.hidden = false;
+      } catch (e) {
+        hint.textContent = `Could not check: ${String(e)}`;
+      }
+    })();
+  };
+  install.onclick = () => {
+    void (async () => {
+      const version = install.dataset.version ?? '';
+      install.disabled = true;
+      hint.textContent = `Downloading and verifying ${version}...`;
+      try {
+        await invokeTauri('update_install', { version });
+        install.hidden = true;
+        hint.textContent = `Version ${version} is installed. Restart UnENVerse to use it.`;
+      } catch (e) {
+        hint.textContent = `Not installed: ${String(e)}`;
+      } finally {
+        install.disabled = false;
+      }
+    })();
+  };
+}
+
 /** R18: the "Allow local scripts" switch. Applies at once; it is a system setting, not a preference. */
 function wireBridgeRow(): void {
   const box = document.getElementById('s-bridge') as HTMLInputElement | null;
@@ -1166,6 +1216,7 @@ export function openSettings() {
   wireAutomationKey();
   wireInstanceRow();
   wireSupportRow();
+  wireUpdateRow();
   wireArchiveRows();
   wireRecoveryRows();
   void wireEntropyRow(s.entropySource || 'os');
