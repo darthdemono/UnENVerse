@@ -185,6 +185,7 @@ fn custom_fields_credential(entry: &Value) -> CxfCredential {
         "mount_path",
         "composite_template",
         "connection_string_note",
+        "description",
     ] {
         if let Some(v) = s(entry, key) {
             fields.push(CxfField {
@@ -266,6 +267,8 @@ fn native_credential(entry: &Value) -> CxfCredential {
             url: s(entry, "api_url"),
             expiry_date: s(entry, "expires_at"),
         },
+        // A note that carries variables would lose them in a native note, which has only text.
+        Some("secure_note") if has_extra_vars(entry) => custom_fields_credential(entry),
         Some("secure_note") => CxfCredential::Note {
             content: s(entry, "description")
                 .or_else(|| s(entry, "api_key"))
@@ -285,6 +288,13 @@ fn native_credential(entry: &Value) -> CxfCredential {
         },
         _ => custom_fields_credential(entry),
     }
+}
+
+fn has_extra_vars(entry: &Value) -> bool {
+    entry
+        .get("extra_vars")
+        .and_then(|v| v.as_array())
+        .is_some_and(|a| !a.is_empty())
 }
 
 fn extra_var(entry: &Value, key: &str) -> Option<String> {
@@ -601,7 +611,7 @@ fn entry_from_credential(id: &str, title: &str, cred: &CxfCredential, now: &str)
                 }
                 match f.name.as_str() {
                     "api_key" | "api_secret" | "api_url" | "key_id" | "user_agent"
-                    | "mount_path" | "composite_template" => {
+                    | "mount_path" | "composite_template" | "description" => {
                         e[&f.name] = json!(f.value);
                     }
                     _ => vars.push(json!({ "key": f.name, "value": f.value })),
