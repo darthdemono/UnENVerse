@@ -24,6 +24,8 @@ is stale. A container image pinned in a job with `image:` is listed. For every o
 | `prometheus` | promtool | not pinned here |
 | `grafana` | provisioning | not pinned here |
 | `homepage` | services.yaml | not pinned here |
+| `compose-secret` | Postgres _FILE | not pinned here |
+| `homeassistant` | check_config | not pinned here |
 | `grafana` | enrich --online | not pinned here |
 
 <!-- integrations:end -->
