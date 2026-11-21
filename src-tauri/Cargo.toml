@@ -16,6 +16,8 @@ tauri-build = { version = "2.7", features = [] }
 [dependencies]
 tauri                        = { version = "2.12", features = ["tray-icon"] }
 tauri-plugin-shell           = "2.4"
+# R26: signed desktop updates; only ever started by the Check for updates button.
+tauri-plugin-updater         = "2"
 # Window size/position persistence. Saved to <app_config_dir>/.window-state.json
 # by the plugin itself — no vault data involved, so it is deliberately outside
 # SQLCipher and survives a vault reset.

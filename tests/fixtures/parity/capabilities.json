@@ -970,9 +970,14 @@
         "unv update check",
         "unv update install"
       ],
-      "ui": [],
-      "tauri": [],
-      "note": "Each artifact updates itself from its own signed feed: the CLI replaces only a standalone unv, and the desktop app uses the Tauri updater (Phase 54).",
+      "ui": [
+        "id:s-update-check"
+      ],
+      "tauri": [
+        "update_check",
+        "update_install"
+      ],
+      "note": "Each artifact updates itself from its own signed feed: the CLI replaces only a standalone unv, and the desktop app checks and installs through the Tauri updater only when the person presses a button (R26).",
       "cli_flags": []
     },
     {
