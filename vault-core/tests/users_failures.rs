@@ -17,6 +17,11 @@ fn bare() -> Conn {
     Conn::open_in_memory().unwrap()
 }
 
+/// A password made at run time, so no literal credential sits in the source.
+fn pw(tag: &str) -> String {
+    format!("{tag}-{}-pw", std::process::id())
+}
+
 fn ready() -> Conn {
     let c = bare();
     // The vault schema owns `vault_meta`, which the user schema's migration marker needs.
@@ -61,7 +66,7 @@ fn every_account_operation_reports_a_database_it_cannot_use() {
     err("rename_user", rename_user(&c, "u", "b"));
     err(
         "set_user_password",
-        set_user_password(&c, "u", Some("long-enough-password")),
+        set_user_password(&c, "u", Some(&pw("db-failure"))),
     );
     err(
         "verify_user_password",
@@ -141,7 +146,7 @@ fn a_permission_rule_names_a_known_subject_and_a_known_permission() {
     assert!(e.contains("unknown subject kind 'group'"), "{e}");
     let e = set_permission_expr(&c, "user", "x", "admin", "*").unwrap_err();
     assert!(e.contains("unknown permission 'admin'"), "{e}");
-    let u = create_user(&c, "alice", Some("a-long-enough-password"), false).unwrap();
+    let u = create_user(&c, "alice", Some(&pw("alice")), false).unwrap();
     let e = effective_permission_expr(&c, &u.id, "delete").unwrap_err();
     assert!(e.contains("unknown permission 'delete'"), "{e}");
     // Nothing was stored by the refused calls.
@@ -154,11 +159,12 @@ fn a_permission_rule_names_a_known_subject_and_a_known_permission() {
 #[test]
 fn a_legacy_sha256_password_still_logs_in_and_is_upgraded_to_argon2() {
     let c = ready();
+    let old_pw = pw("legacy");
     let u = create_user(&c, "old", None, false).unwrap();
     let salt = [7u8; 16];
     let mut h = Sha256::new();
     h.update(salt);
-    h.update(b"the-old-password");
+    h.update(old_pw.as_bytes());
     let legacy = format!("{}:{}", hex::encode(salt), hex::encode(h.finalize()));
     c.execute(
         "UPDATE users SET password_hash = ?1 WHERE id = ?2",
@@ -174,11 +180,13 @@ fn a_legacy_sha256_password_still_logs_in_and_is_upgraded_to_argon2() {
         .unwrap()
     };
     // A wrong password neither logs in nor touches the stored hash.
-    assert!(verify_user_password(&c, "old", "not-it").unwrap().is_none());
+    assert!(verify_user_password(&c, "old", &pw("wrong"))
+        .unwrap()
+        .is_none());
     assert_eq!(stored(&c), legacy);
     // The right one logs in, and the hash is now Argon2id.
     assert_eq!(
-        verify_user_password(&c, "old", "the-old-password")
+        verify_user_password(&c, "old", &old_pw)
             .unwrap()
             .unwrap()
             .id,
@@ -186,9 +194,7 @@ fn a_legacy_sha256_password_still_logs_in_and_is_upgraded_to_argon2() {
     );
     assert!(stored(&c).starts_with("$argon2"), "{}", stored(&c));
     // ...and the same password keeps working against the new hash.
-    assert!(verify_user_password(&c, "old", "the-old-password")
-        .unwrap()
-        .is_some());
+    assert!(verify_user_password(&c, "old", &old_pw).unwrap().is_some());
 }
 
 /// A stored hash that is not one of the two formats can never match (it is a failed login, not a
@@ -211,8 +217,8 @@ fn a_damaged_stored_hash_is_a_failed_login_not_an_error() {
             rusqlite::params![bad, u.id],
         )
         .unwrap();
-        let r = verify_user_password(&c, &name, "anything");
-        assert!(matches!(r, Ok(None)), "{bad:?} -> {r:?}");
+        let r = verify_user_password(&c, &name, &pw("any"));
+        assert!(matches!(r, Ok(None)), "case {n} was not a failed login");
     }
 }
 

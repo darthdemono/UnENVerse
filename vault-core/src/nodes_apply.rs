@@ -213,7 +213,7 @@ fn write_atomic(
             drop(f);
             let _ = std::fs::remove_file(&tmp);
             return Err(format!(
-                "cannot give {} to {uid}:{gid}: {e}",
+                "cannot give {} to the owner named in the target: {e}",
                 path.display()
             ));
         }
