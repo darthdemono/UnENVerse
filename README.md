@@ -1065,7 +1065,7 @@ Rotate these and nothing else:
 
 ## Stack integrations
 
-Prometheus (`prometheus.yml`), Grafana (provisioned datasources) and Homepage (`services.yaml`) are project types whose output is described by a JSON file (`vault-core/data/stack-adapters.json`) rather than hand-written code. Create one from the project type list (they are experimental: enable them in Settings), add chunks, then `unv project export NAME --format prometheus` or push it to a node. `unv check` applies each integration's own rules. `vscode-extension/` completes `${Provider/FIELD}` references in an editor and scans a file for exposed secrets.
+Prometheus (`prometheus.yml`), Grafana (provisioned datasources), Homepage (`services.yaml`), Home Assistant (`secrets.yaml`) and Compose secret (one raw file under `/run/secrets`) are project types whose output is described by a JSON file (`vault-core/data/stack-adapters.json`) rather than hand-written code. Create one from the project type list (they are experimental: enable them in Settings), add chunks, then `unv project export NAME --format prometheus` or push it to a node. `unv check` applies each integration's own rules. `vscode-extension/` completes `${Provider/FIELD}` references in an editor and scans a file for exposed secrets.
 
 ## Concurrent writes
 
@@ -1211,11 +1211,11 @@ The plan for October 2026 to October 2027, ending in 1.0.0. It states intent, no
 
 <!-- roadmap-status:start -->
 
-Status as of release 0.81.0:
+Status as of release 0.82.0:
 
 - **Done:** R00 baseline + instruction split; R01 security hotfixes; R02 CI release gating + speed; R03 dependency modernisation; R04 unv-app extraction; R05 ops runtime + local recovery; R06 SFTP, retention, restore drill; R07 metadata + lifecycle core; R08 config parsers + migration core; R09 password-manager sources; R12 desktop hub + deployment; R17 upstream experiments; R21 compatibility contract + catalogue URL; R22 unENVerse website; R24 site truth generation; R35 paste guard.
-- **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle; R29 Home Assistant recipe; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec; R36 secret phrases + recovery codes; R38 first-run hardening; R40 sites, many addresses per secret; R41 pattern password generator; R44 glossary of every term.
-- **Not started:** R23 SL2 + PingDD site fixes; R26.1 package-manager channels; R27 Compose file secrets; R28 scripts + sibling tools; R37 browser password manager; R39 full test coverage; R42 key slots, security keys and passkeys; R43 unlock and session policy; R45 Android.
+- **Partly shipped:** R26 signed desktop + CLI updates; R10 git sources + cutover; R11 service sources; R13 rotation engine; R14 plugin foundation; R15 UI QoL; R16 platform parity; R18 desktop CLI bridge; R19 vault identity + single writer; R20 delete / forget / rekey; R25 community files + support bundle; R27 Compose file secrets; R29 Home Assistant recipe; R30 ref-only project files; R31 per-command secret release; R32 SSH agent; R33 canary entries; R34 sandboxed exec; R36 secret phrases + recovery codes; R38 first-run hardening; R39 full test coverage; R40 sites, many addresses per secret; R41 pattern password generator; R44 glossary of every term.
+- **Not started:** R23 SL2 + PingDD site fixes; R26.1 package-manager channels; R28 scripts + sibling tools; R37 browser password manager; R42 key slots, security keys and passkeys; R43 unlock and session policy; R45 Android.
 
 <!-- roadmap-status:end -->
 

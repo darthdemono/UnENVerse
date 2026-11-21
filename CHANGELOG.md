@@ -2,6 +2,24 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.82.0 (2026-11-21)
+
+### Added
+
+- **Compose secret files on a node (R27, part B).** A node target can set `compose_project`, `compose_file` and `services`: after writing the secret file the node runs `docker compose config -q` on it, then recreates only the listed services (`--no-deps --force-recreate`), then the optional `check`. The file is written with mode `0400` (`file_mode` changes it) and the `owner` you name (a numeric `uid` or `uid:gid`, for the user inside the container). A failed step puts the previous file back with its mode; the previous copy is not kept once the change can no longer be rolled back. New project type **Compose secret**: one value written as the raw file (no header, no newline; an empty value is an error, never a comment line that would become the password). CI reads it with a real Postgres through `POSTGRES_PASSWORD_FILE`, with a wrong-password control.
+- **Home Assistant `secrets.yaml` (R29).** New project type **Home Assistant secrets**: one chunk per secret, the chunk name is the `!secret` name; digits-only values and YAML words (`yes`, `123456`) are quoted; two secrets with one name are an error. A node target with `validate = "… check_config …"` writes the file and puts the old one back when the check fails. CI runs Home Assistant's own `check_config` on the generated file, with a control that names a secret the file does not hold. The guide now says which installs can run a node.
+- **Kind and matching rule per address (R40).** Under the Addresses box in the add and edit form each address has a row to choose its kind (login page, API, local service, other) and how strictly a page must match it (exact, any port, whole host, never offer). Untouched addresses keep their kind, rule, label, source and date.
+- **`unv env PROJECT --with-urls`** appends `NAME_URL`, `NAME_HOST` and `NAME_PORT` for the first address of every entry the project's values point at, the same variables `unv exec --with-urls` sets. A name the file already sets is not overwritten; the key stays redacted on stdout.
+
+### Changed
+
+- The stack-adapter grammar gains `pairs` (one `key: value` line per chunk of a type) and raw output (a descriptor whose output is one bare string is written as it is). Both interpreters, Rust and TypeScript, read them and are pinned by new golden files.
+
+### Tests
+
+- R39 slice 1 (`vault-core/src/users.rs`): every account operation reports a database it cannot use instead of claiming success; unknown permission and subject names are refused; a legacy SHA-256 password still logs in and is upgraded to Argon2id; a damaged stored hash is a failed login; the owner cannot be deleted; a class keeps and loses its permissions with the class. The rest of `users.rs`, `storage.rs`, `cxf.rs` and `recovery.rs` are still open.
+- A stored entry with addresses is read back with every kind, rule, label, source and date (Rust), and goes through the entry form unchanged (TypeScript), from one shared fixture.
+
 ## 0.81.0 (2026-11-19)
 
 ### Added

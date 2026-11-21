@@ -144,7 +144,7 @@
     {
       "id": "R27",
       "title": "Compose file secrets",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R28",
@@ -204,7 +204,7 @@
     {
       "id": "R39",
       "title": "full test coverage",
-      "state": "planned"
+      "state": "partial"
     },
     {
       "id": "R40",
