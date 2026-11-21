@@ -28,10 +28,6 @@ ignore = [
   { id = "RUSTSEC-2025-0081", reason = "unic-char-property: unmaintained, via tauri-utils" },
   { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version: unmaintained, via tauri-utils" },
   { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident: unmaintained, via tauri-utils" },
-  # quick-xml 0.38 via plist via tauri-utils: parses Tauri's own macOS plist
-  # templates at build time, never untrusted XML. Needs Tauri to move to >=0.41.
-  { id = "RUSTSEC-2026-0194", reason = "quick-xml: build-time plist parsing of our own files (Tauri)" },
-  { id = "RUSTSEC-2026-0195", reason = "quick-xml: build-time plist parsing of our own files (Tauri)" },
   # Marvin Attack on RSA decryption timing. Pulled in by ssh-key's `crypto`
   # feature (exactly pinned in AGENTS.md). UnENVerse generates RSA/ed25519 keys and
   # never performs RSA private-key decryption on attacker-chosen ciphertext, which
