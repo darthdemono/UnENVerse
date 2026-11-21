@@ -2,6 +2,12 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.84.0 (2026-11-21)
+
+### Added
+
+- **Signed desktop updates (R26).** Settings, Updates has **Check for updates**: it asks the signed release feed (`latest.json` on the newest release) only when pressed, shows the version and notes, and installs only after **Install update**. The updater verifies the download against the update public key built into the app and never restarts it; Windows uses the visible installer mode. AppImage and the Windows installer update this way; `.deb` and `.rpm` copies are pointed at their package manager. The release workflow signs both bundles with a separate update key, writes `latest.json` with `scripts/updater-manifest.mjs` (a platform without a signature fails the build, with a control that proves it) and attaches it to the release.
+
 ## 0.83.1 (2026-11-21)
 
 ### Changed
