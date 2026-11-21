@@ -22,6 +22,8 @@ pub enum SourceKind {
     Compose,
     WireGuard,
     Nginx,
+    /// Home Assistant `secrets.yaml`: top-level `name: value` lines only.
+    HomeAssistant,
     /// Findings from a leak scanner, built by [`plan_leaks`], never read from a file by `read`.
     Gitleaks,
 }
@@ -33,7 +35,8 @@ impl SourceKind {
             "compose" | "docker-compose" => Ok(Self::Compose),
             "wireguard" | "wg" => Ok(Self::WireGuard),
             "nginx" => Ok(Self::Nginx),
-            _ => Err("format must be env, compose, wireguard or nginx".into()),
+            "homeassistant" | "ha-secrets" => Ok(Self::HomeAssistant),
+            _ => Err("format must be env, compose, wireguard, nginx or homeassistant".into()),
         }
     }
 
@@ -43,6 +46,7 @@ impl SourceKind {
             Self::Compose => "compose",
             Self::WireGuard => "wireguard",
             Self::Nginx => "nginx",
+            Self::HomeAssistant => "homeassistant",
             Self::Gitleaks => "gitleaks",
         }
     }
@@ -200,6 +204,82 @@ fn env_source(label: &str, text: &str) -> ParsedSource {
         unsupported: Vec::new(),
         has_comments: comments,
     }
+}
+
+/// Home Assistant `secrets.yaml`. Only a top-level `name: value` line with a plain or
+/// simply quoted scalar is read; the span of a quoted value is the inner text, so the
+/// template keeps its quotes. Anything else (nested, indented, block scalar, empty,
+/// backslash, inline comment, anchor or tag) goes to `unsupported` and is archived.
+fn homeassistant_source(label: &str, text: &str) -> ParsedSource {
+    let mut fields = Vec::new();
+    let mut unsupported = Vec::new();
+    let mut offset = 0usize;
+    let mut ordinal = 0usize;
+    let mut comments = false;
+    for (index, line) in text.split_inclusive('\n').enumerate() {
+        let body = line.trim_end_matches(['\r', '\n']);
+        let trimmed = body.trim();
+        if trimmed.starts_with('#') {
+            comments = true;
+        } else if !trimmed.is_empty() && trimmed != "---" {
+            match ha_line(body) {
+                Some((name, vs, ve, logical)) => {
+                    ordinal += 1;
+                    fields.push(SourceField {
+                        name: name.to_string(),
+                        logical_value: logical.to_string(),
+                        raw_value: logical.to_string(),
+                        start: offset + vs,
+                        end: offset + ve,
+                        source_id: source_id(SourceKind::HomeAssistant, label, name, ordinal),
+                    });
+                }
+                None => unsupported.push(format!("line {}", index + 1)),
+            }
+        }
+        offset += line.len();
+    }
+    ParsedSource {
+        kind: SourceKind::HomeAssistant,
+        label: label.into(),
+        text: text.into(),
+        fields,
+        unsupported,
+        has_comments: comments,
+    }
+}
+
+/// One line of `secrets.yaml`: (name, value start, value end, value) or None.
+fn ha_line(body: &str) -> Option<(&str, usize, usize, &str)> {
+    if body.starts_with([' ', '\t']) {
+        return None;
+    }
+    let colon = body.find(':')?;
+    let name = body[..colon].trim_end();
+    if name.is_empty() || name.contains(char::is_whitespace) || name.contains(['"', '\'', '#']) {
+        return None;
+    }
+    let rest = &body[colon + 1..];
+    if !rest.starts_with([' ', '\t']) {
+        return None;
+    }
+    let value = rest.trim();
+    if value.is_empty() || value.contains('\\') {
+        return None;
+    }
+    let at = colon + 1 + (rest.len() - rest.trim_start().len());
+    let first = value.chars().next()?;
+    if first == '"' || first == '\'' {
+        let inner = value.strip_prefix(first)?.strip_suffix(first)?;
+        if inner.contains(first) {
+            return None;
+        }
+        return Some((name, at + 1, at + 1 + inner.len(), inner));
+    }
+    if "|>&*!%@`[{".contains(first) || value.contains(" #") {
+        return None;
+    }
+    Some((name, at, at + value.len(), value))
 }
 
 fn key_value_source(kind: SourceKind, label: &str, text: &str) -> ParsedSource {
@@ -377,6 +457,7 @@ fn read(kind: SourceKind, label: &str, text: &str) -> ParsedSource {
         SourceKind::Env => env_source(label, text),
         SourceKind::Compose => compose_source(label, text),
         SourceKind::WireGuard | SourceKind::Nginx => key_value_source(kind, label, text),
+        SourceKind::HomeAssistant => homeassistant_source(label, text),
         SourceKind::Gitleaks => unreachable!("leak findings arrive through plan_leaks"),
     }
 }
@@ -960,6 +1041,40 @@ mod tests {
             assert!(serde_json::to_string(&preview).unwrap().contains(expected));
             assert!(!serde_json::to_string(&preview).unwrap().contains("value"));
         }
+    }
+
+    #[test]
+    fn homeassistant_reader_keeps_quotes_and_archives_what_it_cannot_template() {
+        let text = "# keys\n---\nplain: abc\nquoted: \"p w\"\nsingle: 'x'\n\
+            empty:\nblock: |\n  a\n  b\nback: \"a\\\\b\"\ntail: v # c\nanchor: &a v\n\
+            two: 'a'b'\nno colon\nbad:x\n";
+        let p = homeassistant_source("ha", text);
+        let got: Vec<_> = p
+            .fields
+            .iter()
+            .map(|f| {
+                (
+                    f.name.as_str(),
+                    &text[f.start..f.end],
+                    f.logical_value.as_str(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("plain", "abc", "abc"),
+                ("quoted", "p w", "p w"),
+                ("single", "x", "x")
+            ]
+        );
+        assert!(p.has_comments);
+        assert_eq!(p.unsupported.len(), 10, "{:?}", p.unsupported);
+        assert_eq!(
+            SourceKind::parse("ha-secrets").unwrap().as_str(),
+            "homeassistant"
+        );
+        assert!(ha_line("a: 'unterminated").is_none());
     }
 
     #[test]
