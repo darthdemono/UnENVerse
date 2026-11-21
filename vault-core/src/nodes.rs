@@ -3136,7 +3136,7 @@ reload = "systemctl reload nginx"
             ),
             (
                 "compose_project=\"demo\"\ncompose_file=\"/srv/c.yaml\"\nservices=[\"db\"]\nmode=\"pull\"\n",
-                "mode is",
+                "a pull target is only read",
             ),
             ("services=[\"db\"]\n", "belong to a target that sets compose_project"),
             ("compose_file=\"/srv/c.yaml\"\n", "belong to a target that sets compose_project"),
@@ -3173,6 +3173,13 @@ reload = "systemctl reload nginx"
         assert_eq!(t.exporter, "homeassistant");
         assert!(t.validate.as_deref().unwrap().contains("check_config"));
         assert!(t.check.as_deref().unwrap().starts_with("http://"));
+    }
+
+    #[test]
+    fn a_compose_target_that_only_reads_is_refused_for_its_mode() {
+        // Without `apply` the pull rule has nothing to say, so the Compose rule does.
+        let t = "[[target]]\nid=\"pw\"\npath=\"/srv/s\"\nproject=\"p\"\nexporter=\"compose-secret\"\nmode=\"pull\"\ncompose_project=\"demo\"\ncompose_file=\"/srv/c.yaml\"\nservices=[\"db\"]\n";
+        assert!(NodeConfig::parse(t).unwrap_err().contains("its mode is"));
     }
 
     fn listen(endpoint: &str) -> ListenInfo {
