@@ -1,6 +1,6 @@
 [package]
 name    = "unv-server"
-version = "0.83.0"
+version = "0.83.1"
 edition = "2021"
 rust-version.workspace = true
 publish = false
@@ -23,7 +23,7 @@ vault-core   = { path = "../vault-core", features = ["telemetry"] }
 unv-app     = { path = "../unv-app", default-features = false }
 tracing      = "0.1"
 axum         = "0.8"
-axum-server  = { version = "0.8", features = ["tls-rustls"] }
+axum-server  = { version = "0.9", features = ["tls-rustls"] }
 tokio        = { version = "1", features = ["full"] }
 tower-http   = { version = "0.7", features = ["cors"] }
 serde        = { version = "1", features = ["derive"] }

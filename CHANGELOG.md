@@ -2,6 +2,12 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.83.1 (2026-11-21)
+
+### Changed
+
+- Dependency updates only: base images, the lint group, the Cargo minor and patch group, `axum-server` 0.9.2, `vite` 8.3.8 and `semgrep` 1.185.0.
+
 ## 0.83.0 (2026-11-21)
 
 ### Added
@@ -1224,4 +1230,5 @@ No git tag exists for this version.
 - `execCommand` clipboard fallback for WebKitGTK silently-failing `navigator.clipboard`
 - `data-action` delegation — replaced all `onclick="..."` in `innerHTML`
 - `-webkit-appearance: none` on `<select>` for WebKit CSS colours
+
 
