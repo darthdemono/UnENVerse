@@ -554,19 +554,19 @@ jobs:
             docker compose -f stack/compose.yaml exec -T db pg_isready -U postgres >/dev/null 2>&1 && break
             sleep 2
           done
-          # Over TCP so the password is checked; the image's socket login is trust.
-          # initdb restarts the server once, so retry until the final one answers.
+          # From a second container over the compose network, so the password is checked: the
+          # image trusts connections that come from its own loopback and socket.
           for i in $(seq 1 30); do
-            docker compose -f stack/compose.yaml exec -T -e PGPASSWORD=compose-pg-value-9 db \
-              psql -h 127.0.0.1 -U postgres -tAc 'SELECT 1' >out.txt 2>/dev/null && break
+            docker run --rm --network stack_default -e PGPASSWORD=compose-pg-value-9 postgres:16 \
+              psql -h db -U postgres -tAc 'SELECT 1' >out.txt 2>/dev/null && break
             sleep 2
           done
           test "$(cat out.txt)" = 1
       - name: Control — a wrong password must be refused
         run: |
           set -euo pipefail
-          if docker compose -f stack/compose.yaml exec -T -e PGPASSWORD=compose-pg-value-8 db \
-              psql -h 127.0.0.1 -U postgres -tAc 'SELECT 1' >/dev/null 2>&1; then
+          if docker run --rm --network stack_default -e PGPASSWORD=compose-pg-value-8 postgres:16 \
+              psql -h db -U postgres -tAc 'SELECT 1' >/dev/null 2>&1; then
             echo "::error::Postgres accepted a wrong password — this check proves nothing"
             exit 1
           fi
