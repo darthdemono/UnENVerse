@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "comment": "Phase 38. One descriptor per stack integration, read by Rust (vault-core/src/stack.rs) and TypeScript (src/ts/stack.ts) so a new integration is data, not a new exporter in each language. Node grammar: a string/number/bool is a literal; {f} a field of the current chunk (as: list|bool|int, fmt: 'Bearer {}'); {map:[[key,node],...]} an ordered map that drops empty entries; {list:[node,...]}; {each:type,node}; {singleton:type,node}; {group:{of,by,default,item}}; {entry:{key,value}}; {when:[fields],node}. '@name' is the chunk's name. keep:true emits an empty list/map instead of dropping it.",
+  "comment": "Phase 38. One descriptor per stack integration, read by Rust (vault-core/src/stack.rs) and TypeScript (src/ts/stack.ts) so a new integration is data, not a new exporter in each language. Node grammar: a string/number/bool is a literal; {f} a field of the current chunk (as: list|bool|int, fmt: 'Bearer {}'); {map:[[key,node],...]} an ordered map that drops empty entries; {list:[node,...]}; {each:type,node}; {singleton:type,node}; {group:{of,by,default,item}}; {entry:{key,value}}; {pairs:{of,key,value}} one map with a key: value line per chunk of a type; a root that evaluates to a bare string is written as a raw file (no header, no newline); {when:[fields],node}. '@name' is the chunk's name. keep:true emits an empty list/map instead of dropping it.",
   "adapters": [
     {
       "id": "prometheus",
@@ -440,6 +440,68 @@
           "fields": ["widget_key", "widget_password"],
           "severity": "warning",
           "message": "service '{name}' sets both a widget key and a widget password"
+        }
+      ]
+    },
+    {
+      "id": "homeassistant",
+      "label": "Home Assistant secrets",
+      "abbr": "HA",
+      "description": "Home Assistant's secrets.yaml: one named value per line, read back as !secret name (the file stays plaintext on the Home Assistant host)",
+      "file": "secrets.yaml",
+      "chunks": [
+        {
+          "type": "homeassistant_secret",
+          "label": "Secret",
+          "fields": [{ "key": "value", "secret": true, "help": "the value; !secret NAME reads it" }]
+        }
+      ],
+      "starter": [{ "type": "homeassistant_secret", "name": "recorder_db_url" }],
+      "output": {
+        "pairs": {
+          "of": "homeassistant_secret",
+          "key": { "f": "@name" },
+          "value": { "f": "value" }
+        }
+      },
+      "rules": [
+        {
+          "id": "duplicate-secret",
+          "kind": "unique",
+          "type": "homeassistant_secret",
+          "field": "@name",
+          "severity": "error",
+          "message": "two secrets are named '{name}'; Home Assistant keeps one value per name and the second would replace the first"
+        }
+      ]
+    },
+    {
+      "id": "compose-secret",
+      "label": "Compose secret file",
+      "abbr": "CS",
+      "description": "One secret as the raw file Docker Compose mounts under /run/secrets, with no header and no trailing newline",
+      "file": "secret",
+      "raw": true,
+      "chunks": [
+        {
+          "type": "compose_secret_value",
+          "label": "Secret value",
+          "singleton": true,
+          "fields": [
+            { "key": "value", "secret": true, "help": "written exactly as it is, no newline" }
+          ]
+        }
+      ],
+      "starter": [{ "type": "compose_secret_value", "name": "secret" }],
+      "output": { "singleton": "compose_secret_value", "node": { "f": "value" } },
+      "rules": [
+        {
+          "id": "empty-secret",
+          "kind": "required",
+          "type": "compose_secret_value",
+          "field": "value",
+          "severity": "error",
+          "message": "the secret '{name}' has no value, and an empty file would become the password"
         }
       ]
     }

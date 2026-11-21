@@ -73,12 +73,29 @@ fn homepage_matches_the_app() {
 }
 
 #[test]
+fn home_assistant_matches_the_app() {
+    let v = vault();
+    let out = exporters::export_stack("homeassistant", &project(&v, "ha"), &resolver(&v, false));
+    assert_eq!(out, golden("stack-homeassistant.yaml"));
+}
+
+#[test]
+fn a_compose_secret_is_the_raw_value_with_no_header_and_no_newline() {
+    let v = vault();
+    let out = exporters::export_stack("compose-secret", &project(&v, "cs"), &resolver(&v, false));
+    assert_eq!(out, golden("stack-compose-secret.txt"));
+    assert!(!out.contains('\n') && !out.starts_with('#'));
+}
+
+#[test]
 fn the_cli_render_path_reaches_the_same_bytes_by_project_type() {
     let v = vault();
     for (project_id, exporter, file) in [
         ("prom", "prometheus", "stack-prometheus.yml"),
         ("graf", "grafana", "stack-grafana.yml"),
         ("home", "homepage", "stack-homepage.yaml"),
+        ("ha", "homeassistant", "stack-homeassistant.yaml"),
+        ("cs", "compose-secret", "stack-compose-secret.txt"),
     ] {
         let ptype = project(&v, project_id)["project_type"]
             .as_str()
@@ -150,7 +167,7 @@ fn the_fixture_projects_are_clean_under_their_own_rules() {
         .iter()
         .filter_map(|e| e["provider"].as_str().map(String::from))
         .collect();
-    for id in ["prom", "graf", "home"] {
+    for id in ["prom", "graf", "home", "ha", "cs"] {
         let found = config_check::check_project(&project(&v, id), &names);
         assert!(
             found.is_empty(),
@@ -210,4 +227,42 @@ fn a_chunk_added_from_the_cli_has_its_descriptors_defaults_and_secret_flags() {
     };
     assert_eq!(field("targets")["value"], "localhost:9090");
     assert_eq!(field("password")["field_type"], "secret");
+}
+
+/// What the redacting resolver (stdout) must hide in the two flat secret files: every value,
+/// the digits-only one included, and the raw Compose secret is a fingerprint, not the value.
+#[test]
+fn the_flat_secret_files_show_only_fingerprints_on_stdout() {
+    let v = vault();
+    for (id, exporter) in [("ha", "homeassistant"), ("cs", "compose-secret")] {
+        let out = exporters::export_stack(exporter, &project(&v, id), &resolver(&v, true));
+        for secret in ["ha-db-pass-1", "tok_ha_abc", "123456", "compose-pg-value-9"] {
+            assert!(!out.contains(secret), "{exporter} leaked {secret}:\n{out}");
+        }
+        assert!(out.contains("sha256:"), "{exporter}:\n{out}");
+    }
+}
+
+/// Home Assistant keeps one value per name, so a second secret with the same name is an error
+/// the check reports (the second would silently replace the first in `secrets.yaml`).
+#[test]
+fn two_home_assistant_secrets_with_one_name_are_an_error() {
+    let mut v = vault();
+    let ha = v["projects"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["id"] == "ha")
+        .unwrap();
+    let again = ha["chunks"][1].clone();
+    ha["chunks"].as_array_mut().unwrap().push(again);
+    let ha = project(&v, "ha");
+    let found = config_check::check_project(&ha, &[]);
+    assert!(
+        found
+            .iter()
+            .any(|f| f.rule == "stack-homeassistant-duplicate-secret"),
+        "{:?}",
+        found.iter().map(|f| f.rule).collect::<Vec<_>>()
+    );
 }

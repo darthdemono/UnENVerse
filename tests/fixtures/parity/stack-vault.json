@@ -83,6 +83,42 @@
         "Universal"
       ],
       "scopes": []
+    },
+    {
+      "id": "e-hadb",
+      "provider": "HaDb",
+      "api_key": "ha-db-pass-1",
+      "secretType": "api_key",
+      "price_type": "free",
+      "categories": [],
+      "projectIds": [
+        "Universal"
+      ],
+      "scopes": []
+    },
+    {
+      "id": "e-hatok",
+      "provider": "HaToken",
+      "api_key": "tok_ha_abc",
+      "secretType": "api_key",
+      "price_type": "free",
+      "categories": [],
+      "projectIds": [
+        "Universal"
+      ],
+      "scopes": []
+    },
+    {
+      "id": "e-cpg",
+      "provider": "ComposePg",
+      "api_key": "compose-pg-value-9",
+      "secretType": "api_key",
+      "price_type": "free",
+      "categories": [],
+      "projectIds": [
+        "Universal"
+      ],
+      "scopes": []
     }
   ],
   "user_categories": [],
@@ -657,6 +693,81 @@
             {
               "key": "href",
               "value": "http://bare.local",
+              "field_type": "var"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ha",
+      "name": "ha",
+      "project_type": "homeassistant",
+      "chunks": [
+        {
+          "id": "s1",
+          "name": "recorder_db_password",
+          "chunk_type": "homeassistant_secret",
+          "fields": [
+            {
+              "key": "value",
+              "value": "${HaDb}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "s2",
+          "name": "long_lived_token",
+          "chunk_type": "homeassistant_secret",
+          "fields": [
+            {
+              "key": "value",
+              "value": "${HaToken}",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "s3",
+          "name": "pin_code",
+          "chunk_type": "homeassistant_secret",
+          "fields": [
+            {
+              "key": "value",
+              "value": "123456",
+              "field_type": "var"
+            }
+          ]
+        },
+        {
+          "id": "s4",
+          "name": "old_token",
+          "chunk_type": "homeassistant_secret",
+          "fields": [
+            {
+              "key": "value",
+              "value": "${HaToken}",
+              "field_type": "var"
+            }
+          ],
+          "disabled": true
+        }
+      ]
+    },
+    {
+      "id": "cs",
+      "name": "cs",
+      "project_type": "compose-secret",
+      "chunks": [
+        {
+          "id": "c1",
+          "name": "db_password",
+          "chunk_type": "compose_secret_value",
+          "fields": [
+            {
+              "key": "value",
+              "value": "${ComposePg}",
               "field_type": "var"
             }
           ]
