@@ -17,7 +17,7 @@ All notable changes to UnENVerse, newest first, compiled from the development se
 
 ### Tests
 
-- R39 slice 1 (`vault-core/src/users.rs`): every account operation reports a database it cannot use instead of claiming success; unknown permission and subject names are refused; a legacy SHA-256 password still logs in and is upgraded to Argon2id; a damaged stored hash is a failed login; the owner cannot be deleted; a class keeps and loses its permissions with the class. The rest of `users.rs`, `storage.rs`, `cxf.rs` and `recovery.rs` are still open.
+- R39 slice 1 (`vault-core/src/users.rs`): every account operation reports a database it cannot use instead of claiming success; unknown permission and subject names are refused; a legacy SHA-256 password still logs in and is upgraded to Argon2id; a damaged stored hash is a failed login; the owner cannot be deleted; a class keeps and loses its permissions with the class. Also: what a recovery package and its keys refuse (`recovery_refusals`), what a CXF export keeps, drops and reads back (pinned entries, tags, a seed-only item, free-form fields), and the edges of address matching, kinds, old `api_url` and families (`sites_edges`). The rest of `users.rs`, `storage.rs`, `nodes.rs` and `ops.rs` are still open.
 - A stored entry with addresses is read back with every kind, rule, label, source and date (Rust), and goes through the entry form unchanged (TypeScript), from one shared fixture.
 
 ## 0.81.0 (2026-11-19)
