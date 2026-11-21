@@ -119,3 +119,89 @@ fn a_member_without_a_parent_bundle_still_imports_with_its_seed() {
     assert_eq!(out[1]["bundle_slot"], "basic-auth");
     assert_eq!(out[1]["totp_secret"], "JBSWY3DPEHPK3PXP");
 }
+
+#[test]
+fn a_pinned_entry_and_its_tags_go_out_as_a_favourite_with_tags() {
+    let doc = export(&[
+        json!({ "id": "p", "provider": "Pinned", "secretType": "password", "api_key": "pw",
+            "pinned": true, "tags": ["work", 7, "ci"] }),
+        json!({ "id": "q", "provider": "Plain", "secretType": "password", "api_key": "pw2" }),
+    ]);
+    let v = serde_json::to_value(&doc).unwrap();
+    let items = v["items"].as_array().unwrap();
+    assert_eq!(items[0]["favorite"], true);
+    // A tag that is not text is dropped, the rest keep their order.
+    assert_eq!(items[0]["tags"], json!(["work", "ci"]));
+    // The default is written as an absence, not as false and an empty list.
+    assert!(items[1].get("favorite").is_none() && items[1].get("tags").is_none());
+}
+
+#[test]
+fn a_variable_without_a_name_or_a_value_is_left_out_of_a_custom_fields_item() {
+    let doc = export(&[
+        json!({ "id": "n", "provider": "Safe", "secretType": "database",
+        "extra_vars": [{ "key": "has", "value": "v" }, { "key": "no_value" }, { "value": "no_key" }] }),
+    ]);
+    let text = serde_json::to_string(&doc).unwrap();
+    assert!(text.contains("\"has\""), "{text}");
+    assert!(
+        !text.contains("no_value") && !text.contains("no_key"),
+        "{text}"
+    );
+}
+
+#[test]
+fn an_item_that_holds_only_a_seed_imports_as_an_entry_with_that_seed() {
+    let bytes = serde_json::to_vec(&json!({ "items": [{
+        "id": "t", "title": "Authenticator only",
+        "credentials": [{ "type": "totp", "secret": "JBSWY3DPEHPK3PXP", "period": 60, "digits": 8, "algorithm": "SHA512" }]
+    }] }))
+    .unwrap();
+    let doc = parse(&bytes).unwrap();
+    let out = import(&doc, || "new-1".to_string(), NOW);
+    assert_eq!(out.len(), 1, "{out:?}");
+    let e = &out[0];
+    assert_eq!(e["provider"], "Authenticator only");
+    assert_eq!(e["totp_secret"], "JBSWY3DPEHPK3PXP");
+    assert_eq!(
+        (
+            e["totp_period"].as_u64(),
+            e["totp_digits"].as_u64(),
+            e["totp_algorithm"].as_str()
+        ),
+        (Some(60), Some(8), Some("SHA512"))
+    );
+}
+
+#[test]
+fn every_credential_kind_is_named_when_a_second_one_is_refused() {
+    // An item with two credentials of kinds this importer folds into a bundle: each kind gets a
+    // stable slot name, never a blank one.
+    let bytes = serde_json::to_vec(&json!({ "items": [{
+        "id": "m", "title": "Mixed",
+        "credentials": [
+            { "type": "note", "content": "n" },
+            { "type": "wifi", "ssid": "Net", "passphrase": "pw" },
+            { "type": "ssh-key", "private_key": "priv" },
+            { "type": "custom-fields", "fields": [{ "name": "a", "value": "b" }] },
+            { "type": "totp", "secret": "JBSWY3DPEHPK3PXP" }
+        ]
+    }] }))
+    .unwrap();
+    let out = import(&parse(&bytes).unwrap(), || "x".to_string(), NOW);
+    let slots: Vec<&str> = out
+        .iter()
+        .filter_map(|e| e["bundle_slot"].as_str())
+        .collect();
+    for want in ["note", "wifi", "ssh-key"] {
+        assert!(slots.contains(&want), "{slots:?} lacks {want}");
+    }
+    // The free-form fields are not lost: they stay as a variable on one of the entries.
+    assert!(
+        out.iter().any(|e| e["extra_vars"]
+            .as_array()
+            .is_some_and(|v| v.iter().any(|x| x["key"] == "a" && x["value"] == "b"))),
+        "{out:?}"
+    );
+    assert!(slots.iter().all(|s| !s.is_empty()));
+}
