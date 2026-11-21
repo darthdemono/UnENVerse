@@ -70,3 +70,7 @@ The node writes the file, runs the check, and when it fails puts the previous `s
 and does not reload. After the reload it waits for the `check` URL to answer, and when it does not it
 puts the old file back and restarts again. CI runs Home Assistant's own `check_config` on the
 generated file, and a control that names a secret the file does not hold must fail.
+
+## Import an existing secrets.yaml
+
+`unv migrate plan --format homeassistant secrets.yaml` reads the top-level `name: value` lines (plain or simply quoted values). A nested, indented, empty, block-scalar, backslash or inline-comment line is archived untouched and listed as unsupported, never guessed at.

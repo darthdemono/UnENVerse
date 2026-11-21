@@ -2,6 +2,20 @@
 
 All notable changes to UnENVerse, newest first, compiled from the development session notes. Before the rename to UnENVerse (2026-10-09) the product was called EnvVault, the command `envv` and the server `envv-server`.
 
+## 0.83.0 (2026-11-21)
+
+### Added
+
+- **Import a Home Assistant `secrets.yaml` (R29).** `unv migrate plan --format homeassistant` (alias `ha-secrets`) reads top-level `name: value` lines; a quoted value keeps its quotes in the template. Nested, indented, empty, block-scalar, backslash, anchor and inline-comment lines are archived and listed as unsupported. New fuzz target `migrate_homeassistant`.
+
+### Fixed
+
+- **CXF export no longer loses the variables of a secure note.** A secure note with variables goes out as custom fields, so the text and every variable survive the round trip.
+
+### Changed
+
+- `deny.toml` drops the two `quick-xml` advisory ignores (RUSTSEC-2026-0194 and -0195); `Cargo.lock` already holds the patched 0.42.0.
+
 ## 0.82.0 (2026-11-21)
 
 ### Added
@@ -1210,3 +1224,4 @@ No git tag exists for this version.
 - `execCommand` clipboard fallback for WebKitGTK silently-failing `navigator.clipboard`
 - `data-action` delegation — replaced all `onclick="..."` in `innerHTML`
 - `-webkit-appearance: none` on `<select>` for WebKit CSS colours
+
